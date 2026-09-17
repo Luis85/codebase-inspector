@@ -41,16 +41,36 @@ export function runContractSuite(
       }
     });
 
-    it('never yields an entry outside the root', async () => {
+    // Fix-round-1 IMPORTANT finding 4: a bare "starts with root" prefix check is vacuous
+    // by construction — every implementation builds absolutePath as
+    // `deps.joinPath(root, name)`, so it structurally cannot be anything else, buggy or
+    // not (a bare prefix check can never fail here). Strengthened to also assert EXACT
+    // correspondence between the suffix of absolutePath (after stripping root) and the
+    // entry's own relativePath — this WOULD fail against a real bug class a prefix check
+    // cannot see, such as joinPath dropping, duplicating or misordering a path segment.
+    // A genuine escape-attempt test (a name that could actually resolve outside root)
+    // lives at the walker level instead — see tests/unit/walker-bounds.test.ts's
+    // "containment actually intercepts an escaping entry name", which needs direct
+    // access to a hand-rolled WalkerDeps that this suite's `make()` shape does not
+    // expose, and which real filesystems cannot construct anyway (Node's own
+    // `fs.readdir()` never returns a name that could escape via `..`).
+    it('never yields an entry outside the root, and its absolutePath matches its relativePath exactly', async () => {
       const { port, root } = await make();
       const entries = await collectAll(port, root, CONTRACT_FIXTURE_OPTIONS);
+      const normalizedRoot = root.replace(/\\/g, '/');
+      let checked = 0;
       for (const entry of entries) {
         if (entry.kind === 'skipped') continue;
-        const withinRoot = entry.absolutePath === root
-          || entry.absolutePath.startsWith(`${root}/`)
-          || entry.absolutePath.startsWith(`${root}\\`);
+        const normalizedAbs = entry.absolutePath.replace(/\\/g, '/');
+        const withinRoot = normalizedAbs === normalizedRoot || normalizedAbs.startsWith(`${normalizedRoot}/`);
         expect(withinRoot, entry.absolutePath).toBe(true);
+        const suffix = normalizedAbs.slice(normalizedRoot.length).replace(/^\/+/, '');
+        expect(suffix, entry.absolutePath).toBe(entry.relativePath);
+        checked += 1;
       }
+      // Not vacuous: the fixture always has at least one non-skipped ('file' or
+      // 'directory') entry to actually run the check above against.
+      expect(checked).toBeGreaterThan(0);
     });
 
     it('reports a skipped entry with a REASON rather than omitting it', async () => {
@@ -114,11 +134,20 @@ export function runContractSuite(
       await expect(iterator.next()).rejects.toThrow();
     });
 
-    it('records every path it OPENS in readLog()', async () => {
+    // Fix-round-1 IMPORTANT finding 4: `p.endsWith('a.ts') || p.includes('src')` is
+    // satisfied by the containing DIRECTORY's own open alone (confirmed: the reviewer's
+    // measurement found `<root>\src` logged twice and nothing else, and this assertion
+    // still passed) — it never actually checked that the FILE itself, as opposed to its
+    // parent directory, was opened. This is the assertion the entire read-log safety
+    // proof rests on, so it now checks every non-excluded fixture entry individually,
+    // not just "something plausible-looking is in the log".
+    it('records every path it OPENS in readLog(), for every non-excluded fixture entry', async () => {
       const { port, root } = await make();
       await collectAll(port, root, CONTRACT_FIXTURE_OPTIONS);
-      const log = port.readLog();
-      expect(log.some((p) => p.endsWith('a.ts') || p.includes('src'))).toBe(true);
+      const log = port.readLog().map((p) => p.replace(/\\/g, '/'));
+      for (const relativePath of ['src/a.ts', 'oversized.ts', 'binary.dat', 'unreadable.ts', 'linked']) {
+        expect(log.some((p) => p.endsWith(`/${relativePath}`)), relativePath).toBe(true);
+      }
     });
 
     it('records nothing in readLog() for an excluded path', async () => {

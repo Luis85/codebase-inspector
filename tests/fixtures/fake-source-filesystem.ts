@@ -104,6 +104,16 @@ export function createFakeSourceFileSystem(spec: FakeTree): { port: SourceFileSy
       return Promise.resolve(stats);
     },
     readAsText(absPath) {
+      // Fix-round-1 IMPORTANT finding 4: this must log too, matching
+      // node-source-filesystem.ts's real readAsText (which logs via readRawText) — a
+      // content read IS an open, and the shared contract suite's read-log tests must
+      // see the SAME logging behaviour from both implementations, or "one shared suite
+      // proves the fake and the real adapter cannot drift" would not actually hold for
+      // the read-log mechanism itself. Proved this mattered: with this line and
+      // walker.ts's per-entry onOpen both temporarily removed, the OLD read-log
+      // assertion (`p.endsWith('a.ts') || p.includes('src')`) still passed while
+      // 'src/a.ts' itself was genuinely never logged — reverted before committing.
+      log.push(absPath);
       const node = resolveNode(tree, absPath, root);
       if (!node || node.kind !== 'file') return Promise.reject(new Error(`ENOENT: ${absPath}`));
       return Promise.resolve(classify(node.entry));

@@ -95,3 +95,56 @@ describe('root read failure propagates (fix-round-1 MINOR finding 8, spec 7 "a f
     expect(token.cancelled).toBe(false);
   });
 });
+
+// Fix-round-1 IMPORTANT finding 4: tests/contracts/source-filesystem-port.contract.ts's
+// "never yields an entry outside the root" was vacuous by construction — every
+// implementation's absolutePath is built as `deps.joinPath(root, name)` starting FROM
+// root, so it structurally cannot be anything else; the test could not have failed
+// against any implementation, buggy or not. This gives it something that actually could
+// escape: Node's own `fs.readdir()` never returns '.' or '..' (it filters them, unlike
+// raw POSIX readdir(3)), so this cannot happen through the real adapter today — but it
+// is exactly the shape of name `isContained` and `normalizeRelativePath` exist to defend
+// against if that ever changed (a different filesystem abstraction, a future refactor,
+// or a non-Node WalkerDeps implementation that does not filter '.'/'..' itself).
+describe('containment actually intercepts an escaping entry name (fix-round-1 finding 4)', () => {
+  it('refuses a directory entry literally named ".." rather than yielding an out-of-root path', async () => {
+    const { token } = createCancellationToken();
+    // lstat/readAsText SUCCEED here, deliberately — not "must not be called" rejections.
+    // A mock that rejects those calls would make this test pass EVEN WITH containment
+    // and path-safety removed entirely (verified: I temporarily deleted both checks from
+    // classifyEntry and reran this test with an earlier, rejecting version of these
+    // mocks — it still passed, because the rejection itself produced a same-shaped
+    // 'skipped' entry regardless of which code path produced it). Making lstat report a
+    // real, existing FILE means that if containment/path-safety do not intercept the
+    // escape, the walk actually YIELDS a 'file' entry with an out-of-root absolutePath —
+    // giving this test something genuinely capable of failing.
+    const deps: WalkerDeps = {
+      caseSensitive: true,
+      onOpen: () => {},
+      // Deliberately naive: plain concatenation, unlike either real implementation's
+      // joinPath, which would never itself be asked to "resolve" a traversal segment —
+      // the point is that classifyEntry's OWN checks must catch this regardless of
+      // whether joinPath does anything clever.
+      joinPath: (base, name) => `${base}/${name}`,
+      readdirNames: (absPath) => (absPath === '/root' ? Promise.resolve(['..']) : Promise.resolve([])),
+      lstat: () => Promise.resolve({
+        size: 10, isDirectory: () => false, isFile: () => true, isSymbolicLink: () => false,
+      }),
+      readAsText: () => Promise.resolve({ ok: true, text: 'escaped content' }),
+    };
+    const opts: WalkOptions = { exclusions: [], maxFileBytes: 1000, followSymlinks: false };
+    const entries: WalkEntry[] = [];
+    for await (const entry of walkTree('/root', opts, token, deps)) entries.push(entry);
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.kind).toBe('skipped');
+    expect((entries[0] as Extract<WalkEntry, { kind: 'skipped' }>).reason).toMatch(/unsafe path|outside the approved root/i);
+    // Never an out-of-root absolutePath: the 'skipped' variant carries no absolutePath
+    // field at all, so there is nothing here that COULD have escaped through — the
+    // escape attempt was refused before an entry with an absolutePath was ever built.
+    // (Proved capable of failing: with containment AND path-safety both removed from
+    // classifyEntry, this same test yields a 'file' entry with absolutePath '/root/..'
+    // instead, failing both assertions above — reverted before committing.)
+    expect('absolutePath' in entries[0]!).toBe(false);
+  });
+});
