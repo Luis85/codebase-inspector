@@ -16,6 +16,15 @@ export default tseslint.config(
                                        // no-unsupported-api, prefer-setting-definitions
   { languageOptions: { parserOptions: { project: ['./tsconfig.json', './tsconfig.test.json'] } } },
 
+  // vue.configs['flat/recommended'] sets up vue-eslint-parser for .vue files, but its
+  // <script> block still parses with plain espree unless told to use
+  // @typescript-eslint/parser instead — without this, `<script setup lang="ts">`'s own
+  // TypeScript syntax (starting with `import type { ... }`) is a parse error. Task 3 is
+  // the first task with a .vue file that has any script content, so this gap was never
+  // exercised until now.
+  { files: ['**/*.vue'],
+    languageOptions: { parserOptions: { parser: tseslint.parser, extraFileExtensions: ['.vue'] } } },
+
   // eslint-plugin-obsidianmd@0.4.2's own recommended config turns `no-nodejs-modules` OFF
   // everywhere when manifest.json declares isDesktopOnly: true (its rationale: the rule
   // exists to protect mobile compatibility, which a desktop-only plugin has opted out of).
@@ -76,6 +85,37 @@ export default tseslint.config(
     '@typescript-eslint/no-unsafe-member-access': 'off',
     '@typescript-eslint/no-unsafe-call': 'off',
     '@typescript-eslint/no-unsafe-argument': 'off',
+  } },
+
+  // Both files construct hand-rolled Plugin/CityRendererPort test doubles whose
+  // methods are plain vi.fn() properties, not real bound instance methods.
+  // expect(double.method) is the correct assertion idiom for a spy and never depends
+  // on `this` binding; @typescript-eslint/unbound-method only flags it here because
+  // the double's type intersects with the real Obsidian Plugin class, whose same-named
+  // members ARE real methods.
+  { files: ['tests/host/plugin-onload.test.ts', 'tests/host/city-view.test.ts'], rules: {
+    '@typescript-eslint/unbound-method': 'off',
+  } },
+
+  // tests/mocks/obsidian.ts emulates what the real Obsidian app does to the DOM
+  // BEFORE any plugin loads (patching Element/HTMLElement/HTMLCanvasElement
+  // prototypes with createDiv/createEl/win/doc/etc.) — it cannot call the very
+  // helpers it is in the middle of defining, so plain createElement is correct here,
+  // not a style lapse. Likewise globalThis is the right target for a Node-or-jsdom
+  // guard shared across both vitest environments, not a popout-window concern.
+  { files: ['tests/mocks/obsidian.ts'], rules: {
+    'obsidianmd/prefer-create-el': 'off',
+    'obsidianmd/no-global-this': 'off',
+  } },
+
+  // The task-3 brief's own verbatim code uses `win.document.createElement('canvas')`
+  // (not createEl) for the one-shot, throwaway 1x1 canvas used to resolve a CSS colour
+  // and for the renderer's WebGL canvas — createEl's DomElementInfo convenience (cls/
+  // attr/text) buys nothing here, and the fixture tests double `document.createElement`
+  // directly (matching a real 2D/WebGL context negotiation, which createEl does not
+  // change). Scoped to these two files, not project-wide.
+  { files: ['src/visualization/color.ts', 'src/visualization/city-renderer.ts'], rules: {
+    'obsidianmd/prefer-create-el': 'off',
   } },
 
   // Rule 1 — size

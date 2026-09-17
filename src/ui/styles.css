@@ -29,3 +29,38 @@
 @media (prefers-reduced-motion: reduce) {
   :where(.codebase-inspector-root) { --ci-focus-duration: 0ms; }
 }
+
+/* Welcome-state shell (task 3). Task 9 replaces this with the real C01 layout; these
+   rules only need to hold up the empty renderer-host box and the two lines of copy. */
+:where(.codebase-inspector-root) .ci-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ci-space-4);
+  padding: var(--ci-space-6);
+  box-sizing: border-box;
+  min-height: 100%;
+}
+:where(.codebase-inspector-root) .ci-welcome__viewport-host {
+  min-height: 160px;
+  border-radius: var(--ci-radius-modal);
+  background: var(--ci-panel);
+  border: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-welcome__notice {
+  margin: 0;
+  color: var(--ci-warning);
+}
+:where(.codebase-inspector-root) .ci-welcome__title {
+  margin: 0;
+  font-size: 1.1em;
+}
+:where(.codebase-inspector-root) .ci-welcome__action {
+  align-self: flex-start;
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-4);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-action);
+  color: var(--ci-on-action);
+  cursor: pointer;
+}
