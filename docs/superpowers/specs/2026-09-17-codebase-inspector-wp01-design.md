@@ -4,7 +4,7 @@ title: WP-01 — Native Obsidian Three.js codebase city (design)
 status: approved
 date: 2026-09-17
 revised: 2026-09-17
-revision: 3
+revision: 5
 ---
 
 # WP-01 design — Native Obsidian Three.js codebase city
@@ -19,14 +19,16 @@ plugin in this workspace. Nothing else here is documented fact.
 
 ## 0. Precedence
 
-Six bodies of material now govern WP-01. They are not ranked by recency, and
-none of them overrides another by silence.
+Six ranks of authority govern WP-01. They are not ranked by recency, and none of
+them overrides another by silence.
 
-1. **This document's sections 3, 4.4 and 5** — toolchain, build, Node access,
+1. **This document's sections 3 and 4.4** — toolchain, build, Node access,
    manifest, and Obsidian host rules. Verified against obsidianmd-owned sources
    and a working plugin. No design document addresses any of this.
-2. **This document's sections 4 and 7–8** — frozen contracts, failure behaviour
-   and execution model, as reconciled below with `renderer-port.ts`.
+2. **This document's sections 4.1–4.3, 5 and 7–8** — frozen contracts, task
+   sequence, failure behaviour and execution model, as reconciled below with
+   `renderer-port.ts`. Section 5.2 records v1.1's behavioural values rather than
+   competing with them; where the two disagree, v1.1 governs.
 3. **The concept kit's safety and evidence gates** (`execution/quality-gates.md`
    G1–G8) and **`docs/deliverables/Native Codebase City.md`** — binding wherever
    this document is silent. The design package affirms this: *"Safety and
@@ -35,17 +37,25 @@ none of them overrides another by silence.
    `integration/renderer-port.ts`. **Authoritative for behaviour**: interaction
    defaults, states, recovery and microcopy, and for anything on which this
    document and the concept kit are both silent.
-5. **Screen specifications S01–S13 and S23** — layout zones and content,
-   subordinate to the v1.1 handoff where it refines them.
-6. **Mockup PNGs** — composition only. **The review prototype
-   (`docs/concept/design/wp01-review/`), the Three.js prototype
-   (`docs/concept/prototype/`), the older SVG prototype and
+5. **Screen specifications S01–S13 and S23, and the component library**
+   (`components/component-library.md`, `component-contracts.json`) — layout
+   zones, content and component ids, subordinate to the v1.1 handoff where it
+   refines them.
+6. **Mockup PNGs** — composition only. **The review prototype's runnable code
+   (`wp01-review/src/`, `wp01-review/index.html`, `wp01-review/captures/`), the
+   Three.js prototype (`docs/concept/prototype/`), the older SVG prototype and
    `concepts/00-visual-exploration.png` are never behavioural sources and never
-   ship.** Where two prototypes disagree, neither wins: the v1.1 handoff's
-   documented value governs, and the disagreement is recorded here.
+   ship.** `wp01-review/docs/`, `integration/` and `validation/` are the rank-4
+   handoff, not the prototype. Where two prototypes disagree, neither wins: the
+   v1.1 handoff's documented value governs, and the disagreement is recorded
+   here.
 
 The working rule: **this document wins on how the plugin is built and how it
 touches Obsidian; v1.1 wins on how it behaves.**
+
+One stated exception, because it would otherwise be a violation: section 5.2's
+camera step increments are adopted from the Three.js prototype, since no ranked
+source supplies them.
 
 Two reading copies are byte-level concatenations of the primary files and are
 cited only for convenience: `WP01-DESIGN-TO-IMPLEMENTATION.md` (= `wp01-review/docs/01`–`08`)
@@ -69,7 +79,7 @@ it); **any source-opening or open-in-editor action** (C10 declares
 `sourceOpenRequested`; S07's binding table lists only Focus and Copy relative
 path, and external process execution is an unresolved policy question — see
 section 11); **trusted executable bindings** (WP-02+); **durable snapshot
-persistence** (WP-05 — see section 4.3); and **any rendered-but-disabled control
+persistence** (WP-05 — see section 4.5); and **any rendered-but-disabled control
 for unimplemented behaviour**, which the design package itself forbids as an
 empty placeholder. The "Follow symbolic links" row in S13 is therefore static
 explanatory text, not a disabled toggle.
@@ -107,7 +117,8 @@ codebase-inspector/
   .env.example                      # .env is gitignored
   scripts/                          # every project script lives here
   src/        host/ application/ domain/ adapters/ visualization/ ui/
-  tests/      unit/ contracts/ integration/ host/ fixtures/ benchmarks/
+  tests/      unit/ contracts/ integration/ component/ acceptance/ host/
+              fixtures/ benchmarks/
   dist/                             # build output only; gitignored
   docs/
 ```
@@ -117,7 +128,9 @@ artefacts in `dist/`, which also satisfies Obsidian's checklist item that
 `main.js` belongs in releases, not the repository. **Every script lives in
 `scripts/`**; the community scanner ignores that directory wholesale.
 **`package-lock.json` is committed**, as the checklist requires. All
-**verified**.
+**verified**, except that whether the community directory's build verification
+accepts a `dist/` output is open (section 11) and does not matter until
+submission is a goal.
 
 ### 3.1 Node access — the load-bearing decision
 
@@ -278,7 +291,7 @@ its `recommended` config: `no-nodejs-modules`, `hardcoded-config-path`,
 `prefer-instanceof`, `detach-leaves`, `no-unsupported-api`,
 `settings-tab/prefer-setting-definitions`. **verified**
 
-**Two architectural rules are lint rules, not prose**, following this
+**Three architectural rules are lint rules, not prose**, following this
 workspace's existing convention:
 
 1. **Size** — `max-lines` at 400 for `src/**`, 450 for `tests/**`.
@@ -341,6 +354,23 @@ WP-02+ extensions.
    layout carries and the legend names. Classification is filename-based and is
    explicitly **not** semantic language analysis.
 
+**The WP-01 category vocabulary is closed**, because the validator must reject
+anything outside it, the legend must enumerate it, and `styles.css` needs one
+`--ci-cat-<id>` custom property per member:
+
+```ts
+type CategoryId =
+  | 'typescript' | 'javascript' | 'vue' | 'test' | 'style'
+  | 'markup' | 'config' | 'docs' | 'asset' | 'other';
+```
+
+Test patterns beat extensions, so `foo.test.ts` is `test`, not `typescript`.
+`other` is the fallback and is never absent. Adding a category is a section 4
+contract change. No existing source defines this list —
+`design-tokens.css` carries no `--ci-cat-*` tokens at all, the design system
+names only three colours in prose, and the prototype's enum is repudiated below
+— so it is settled here.
+
 **Physical lines**: empty text is 0; CRLF is one separator; a trailing newline
 adds no phantom line; blank and comment lines count. Binary, undecodable,
 skipped and oversized content yield status `unavailable` with a reason and a
@@ -349,20 +379,24 @@ null value — never 0. Byte size is a separate observation.
 **Run state and snapshot completeness are two axes, not one.**
 
 ```ts
+// Adopted from renderer-port.ts, which carries the run identity inline rather
+// than in a parallel structure.
 type InventoryRunState =
-  | 'idle' | 'running' | 'cancelling' | 'cancelled' | 'failed' | 'complete';
+  | { status: 'idle' }
+  | { status: 'running'; runId: string; generation: number;
+      approval: ApprovedInventoryRun; processedFiles: number }
+  | { status: 'cancelling'; runId: string; generation: number }
+  | { status: 'cancelled'; runId: string }
+  | { status: 'failed'; runId: string; message: string }
+  | { status: 'complete'; runId: string; snapshotId: string };
 
 // on CodebaseSnapshot
 completeness: 'complete' | 'partial';
 warnings: readonly string[];
 ```
 
-A **cancelled** run publishes nothing — the incomplete result is discarded, and
-COPY-10 says so to the user. **`partial`** means read gaps inside a run that did
-finish (COPY-13). A **failed** run leaves the previous snapshot intact and
-labels the failed refresh. `cancelling` is distinct from `cancelled`: publication
-is forbidden immediately, but the UI must not claim work stopped before the
-collector confirms it.
+Run-state semantics — what each state publishes and what the UI may claim — are
+in section 7. COPY-10 covers cancellation and COPY-13 covers `partial`.
 
 **Approval is a modelled artefact**, because "opening a view is not
 authorisation" needs something to check:
@@ -415,6 +449,24 @@ which is the presentation DTO boundary derived from section 4.1 — not a
 competing model. Names are ours; the capabilities are its.
 
 ```ts
+export type EntityId = string;          // the NUL-joined identity of section 4.1
+
+export interface CityPalette {          // all values are resolved sRGB strings
+  background: string;
+  districtSurface: string;
+  districtBorder: string;
+  labelText: string;
+  selection: string;
+  unavailable: string;                  // the neutral of section 4.3
+  categories: Readonly<Record<CategoryId, string>>;
+}
+
+export interface RendererDiagnostics {
+  geometries: number; textures: number; programs: number;   // renderer.info
+  drawCalls: number; instanceCount: number;
+  lastFrameMs: number; contextLost: boolean;
+}
+
 export type CreateCityRenderer = (
   mountEl: HTMLElement,
   win: Window,                                   // the prototype omits this; we do not
@@ -424,14 +476,17 @@ export type CreateCityRenderer = (
 export interface CityRendererPort {
   setLayout(layout: LayoutResult,
             opts: { generation: number; signal: AbortSignal }): Promise<void>;
-  setColors(palette: CityPalette): void;         // colorKey -> resolved colour
+  setColors(palette: CityPalette): void;         // every colour the scene draws; re-supplied on css-change
   setSelection(selectedEntityId: EntityId | null): void;
   setFilter(matching: ReadonlySet<EntityId> | null): void;  // null = unfiltered, empty = no matches
   setLabels(visible: boolean): void;
   setCameraMode(mode: '3d' | 'top'): void;
+  setMotion(mode: 'standard' | 'reduced'): void; // view reads matchMedia; renderer tweens or jumps
   getCamera(): CameraBookmark;
   setCamera(camera: CameraBookmark): void;
-  nudgeCamera(delta: { orbit?: [number, number]; pan?: [number, number]; zoomFactor?: number }): void;
+  nudgeCamera(delta: { orbit?: [number, number];     // radians
+                       pan?: [number, number];       // CSS px of apparent movement
+                       zoomFactor?: number }): void;
   focus(entityId: EntityId): void;
   fit(): void;
   resize(cssWidth: number, cssHeight: number, pixelRatio: number): void;
@@ -450,18 +505,22 @@ export type CityRendererEvent =
   | { type: 'unavailable'; reason: 'unsupported' | 'context-lost' | 'initialization-failed' };
 ```
 
-Four of those exist because the Three.js prototype proved the hole:
+Five additions the prototypes proved necessary:
 
 - **`nudgeCamera`** — section 5.2 requires single-pointer camera controls for
-  WCAG 2.5.7, and section 5 assigns the buttons to task 9. Without this the only
+  WCAG 2.5.7, and section 5.2 assigns the buttons to task 9. Without this the only
   route is `getCamera()` → mutate → `setCamera()`, which forces the Vue layer to
   understand the camera parameterisation and defeats the port.
 - **`position` on `hover-changed`** — a tooltip carrying path, category and value
   must be anchored to the building. The event previously carried only an id.
-- **`setLabels`** — both prototypes have it and section 4.3 makes district labels
-  a task-4 output. Labels are DOM elements in a sibling overlay created through
-  `containerEl.ownerDocument`, repositioned on render — which keeps them
+- **`setLabels`** — both prototypes have it and section 5's task 4 produces
+  district labels. Labels are DOM elements in a sibling overlay created through
+  the injected `win.document`, repositioned on render — which keeps them
   text-scalable for the 200% zoom check and cross-window correct.
+- **`setMotion`** — section 4.4 puts the `matchMedia` read in the view and task
+  10 puts the camera tween in the renderer, so without this the preference
+  cannot reach the tween. `renderer-port.ts` carried it as
+  `CityPresentation.motion`.
 - **`getDiagnostics`/`debugLoseContext`** — the G5 benchmark and checkpoint #3's
   leak check both need `info.memory.geometries` and a way to force
   `WEBGL_lose_context`. Ship the loss seam; **do not** ship a restore partner.
@@ -479,11 +538,26 @@ is the single most copy-pasteable mistake in this repository.
 
 **The view owns sizing.** The renderer installs no `ResizeObserver` of its own;
 `resize` is called by the view, re-applies `setPixelRatio` on **every** call
-rather than once at construction, and no-ops on a zero-size box so hidden leaves
+rather than once at construction, clamping the supplied ratio to a maximum of 2, and no-ops on a zero-size box so hidden leaves
 cost nothing. Resize never implies fit.
 
-**Camera mode is spelled `'3d' | 'top'`** everywhere, matching
-`CityViewState.viewMode`. `CameraBookmark` is adopted from `renderer-port.ts`
+**Hover intent belongs to the renderer.** `hover-changed` is emitted only after
+the 200 ms dwell of section 5.2; the renderer owns the timer and raycasts only
+when it fires. A `null` entityId is emitted immediately on leave.
+
+**The view owns focus, keys and accessible naming.** `mountEl` is the single
+focusable, named region; the view handles every key event and translates it into
+`nudgeCamera`, `fit`, `focus` or `setCameraMode`. The renderer's canvas is
+`aria-hidden` and never tabbable, and no key event crosses the port.
+
+**An aborted or superseded `setLayout` resolves without applying; it never
+rejects.** "The port never throws" includes promise rejection.
+
+**Camera mode is spelled `'3d' | 'top'`** everywhere, matching two of
+`CityViewState.viewMode`'s three values; in `list` mode no renderer exists and
+`setCameraMode` is never called. When `setCamera` receives a bookmark whose
+`mode` differs from the current mode, the bookmark wins and the renderer
+switches. `CameraBookmark` is adopted from `renderer-port.ts`
 with `mode` respelled from `'three-dimensional' | 'top-down'`. Keep its
 **absolute `position`/`target`/`up`** as the persisted form and derive spherical
 angles internally: the prototype stores `theta/phi/radius` but recomputes
@@ -550,16 +624,32 @@ interface CityLot {
   center: [number, number, number];
   dimensions: [number, number, number];
   colorKey: CategoryId;
-  metricState: 'measured' | 'unavailable';
+  metricState: 'measured' | 'measured-zero' | 'unavailable';
+}
+interface CityDistrict {
+  directoryId: EntityId;
+  parentId: EntityId | null;
+  name: string;                         // display name, not a path
+  depth: number;
+  center: [number, number, number];
+  extent: [number, number];             // ground footprint
+  labelAnchor: [number, number, number];
+  aggregated: boolean;                  // true when children were rolled up
 }
 interface LayoutResult {
   snapshotId: string;
   layoutVersion: string;
   lots: readonly CityLot[];
+  districts: readonly CityDistrict[];
   bounds: { min: [number, number, number]; max: [number, number, number] };
   scale: { metricId: string; name: string; cap: number; unit: string; clampedCount: number };
 }
 ```
+
+`districts` exists because task 4 must produce district geometry and labels while
+section 4.2 forbids the renderer from computing grouping or district assignment.
+Without it the renderer has no ground rectangle to draw, no name to show and no
+anchor to place a label at — `CityLot.directoryId` gives membership only.
 
 `colorKey` is a **palette key, never a resolved colour**, so recolouring on
 `css-change` never re-runs layout. Layout consumes a validated snapshot, never
@@ -578,8 +668,12 @@ inspector.**
 **Display scale:** physical lines on a square-root scale, labelled *"physical
 lines · square-root scale"*. The design's reference formula is
 `height = 8 + 120 * sqrt(min(lines, cap) / cap)`; the 8-unit base keeps an empty
-measured file selectable. **The cap is derived from the snapshot, not hardcoded
-at 600** — the design concedes its fixture never exercises the cap, so on a real
+measured file selectable. **The cap is the 95th percentile of measured
+`physical-lines` in the snapshot, floored at 100 lines and rounded up to two
+significant figures — not hardcoded at 600.** A percentile rather than the
+maximum, because deriving the cap as `max(lines)` would make `clampedCount`
+permanently 0 and the task-4 cap fixture unsatisfiable. The design concedes its
+own fixture never exercises the cap, so on a real
 repository every file over 600 lines would render at identical height. The
 legend names the actual cap and `clampedCount`; raw values are always in the
 inspector. Footprint is an equal lot and never encodes the same metric as
@@ -599,15 +693,9 @@ The full instance-matrix upload is accepted to keep the boundary clean. The
 prototype has a `setMetric` that mutates matrices in place, which is faster and
 moves height ownership into the renderer; we do not.
 
-**Ports** under `src/application/ports/`: `SourceFileSystemPort` (walk, read,
-stat), `ProfileStore`, `LocalBindingStore`, `SnapshotStore`, `Clock`,
-`CancellationToken`. **`SnapshotStore` is in-memory for WP-01**; durable history
-is WP-05. Reopening shows retained in-memory state marked with its age, and
-never silently authorises a new scan.
-
 ### 4.4 Host rules
 
-All **verified**.
+All **verified**, except the settings bullet, which is flagged inline.
 
 - **Deferred views.** Since 1.7.2 every view is created as a `DeferredView`.
   Reach views via `getLeavesOfType('codebase-inspector-city')` then
@@ -618,6 +706,9 @@ All **verified**.
 - **`onload` registers only.** No scanning, no expensive work. Startup work goes
   in `workspace.onLayoutReady()`; first-enable view opening uses `onUserEnable()`.
 - **WebGL context creation is in `onOpen`, not the constructor.**
+- **Pop-out migration is signalled by `HTMLElement.onWindowMigrated`** on the
+  view's `containerEl`; retain and call the destroy function it returns.
+  Handling it is dispose plus reconstruct (section 4.2), never a rebind.
 - **Never `detachLeavesOfType` in `onunload`.**
 - **`onunload` is typed `void` and never awaited** — teardown is synchronous and
   idempotent.
@@ -674,6 +765,14 @@ All **verified**.
   `getSettingDefinitions()` can express a dynamic per-profile list is unverified
   — see section 11. **Decide before task 6 begins.**
 
+### 4.5 Application ports
+
+Under `src/application/ports/`: `SourceFileSystemPort` (walk, read,
+stat), `ProfileStore`, `LocalBindingStore`, `SnapshotStore`, `Clock`,
+`CancellationToken`. **`SnapshotStore` is in-memory for WP-01**; durable history
+is WP-05. Reopening shows retained in-memory state marked with its age, and
+never silently authorises a new scan.
+
 ## 5. Task sequence
 
 | # | Task | Ends with | Check |
@@ -681,17 +780,17 @@ All **verified**.
 | S | Bundling and Node-access spike (throwaway) | See 5.1 | user |
 | 1 | Toolchain | `npm run verify` green; `install:vault` delivers files | — |
 | 2 | Contracts, validator, classifier, fixture builder | Valid fixtures round-trip; invalid rejected with reasons; fixtures include unavailable and measured-zero records | — |
-| 3 | Host skeleton: manifest, plugin entry, `ItemView`, ribbon, `open-city`, first-run no-profile state, minimal instanced-box renderer behind a dev-only fixture path | Opening the view runs no scan and no filesystem access, and shows the welcome state; the packed plugin loads in a clean vault | **#1** |
+| 3 | Host skeleton: manifest, plugin entry, `ItemView`, ribbon, `open-city`, first-run no-profile state, minimal instanced-box renderer behind a dev-only fixture path | Opening the view runs no scan and no filesystem access, and shows the welcome state; the packed `dist/` installs and enables in the dev vault | **#1** |
 | 4 | Pure layout: deterministic nested districts, equal lots, display scale, legend data, district labels | No overlaps; identical input yields identical geometry; three metric states distinguishable | — |
 | 5 | Inventory collector: Node access module, bounded async walk, exclusions, cancellation, metrics | Cross-platform and no-source-write fixtures pass; plugin outputs stay outside collection scope | — |
 | 6 | Profiles, bindings, hybrid settings tab | Profiles persist; a missing binding prompts reconnect | — |
 | 7 | Source selection and scope consent: two native modals — three source modes with validation, then resolved root, exclusions, limits, unchecked acknowledgement, Scan disabled until approved, approval fingerprint | A scan cannot start without consent; a changed root invalidates approval | — |
 | 8 | Scan wiring and run lifecycle: coordinator, `scan-codebase` (which doubles as refresh), `cancel-scan`, progress, `cancelling`→`cancelled`, atomic publication after validation, stale-callback rejection | A real external project renders as a real city; cancel retains the previous snapshot | **#2** |
-| 9 | Vue UI: app shell, file list, search, inspector, state surface (C16/C17), responsive drawers, announcement region, copy-path | Canvas and HTML selection stay synchronised; every state has a surface | — |
+| 9 | Vue UI: app shell, file list, search, inspector, state surface (C16/C17), responsive drawers, camera controls, announcement region, copy-path | HTML selection drives the canvas through `setSelection`; the canvas-to-HTML direction is task 10's check; every state has a surface | — |
 | 10 | Renderer hardening: instancing with batch-and-instance to entity map, picking, camera, hover, focus, fit, top/3D, reduced motion, context loss | Correct file selected; rendering on demand only | — |
 | 11 | Lifecycle: multiple leaves, workspace state, hidden and resized leaves, pop-out migration, dispose, per-leaf snapshot reconciliation | No leaks, no wrong-window DOM; a removed selected file is reported, never replaced by index | **#3** |
-| 12 | Safety, evidence and accessibility gates; benchmark fixtures; fallow on our own source | G2, G3, G4 and G5 evidence recorded | — |
-| 13 | Release gate: throwaway clean vault, scripted demo, benchmark record, limitations, implementation report | WP-01 complete and honestly reported | **#4** |
+| 12 | Safety, evidence and accessibility gates; benchmark fixtures; fallow on our own source | G2, G3, G4, G5 and G8 evidence recorded | — |
+| 13 | Release gate: throwaway clean vault, scripted demo, benchmark record, limitations, implementation report | G1 evidence recorded; WP-01 complete and honestly reported | **#4** |
 
 Ordering rationale unchanged: layout precedes the real scan so the renderer is
 fed by a pure function; the Vue UI precedes renderer hardening so the keyboard
@@ -726,15 +825,18 @@ The spike also answers cheaply whether `vault.getFiles()` returns entries for
 
 ### 5.2 Resolved interaction defaults
 
-These come from the v1.1 handoff and are binding. They are recorded here because
-leaving them to an implementer would mean re-deciding them badly.
+These are the binding interaction defaults. Most come from the v1.1 handoff; two
+do not and say so inline — the hover delay (concept kit) and the camera step
+increments (Three.js prototype, under the exception in section 0). They are
+recorded here because leaving them to an implementer would mean re-deciding them
+badly.
 
 **Camera and pointer.** Orthographic projection in both 3D and top view, with an
 oblique default. Drag threshold is **5 CSS pixels** — never device pixels;
 movement beyond it is an orbit and release never selects. Wheel zoom only over
 the focused canvas, never captured from lists or other leaves. No inertial
 drift. Top→3D restores the saved `CameraBookmark` in full; top-view operations
-never mutate it. Resize never implies Fit.
+never mutate it.
 
 **Selection.** A click selects and opens the inspector; it does not move the
 camera, change the search, or rebuild layout. Focus is a separate explicit
@@ -761,8 +863,8 @@ selected and is explained ("Selected file is outside the current search"), never
 silently replaced.
 
 **Escape resolves exactly one layer per press:** modal → camera interaction/help
-→ nonmodal drawer → query or selection, and only when the corresponding control
-has focus. It must not disturb IME composition or a Markdown editor.
+→ nonmodal drawer → query (search field focused, query non-empty) → selection
+(canvas or a list row focused). It must not disturb IME composition or a Markdown editor.
 
 **Keyboard.** No host-wide default bindings; register commands so users bind
 their own. `F`, `T`, `+`/`-`, arrows, Shift-arrows and Enter work only when the
@@ -794,9 +896,9 @@ optimal device breakpoints."* Section 0 ranks v1.1 higher, so 820 with container
 queries stands, but re-check it at checkpoint #3 against a normal leaf, a sidebar
 leaf and a pop-out. Above it, list + canvas + inspector;
 below, canvas with Files and Inspector drawers, one overlay at a time, each with
-a visible close returning focus to its opener. Below a hard floor the view
-renders list-first and **creates no WebGL context at all** — a leaf dragged into
-a sidebar can be ~150 px, and this also protects the live-context cap. Switching
+a visible close returning focus to its opener. Below a hard floor of **320 CSS px**
+inline size the view renders list-first and **creates no WebGL context at all** —
+a leaf dragged into a sidebar can be ~150 px, and this also protects the live-context cap. Switching
 to the HTML inventory preserves query, selection and camera bookmark.
 
 **Progress.** Unknown total means no percentage, no `aria-valuenow`, and no
@@ -813,7 +915,7 @@ strings. COPY-20 ("Unused candidate") is WP-02+ and must not leak forward. Drop
 S01's "Analysis reports can be added later", which promises a capability WP-01
 does not ship. The strings "Read-only source access" and "Source remains
 unchanged" are factual claims made on the product's behalf: **they ship only
-after task 12 records the G2 evidence**, and the release report cites it.
+after task 12 records the G2 evidence** — see section 10.
 
 ## 6. Testing
 
@@ -881,12 +983,14 @@ section 7 actually requires.
 ## 7. Failure behaviour
 
 - Unavailable is never 0, in the model and in presentation.
-- **A cancelled run publishes nothing.** `partial` means read gaps in a run that
-  finished. A failed run leaves the previous snapshot intact and labels the
+- **A cancelled run publishes nothing** — the incomplete result is discarded and
+  COPY-10 says so to the user. `partial` means read gaps in a run that finished
+  (COPY-13). A failed run leaves the previous snapshot intact and labels the
   failed refresh. Publication is an atomic swap after validation; the previous
   snapshot is immutable until then.
-- `cancelling` is distinct from `cancelled`; the UI never claims work stopped
-  before the collector confirms.
+- `cancelling` is distinct from `cancelled`: publication is forbidden
+  immediately, but the UI never claims work stopped before the collector
+  confirms it.
 - **Run identity is the full tuple** `{profileId, sourceFingerprint,
   scopeFingerprint, runId, generation}`. A result may publish only if every
   identity still matches, cancellation has not invalidated it, and validation
@@ -900,7 +1004,6 @@ section 7 actually requires.
 - Validation failures surface as visible warnings carrying their reason, in
   `CodebaseSnapshot.warnings`. Never dropped silently.
 - Provider run completion, findings and policy verdict remain separate fields.
-- Teardown is synchronous and idempotent, because `onunload` is not awaited.
 
 ## 8. Execution model
 
@@ -924,9 +1027,8 @@ an existing implementation that does not exist, and `08`'s internal path
 `docs/04-first-release-build-order.md` does not resolve from this repository
 root.
 
-Checkpoint #2 additionally verifies: the consent gate blocks a scan, a changed
-root invalidates approval, and cancel retains the previous snapshot with its
-timestamp.
+Checkpoint #2 re-verifies tasks 7 and 8's checks in the running host, and
+additionally that the retained snapshot still shows its original timestamp.
 
 ## 9. Packet traceability
 
@@ -936,13 +1038,13 @@ packet's acceptance evidence is silently dropped.
 
 | Packet | Produced by |
 |---|---|
-| IP-01 Consolidate contracts | 2 (plus the classifier and the renderer-port reconciliation in 4.1–4.2) |
+| IP-01 Consolidate contracts | 2 (plus the classifier and the renderer-port reconciliation in sections 4.1–4.2) |
 | IP-02 Open a native inspector view | 1, 3, 6 |
 | IP-03 Source selection and read-only inventory | 5, 7, 8, with the no-write proof in 12 |
 | IP-04 Render the city with Three.js | 4, 10, with the benchmark in 12 |
 | IP-05 Find and inspect without losing context | 9, plus fit/top/focus in 10 |
 | IP-06 Refresh, cancel, fail, recover | 8, with per-leaf reconciliation in 11 |
-| IP-07 Validate the actual Obsidian host | 11 and 12, checkpoints #3 and #4 |
+| IP-07 Validate the actual Obsidian host | 11 and 12, checkpoint #3 |
 | IP-08 Package and release | 13 |
 
 Packets supply nothing on bundling, Node access, the toolchain, or Obsidian host
@@ -962,6 +1064,10 @@ implemented.
 The scripted demo runs: real external repository → scope approval → scan → find a
 known file → confirm measurements → keyboard and HTML paths → cancel a refresh →
 reopen → source unchanged; then repeated vault-based.
+
+The two factual claims the UI makes on the product's behalf — "Read-only source
+access" and "Source remains unchanged" — ship only once task 12 has recorded the
+G2 evidence, and the release report cites it.
 
 The README discloses that the plugin reads files outside the vault and why —
 required by Obsidian's developer policies for any future submission, and honest
@@ -988,7 +1094,8 @@ vault is permitted with README disclosure.
 - That Obsidian's injected `require` returns `null` for Node built-ins while
   `window.require` works. The spike settles it; the design is correct either way.
 - That `styles.css` is auto-injected. Universally practised, never stated.
-- That `adapter.list()` returns dot-entries.
+- That `vault.getFiles()` omits non-indexed extensions such as `.ts`. The spike
+  checks it; nothing in the body depends on the answer.
 - **The design package's Three.js and Obsidian citations** (`[T1]`–`[T4]`,
   `[O1]`–`[O2]` in `07-sources-and-limits.md`) use non-canonical URL forms —
   `threejs.org/docs/pages/InstancedMesh.html` rather than
