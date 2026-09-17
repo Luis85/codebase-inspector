@@ -161,3 +161,76 @@ export function unicodeFixture(): CodebaseSnapshot {
 export function emptyFixture(): CodebaseSnapshot {
   return buildSnapshotFixture({ files: 0 });
 }
+
+/**
+ * Ruling M11: `buildSnapshotFixture` emits a completely FLAT tree — every directory's
+ * parentId is the repository, so every district it produces sits at depth 1 and a
+ * nesting assertion against it would pass vacuously. This fixture has a genuinely
+ * nested containment tree instead: alpha/beta at depth 1, four directories at depth 2,
+ * and one at depth 3 (alpha/one/nested), each with real parentId chains back to the
+ * root. Adding this function changes no existing fixture's behaviour.
+ */
+export function nestedFixture(): CodebaseSnapshot {
+  const repositoryId = 'repo-nested';
+  const repositoryEntity: CodeEntity = {
+    id: makeEntityId(repositoryId, 'repository', ''),
+    repositoryId, kind: 'repository', path: '', name: repositoryId,
+    parentId: null, category: null,
+  };
+  const entities: CodeEntity[] = [repositoryEntity];
+  const observations: Observation[] = [];
+  let fileIndex = 0;
+
+  const addDir = (parent: CodeEntity, path: string, name: string): CodeEntity => {
+    const dir: CodeEntity = {
+      id: makeEntityId(repositoryId, 'directory', path),
+      repositoryId, kind: 'directory', path, name, parentId: parent.id, category: null,
+    };
+    entities.push(dir);
+    return dir;
+  };
+
+  const addFile = (parent: CodeEntity, path: string): void => {
+    const name = path.slice(path.lastIndexOf('/') + 1);
+    const file: CodeEntity = {
+      id: makeEntityId(repositoryId, 'file', path),
+      repositoryId, kind: 'file', path, name, parentId: parent.id, category: classify(path),
+    };
+    entities.push(file);
+    const lines = 10 + fileIndex;
+    fileIndex += 1;
+    observations.push(makeObservation(file.id, 'physical-lines', 'measured', lines, null));
+    observations.push(makeObservation(file.id, 'byte-size', 'measured', lines * 20, null));
+  };
+
+  const alpha = addDir(repositoryEntity, 'alpha', 'alpha');
+  const beta = addDir(repositoryEntity, 'beta', 'beta');
+  const alphaOne = addDir(alpha, 'alpha/one', 'one');
+  const alphaTwo = addDir(alpha, 'alpha/two', 'two');
+  const betaOne = addDir(beta, 'beta/one', 'one');
+  addDir(beta, 'beta/two', 'two');
+  const alphaOneNested = addDir(alphaOne, 'alpha/one/nested', 'nested');
+
+  addFile(alpha, 'alpha/a.ts');
+  addFile(alphaOne, 'alpha/one/b.ts');
+  addFile(alphaTwo, 'alpha/two/c.ts');
+  addFile(beta, 'beta/d.ts');
+  addFile(betaOne, 'beta/one/e.ts');
+  addFile(alphaOneNested, 'alpha/one/nested/f.ts');
+
+  return {
+    snapshotId: 'snapshot-nested',
+    schemaVersion: 1,
+    repositoryId,
+    providerRun: {
+      runId: 'run-nested', provider: 'builtin-inventory', origin: 'collected',
+      capturedAt: '2026-01-01T00:00:00.000Z', completedAt: '2026-01-01T00:00:01.000Z',
+    },
+    scope: { rootPath: '/fixture/nested', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false },
+    entities,
+    observations,
+    fileSetDigest: `fixture-digest-nested-${entities.length}`,
+    completeness: 'complete',
+    warnings: [],
+  };
+}
