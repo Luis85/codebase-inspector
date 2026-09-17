@@ -65,6 +65,19 @@ export default tseslint.config(
   // see tests/unit/manifest.test.ts's ManifestJson interface.
   { files: ['tests/**/*.ts'], rules: { 'obsidianmd/hardcoded-config-path': 'off' } },
 
+  // tests/unit/validator.test.ts deliberately builds malformed / arbitrary-shaped
+  // payloads to exercise validateSnapshot's and validateCityViewState's `unknown`
+  // boundary (corrupting a valid fixture's fields to values a hostile or corrupted
+  // payload could carry). `any` is the correct type for that, unlike a typed
+  // JSON.parse fixture (see manifest.test.ts's ManifestJson). Scoped to this one file.
+  { files: ['tests/unit/validator.test.ts'], rules: {
+    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/no-unsafe-assignment': 'off',
+    '@typescript-eslint/no-unsafe-member-access': 'off',
+    '@typescript-eslint/no-unsafe-call': 'off',
+    '@typescript-eslint/no-unsafe-argument': 'off',
+  } },
+
   // Rule 1 — size
   { files: ['src/**/*.{ts,vue}'], rules: { 'max-lines': ['error', 400] } },
   { files: ['tests/**/*.ts'], rules: { 'max-lines': ['error', 450] } },
