@@ -50,12 +50,21 @@ const DEFAULT_MAX_ENTRIES = 200_000;
 // deliberately — a microtask alone would never let already-queued UI work run.
 const YIELD_EVERY = 64;
 
-function isExcluded(relativePath: string, exclusions: readonly string[]): boolean {
+// Fix-round-1 MINOR finding 6: exclusion matching now applies the SAME case-sensitivity
+// decision containment already uses (ruling M20), rather than always comparing
+// case-sensitively regardless of platform. Before this fix, on Windows an exclusion of
+// '.obsidian' would not prune an on-disk '.Obsidian' — "the one place where an exclusion
+// miss would put plugin output back into scope" (the reviewer's own words), since
+// containment had already been made platform-aware but exclusion had not.
+function isExcluded(relativePath: string, exclusions: readonly string[], caseSensitive: boolean): boolean {
+  const normalize = (s: string): string => (caseSensitive ? s : s.toLowerCase());
+  const normalizedPath = normalize(relativePath);
   for (const excl of exclusions) {
     if (excl.length === 0) continue;
-    if (excl.includes('/')) {
-      if (relativePath === excl || relativePath.startsWith(`${excl}/`)) return true;
-    } else if (relativePath.split('/').includes(excl)) {
+    const normalizedExcl = normalize(excl);
+    if (normalizedExcl.includes('/')) {
+      if (normalizedPath === normalizedExcl || normalizedPath.startsWith(`${normalizedExcl}/`)) return true;
+    } else if (normalizedPath.split('/').includes(normalizedExcl)) {
       return true;
     }
   }
@@ -172,7 +181,7 @@ async function* classifyEntry(
   // Exclusions are applied before opening anything: no onOpen call above this line for
   // `absPath` itself, so an excluded path never appears in readLog() (proved by
   // tests/integration/read-log.test.ts).
-  if (isExcluded(relPath, opts.exclusions)) return;
+  if (isExcluded(relPath, opts.exclusions, deps.caseSensitive)) return;
 
   let stat: WalkerStats;
   try {

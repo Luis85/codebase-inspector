@@ -148,3 +148,51 @@ describe('containment actually intercepts an escaping entry name (fix-round-1 fi
     expect('absolutePath' in entries[0]!).toBe(false);
   });
 });
+
+// Fix-round-1 MINOR finding 6: exclusion matching now applies the same case-sensitivity
+// decision containment already uses (ruling M20). Before this fix, isExcluded always
+// compared case-sensitively regardless of platform — "the one place where an exclusion
+// miss would put plugin output back into scope" on a case-insensitive filesystem.
+function treeWithMixedCaseConfigDir(): WalkerDeps {
+  const listings: Record<string, string[]> = {
+    '/root': ['.Obsidian', 'kept.ts'],
+    '/root/.Obsidian': ['data.json'],
+  };
+  const files = new Set(['/root/kept.ts', '/root/.Obsidian/data.json']);
+  return {
+    caseSensitive: false,   // overridden per-call below via a fresh deps object
+    onOpen: () => {},
+    joinPath: (base, name) => `${base}/${name}`,
+    readdirNames: (absPath) => Promise.resolve(listings[absPath] ?? []),
+    lstat: (absPath) => Promise.resolve({
+      size: 10,
+      isDirectory: () => absPath in listings,
+      isFile: () => files.has(absPath),
+      isSymbolicLink: () => false,
+    }),
+    readAsText: () => Promise.resolve({ ok: true, text: 'x\n' }),
+  };
+}
+
+describe('exclusion matching honours the same case-sensitivity decision as containment (fix-round-1 finding 6)', () => {
+  async function walkWith(caseSensitive: boolean): Promise<WalkEntry[]> {
+    const { token } = createCancellationToken();
+    const deps = { ...treeWithMixedCaseConfigDir(), caseSensitive };
+    const opts: WalkOptions = { exclusions: ['.obsidian'], maxFileBytes: 1000, followSymlinks: false };
+    const out: WalkEntry[] = [];
+    for await (const entry of walkTree('/root', opts, token, deps)) out.push(entry);
+    return out;
+  }
+
+  it('case-insensitive mode (Windows-like): ".obsidian" DOES prune an on-disk ".Obsidian"', async () => {
+    const entries = await walkWith(false);
+    expect(entries.some((e) => e.relativePath.startsWith('.Obsidian'))).toBe(false);
+    expect(entries.some((e) => e.relativePath === 'kept.ts')).toBe(true);
+  });
+
+  it('case-sensitive mode (POSIX-like): ".obsidian" does NOT prune an on-disk ".Obsidian"', async () => {
+    const entries = await walkWith(true);
+    expect(entries.some((e) => e.relativePath.startsWith('.Obsidian'))).toBe(true);
+    expect(entries.some((e) => e.relativePath === 'kept.ts')).toBe(true);
+  });
+});
