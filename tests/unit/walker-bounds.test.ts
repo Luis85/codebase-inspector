@@ -27,15 +27,65 @@ describe('bounded walk: depth and entry-count limits', () => {
     const entries = await collect(port, root, {
       exclusions: [], maxFileBytes: 1000, followSymlinks: false, maxDepth: 2,
     });
-    // 'a' (depth 1), 'a/b' (depth 2) and 'a/b/c' (depth 3, itself still discovered and
-    // yielded) are found; 'a/b/c' is where maxDepth=2 refuses to descend FURTHER, so
-    // nothing UNDER it (its own children) is ever discovered.
-    expect(entries.some((e) => e.relativePath === 'a')).toBe(true);
-    expect(entries.some((e) => e.relativePath === 'a/b')).toBe(true);
-    expect(entries.some((e) => e.relativePath === 'a/b/c')).toBe(true);
-    const depthSkip = entries.find((e) => e.kind === 'skipped' && /maximum depth/i.test(e.reason));
+    // 'a' (depth 1) and 'a/b' (depth 2) are found as real 'directory' entries; 'a/b/c'
+    // is where maxDepth=2 refuses to descend FURTHER, so nothing UNDER it (its own
+    // children) is ever discovered. Fix-round-1 finding 7: 'a/b/c' itself is reported
+    // ONLY as a single 'skipped' entry (wasDirectory: true), not ALSO as a 'directory'
+    // entry for the very same relativePath — the walker used to yield both, back to
+    // back, which the collector then turned into a directory mislabelled as a file.
+    expect(entries.some((e) => e.kind === 'directory' && e.relativePath === 'a')).toBe(true);
+    expect(entries.some((e) => e.kind === 'directory' && e.relativePath === 'a/b')).toBe(true);
+    expect(entries.some((e) => e.relativePath === 'a/b/c' && e.kind === 'directory')).toBe(false);
+    const depthSkip = entries.find(
+      (e): e is Extract<WalkEntry, { kind: 'skipped' }> => e.kind === 'skipped' && e.relativePath === 'a/b/c',
+    );
     expect(depthSkip).toBeDefined();
+    expect(depthSkip!.reason).toMatch(/maximum depth/i);
+    expect(depthSkip!.wasDirectory).toBe(true);
+    // Exactly one entry for 'a/b/c' in total — no duplicate.
+    expect(entries.filter((e) => e.relativePath === 'a/b/c')).toHaveLength(1);
     expect(entries.some((e) => e.relativePath.startsWith('a/b/c/'))).toBe(false);
+  });
+
+  // Fix-round-1 finding 7's second required case: an unreadable DIRECTORY (its own
+  // readdir failing, distinct from the maxDepth case above — this directory IS within
+  // depth, it just cannot be listed once reached).
+  it('marks an unreadable directory\'s skip as wasDirectory, distinct from a skipped file', async () => {
+    const { token } = createCancellationToken();
+    const listings: Record<string, string[]> = { '/root': ['locked', 'kept.ts'] };
+    const deps: WalkerDeps = {
+      caseSensitive: true,
+      onOpen: () => {},
+      joinPath: (base, name) => `${base}/${name}`,
+      readdirNames: (absPath) => {
+        if (absPath === '/root/locked') return Promise.reject(new Error('EACCES'));
+        return Promise.resolve(listings[absPath] ?? []);
+      },
+      lstat: (absPath) => Promise.resolve({
+        size: 10,
+        isDirectory: () => absPath === '/root/locked',
+        isFile: () => absPath === '/root/kept.ts',
+        isSymbolicLink: () => false,
+      }),
+      readAsText: () => Promise.resolve({ ok: true, text: 'x\n' }),
+    };
+    const opts: WalkOptions = { exclusions: [], maxFileBytes: 1000, followSymlinks: false };
+    const entries: WalkEntry[] = [];
+    for await (const entry of walkTree('/root', opts, token, deps)) entries.push(entry);
+
+    // 'locked' legitimately appears twice, for two DIFFERENT facts discovered at two
+    // different times: once as a real 'directory' entry (it was successfully lstat'd as
+    // a directory when discovered), and once as a 'skipped' entry (its OWN contents
+    // could not later be enumerated) — this is not the same duplicate the maxDepth case
+    // had, since the second fact was not yet known when the first was yielded.
+    const directoryEntry = entries.find((e) => e.kind === 'directory' && e.relativePath === 'locked');
+    expect(directoryEntry).toBeDefined();
+    const skippedEntry = entries.find(
+      (e): e is Extract<WalkEntry, { kind: 'skipped' }> => e.kind === 'skipped' && e.relativePath === 'locked',
+    );
+    expect(skippedEntry).toBeDefined();
+    expect(skippedEntry!.wasDirectory).toBe(true);
+    expect(skippedEntry!.reason).toMatch(/unreadable/i);
   });
 
   it('stops after maxEntries, reporting why, instead of exhausting a huge tree', async () => {

@@ -125,7 +125,13 @@ export async function* walkTree(
       // silently-produced empty snapshot; every OTHER directory that fails becomes a
       // visible skip instead (never dropped silently, per spec 7).
       if (frame.relPath === '') throw e;
-      yield { kind: 'skipped', relativePath: frame.relPath, reason: `directory is unreadable: ${message(e)}` };
+      // wasDirectory: true (fix-round-1 finding 7) — this path was already yielded once
+      // as a 'directory' WalkEntry when it was first discovered as its parent's child;
+      // this second, later entry is a DIFFERENT fact ("its contents could not be
+      // enumerated"), not a restatement of the first, so it is not suppressed. What
+      // changes is that the collector can now tell it apart from a skipped FILE and stop
+      // building a `kind: 'file'` entity for a directory.
+      yield { kind: 'skipped', relativePath: frame.relPath, reason: `directory is unreadable: ${message(e)}`, wasDirectory: true };
       continue;
     }
     names.sort();
@@ -197,11 +203,19 @@ async function* classifyEntry(
     return;
   }
   if (stat.isDirectory()) {
-    yield { kind: 'directory', absolutePath: absPath, relativePath: relPath, byteSize: 0 };
+    // Fix-round-1 finding 7: this used to yield BOTH a 'directory' entry AND a
+    // 'skipped' entry for the exact same relativePath, back to back in the same call —
+    // a genuine duplicate (unlike the unreadable-directory case above, these two facts
+    // are discovered at the same instant, not at different times), and the collector
+    // built a mislabelled `kind: 'file'` entity from the second one. At the depth
+    // limit, yield ONLY the 'skipped' entry (marked wasDirectory), never the
+    // 'directory' one — a directory the walk refuses to descend into contributes
+    // nothing else a consumer could use the 'directory' entry for anyway.
     if (depth + 1 > maxDepth) {
-      yield { kind: 'skipped', relativePath: relPath, reason: `exceeds the maximum depth of ${maxDepth}` };
+      yield { kind: 'skipped', relativePath: relPath, reason: `exceeds the maximum depth of ${maxDepth}`, wasDirectory: true };
       return;
     }
+    yield { kind: 'directory', absolutePath: absPath, relativePath: relPath, byteSize: 0 };
     stack.push({ absPath, relPath, depth: depth + 1 });
     return;
   }

@@ -1,13 +1,25 @@
 import type { CancellationToken } from './cancellation-token';
 
-// WalkEntry is verbatim from the task-5 brief's "Produces" list — do not paraphrase a
-// field out of it. A 'skipped' entry deliberately carries no byteSize: once the walker
-// gives up on an entry (symlink, oversized, binary, unreadable), NEITHER metric is
-// knowable from it, which is what makes "unavailable is never 0, for both metrics"
-// (acceptance criterion 8) fall out of the type itself rather than of collector logic.
+// WalkEntry's 'file' | 'directory' variant and its four fields, and the 'skipped'
+// variant's relativePath/reason fields, are verbatim from the task-5 brief's "Produces"
+// list — do not paraphrase a field out of it. A 'skipped' entry deliberately carries no
+// byteSize: once the walker gives up on an entry (symlink, oversized, binary,
+// unreadable), NEITHER metric is knowable from it, which is what makes "unavailable is
+// never 0, for both metrics" (acceptance criterion 8) fall out of the type itself rather
+// than of collector logic.
+//
+// `wasDirectory` (fix-round-1 MINOR finding 7) is an ADDITIVE, optional field, not a
+// paraphrase of anything the brief specified: an unreadable directory (its own readdir
+// failing) or a directory sitting at the walk's maxDepth limit both produce a 'skipped'
+// entry, and without this discriminator the collector had no way to tell that entry
+// apart from a skipped FILE — it built a `kind: 'file'` CodeEntity, complete with a file
+// category, for what was actually a directory. Absent/false means "this was a file-like
+// thing" (the only case that existed before this fix), so every pre-existing producer
+// and consumer of a 'skipped' entry that never sets or reads this field keeps working
+// unchanged.
 export type WalkEntry =
   | { kind: 'file' | 'directory'; absolutePath: string; relativePath: string; byteSize: number }
-  | { kind: 'skipped'; relativePath: string; reason: string };
+  | { kind: 'skipped'; relativePath: string; reason: string; wasDirectory?: boolean };
 
 /** The scan's tunable inputs, everything `walk` needs besides the root itself (the root
  *  is `AnalysisScope.rootPath`, passed as `walk`'s first argument so it is never

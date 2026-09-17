@@ -148,6 +148,31 @@ describe('collectInventory', () => {
     expect(token.cancelled).toBe(false);
   });
 
+  // Fix-round-1 MINOR finding 7: a skipped DIRECTORY must never become a `kind: 'file'`
+  // CodeEntity carrying a file category — it should not become any CodeEntity at all,
+  // since nothing is known about its contents, but its reason must still surface in
+  // `warnings` (never dropped silently, per spec 7).
+  it('never turns a skipped DIRECTORY into a file-kind entity, but still surfaces its reason', async () => {
+    const { port, clock } = setUp({ 'kept.ts': 'x\n' });
+    const { token } = createCancellationToken();
+    const directoryReason = 'directory is unreadable: EACCES';
+    const portWithDirectorySkip: SourceFileSystemPort = {
+      ...port,
+      walk: (root, opts, walkToken) => ({
+        async* [Symbol.asyncIterator]() {
+          for await (const entry of port.walk(root, opts, walkToken)) yield entry;
+          yield { kind: 'skipped', relativePath: 'locked', reason: directoryReason, wasDirectory: true };
+        },
+      }),
+    };
+    const snapshot = await collectInventory(portWithDirectorySkip, SCOPE, APPROVAL, token, clock);
+
+    expect(snapshot.entities.some((e) => e.path === 'locked')).toBe(false);
+    expect(snapshot.observations.some((o) => snapshot.entities.find((e) => e.id === o.entityId)?.path === 'locked')).toBe(false);
+    expect(snapshot.completeness).toBe('partial');
+    expect(snapshot.warnings).toContain(directoryReason);
+  });
+
   it('returns a snapshot that independently passes validateSnapshot', async () => {
     const { port, token, clock } = setUp({ 'a.ts': 'x\ny\n' });
     const snapshot = await collectInventory(port, SCOPE, APPROVAL, token, clock);

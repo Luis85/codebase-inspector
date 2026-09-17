@@ -154,7 +154,13 @@ export async function collectInventory(
   };
 
   const keptFiles: { path: string; absolutePath: string }[] = [];
-  const skipped: { path: string; reason: string }[] = [];
+  // Fix-round-1 MINOR finding 7: `wasDirectory` distinguishes a skipped DIRECTORY (an
+  // unreadable directory, or one sitting at the walk's maxDepth limit) from a skipped
+  // FILE (symlink, oversized, binary, unreadable file). Before this fix, every 'skipped'
+  // WalkEntry was turned into a `kind: 'file'` CodeEntity uniformly — a directory that
+  // could not be enumerated ended up in the snapshot typed as a file, carrying a file
+  // category task 4's layout would have rendered as a building.
+  const skipped: { path: string; reason: string; wasDirectory: boolean }[] = [];
 
   try {
     for await (const entry of port.walk(scope.rootPath, walkOpts, token)) {
@@ -162,7 +168,7 @@ export async function collectInventory(
       if (entry.kind === 'file') {
         keptFiles.push({ path: entry.relativePath, absolutePath: entry.absolutePath });
       } else if (entry.kind === 'skipped') {
-        skipped.push({ path: entry.relativePath, reason: entry.reason });
+        skipped.push({ path: entry.relativePath, reason: entry.reason, wasDirectory: entry.wasDirectory ?? false });
       }
     }
   } catch (e) {
@@ -172,7 +178,11 @@ export async function collectInventory(
   checkCancelled(token);
 
   const repositoryEntity = buildRepositoryEntity(repositoryId, scope.rootPath);
-  const directoryPlans = planAncestorDirectories([...keptFiles.map((f) => f.path), ...skipped.map((s) => s.path)]);
+  // A skipped DIRECTORY's own path never needs ancestors derived FROM it here: by
+  // definition nothing was ever discovered inside it (that is exactly why it has no
+  // CodeEntity of its own below), so it can never itself be someone else's ancestor.
+  const skippedFilePaths = skipped.filter((s) => !s.wasDirectory).map((s) => s.path);
+  const directoryPlans = planAncestorDirectories([...keptFiles.map((f) => f.path), ...skippedFilePaths]);
   const directories = buildDirectoryEntities(repositoryId, directoryPlans);
 
   const entities: CodeEntity[] = [repositoryEntity, ...directories.values()];
@@ -205,10 +215,19 @@ export async function collectInventory(
     }
   }
   for (const entry of skipped) {
+    warningReasons.add(entry.reason);
+    if (entry.wasDirectory) {
+      // No CodeEntity at all — never a mislabelled `kind: 'file'` entity for a
+      // directory, and never a `kind: 'directory'` entity either (the domain model
+      // never puts a metric Observation on a directory, so there is nothing for one to
+      // usefully carry here beyond what `warnings` already says). The reason string is
+      // still surfaced (never dropped silently, per spec 7) via the warningReasons.add
+      // above.
+      continue;
+    }
     const entity = buildFileEntity(repositoryId, entry.path, directories, repositoryEntity);
     entities.push(entity);
     observations.push(...unavailableObservations(entity.id, entry.reason));
-    warningReasons.add(entry.reason);
   }
 
   // Checked once more, after every read/measure is done and before anything is built:
