@@ -1,6 +1,6 @@
 # WP-01 spike report
 
-Date: 2026-09-17   Obsidian version: not recorded   Electron/Chrome: not recorded
+Date: 2026-09-17   Obsidian version: 1.13.7   Electron: 39.6.0   Chrome: 142.0.7444.265
 
 ## Verdict on the load-bearing question
 
