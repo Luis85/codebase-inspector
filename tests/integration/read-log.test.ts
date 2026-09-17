@@ -71,13 +71,25 @@ describe('read-log proof', () => {
     // every other plugin's — excluding the whole config directory (not a per-plugin
     // list src/adapters/** would have to maintain) is what keeps a refresh from ever
     // reading, and therefore never re-analysing, its own prior output.
+    //
+    // Fix-round-1 MINOR finding 5: makeTempTree names every temp root
+    // `codebase-inspector-fixture-*`, so `p.includes('codebase-inspector')` was true for
+    // EVERY logged path regardless of what it actually checked — the assertion reduced
+    // to `p.includes('data.json')`, which does not distinguish our own plugin's output
+    // from any other plugin's, despite the test's name and comment claiming it does.
+    // Discriminates on the plugin FOLDER path itself instead, and adds a positive
+    // control (tests 1 and 2 both have one; this one previously did not), so the test
+    // cannot pass against an empty or broken log either.
     const log = await scan({
       'src/a.ts': 'export const a = 1;\n',
       '.obsidian/plugins/codebase-inspector/data.json': '{"lastSnapshotId":"abc"}',
       '.obsidian/plugins/other/data.json': '{"token":"secret"}',
     }, ['.obsidian']);
 
-    expect(log.some((p) => p.includes('codebase-inspector') && p.includes('data.json'))).toBe(false);
-    expect(log.some((p) => p.includes('other') && p.includes('data.json'))).toBe(false);
+    const normalized = log.map((p) => p.replace(/\\/g, '/'));
+    expect(normalized.some((p) => p.endsWith('/plugins/codebase-inspector/data.json'))).toBe(false);
+    expect(normalized.some((p) => p.endsWith('/plugins/other/data.json'))).toBe(false);
+    // Positive control: the log is real, not vacuously empty.
+    expect(normalized.some((p) => p.endsWith('src/a.ts'))).toBe(true);
   });
 });
