@@ -1,8 +1,10 @@
 ---
+type: Deliverable
+order: 90
 id: WP-05
 title: Snapshot history and change evidence
 status: planned
-depends_on: [WP-02]
+dependsOn: [WP-02]
 ---
 # Package 05 — Snapshot history and change evidence
 

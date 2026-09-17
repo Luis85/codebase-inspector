@@ -1,8 +1,10 @@
 ---
+type: Deliverable
+order: 150
 id: WP-11
 title: Note embeds and focused navigation
 status: planned
-depends_on: [WP-04, WP-10]
+dependsOn: [WP-04, WP-10]
 ---
 # Package 11 — Note embeds and focused navigation
 

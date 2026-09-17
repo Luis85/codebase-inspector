@@ -4,18 +4,18 @@ All increments belong to one plugin. Do not publish twelve plugins or build ever
 
 | Package | User-visible result | Required dependencies |
 |---|---|---|
-| [01 — Native codebase city](packages/01-native-codebase-city.md) | Select a real root and explore its Three.js city inside Obsidian | None |
-| [02 — Fallow ingestion](packages/02-fallow-ingestion.md) | Import or explicitly collect findings and color the city by real evidence | 01 |
-| [03 — Dependencies and architecture](packages/03-dependency-architecture.md) | Explore directional relationships, cycles, and boundaries | 02 |
-| [04 — Investigation and notes](packages/04-investigation-notes.md) | Inspect a finding and create a linked Markdown investigation | 02; 03 enriches it |
-| [05 — Snapshot history](packages/05-snapshot-history.md) | Compare compatible states and record change evidence | 02 |
-| [06 — Test evidence](packages/06-test-evidence.md) | Inspect coverage and optional mutation results | 02 |
-| [07 — Diagnostics and security](packages/07-diagnostics-security.md) | Add lint and security-report providers | 02 |
-| [08 — Bundle footprint](packages/08-bundle-footprint.md) | Connect source to built artifact sizes | 02; 05 enables comparisons |
-| [09 — Overview and prioritization](packages/09-overview-prioritization.md) | See an explainable investigation queue and summary | 04, 05; other providers optional |
-| [10 — Watching and CI artifacts](packages/10-watch-ci-artifacts.md) | Refresh safely and import/export portable evidence | 02, 05 |
-| [11 — Note embeds and navigation](packages/11-note-embeds-navigation.md) | Open focused city views from notes and embed bounded previews | 04, 10 |
-| [12 — Runtime evidence](packages/12-runtime-evidence.md) | Inspect observed execution with environment/time coverage | 02, 05; 06 recommended |
+| [01 — Native codebase city](../deliverables/Native%20Codebase%20City.md) | Select a real root and explore its Three.js city inside Obsidian | None |
+| [02 — Fallow ingestion](../deliverables/Fallow%20Ingestion.md) | Import or explicitly collect findings and color the city by real evidence | 01 |
+| [03 — Dependencies and architecture](../deliverables/Dependencies%20and%20Architecture.md) | Explore directional relationships, cycles, and boundaries | 02 |
+| [04 — Investigation and notes](../deliverables/Investigation%20and%20Notes.md) | Inspect a finding and create a linked Markdown investigation | 02; 03 enriches it |
+| [05 — Snapshot history](../deliverables/Snapshot%20History.md) | Compare compatible states and record change evidence | 02 |
+| [06 — Test evidence](../deliverables/Test%20Evidence.md) | Inspect coverage and optional mutation results | 02 |
+| [07 — Diagnostics and security](../deliverables/Diagnostics%20and%20Security.md) | Add lint and security-report providers | 02 |
+| [08 — Bundle footprint](../deliverables/Bundle%20Footprint.md) | Connect source to built artifact sizes | 02; 05 enables comparisons |
+| [09 — Overview and prioritization](../deliverables/Overview%20and%20Prioritization.md) | See an explainable investigation queue and summary | 04, 05; other providers optional |
+| [10 — Watching and CI artifacts](../deliverables/Watching%20and%20CI%20Artifacts.md) | Refresh safely and import/export portable evidence | 02, 05 |
+| [11 — Note embeds and navigation](../deliverables/Note%20Embeds%20and%20Navigation.md) | Open focused city views from notes and embed bounded previews | 04, 10 |
+| [12 — Runtime evidence](../deliverables/Runtime%20Evidence.md) | Inspect observed execution with environment/time coverage | 02, 05; 06 recommended |
 
 ## Delivery rule
 

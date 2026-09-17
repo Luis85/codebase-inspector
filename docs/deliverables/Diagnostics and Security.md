@@ -1,8 +1,10 @@
 ---
+type: Deliverable
+order: 110
 id: WP-07
 title: Diagnostics and security evidence
 status: planned
-depends_on: [WP-02]
+dependsOn: [WP-02]
 ---
 # Package 07 — Diagnostics and security evidence
 

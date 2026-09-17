@@ -1,8 +1,10 @@
 ---
+type: Deliverable
+order: 70
 id: WP-03
 title: Dependency and architecture explorer
 status: planned
-depends_on: [WP-02]
+dependsOn: [WP-02]
 ---
 # Package 03 — Dependency and architecture explorer
 

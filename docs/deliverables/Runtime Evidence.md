@@ -1,8 +1,10 @@
 ---
+type: Deliverable
+order: 160
 id: WP-12
 title: Optional runtime execution evidence
 status: planned
-depends_on: [WP-02, WP-05]
+dependsOn: [WP-02, WP-05]
 ---
 # Package 12 — Optional runtime execution evidence
 

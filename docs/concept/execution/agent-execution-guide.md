@@ -4,7 +4,7 @@
 
 Inspect the actual `codebase-inspector` repository. Identify current source, build configuration, dependencies, documentation, tests, and any implementation of the city. No current repository was inspected while creating this kit. Do not invent a repository state or erase existing architecture based on this proposal.
 
-Read README.md, MIGRATION.md, architecture/architecture-and-contracts.md, and packages/01-native-codebase-city.md before coding. The user has selected Obsidian as the host; do not implement a new localhost web app or mandatory CLI.
+Read README.md, MIGRATION.md, architecture/architecture-and-contracts.md, and the Native Codebase City deliverable before coding. The user has selected Obsidian as the host; do not implement a new localhost web app or mandatory CLI.
 
 ## Contract-first parallel work
 

@@ -1,8 +1,10 @@
 ---
+type: Deliverable
+order: 100
 id: WP-06
 title: Test coverage and test effectiveness
 status: planned
-depends_on: [WP-02]
+dependsOn: [WP-02]
 ---
 # Package 06 — Test coverage and test effectiveness
 

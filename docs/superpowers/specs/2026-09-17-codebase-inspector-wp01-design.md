@@ -11,7 +11,7 @@ revised: 2026-09-17
 This document records the decisions agreed before implementation. It does not
 restate the concept kit. Where it is silent, `docs/concept/` governs — in
 particular [architecture-and-contracts.md](../../concept/architecture/architecture-and-contracts.md),
-[01-native-codebase-city.md](../../concept/packages/01-native-codebase-city.md),
+[Native Codebase City.md](../../deliverables/Native%20Codebase%20City.md),
 and [quality-gates.md](../../concept/execution/quality-gates.md). Where this
 document and the concept kit disagree, this document wins, because it reflects
 decisions taken with the repository in front of us and with the Obsidian

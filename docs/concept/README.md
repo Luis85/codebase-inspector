@@ -18,7 +18,7 @@ These files are implementation specifications, not executable plugin code. No cu
 2. [Migration decisions](MIGRATION.md) — what changes from the previous plan.
 3. [Roadmap](ROADMAP.md) — twelve independently deliverable increments.
 4. [Architecture and contracts](architecture/architecture-and-contracts.md) — boundaries, host integration, storage, and safety.
-5. [Package 01](packages/01-native-codebase-city.md) — first executable vertical slice.
+5. [Native Codebase City](../deliverables/Native%20Codebase%20City.md) — first executable vertical slice.
 6. [Agent execution guide](execution/agent-execution-guide.md) and [quality gates](execution/quality-gates.md).
 7. [Sources](SOURCES.md) — primary documentation checked on 17 September 2026.
 

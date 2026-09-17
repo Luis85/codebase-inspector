@@ -1,8 +1,10 @@
 ---
+type: Deliverable
+order: 60
 id: WP-02
 title: Fallow ingestion and quality lenses
 status: planned
-depends_on: [WP-01]
+dependsOn: [WP-01]
 ---
 # Package 02 — Fallow ingestion and quality lenses
 

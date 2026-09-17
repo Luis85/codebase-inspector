@@ -1,8 +1,10 @@
 ---
+type: Deliverable
+order: 120
 id: WP-08
 title: Bundle and dependency footprint
 status: planned
-depends_on: [WP-02]
+dependsOn: [WP-02]
 ---
 # Package 08 — Bundle and dependency footprint
 

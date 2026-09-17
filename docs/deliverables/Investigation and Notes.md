@@ -1,8 +1,10 @@
 ---
+type: Deliverable
+order: 80
 id: WP-04
 title: Investigation workbench and Markdown notes
 status: planned
-depends_on: [WP-02]
+dependsOn: [WP-02]
 ---
 # Package 04 — Investigation workbench and Markdown notes
 
