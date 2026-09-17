@@ -67,6 +67,20 @@ describe('validateSnapshot', () => {
     expect(() => validateSnapshot(s)).toThrow();
   });
 
+  it('rejects a repository entity whose path is not empty, rather than exempting it', () => {
+    // The repository entity is the root of the containment tree; its path convention
+    // (the empty string) is enforced, not merely assumed and left otherwise unchecked.
+    const s: any = buildSnapshotFixture({ files: 1 });
+    s.entities.find((e: any) => e.kind === 'repository').path = '../escape';
+    expect(() => validateSnapshot(s)).toThrow();
+  });
+
+  it('rejects a non-file entity carrying a category, which must be null', () => {
+    const s: any = buildSnapshotFixture({ files: 1, directories: 1 });
+    s.entities.find((e: any) => e.kind === 'directory').category = 'typescript';
+    expect(() => validateSnapshot(s)).toThrow(/category/i);
+  });
+
   it('rejects a non-finite, non-integer or negative measurement', () => {
     for (const v of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       const s: any = buildSnapshotFixture({ files: 1 });
@@ -96,7 +110,12 @@ describe('validateSnapshot', () => {
     try { validateSnapshot(s); expect.unreachable(); }
     catch (e) {
       expect(e).toBeInstanceOf(ValidationError);
-      expect((e as ValidationError).reasons.length).toBeGreaterThanOrEqual(2);
+      const { reasons } = e as ValidationError;
+      // Both specific violations must be present, not merely "at least two reasons" —
+      // a count check alone would also pass if the validator emitted the same reason
+      // twice, which is exactly the failure mode an early-abort configuration hides.
+      expect(reasons.some((r) => /schema/i.test(r))).toBe(true);
+      expect(reasons.some((r) => /completeness/i.test(r))).toBe(true);
     }
   });
 
@@ -117,8 +136,12 @@ describe('validateCityViewState', () => {
                 target: [0, 0, 0], up: [0, 1, 0], zoom: 1 } as const;
 
   it('rejects a resolved absolute path smuggled through workspace.json', () => {
-    // getState() persists to workspace.json, which is USER-EDITABLE (spec 4.4).
-    expect(() => validateCityViewState({ profileId: 'p', rootPath: 'C:\\somewhere', query: '' })).toThrow();
+    // getState() persists to workspace.json, which is USER-EDITABLE (spec 4.4). This is
+    // otherwise a fully well-formed state, so the rejection this asserts is provably the
+    // `rootPath` unknown-key rejection, not a missing-required-field rejection alongside it.
+    expect(() => validateCityViewState({ profileId: 'p', snapshotId: null, selectedEntityId: null,
+      query: '', viewMode: '3d', camera: null, previous3dCamera: null, inspectorOpen: false,
+      rootPath: 'C:\\somewhere' })).toThrow();
   });
 
   it('rejects an unknown viewMode', () => {

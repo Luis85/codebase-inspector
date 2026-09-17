@@ -46,20 +46,29 @@ const codeEntitySchema = z.object({
   category: z.string().nullable(),
 }).strict().superRefine((val, ctx) => {
   // The repository entity is the root of the containment tree and has no relative
-  // path of its own (by convention, the empty string); only directories and files
-  // have a real root-relative path to check.
-  if (val.kind !== 'repository') {
+  // path of its own; by convention its path is the empty string, and that convention
+  // is ENFORCED here, not merely assumed — every other kind goes through the same
+  // untrusted-input path-safety check as any other entity.
+  if (val.kind === 'repository') {
+    if (val.path !== '') {
+      ctx.addIssue({ code: 'custom', message: `a repository entity's path must be empty (entity ${val.id})` });
+    }
+  } else {
     try {
       normalizeRelativePath(val.path);
     } catch (e) {
       ctx.addIssue({ code: 'custom', message: `${(e as Error).message} (entity ${val.id})` });
     }
   }
-  if (val.kind === 'file'
-      && (val.category === null || !(CATEGORY_IDS as readonly string[]).includes(val.category))) {
-    // REJECTED, never re-inferred (spec 4.1) — this is the check the prototype's own
-    // validator does not have.
-    ctx.addIssue({ code: 'custom', message: `unknown category ${JSON.stringify(val.category)} on ${val.id}` });
+  if (val.kind === 'file') {
+    if (val.category === null || !(CATEGORY_IDS as readonly string[]).includes(val.category)) {
+      // REJECTED, never re-inferred (spec 4.1) — this is the check the prototype's own
+      // validator does not have.
+      ctx.addIssue({ code: 'custom', message: `unknown category ${JSON.stringify(val.category)} on ${val.id}` });
+    }
+  } else if (val.category !== null) {
+    // Model comment (model.ts): category is "null for repository and directory".
+    ctx.addIssue({ code: 'custom', message: `category must be null on non-file entity ${val.id}` });
   }
 });
 
