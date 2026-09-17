@@ -41,4 +41,23 @@ describe('isContained', () => {
   it('treats the root itself as contained', () => {
     expect(isContained('C:\\Projects\\app', 'C:\\Projects\\app')).toBe(true);
   });
+
+  // Ruling M20: isContained's default (no options) must be UNCHANGED case-insensitive
+  // behaviour, so every test above stays green without modification.
+  it('defaults to case-insensitive, unchanged from before the option existed', () => {
+    expect(isContained('/root/foo', '/root/Foo/x')).toBe(true);
+  });
+
+  it('POSIX-style case-sensitive: a differently-cased segment is NOT contained', () => {
+    expect(isContained('/root/foo', '/root/Foo/x', { caseSensitive: true })).toBe(false);
+  });
+
+  it('Windows-style case-insensitive: a differently-cased drive and segment IS contained', () => {
+    expect(isContained('C:\\Root\\Foo', 'c:\\root\\foo\\x', { caseSensitive: false })).toBe(true);
+  });
+
+  it('prefix collision is rejected under BOTH case modes', () => {
+    expect(isContained('C:\\Projects\\app', 'C:\\Projects\\app-evil\\a.ts', { caseSensitive: true })).toBe(false);
+    expect(isContained('C:\\Projects\\app', 'C:\\Projects\\app-evil\\a.ts', { caseSensitive: false })).toBe(false);
+  });
 });

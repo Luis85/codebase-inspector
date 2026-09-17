@@ -36,12 +36,23 @@ function segments(p: string): string[] {
   return out;
 }
 
-/** Case-insensitive on Windows drive letters; segment-wise, so C:\app-evil is not
- *  inside C:\app. Equivalent to path.resolve + a path.relative sign check (spec 4.4). */
-export function isContained(root: string, candidate: string): boolean {
+/** Segment-wise, so C:\app-evil is not inside C:\app. Equivalent to path.resolve plus a
+ *  path.relative sign check (spec 4.4), whose case behaviour is platform-dependent:
+ *  case-insensitive on Windows, case-sensitive on POSIX. `options.caseSensitive` selects
+ *  which; it defaults to `false` (case-insensitive), preserving this function's original
+ *  behaviour so every caller written before this option existed keeps working unchanged.
+ *  `src/domain/**` may not read the platform (it is forbidden from importing Node or any
+ *  host API), so it cannot decide this itself — ruling M20: the ADAPTER layer decides,
+ *  based on the platform it is actually running on, and passes the decision in here on
+ *  every call. */
+export function isContained(root: string, candidate: string, options?: { caseSensitive?: boolean }): boolean {
+  const caseSensitive = options?.caseSensitive ?? false;
   const r = segments(root);
   const c = segments(candidate);
   if (r[0] === '\u0000INVALID' || c[0] === '\u0000INVALID') return false;
   if (c.length < r.length) return false;
-  return r.every((part, i) => part.localeCompare(c[i]!, undefined, { sensitivity: 'accent' }) === 0);
+  return r.every((part, i) => {
+    const other = c[i]!;
+    return caseSensitive ? part === other : part.localeCompare(other, undefined, { sensitivity: 'accent' }) === 0;
+  });
 }

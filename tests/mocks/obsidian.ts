@@ -12,6 +12,16 @@
 // for host tests to construct real CodebaseInspectorPlugin/CityView instances and
 // exercise real behaviour.
 
+// Ruling M17 (task-5-context.md section 5): node-access.ts reads `Platform.isDesktopApp`
+// at MODULE LOAD to decide whether to touch `window.require` at all. Under Vitest's
+// 'node' environment there is no `window`, so this must default to `false` — the
+// ternary then short-circuits, `window` is never touched, and importing node-access.ts
+// (transitively, via node-source-filesystem.ts) cannot crash. A plain mutable object
+// (not a getter/const primitive) so a test that specifically wants the `true` branch can
+// set `Platform.isDesktopApp = true` before a `vi.resetModules()` + dynamic import of
+// node-access.ts (whose `fs`/`fsPromises`/`nodePath` are computed once, at import time).
+export const Platform = { isDesktopApp: false };
+
 export class Plugin {
   app: unknown;
   manifest: unknown;
