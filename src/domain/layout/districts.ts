@@ -63,8 +63,25 @@ interface LayoutNode {
 }
 
 const COLLATOR = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+
+/**
+ * Fix round 1, IMPORTANT 2: `sensitivity: 'base'` makes the collator return 0 for paths
+ * differing only by case or accent (e.g. 'README.md' vs 'readme.md') — verified directly:
+ * `COLLATOR.compare('README.md', 'readme.md') === 0`. Two distinct files on a
+ * case-sensitive filesystem are legal, and `Array#sort` is stable, so a tie there would
+ * let the ORIGINAL (insertion) order leak through — silently breaking "identical input
+ * yields identical geometry" and "insensitive to input ordering", the two determinism
+ * bullets this whole task exists to satisfy. A collator tie now falls back to an ordinal
+ * comparison of the exact path, and then (belt and braces, for two entities that could
+ * somehow share a path) the entity id, so byPath is a genuine total order: it never
+ * returns 0 for two entities that are not the same entity.
+ */
 function byPath(a: CodeEntity, b: CodeEntity): number {
-  return COLLATOR.compare(a.path, b.path);
+  const collated = COLLATOR.compare(a.path, b.path);
+  if (collated !== 0) return collated;
+  if (a.path !== b.path) return a.path < b.path ? -1 : 1;
+  if (a.id !== b.id) return a.id < b.id ? -1 : 1;
+  return 0;
 }
 
 function groupByParent(entities: readonly CodeEntity[]): Map<EntityId, CodeEntity[]> {

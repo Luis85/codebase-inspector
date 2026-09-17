@@ -1,6 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { computeLayout } from '../../src/domain/layout/layout';
-import { buildSnapshotFixture, tinyFixture } from '../fixtures/snapshot-builder';
+import { buildSnapshotFixture, caseSiblingFixture, nestedStressFixture, tinyFixture } from '../fixtures/snapshot-builder';
+
+// Fix round 1, IMPORTANT 4: a non-mutating reversal that never calls `Array#reverse()`
+// (oxlint's unicorn/no-array-reverse fires on `.reverse()` regardless of whether the
+// receiver is a fresh copy) — this maps each index to its mirror in a NEW array, so the
+// input is never touched and no lint override is needed.
+function toReversedArray<T>(arr: readonly T[]): T[] {
+  return arr.map((_, i) => arr[arr.length - 1 - i]!);
+}
+
+function pairwiseSeparated<T extends { center: readonly [number, number, number] }>(
+  items: readonly T[],
+  sizeOf: (item: T) => readonly [number, number],
+): void {
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      const a = items[i]!, b = items[j]!;
+      const [aw, ad] = sizeOf(a);
+      const [bw, bd] = sizeOf(b);
+      const sepX = Math.abs(a.center[0] - b.center[0]) >= (aw + bw) / 2;
+      const sepZ = Math.abs(a.center[2] - b.center[2]) >= (ad + bd) / 2;
+      expect(sepX || sepZ, `items ${i} and ${j} overlap`).toBe(true);
+    }
+  }
+}
 
 describe('computeLayout determinism', () => {
   it('produces identical geometry for identical input', () => {
@@ -10,8 +34,8 @@ describe('computeLayout determinism', () => {
 
   it('is insensitive to input ordering', () => {
     const s = tinyFixture();
-    const reversed = { ...s, entities: [...s.entities].reverse(),
-                             observations: [...s.observations].reverse() };
+    const reversed = { ...s, entities: toReversedArray(s.entities),
+                             observations: toReversedArray(s.observations) };
     expect(computeLayout(reversed).lots).toEqual(computeLayout(s).lots);
   });
 
@@ -22,14 +46,31 @@ describe('computeLayout determinism', () => {
 
   it('overlaps no two lots', () => {
     const { lots } = computeLayout(buildSnapshotFixture({ files: 400, directories: 25 }));
-    for (let i = 0; i < lots.length; i++) {
-      for (let j = i + 1; j < lots.length; j++) {
-        const a = lots[i]!, b = lots[j]!;
-        const sepX = Math.abs(a.center[0] - b.center[0]) >= (a.dimensions[0] + b.dimensions[0]) / 2;
-        const sepZ = Math.abs(a.center[2] - b.center[2]) >= (a.dimensions[2] + b.dimensions[2]) / 2;
-        expect(sepX || sepZ, `lots ${i} and ${j} overlap`).toBe(true);
-      }
-    }
+    pairwiseSeparated(lots, (l) => [l.dimensions[0], l.dimensions[2]]);
+  });
+
+  // Fix round 1, IMPORTANT 3: the test above puts 25 directories directly under the
+  // repository, which exceeds MAX_DIRECT_SUBDISTRICTS (20) and aggregates the root, so
+  // every lot goes through ONE flat shelfPack call — the recursive origin composition in
+  // collectResults (`originX + c.localX`, chained through several nested levels) is
+  // never exercised. This fixture stays at or below the threshold at every level, so the
+  // fully recursive path is the one actually under test.
+  it('overlaps no two lots in a genuinely nested, non-aggregated tree', () => {
+    const { lots, districts } = computeLayout(nestedStressFixture());
+    expect(lots.length).toBe(432);
+    expect(districts.some((d) => d.aggregated)).toBe(false);
+    pairwiseSeparated(lots, (l) => [l.dimensions[0], l.dimensions[2]]);
+  });
+
+  // Fix round 1, IMPORTANT 2: 'README.md' and 'readme.md' collate as equal under
+  // { sensitivity: 'base' } — a comparator tie that a naive sort would resolve by
+  // Array#sort's stability (i.e. by ORIGINAL array order), silently breaking
+  // determinism for two files that legally coexist on a case-sensitive filesystem.
+  it('places case-differing siblings identically regardless of input array order', () => {
+    const s = caseSiblingFixture();
+    const reversed = { ...s, entities: toReversedArray(s.entities),
+                             observations: toReversedArray(s.observations) };
+    expect(computeLayout(reversed).lots).toEqual(computeLayout(s).lots);
   });
 
   it('never mutates the snapshot it was given', () => {

@@ -17,10 +17,21 @@ export function computeLayout(
 ): LayoutResult {
   const metricId = opts?.metricId ?? 'physical-lines';
 
+  // Fix round 1, CRITICAL 1: spec 4.3 defines clampedCount as "the number of LOTS whose
+  // raw value exceeded the cap" — only file entities become lots (districts.ts never
+  // builds one for a directory or the repository), so an observation on a non-file
+  // entity must not enter the cap's p95 population or clampedCount. Nothing in the
+  // validator restricts Observation.entityId to a file, so a validator-legal snapshot
+  // could otherwise carry a directory-level observation that skews the cap for every
+  // real lot and inflates clampedCount with a value no lot corresponds to.
+  const fileIds = new Set<EntityId>();
+  for (const e of snapshot.entities) if (e.kind === 'file') fileIds.add(e.id);
+
   const observationByEntity = new Map<EntityId, Observation>();
   const measuredValues: number[] = [];
   for (const obs of snapshot.observations) {
     if (obs.measurement.metricId !== metricId) continue;
+    if (!fileIds.has(obs.entityId)) continue;
     observationByEntity.set(obs.entityId, obs);
     if (obs.status === 'measured' && obs.value !== null) measuredValues.push(obs.value);
   }

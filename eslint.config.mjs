@@ -87,16 +87,6 @@ export default tseslint.config(
     '@typescript-eslint/no-unsafe-argument': 'off',
   } },
 
-  // tests/unit/layout-scale.test.ts's deriveCap tests use the brief-verbatim
-  // `[...Array(95).fill(600), ...Array(5).fill(9000)]` idiom. lib.es5's `Array(n)`
-  // overload types the result `any[]`, so spreading it is flagged as an unsafe
-  // assignment even though every element is a literal number — a false positive
-  // against literal, non-corrupted test data (unlike validator.test.ts's deliberate
-  // `unknown`-boundary payloads below, which need the full no-unsafe-* set off).
-  { files: ['tests/unit/layout-scale.test.ts'], rules: {
-    '@typescript-eslint/no-unsafe-assignment': 'off',
-  } },
-
   // Both files construct hand-rolled Plugin/CityRendererPort test doubles whose
   // methods are plain vi.fn() properties, not real bound instance methods.
   // expect(double.method) is the correct assertion idiom for a spy and never depends

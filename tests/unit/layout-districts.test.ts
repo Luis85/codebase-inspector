@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { computeLayout } from '../../src/domain/layout/layout';
-import { buildSnapshotFixture, nestedFixture } from '../fixtures/snapshot-builder';
+import { buildSnapshotFixture, nestedFixture, nestedStressFixture } from '../fixtures/snapshot-builder';
 import type { CityDistrict } from '../../src/domain/layout/types';
+
+type EntityIdOrNull = CityDistrict['parentId'];
 
 describe('districts', () => {
   it('nests: every district but the root has a parentId in the set, and a greater depth', () => {
@@ -71,5 +73,46 @@ describe('districts', () => {
     const { lots, districts } = computeLayout(buildSnapshotFixture({ files: 30, directories: 5 }));
     const ids = new Set(districts.map((d) => d.directoryId));
     for (const lot of lots) expect(ids.has(lot.directoryId)).toBe(true);
+  });
+
+  // Fix round 1, IMPORTANT 3: the claim that non-overlap COMPOSES up through the tree
+  // (districts.ts's own doc-comment on shelfPack) was asserted but never tested against
+  // a genuinely nested tree — nestedStressFixture keeps every level at or below
+  // MAX_DIRECT_SUBDISTRICTS so the recursive (non-aggregated) path is exercised, not the
+  // flattened aggregation path the 400/25 overlap fixture actually takes.
+  it('keeps sibling districts non-overlapping and every child district within its parent extent', () => {
+    const { districts } = computeLayout(nestedStressFixture());
+    expect(districts.some((d) => d.aggregated)).toBe(false);
+
+    const byParent = new Map<EntityIdOrNull, CityDistrict[]>();
+    for (const d of districts) {
+      const list = byParent.get(d.parentId) ?? [];
+      list.push(d);
+      byParent.set(d.parentId, list);
+    }
+    for (const siblings of byParent.values()) {
+      for (let i = 0; i < siblings.length; i++) {
+        for (let j = i + 1; j < siblings.length; j++) {
+          const a = siblings[i]!, b = siblings[j]!;
+          const sepX = Math.abs(a.center[0] - b.center[0]) >= (a.extent[0] + b.extent[0]) / 2;
+          const sepZ = Math.abs(a.center[2] - b.center[2]) >= (a.extent[1] + b.extent[1]) / 2;
+          expect(sepX || sepZ, 'sibling districts overlap').toBe(true);
+        }
+      }
+    }
+
+    const byId = new Map(districts.map((d) => [d.directoryId, d]));
+    for (const d of districts) {
+      if (d.parentId === null) continue;
+      const parent = byId.get(d.parentId)!;
+      const childMinX = d.center[0] - d.extent[0] / 2, childMaxX = d.center[0] + d.extent[0] / 2;
+      const childMinZ = d.center[2] - d.extent[1] / 2, childMaxZ = d.center[2] + d.extent[1] / 2;
+      const parentMinX = parent.center[0] - parent.extent[0] / 2, parentMaxX = parent.center[0] + parent.extent[0] / 2;
+      const parentMinZ = parent.center[2] - parent.extent[1] / 2, parentMaxZ = parent.center[2] + parent.extent[1] / 2;
+      expect(childMinX).toBeGreaterThanOrEqual(parentMinX);
+      expect(childMaxX).toBeLessThanOrEqual(parentMaxX);
+      expect(childMinZ).toBeGreaterThanOrEqual(parentMinZ);
+      expect(childMaxZ).toBeLessThanOrEqual(parentMaxZ);
+    }
   });
 });

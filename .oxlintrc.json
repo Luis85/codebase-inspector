@@ -8,13 +8,5 @@
   "rules": {
     "unicorn/no-array-sort": "off"
   },
-  "overrides": [
-    {
-      "files": ["tests/unit/layout-determinism.test.ts"],
-      "rules": {
-        "unicorn/no-array-reverse": "off"
-      }
-    }
-  ],
   "ignorePatterns": ["dist/**", "docs/**", "node_modules/**"]
 }

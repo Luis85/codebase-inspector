@@ -234,3 +234,127 @@ export function nestedFixture(): CodebaseSnapshot {
     warnings: [],
   };
 }
+
+/**
+ * Fix round 1, IMPORTANT 3: `buildSnapshotFixture`'s flat tree means
+ * `{ files: 400, directories: 25 }` puts 25 direct subdirectories under the repository —
+ * above `MAX_DIRECT_SUBDISTRICTS` (20), so the ROOT aggregates and every one of its 400
+ * files goes through a single flat shelfPack call. That never exercises the recursive
+ * origin composition in `districts.ts`'s `collectResults` (`originX + c.localX` chained
+ * through several levels), which is what this task is actually about. This fixture keeps
+ * every container's direct-subdirectory count at or below the threshold (6, 6 and 3, all
+ * <= 20) so the fully recursive, non-aggregated path is the one under test: 6 top-level
+ * directories, 6 subdirectories each, 3 sub-subdirectories each, 4 files in every leaf —
+ * 432 files across depths 0 (root) through 3.
+ */
+export function nestedStressFixture(): CodebaseSnapshot {
+  const repositoryId = 'repo-stress';
+  const repositoryEntity: CodeEntity = {
+    id: makeEntityId(repositoryId, 'repository', ''),
+    repositoryId, kind: 'repository', path: '', name: repositoryId,
+    parentId: null, category: null,
+  };
+  const entities: CodeEntity[] = [repositoryEntity];
+  const observations: Observation[] = [];
+  let fileIndex = 0;
+
+  const addDir = (parent: CodeEntity, path: string, name: string): CodeEntity => {
+    const dir: CodeEntity = {
+      id: makeEntityId(repositoryId, 'directory', path),
+      repositoryId, kind: 'directory', path, name, parentId: parent.id, category: null,
+    };
+    entities.push(dir);
+    return dir;
+  };
+
+  const addFile = (parent: CodeEntity, path: string): void => {
+    const name = path.slice(path.lastIndexOf('/') + 1);
+    const file: CodeEntity = {
+      id: makeEntityId(repositoryId, 'file', path),
+      repositoryId, kind: 'file', path, name, parentId: parent.id, category: classify(path),
+    };
+    entities.push(file);
+    const lines = 10 + (fileIndex % 250);
+    fileIndex += 1;
+    observations.push(makeObservation(file.id, 'physical-lines', 'measured', lines, null));
+    observations.push(makeObservation(file.id, 'byte-size', 'measured', lines * 20, null));
+  };
+
+  const TOP = 6, MID = 6, LEAF = 3, FILES = 4;
+  for (let i = 0; i < TOP; i += 1) {
+    const topPath = `top-${i}`;
+    const top = addDir(repositoryEntity, topPath, topPath);
+    for (let j = 0; j < MID; j += 1) {
+      const midPath = `${topPath}/mid-${j}`;
+      const mid = addDir(top, midPath, `mid-${j}`);
+      for (let k = 0; k < LEAF; k += 1) {
+        const leafPath = `${midPath}/leaf-${k}`;
+        const leaf = addDir(mid, leafPath, `leaf-${k}`);
+        for (let m = 0; m < FILES; m += 1) addFile(leaf, `${leafPath}/file-${m}.ts`);
+      }
+    }
+  }
+
+  return {
+    snapshotId: 'snapshot-stress',
+    schemaVersion: 1,
+    repositoryId,
+    providerRun: {
+      runId: 'run-stress', provider: 'builtin-inventory', origin: 'collected',
+      capturedAt: '2026-01-01T00:00:00.000Z', completedAt: '2026-01-01T00:00:01.000Z',
+    },
+    scope: { rootPath: '/fixture/stress', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false },
+    entities,
+    observations,
+    fileSetDigest: `fixture-digest-stress-${entities.length}`,
+    completeness: 'complete',
+    warnings: [],
+  };
+}
+
+/**
+ * Fix round 1, IMPORTANT 2: two sibling files whose paths differ only by case
+ * ('README.md' / 'readme.md') — both legal on a case-sensitive filesystem. Used to prove
+ * `districts.ts`'s sort comparator is a genuine total order rather than one that lets
+ * `Array#sort`'s stability leak the original array order through a collator tie.
+ */
+export function caseSiblingFixture(): CodebaseSnapshot {
+  const repositoryId = 'repo-case';
+  const repositoryEntity: CodeEntity = {
+    id: makeEntityId(repositoryId, 'repository', ''),
+    repositoryId, kind: 'repository', path: '', name: repositoryId,
+    parentId: null, category: null,
+  };
+  const makeFile = (path: string, lines: number): { entity: CodeEntity; observations: Observation[] } => {
+    const entity: CodeEntity = {
+      id: makeEntityId(repositoryId, 'file', path),
+      repositoryId, kind: 'file', path, name: path, parentId: repositoryEntity.id,
+      category: classify(path),
+    };
+    return {
+      entity,
+      observations: [
+        makeObservation(entity.id, 'physical-lines', 'measured', lines, null),
+        makeObservation(entity.id, 'byte-size', 'measured', lines * 20, null),
+      ],
+    };
+  };
+  const upper = makeFile('README.md', 40);
+  const lower = makeFile('readme.md', 80);
+
+  return {
+    snapshotId: 'snapshot-case',
+    schemaVersion: 1,
+    repositoryId,
+    providerRun: {
+      runId: 'run-case', provider: 'builtin-inventory', origin: 'collected',
+      capturedAt: '2026-01-01T00:00:00.000Z', completedAt: '2026-01-01T00:00:01.000Z',
+    },
+    scope: { rootPath: '/fixture/case', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false },
+    entities: [repositoryEntity, upper.entity, lower.entity],
+    observations: [...upper.observations, ...lower.observations],
+    fileSetDigest: 'fixture-digest-case',
+    completeness: 'complete',
+    warnings: [],
+  };
+}
