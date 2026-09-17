@@ -239,8 +239,15 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
     },
 
     debugLoseContext() {
-      const ext = threeRenderer.getContext().getExtension('WEBGL_lose_context');
-      ext?.loseContext();
+      // The port never throws (spec 4.2) — no carve-out for instrumentation. Called
+      // after dispose() or against an already-degraded context, getContext()/
+      // getExtension() can throw; a no-op is the correct outcome, not a crash.
+      try {
+        const ext = threeRenderer.getContext().getExtension('WEBGL_lose_context');
+        ext?.loseContext();
+      } catch {
+        // Already gone or unavailable — nothing to lose.
+      }
     },
   };
 

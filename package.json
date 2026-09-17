@@ -11,7 +11,7 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "verify": "npm run typecheck && npm run lint:fast && npm run lint && npm run test && npm run build",
-    "install:vault": "node scripts/install-to-vault.mjs"
+    "install:vault": "node --env-file-if-exists=.env scripts/install-to-vault.mjs"
   },
   "dependencies": {
     "pinia": "4.0.3",
