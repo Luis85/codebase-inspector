@@ -92,14 +92,19 @@ export async function makeTempTree(spec: TempTreeSpec): Promise<TempTree> {
 
 export interface FileFingerprint { sha256: string; mtimeMs: number; size: number }
 
-/** Hashes every file in the tree, including a placeholder for a file this process
- *  cannot read (the deliberately-unreadable fixture) — its mtimeMs/size still catch a
- *  write, which is what the no-source-write proof needs. Symlinks are fingerprinted by
- *  their own lstat (never followed), so re-pointing one would also be caught. */
+/** Hashes every file AND every directory in the tree, including a placeholder for a
+ *  file this process cannot read (the deliberately-unreadable fixture) — its
+ *  mtimeMs/size still catch a write, which is what the no-source-write proof needs.
+ *  Symlinks are fingerprinted by their own lstat (never followed), so re-pointing one
+ *  would also be caught. Fix-round-1 finding 2: a directory's OWN fingerprint is
+ *  recorded (not just recursed into) — before this, an empty directory a regression
+ *  created inside the tree would never appear in the resulting map at all, since only
+ *  directories' FILES were ever given an entry; `toEqual` on the whole map would not
+ *  have noticed a key that never existed on either side. */
 export async function hashTree(root: string): Promise<Record<string, FileFingerprint>> {
   const result: Record<string, FileFingerprint> = {};
 
-  async function walk(dir: string, relPrefix: string): Promise<void> {
+  async function visitDir(dir: string, relPrefix: string): Promise<void> {
     const names = (await readdir(dir)).sort();
     for (const name of names) {
       const abs = join(dir, name);
@@ -108,7 +113,8 @@ export async function hashTree(root: string): Promise<Record<string, FileFingerp
       if (st.isSymbolicLink()) {
         result[rel] = { sha256: 'symlink', mtimeMs: st.mtimeMs, size: st.size };
       } else if (st.isDirectory()) {
-        await walk(abs, rel);
+        result[rel] = { sha256: 'directory', mtimeMs: st.mtimeMs, size: st.size };
+        await visitDir(abs, rel);
       } else if (st.isFile()) {
         let sha256 = 'unreadable';
         try {
@@ -119,6 +125,6 @@ export async function hashTree(root: string): Promise<Record<string, FileFingerp
     }
   }
 
-  await walk(root, '');
+  await visitDir(root, '');
   return result;
 }

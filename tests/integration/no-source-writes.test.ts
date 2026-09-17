@@ -49,7 +49,30 @@ describe('no-source-writes proof', () => {
     const clock = createFixedClock();
 
     const snapshot = await collectInventory(port, scope, approvalFor(tree.root), token, clock);
-    expect(snapshot.entities.length).toBeGreaterThan(0);
+    // Fix-round-1 IMPORTANT finding 2: `entities.length > 0` was the sole liveness guard
+    // here, and collectInventory ALWAYS pushes a repository entity regardless of what the
+    // walk found — so a regression that silently stopped the walk (everything excluded,
+    // or the walk failing over and returning nothing) would still satisfy that assertion
+    // (reviewer measurement: entities: 1, files: 0, completeness: 'complete'). Assert the
+    // SPECIFIC entities and observations this fixture must produce, so an empty or
+    // truncated scan actually fails this proof instead of passing it falsely.
+    const filesByPath = new Map(
+      snapshot.entities.filter((e) => e.kind === 'file').map((e) => [e.path, e] as const),
+    );
+    for (const measuredPath of ['src/a.ts', 'src/nested/b.ts', 'README.md']) {
+      const entity = filesByPath.get(measuredPath);
+      expect(entity, measuredPath).toBeDefined();
+      const observations = snapshot.observations.filter((o) => o.entityId === entity!.id);
+      expect(observations, measuredPath).toHaveLength(2);
+      expect(observations.every((o) => o.status === 'measured'), measuredPath).toBe(true);
+    }
+    for (const unavailablePath of ['binary.dat', 'unreadable.ts']) {
+      const entity = filesByPath.get(unavailablePath);
+      expect(entity, unavailablePath).toBeDefined();
+      const observations = snapshot.observations.filter((o) => o.entityId === entity!.id);
+      expect(observations, unavailablePath).toHaveLength(2);
+      expect(observations.every((o) => o.status === 'unavailable'), unavailablePath).toBe(true);
+    }
 
     const after = await hashTree(tree.root);
     // The whole tree, not a spot check: content (sha256), size AND mtimeMs for every
