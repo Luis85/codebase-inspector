@@ -4,64 +4,95 @@ title: WP-01 — Native Obsidian Three.js codebase city (design)
 status: approved
 date: 2026-09-17
 revised: 2026-09-17
+revision: 3
 ---
 
 # WP-01 design — Native Obsidian Three.js codebase city
 
 This document records the decisions agreed before implementation. It does not
-restate the concept kit. Where it is silent, `docs/concept/` governs — in
-particular [architecture-and-contracts.md](../../concept/architecture/architecture-and-contracts.md),
-[Native Codebase City.md](../../deliverables/Native%20Codebase%20City.md),
-and [quality-gates.md](../../concept/execution/quality-gates.md). Where this
-document and the concept kit disagree, this document wins, because it reflects
-decisions taken with the repository in front of us and with the Obsidian
-documentation verified.
+restate the concept kit or the design package; it resolves them against each
+other and against verified Obsidian behaviour.
 
-Section 10 records what was verified, what is inferred, and what remains open.
+Section 11 records what was verified, what is inferred, and what remains open.
 Claims marked **verified** trace to obsidianmd-owned sources or to a working
-plugin in this workspace. Nothing else in this document should be treated as
-documented fact.
+plugin in this workspace. Nothing else here is documented fact.
+
+## 0. Precedence
+
+Six bodies of material now govern WP-01. They are not ranked by recency, and
+none of them overrides another by silence.
+
+1. **This document's sections 3, 4.4 and 5** — toolchain, build, Node access,
+   manifest, and Obsidian host rules. Verified against obsidianmd-owned sources
+   and a working plugin. No design document addresses any of this.
+2. **This document's sections 4 and 7–8** — frozen contracts, failure behaviour
+   and execution model, as reconciled below with `renderer-port.ts`.
+3. **The concept kit's safety and evidence gates** (`execution/quality-gates.md`
+   G1–G8) and **`docs/deliverables/Native Codebase City.md`** — binding wherever
+   this document is silent. The design package affirms this: *"Safety and
+   evidence constraints from the implementation kit remain binding."*
+4. **The v1.1 handoff** — `docs/concept/design/wp01-review/docs/01`–`08` and
+   `integration/renderer-port.ts`. **Authoritative for behaviour**: interaction
+   defaults, states, recovery and microcopy, and for anything on which this
+   document and the concept kit are both silent.
+5. **Screen specifications S01–S13 and S23** — layout zones and content,
+   subordinate to the v1.1 handoff where it refines them.
+6. **Mockup PNGs** — composition only. **The review prototype, the older SVG
+   prototype and `concepts/00-visual-exploration.png` are never behavioural
+   sources and never ship.**
+
+The working rule: **this document wins on how the plugin is built and how it
+touches Obsidian; v1.1 wins on how it behaves.**
+
+Two reading copies are byte-level concatenations of the primary files and are
+cited only for convenience: `WP01-DESIGN-TO-IMPLEMENTATION.md` (= `wp01-review/docs/01`–`08`)
+and `COMPLETE-DESIGN-SPECIFICATION.md`.
 
 ## 1. Scope
 
 The deliverable is the complete WP-01 vertical slice: plugin distribution →
-source selection → safe read-only scan → normalized snapshot → Three.js city →
-inspection. A scaffold or a fixture-only city does not satisfy it.
+source selection → scope approval → safe read-only scan → normalized snapshot →
+Three.js city → inspection. A scaffold or a fixture-only city does not satisfy
+it.
 
-Out of scope: fallow as a runtime provider, findings, dependency relations,
-snapshot history, note writing, and every other WP-02+ capability. The increment
-stops before fallow.
+**The behavioural surface is screens S01–S13 and S23**, as refined by the v1.1
+handoff.
 
-Repository state at the time of writing: `LICENSE`, `README.md`, and `docs/`
-only. No implementation exists to reconcile. The repository root is itself an
-Obsidian vault (`.obsidian/`, gitignored); this is incidental, and it is not the
-test vault.
+Out of scope, and stated explicitly because the shared design package shows all
+of them: fallow and any analyzer; findings, coverage, dependency relations and
+runtime evidence; note writing; snapshot history and comparison; **a `lens`
+parameter on the city viewport** (C08 declares one; WP-01 builds C08 without
+it); **any source-opening or open-in-editor action** (C10 declares
+`sourceOpenRequested`; S07's binding table lists only Focus and Copy relative
+path, and external process execution is an unresolved policy question — see
+section 11); **trusted executable bindings** (WP-02+); **durable snapshot
+persistence** (WP-05 — see section 4.3); and **any rendered-but-disabled control
+for unimplemented behaviour**, which the design package itself forbids as an
+empty placeholder. The "Follow symbolic links" row in S13 is therefore static
+explanatory text, not a disabled toggle.
 
-Community-directory submission is **not** a goal for WP-01. Every policy and
-lint rule is followed so that submission remains possible later, but the release
-gate proves a clean-vault install, not directory readiness. See section 9.
+Community-directory submission is not a goal. Every policy and lint rule is
+followed so submission stays possible, but the release gate proves a clean-vault
+install, not directory readiness.
+
+Repository state: `LICENSE`, `README.md` and `docs/` only. **No implementation
+exists to reconcile.** Several v1.1 documents instruct an agent to "read the
+existing code" and "reconcile `renderer-port.ts` with implemented types" — those
+instructions are void here, and IP-01's deliverable reads *define*, not
+*reconcile*.
 
 ## 2. Approach: skeleton first
 
-The tasks are sequenced so that a loadable plugin exists in a real vault as
-early as possible, and each later task replaces one layer of it.
+Tasks are sequenced so a loadable plugin exists in a real vault early, and each
+later task replaces one layer of it. Rejected: literal concept-kit order
+(renderer and UI built against a model never drawn in the host) and headless
+core first (defers bundling risk and the "does it feel right" signal to the end).
 
-Rejected alternatives:
-
-- **Literal spec order (01.1 to 01.9).** Renderer and UI would be built against
-  a model never drawn in the host, so host surprises land late.
-- **Headless core first.** Best unit coverage, but it defers both the bundling
-  risk and the "does it feel right" signal to the end — the failure mode
-  `MIGRATION.md` warns about.
-
-**The spike's target has moved.** The original premise was that the largest
-unknown is whether a Vite library build containing Vue SFCs and Three.js loads
-as an Obsidian plugin. Research settled that: at least three published community
-plugins are Vue 3 SFCs built with Vite in CommonJS library mode, several
+**The spike targets Node access**, not Vue or Three.js. Research settled those:
+published community plugins build Vue 3 SFCs with Vite in CommonJS library mode,
 published plugins bundle Three.js, and a working Vite-built Vue plugin exists in
-this workspace. What is genuinely unvalidated is **Node access from inside the
-bundle** — see section 3 — which task 5 depends on absolutely. The spike now
-targets that, and proves the rest in passing.
+this workspace. What is unvalidated is whether Node built-ins resolve from
+inside the bundle — see section 3.1 — which task 5 depends on absolutely.
 
 ## 3. Repository and toolchain
 
@@ -72,36 +103,25 @@ codebase-inspector/
   eslint.config.mjs  .oxlintrc.json  vitest.config.ts
   .env.example                      # .env is gitignored
   scripts/                          # every project script lives here
-    install-to-vault.mjs
   src/        host/ application/ domain/ adapters/ visualization/ ui/
   tests/      unit/ contracts/ integration/ host/ fixtures/ benchmarks/
   dist/                             # build output only; gitignored
   docs/
 ```
 
-`src/` follows the structure proposed in section 2 of the concept kit.
-
-**No build output at the repository root.** `main.js` and `styles.css` are
-artefacts written to `dist/`, never beside the source. `dist/` is gitignored,
-which also satisfies Obsidian's own checklist item that `main.js` belongs in
-releases rather than in the repository. **verified**
-
-**Every script lives in `scripts/`.** Build, install, fixture generation, and
-benchmark helpers are files under `scripts/`, invoked through npm scripts. The
-community directory's source scanner ignores `scripts/` wholesale, so this costs
-nothing there. **verified**
-
-**`package-lock.json` is committed.** Obsidian's plugin checklist requires a
-lock file. **verified**
+**No build output at the repository root**; `main.js` and `styles.css` are
+artefacts in `dist/`, which also satisfies Obsidian's checklist item that
+`main.js` belongs in releases, not the repository. **Every script lives in
+`scripts/`**; the community scanner ignores that directory wholesale.
+**`package-lock.json` is committed**, as the checklist requires. All
+**verified**.
 
 ### 3.1 Node access — the load-bearing decision
 
-WP-01 reads an arbitrary filesystem tree. How it reaches Node is a frozen
-decision, not an implementation detail, and the obvious approach is wrong.
-
-**The rule:** all Node access goes through **one module**, `src/adapters/filesystem/node-access.ts`,
-which obtains its modules at runtime through `window.require` with `node:`-prefixed
-specifiers, guarded by `Platform.isDesktopApp`:
+All Node access goes through **one module**,
+`src/adapters/filesystem/node-access.ts`, obtaining modules at runtime through
+`window.require` with `node:`-prefixed specifiers, guarded by
+`Platform.isDesktopApp`:
 
 ```ts
 // The only place in the codebase that reaches Node. Everything else imports from here.
@@ -112,66 +132,55 @@ export const fsPromises = fs ? fs.promises : null;
 export const nodePath = Platform.isDesktopApp ? window.require('node:path') : null;
 ```
 
-Three separate reasons, each sufficient on its own:
+Three independent reasons:
 
-1. **`window.require`, not a bundled import.** Obsidian injects its own CommonJS
-   `require` into a plugin bundle, and there is credible evidence that it
-   resolves only `obsidian`, `electron` and the CodeMirror packages, returning
-   `null` for Node built-ins, while the renderer's `window.require` is
-   Electron's real one. This is **inferred, not documented** — it is one
-   plugin's detailed build comment, and it sits in tension with the official
-   sample externalising `...builtinModules`. The spike settles it (section 5).
-   Using `window.require` is correct either way, so the design does not wait for
-   the answer.
-2. **The official lint rule.** `eslint-plugin-obsidianmd`'s `no-nodejs-modules`
-   flags any static import of a Node built-in, and `isDesktopOnly: true` grants
-   no exemption. Obsidian's checklist states the rule in prose: do not use
-   `fs`, `path` or `electron` at the top level; gate behind
-   `Platform.isDesktopApp` and require them at runtime. **verified**
-3. **`node:original-fs`, not `fs`.** Electron patches `fs` to be asar-aware.
-   `original-fs` is the unpatched module and is the right one for walking an
-   arbitrary source tree. This is what Obsidian's own first-party
-   `obsidian-importer` plugin uses. **verified**
+1. **`window.require`, not a bundled import.** Obsidian injects its own
+   CommonJS `require`, and there is credible evidence it returns `null` for Node
+   built-ins while the renderer's `window.require` is Electron's real one. This
+   is **inferred** — one plugin's build comment, in tension with the official
+   sample externalising `...builtinModules`. The spike settles it; using
+   `window.require` is correct either way.
+2. **`no-nodejs-modules`** in `eslint-plugin-obsidianmd` flags any static import
+   of a Node built-in, and `isDesktopOnly: true` grants no exemption. **verified**
+3. **`node:original-fs`, not `fs`.** Electron patches `fs` to be asar-aware;
+   `original-fs` is unpatched and correct for walking an arbitrary tree. This is
+   what Obsidian's first-party `obsidian-importer` uses. **verified**
 
-The externals list still includes Node built-ins in both bare and `node:`-prefixed
-form, so that any transitive dependency referencing them is not bundled.
+Externals still list Node built-ins in bare and `node:` form, so a transitive
+dependency referencing them is not bundled.
 
 ### 3.2 Build
 
-Vite library mode emits `dist/main.js` as a single CommonJS file plus
-`dist/styles.css`, and copies `manifest.json` into `dist/`, so `dist/` is the
+Vite library mode emits `dist/main.js` (single CommonJS file) plus
+`dist/styles.css`, and copies `manifest.json` into `dist/`, making `dist/` the
 complete installable plugin folder. `manifest.json` also stays at the repository
-root, which is where the community directory reads it. **verified**
-
-Settings that are load-bearing rather than taste:
+root, where the community directory reads it. **verified**
 
 | Setting | Value | Why |
 |---|---|---|
-| `lib.formats` | `['cjs']` | Obsidian loads CommonJS only; no ESM path exists. **verified** |
-| `output.exports` | `'named'` | Emits `exports.default = Plugin` with the `__esModule` marker — the shape esbuild-built plugins load with. `'auto'` emits `module.exports = Plugin` instead. **verified** in this workspace's working plugin |
-| `output.inlineDynamicImports` | `true` | Obsidian loads exactly one file; emitted chunks would `require()` files that are never installed |
+| `lib.formats` | `['cjs']` | Obsidian loads CommonJS only. **verified** |
+| `output.exports` | `'named'` | Emits `exports.default = Plugin` with the `__esModule` marker — the shape esbuild-built plugins load with. **verified** in this workspace |
+| `output.inlineDynamicImports` | `true` | One file is installed; emitted chunks would `require()` files that never ship |
 | `output.entryFileNames` | `'main.js'` | |
-| `output.assetFileNames` | `.css → 'styles.css'` | Lib mode otherwise names CSS after the entry, producing `main.css` |
-| `cssCodeSplit` | `false` | |
-| `build.target` | `'es2020'` | The host is a known Electron build, not the open web |
-| `emptyOutDir` | `true` | Safe because `outDir` is `dist/`, not the repository root |
-| `define` | `process.env.NODE_ENV` | Vue's esm-bundler build reads it; undefined in a bare CJS bundle |
-| paths | anchored to `import.meta.url` | Never `process.cwd()`; subagent tasks may run from elsewhere |
+| `output.assetFileNames` | `.css → 'styles.css'` | Lib mode otherwise emits `main.css` |
+| `cssCodeSplit` / `cssMinify` | `false` / `false` | One stylesheet; shipped overrides stay readable |
+| `build.target` | `'es2020'` | Known Electron host, not the open web |
+| `emptyOutDir` | `true` | Safe: `outDir` is `dist/` |
+| `define` | `process.env.NODE_ENV` | Vue's esm-bundler build reads it |
+| paths | anchored to `import.meta.url` | Never `process.cwd()` |
 
-Externalised: `obsidian`, `electron`, the nine `@codemirror/*` and three
-`@lezer/*` packages, and all Node built-ins in bare and `node:` form. Bundled:
-Vue, Pinia, Three.js and the addons used. **verified** against the official
-esbuild config and this workspace's working Vite config.
+Externalised: `obsidian`, `electron`, nine `@codemirror/*`, three `@lezer/*`, and
+all Node built-ins in both forms. Bundled: Vue, Pinia, Three.js and the addons
+used.
 
-**Vue is runtime-only, permanently.** `@vitejs/plugin-vue` compiles SFC
-templates at build time; `vue` is never aliased to a full build. The runtime
-template compiler uses `new Function`, and dynamic code execution is a review
-risk. Expect `dist/main.js` around 0.8–1.2 MB minified with Vue, Pinia and
-Three.js — normal for this class of plugin, not a defect.
+**Vue is runtime-only, permanently** — SFC templates compile at build time and
+`vue` is never aliased to a full build, because the runtime compiler uses
+`new Function`. Expect `dist/main.js` around 0.8–1.2 MB minified. Named imports
+from `'three'`, never `import * as THREE`; one addon path convention.
 
-**Import discipline**, enforced in review: named imports from `'three'`, never
-`import * as THREE`; one addon path convention (`three/addons/...`), never mixed
-with `three/examples/jsm/...`.
+A task-8 acceptance criterion: SFC `<style scoped>` blocks all merge into the
+single `dist/styles.css`, so a later component split must not quietly emit a
+fourth file.
 
 ### 3.3 Manifest
 
@@ -188,19 +197,14 @@ with `three/examples/jsm/...`.
 }
 ```
 
-- `minAppVersion` is **three-segment**. A bare `1.13` breaks `semver.gt` inside
-  the official `no-unsupported-api` rule, and no Obsidian release is named
-  `1.13`. `1.13.0` matches the other plugins in this workspace. **verified**
-- `description` is machine-validated: 10–250 characters, starts with a capital,
-  ends with a period, no emoji or special characters, and must not contain the
-  substrings "obsidian" or "plugin". **verified**
-- **No non-schema keys.** The official linter reports any extra key as
-  `disallowedKey`. `fundingUrl` is omitted. **verified**
-- The installed folder name must be exactly `codebase-inspector`, matching `id`,
-  or `onExternalSettingsChange` is never called. `install-to-vault.mjs` asserts
-  this. **verified**
-- `versions.json` exists but is only updated when `minAppVersion` changes. It is
-  read from the repository root, never from the release assets. **verified**
+`minAppVersion` is **three-segment**; a bare `1.13` breaks `semver.gt` in the
+official `no-unsupported-api` rule. `description` is machine-validated: 10–250
+characters, initial capital, terminal period, no emoji, and must not contain the
+substrings "obsidian" or "plugin". **No non-schema keys** — the linter reports
+them as `disallowedKey`; `fundingUrl` is omitted. The installed folder must be
+exactly `codebase-inspector`, or `onExternalSettingsChange` never fires.
+`versions.json` is updated only when `minAppVersion` changes and is read from the
+repository root, never from release assets. All **verified**.
 
 ### 3.4 Typecheck and lint
 
@@ -208,378 +212,621 @@ with `three/examples/jsm/...`.
 both strict, with `isolatedModules` and `verbatimModuleSyntax`.
 
 `oxlint --deny-warnings` is the fast pass. `eslint --max-warnings 0` adds
-type-aware typescript-eslint rules, `eslint-plugin-vue`, and
-**`eslint-plugin-obsidianmd`** — the real package name; the Foundations list's
-"eslint-obsidian-plugin" does not exist. Its `recommended` config is what
-converts a review round-trip into a build failure, and several of its rules are
-load-bearing here: `no-nodejs-modules`, `hardcoded-config-path`,
+type-aware typescript-eslint rules, `eslint-plugin-vue` and
+**`eslint-plugin-obsidianmd`** — the real package name. Load-bearing rules from
+its `recommended` config: `no-nodejs-modules`, `hardcoded-config-path`,
 `prefer-instanceof`, `detach-leaves`, `no-unsupported-api`,
 `settings-tab/prefer-setting-definitions`. **verified**
 
-**Two architectural rules are lint rules, not prose**, following the convention
-already used in this workspace's other plugin:
+**Two architectural rules are lint rules, not prose**, following this
+workspace's existing convention:
 
-1. **Size.** `max-lines` at 400 for `src/**` and 450 for `tests/**`.
-2. **Layering.** `no-restricted-imports` enforces that `src/domain/**` imports
-   nothing from Obsidian, Vue, Three.js, Node, or fallow, and that
-   `src/visualization/**` reaches neither the filesystem nor the host. A
-   layering documented only in prose is one commit away from being wrong.
+1. **Size** — `max-lines` at 400 for `src/**`, 450 for `tests/**`.
+2. **Layering** — `no-restricted-imports` enforces that `src/domain/**` imports
+   nothing from Obsidian, Vue, Three.js, Node or fallow, and that
+   `src/visualization/**` reaches neither the filesystem nor the host.
 
 ### 3.5 Test and dev loop
 
 Vitest with two projects: `node` (domain, adapters, filesystem integration) and
 `jsdom` (Vue components and stores).
 
-`.env` holds `CODEBASE_INSPECTOR_TEST_VAULT`, an absolute path to a vault
-outside this repository; `.env.example` is committed, `.env` is not. The
+`.env` holds `CODEBASE_INSPECTOR_TEST_VAULT`; `.env.example` is committed. The
 development vault is `C:\Projects\renovation-planner`.
 `scripts/install-to-vault.mjs` copies `dist/` into
-`<vault>/.obsidian/plugins/codebase-inspector/` and refuses to run when the
-variable is unset, when the target is not a vault, or when the resolved target
-lies inside this repository. It also writes a `.hotreload` marker file, because
-the `pjeby/hot-reload` plugin ignores any plugin folder lacking `.git` or
-`.hotreload` — without it every manual checkpoint is a full Obsidian restart.
+`<vault>/.obsidian/plugins/codebase-inspector/`, asserts the folder name matches
+the manifest `id`, writes a `.hotreload` marker (the hot-reload plugin ignores
+folders lacking `.git` or `.hotreload`), and refuses to run when the variable is
+unset, the target is not a vault, or the target resolves inside this repository.
+Its hardcoded `.obsidian` is acceptable for a build script and takes an override
+(`CODEBASE_INSPECTOR_TEST_VAULT_CONFIG_DIR`); **plugin source must never hardcode
+it** (section 4.4).
 
-The script's hardcoded `.obsidian` is acceptable because a build script cannot
-read `vault.configDir`; it takes an override
-(`CODEBASE_INSPECTOR_TEST_VAULT_CONFIG_DIR`, default `.obsidian`). **Plugin
-source must never hardcode it** — see section 4.3.
+The dev vault is a working checkout with other plugins installed — a realistic
+host and a useful external codebase to inspect, but not isolated, so it cannot
+satisfy G1 alone. Task 13 additionally installs into a throwaway vault.
 
-The dev vault is a working project checkout with other plugins installed, which
-makes it a realistic host and a useful external codebase to inspect. It is not
-isolated, so it cannot satisfy gate G1 alone; task 12 additionally installs into
-a throwaway vault with no source checkout, no dev server, and no package
-install.
-
-**fallow** is a development-time quality gate on this repository's own source,
-added at task 11 as `npm run analyze`. It is not a runtime dependency and is not
-wired into the product until WP-02.
+**fallow** is a development-time gate on our own source, added at task 12 as
+`npm run analyze`. Not a runtime dependency; not wired into the product until
+WP-02.
 
 ## 4. Frozen contracts
 
-Written down and committed before any implementation task starts. Subagents may
-not change them unilaterally; a subagent that believes one must change stops and
-raises it.
+Committed before any implementation task starts. **Only the user may change
+them.** A subagent that believes one must change stops and raises it — there is
+no "integration owner" role with that authority.
 
 ### 4.1 Domain model
 
-**Implemented in WP-01:** `Observation`, `CodeEntity` (kinds `repository`,
-`directory`, `file`), `Measurement`, `ProviderRun`, `AnalysisScope`,
+**Implemented:** `Observation`, `CodeEntity` (kinds `repository`, `directory`,
+`file`), `Measurement`, `ProviderRun`, `AnalysisScope`, `ApprovedInventoryRun`,
 `CodebaseSnapshot`, `SourceReference`, `CodebaseProfile`, `LocalBinding`,
-`CityViewState`. **Deferred:** findings, relations, the `external-package`
-kind, and all WP-02+ extensions.
+`CityViewState`. **Deferred:** findings, relations, `external-package`, and all
+WP-02+ extensions.
 
-1. **Entity identity** is the repository id, the entity kind, and the POSIX
-   root-relative path, joined by a NUL separator. Readable, stable across
-   rescans, no hash needed. Hashing is used only for `fileSetDigest` and
-   `contentHash`. A content hash is a revision marker and never participates in
-   identity.
-2. **The built-in inventory is itself a `ProviderRun`**, with
-   `provider: 'builtin-inventory'` and `origin: 'collected'`. WP-01 therefore
-   exercises the provenance machinery WP-02 needs, and a cancelled scan is
-   naturally `status: 'partial'` rather than a special case.
+1. **Entity identity** is repository id, entity kind, and POSIX root-relative
+   path, NUL-joined. Stable across rescans, no hash. Hashing is used only for
+   `fileSetDigest` and `contentHash`; a content hash is a revision marker and
+   never participates in identity.
+2. **The built-in inventory is a `ProviderRun`** (`provider: 'builtin-inventory'`,
+   `origin: 'collected'`).
 3. **Two metrics only:** `physical-lines` (unit `lines`) and `byte-size` (unit
-   `bytes`), each at `definitionVersion: '1'`.
+   `bytes`), each `definitionVersion: '1'`.
+4. **File category is a domain concept**, not a renderer detail. A pure
+   `classify(relativePath): CategoryId` function produces the `colorKey` that
+   layout carries and the legend names. Classification is filename-based and is
+   explicitly **not** semantic language analysis.
 
-**Physical lines** are defined exactly: empty text is 0 lines; CRLF is a single
-separator; a trailing newline does not create a phantom final line; blank and
-comment lines count. Binary, undecodable, skipped, and oversized content yield
-an observation of status `unavailable` with a reason and a null value — never 0.
-Byte size is a separate observation.
+**Physical lines**: empty text is 0; CRLF is one separator; a trailing newline
+adds no phantom line; blank and comment lines count. Binary, undecodable,
+skipped and oversized content yield status `unavailable` with a reason and a
+null value — never 0. Byte size is a separate observation.
 
-**Validation is runtime, not casts.** One validator module checks payload
-limits, schema version, finite numbers, duplicate ids, reference integrity,
-containment-tree cycles, and path safety. Persisted settings and restored view
-state are untrusted input. `zod` is the validation library, matching this
-workspace's convention.
+**Run state and snapshot completeness are two axes, not one.**
 
-### 4.2 Ports and renderer
+```ts
+type InventoryRunState =
+  | 'idle' | 'running' | 'cancelling' | 'cancelled' | 'failed' | 'complete';
 
-**Ports** under `src/application/ports/`: `SourceFileSystemPort` (walk, read,
-stat), `ProfileStore`, `LocalBindingStore`, `SnapshotStore`, `Clock`, and a
-`CancellationToken`. The domain imports nothing from Obsidian, Vue, Three.js,
-Node, or fallow — enforced by lint.
+// on CodebaseSnapshot
+completeness: 'complete' | 'partial';
+warnings: readonly string[];
+```
 
-**Renderer interface:** `setLayout`, `setColors`, `setSelection`, `focus`,
-`fit`, `resize`, `pause`, `resume`, `dispose`. The mount element and its owning
-`Window` are injected at construction. The renderer never reads global host
-state, never touches the filesystem, and never writes notes.
+A **cancelled** run publishes nothing — the incomplete result is discarded, and
+COPY-10 says so to the user. **`partial`** means read gaps inside a run that did
+finish (COPY-13). A **failed** run leaves the previous snapshot intact and
+labels the failed refresh. `cancelling` is distinct from `cancelled`: publication
+is forbidden immediately, but the UI must not claim work stopped before the
+collector confirms it.
 
-**Pop-out migration is handled by `dispose()` plus constructing a new
-renderer** — there is no `rebind` method. The consequence is a binding
-constraint on the renderer: it must be cheap to reconstruct from an existing
-`LayoutResult` and `CityViewState`, with no data refetch and no scan. This makes
-window migration and WebGL context loss the same recovery path rather than two.
+**Approval is a modelled artefact**, because "opening a view is not
+authorisation" needs something to check:
 
-**Cross-window rule**, which is the mechanically checkable form of "no
-wrong-window DOM": inside the renderer and the view, no bare `window`,
+```ts
+interface ApprovedInventoryRun {
+  profileId: string;
+  sourceFingerprint: string;   // over the resolved root
+  scopeFingerprint: string;    // over exclusions + limits
+  approvedAt: string;
+  operation: 'read-only-inventory';
+}
+```
+
+A changed root or scope invalidates prior approval. The scan coordinator
+validates approval before any filesystem access.
+
+**Validation is runtime, not casts** — one `zod`-based validator module checking
+payload limits, schema version, finite numbers, duplicate ids, reference
+integrity, containment-tree cycles and path safety. Persisted settings and
+restored view state are untrusted input.
+
+`CityViewState` carries `profileId`, `snapshotId`, `selectedEntityId`, `query`,
+`viewMode: '3d' | 'top' | 'list'`, `camera`, `previous3dCamera`, and
+`inspectorOpen`. `previous3dCamera` is load-bearing: without persisting it, the
+top↔3D round trip is lost on workspace reload. There is no `lensId` in WP-01.
+
+### 4.2 Renderer port
+
+Reconciled with `docs/concept/design/wp01-review/integration/renderer-port.ts`,
+which is the presentation DTO boundary derived from section 4.1 — not a
+competing model. Names are ours; the capabilities are its.
+
+```ts
+export type CreateCityRenderer = (
+  mountEl: HTMLElement,
+  win: Window,                                   // the prototype omits this; we do not
+  onEvent: (e: CityRendererEvent) => void,
+) => CityRendererPort;
+
+export interface CityRendererPort {
+  setLayout(layout: LayoutResult,
+            opts: { generation: number; signal: AbortSignal }): Promise<void>;
+  setColors(palette: CityPalette): void;         // colorKey -> resolved colour
+  setSelection(selectedEntityId: EntityId | null): void;
+  setFilter(matching: ReadonlySet<EntityId> | null): void;  // null = unfiltered, empty = no matches
+  setCameraMode(mode: '3d' | 'top'): void;
+  getCamera(): CameraBookmark;
+  setCamera(camera: CameraBookmark): void;
+  focus(entityId: EntityId): void;
+  fit(): void;
+  resize(cssWidth: number, cssHeight: number, pixelRatio: number): void;
+  pause(): void;
+  resume(): void;
+  dispose(): void;
+}
+
+export type CityRendererEvent =
+  | { type: 'entity-picked'; entityId: EntityId; snapshotId: string }
+  | { type: 'hover-changed'; entityId: EntityId | null; snapshotId: string }
+  | { type: 'camera-changed'; camera: CameraBookmark }
+  | { type: 'unavailable'; reason: 'unsupported' | 'context-lost' | 'initialization-failed' };
+```
+
+Five additions over the previous revision, each closing a hole:
+
+- **`getCamera`/`setCamera`** — without them, dispose-and-reconstruct is
+  unimplementable: nothing can harvest the camera off the dying renderer or seed
+  its replacement, and `CityViewState.camera` has no operation that produces it.
+  `CameraBookmark` is adopted verbatim: `{projection: 'orthographic', mode,
+  position, target, up, zoom}`.
+- **The `onEvent` out-channel** — the previous interface was write-only, so
+  picking, hover, camera changes and context loss crossed the port with no
+  contract.
+- **`setFilter`** — search dims in place; this could not be expressed before
+  without abusing `setColors`, which would collide with category colour.
+- **`{generation, signal}` on `setLayout`** — section 7's job token extended to
+  the renderer boundary, where it was absent.
+- **`setCameraMode`** and a pinned `resize` signature with a **pixel-ratio cap
+  of 2**.
+
+**Camera ownership:** the renderer owns the live camera and emits
+`camera-changed`; the view mirrors it into `CityViewState` for persistence. A
+command to move the camera is a separate call from the event, so host
+synchronisation does not loop.
+
+**No `restored` event and no self-healing.** On `unavailable{context-lost}` the
+*view* disposes and reconstructs. Window migration and context loss are one
+recovery path, deliberately.
+
+**Pop-out migration is `dispose()` plus constructing a new renderer** — there is
+no `rebind`. This was reached independently by the design package, whose bridge
+document lists renderer persistence as *"None; reconstruct from snapshot/layout/
+view state."* The binding consequence: the renderer must be cheap to reconstruct
+from an existing `LayoutResult` and `CityViewState`, with no data refetch and no
+scan. (`Native Codebase City.md` still says "pop-out rebind"; that wording
+predates this decision.)
+
+**`pause`/`resume` invariant:** hidden leaves suspend drawing and input, and
+visibility never authorises a scan.
+
+**Cross-window rule** — inside the renderer and view, no bare `window`,
 `document`, `requestAnimationFrame`, `setInterval`, `ResizeObserver`,
 `IntersectionObserver`, or `instanceof` on a DOM type. All go through the
-injected `Window`, and DOM type checks use `node.instanceOf(T)` — plain
+injected `Window`; DOM type checks use `node.instanceOf(T)`, because plain
 `instanceof` returns false across windows. **verified**
 
-**Layout output:** a pure `LayoutResult` of lots
-`{ entityId, x, z, width, depth, height, colorKey }` plus overall bounds. Layout
-consumes a validated snapshot, never the filesystem.
+### 4.3 Layout output
 
-### 4.3 Host rules
+```ts
+interface CityLot {
+  entityId: EntityId;
+  directoryId: EntityId;
+  center: [number, number, number];
+  dimensions: [number, number, number];
+  colorKey: CategoryId;
+  metricState: 'measured' | 'unavailable';
+}
+interface LayoutResult {
+  snapshotId: string;
+  layoutVersion: string;
+  lots: readonly CityLot[];
+  bounds: { min: [number, number, number]; max: [number, number, number] };
+  scale: { metricId: string; name: string; cap: number; unit: string; clampedCount: number };
+}
+```
 
-These are frozen because they are easy for an implementer to get wrong and
-expensive to retrofit. All **verified**.
+`colorKey` is a **palette key, never a resolved colour**, so recolouring on
+`css-change` never re-runs layout. Layout consumes a validated snapshot, never
+the filesystem.
 
-- **Deferred views.** Since Obsidian 1.7.2 every view is created as a
-  `DeferredView`. Any code reaching a city view goes through
-  `getLeavesOfType('codebase-inspector-city')` followed by
-  `leaf.view instanceof CityView`. A cast on `leaf.view` is a defect. To act on
-  a specific view, `await workspace.revealLeaf(leaf)` first; `loadIfDeferred()`
-  only where reveal is unacceptable. This also means a background city tab is
-  never constructed, so no WebGL context exists for it.
-- **Never hold a reference to a view instance.** Obsidian may call the view
-  factory more than once. Reach views through `getLeavesOfType`.
-- **`onload` registers only.** No scanning, no expensive work, no data fetching.
-  Startup work goes in `workspace.onLayoutReady()`. First-enable view opening
-  uses `onUserEnable()`.
-- **WebGL context creation happens in the view's `onOpen`, not its
-  constructor.** Obsidian reconstructs saved views at startup.
-- **Never `detachLeavesOfType` in `onunload`.** It relocates the user's tabs on
-  every plugin update. Fine for an explicit user action.
-- **`onunload` is typed `void` and is never awaited.** All teardown —
-  Three.js disposal, Vue unmount, scan cancellation — must be synchronous and
+**Three presentation states, not two.** Measured-above-zero, **measured zero**
+(a minimum-height box that stays selectable), and **unavailable** (a neutral
+minimum-height shape with a question marker and an exposed reason). A 0-height
+building is never a proxy for unknown — without `metricState`, measured-zero and
+unavailable render identically.
+
+**Display scale:** physical lines on a square-root scale, labelled *"physical
+lines · square-root scale"*. The design's reference formula is
+`height = 8 + 120 * sqrt(min(lines, cap) / cap)`; the 8-unit base keeps an empty
+measured file selectable. **The cap is derived from the snapshot, not hardcoded
+at 600** — the design concedes its fixture never exercises the cap, so on a real
+repository every file over 600 lines would render at identical height. The
+legend names the actual cap and `clampedCount`; raw values are always in the
+inspector. Footprint is an equal lot and never encodes the same metric as
+height.
+
+**Ports** under `src/application/ports/`: `SourceFileSystemPort` (walk, read,
+stat), `ProfileStore`, `LocalBindingStore`, `SnapshotStore`, `Clock`,
+`CancellationToken`. **`SnapshotStore` is in-memory for WP-01**; durable history
+is WP-05. Reopening shows retained in-memory state marked with its age, and
+never silently authorises a new scan.
+
+### 4.4 Host rules
+
+All **verified**.
+
+- **Deferred views.** Since 1.7.2 every view is created as a `DeferredView`.
+  Reach views via `getLeavesOfType('codebase-inspector-city')` then
+  `leaf.view instanceof CityView`. A cast is a defect. `await workspace.revealLeaf(leaf)`
+  before acting; `loadIfDeferred()` only where reveal is unacceptable. A
+  background tab is never constructed, so no WebGL context exists for it.
+- **Never hold a view reference** — the factory may run more than once.
+- **`onload` registers only.** No scanning, no expensive work. Startup work goes
+  in `workspace.onLayoutReady()`; first-enable view opening uses `onUserEnable()`.
+- **WebGL context creation is in `onOpen`, not the constructor.**
+- **Never `detachLeavesOfType` in `onunload`.**
+- **`onunload` is typed `void` and never awaited** — teardown is synchronous and
   idempotent.
-- **Vue mounts on `this.contentEl`** and unmounts in `onClose()`. Not
-  `containerEl.children[1]`. Each view creates its own `createPinia()`; a
-  module-level singleton would share state across leaves.
-- **Cleanup that `Component` does not cover**, and so must be released by hand
-  in `onClose`: `requestAnimationFrame` handles, every observer, Three.js
-  geometries, materials, textures and render targets, `renderer.dispose()` plus
-  `forceContextLoss()`, and any tooltip or overlay DOM appended outside
-  `containerEl`. Browsers cap live WebGL contexts at roughly 8–16, so a leaked
-  renderer per closed tab is an observable failure, not a theoretical one.
-- **`getState()` returns identifiers and presentation state only** — profile id,
-  camera pose, selected entity id, panel state. Never a snapshot, never a
-  resolved absolute path, never scan authorisation. It persists into
-  `workspace.json`, which is user-editable, so `setState` validates through the
-  same validator as settings.
-- **Active-view lookup uses `getActiveViewOfType`**, never the deprecated
-  `workspace.activeLeaf`.
-- **Config directory comes from `vault.configDir`**, never the literal
-  `.obsidian`, and the absolute form is `join(adapter.getBasePath(), vault.configDir)`
-  behind an `adapter instanceof FileSystemAdapter` guard — `instanceof`, never a
-  cast, because mobile supplies a `CapacitorAdapter`.
-- **`normalizePath()` is for vault-relative paths only.** It strips leading
-  slashes and does **not** remove `..`, so it provides no path safety.
-  Containment is decided with `path.resolve` plus a `path.relative` sign check.
-- **Symlink skipping needs `fs.lstat`.** The adapter's `Stat` exposes only
-  `type: 'file' | 'folder'`, with no symlink discriminator.
-- **Theme colours** are read with `containerEl.getCssPropertyValue('--…')`, not
-  `getComputedStyle(document.body)`, because the latter reads the wrong document
-  after pop-out migration. Re-read every cached colour on
-  `workspace.on('css-change')`, which carries no payload. Obsidian 1.13 moved
-  base colours to OKLCH, so never parse a variable as an `r,g,b` triplet.
-- **Settings are declarative**: `getSettingDefinitions()`, matching this
-  workspace's existing `SettingsTab.ts`, so settings appear in 1.13+ settings
-  search and `prefer-setting-definitions` stays quiet.
-
-### 4.4 Why the Vault API is not the inventory
-
-The concept kit's reasoning needs re-basing on what is actually documented. Two
-facts suffice, both **verified**:
-
-1. Neither `Vault` nor `DataAdapter` can address anything outside the vault at
-   all, which settles the external-root case by itself.
-2. *"The Vault API only allows access to the files visible inside the app, files
-   included in hidden folders can only be accessed using the Adapter API."*
-
-The claim that `getFiles()` misses non-indexed extensions such as `.ts` is
-**undocumented** and must not be cited as a reason. It is cheap to settle
-empirically at checkpoint #1.
+- **Vue mounts on `this.contentEl`**, unmounts in `onClose()`. Not
+  `containerEl.children[1]`. Each view calls `createPinia()` itself.
+  `.codebase-inspector-root` goes on that same element, because
+  `container-type: inline-size` must sit on the element whose inline size is the
+  leaf content width.
+- **Manual cleanup** (`Component` does not cover it): `requestAnimationFrame`
+  handles, every observer, Three.js geometries, materials, textures and render
+  targets, `renderer.dispose()` plus `forceContextLoss()`, and any DOM appended
+  outside `containerEl`. Browsers cap live WebGL contexts at roughly 8–16.
+- **`getState()` returns identifiers and presentation state only** — never a
+  snapshot, never a resolved absolute path, never scan authorisation. It
+  persists to `workspace.json`, which is user-editable, so `setState` validates
+  through the same validator as settings.
+- **`getActiveViewOfType`**, never the deprecated `workspace.activeLeaf`.
+- **`vault.configDir`**, never a literal `.obsidian`; absolute form is
+  `join(adapter.getBasePath(), vault.configDir)` behind
+  `adapter instanceof FileSystemAdapter` — `instanceof`, never a cast, because
+  mobile supplies a `CapacitorAdapter`.
+- **`normalizePath()` is vault-relative only.** It strips leading slashes and
+  does not remove `..`, so it gives no path safety. Containment uses
+  `path.resolve` plus a `path.relative` sign check.
+- **Symlink skipping needs `fs.lstat`** — the adapter's `Stat` has no symlink
+  discriminator.
+- **Theme.** Read colours with `containerEl.getCssPropertyValue('--…')`, never
+  `getComputedStyle(document.body)` (wrong document after migration). Re-read
+  every cached colour on `workspace.on('css-change')`, which carries no payload.
+  Recolouring never moves buildings, changes camera, or clears state.
+- **Colour crossing into WebGL must be normalised.** Obsidian 1.13 moved base
+  colours to OKLCH, and resolved values may be `oklch()` or `color-mix()`, which
+  `THREE.Color.setStyle()` cannot parse. Convert through a 1×1 canvas 2D context
+  in `containerEl.win.document` and feed Three.js sRGB bytes. This also keeps
+  the conversion in the correct window.
+- **Reduced motion is not a `css-change` event.** The camera tween reads
+  `containerEl.win.matchMedia('(prefers-reduced-motion: reduce)')` with a change
+  listener released with the view. CSS handles only the CSS-side durations.
+- **Styling.** `styles.css` may not target `body`, `:root`, `.workspace`,
+  `.theme-dark`/`.theme-light`, and may not redefine any `--background-*`,
+  `--text-*` or `--interactive-*` variable. Tokens are Obsidian-derived aliases;
+  file-category colours are the one plugin-owned palette and are declared as
+  `--ci-cat-*` custom properties, never hex constants in the renderer. Note
+  `:where(.codebase-inspector-root)` has zero specificity, so literal `color`/
+  `background`/`font-family` declarations there lose to most theme rules; custom
+  property declarations are unaffected. `design-tokens.css` plus the
+  `03-design-system.md` mapping table are authoritative — `design-tokens.json`
+  diverges from both and is a non-normative index.
+- **Settings are hybrid.** Declarative `getSettingDefinitions()` for scalar
+  settings (size limits, exclusions, symlink policy as static text). The profile
+  and local-binding manager, exclusion review, clear-binding confirmation and
+  storage disclosure are rendered in `PluginSettingTab.display()` or a modal,
+  with a scoped `prefer-setting-definitions` disable. Whether
+  `getSettingDefinitions()` can express a dynamic per-profile list is unverified
+  — see section 11. **Decide before task 6 begins.**
 
 ## 5. Task sequence
 
-| # | Task | Ends with | Checkpoint |
+| # | Task | Ends with | Check |
 |---|---|---|---|
-| S | Bundling and Node-access spike (throwaway) | See 5.1 | user confirms |
+| S | Bundling and Node-access spike (throwaway) | See 5.1 | user |
 | 1 | Toolchain | `npm run verify` green; `install:vault` delivers files | — |
-| 2 | Contracts, validator, fixture builder | Valid fixtures round-trip; invalid ones rejected with reasons | — |
-| 3 | Host skeleton: manifest, plugin entry, `ItemView`, ribbon, `open-city`, minimal instanced-box renderer over a fixture snapshot | A real Obsidian tab shows a fixture city | manual #1 |
-| 4 | Pure layout: deterministic nested districts, equal lots | No overlaps; identical input yields identical geometry | — |
-| 5 | Inventory collector: the Node access module, bounded async walk, exclusions, cancellation, metrics | Cross-platform and no-source-write fixtures pass | — |
-| 6 | Profiles and storage: declarative settings tab, local bindings, in-memory snapshot store | Profiles persist; a missing binding prompts reconnect | — |
-| 7 | Source selection and scan wiring: folder dialog with pasted-path fallback, scan coordinator, `scan-codebase`, `cancel-scan`, progress | A real external project renders as a real city | manual #2 |
-| 8 | Vue UI: app shell, search and file list, inspector, toolbar, theme bridge, keyboard-only path, non-WebGL fallback | Canvas and HTML selection stay synchronised | — |
-| 9 | Renderer hardening: instancing with a batch-and-instance to entity map, picking, camera controls, hover, focus, fit and top-down, reduced motion, context loss | The correct file is selected; rendering happens on demand only | — |
-| 10 | Lifecycle: multiple leaves, workspace state, hidden and resized leaves, pop-out migration, dispose, stale-result guard | No leaks and no wrong-window DOM | manual #3 |
-| 11 | Safety and evidence gates, benchmark fixtures, fallow on our own source | G2, G3, and G5 evidence recorded | — |
-| 12 | Release gate: install into a throwaway clean vault, benchmark record, limitations, implementation report | WP-01 complete and honestly reported | manual #4 |
+| 2 | Contracts, validator, classifier, fixture builder | Valid fixtures round-trip; invalid rejected with reasons; fixtures include unavailable and measured-zero records | — |
+| 3 | Host skeleton: manifest, plugin entry, `ItemView`, ribbon, `open-city`, first-run no-profile state, minimal instanced-box renderer behind a dev-only fixture path | Opening the view runs no scan and no filesystem access, and shows the welcome state; the packed plugin loads in a clean vault | **#1** |
+| 4 | Pure layout: deterministic nested districts, equal lots, display scale, legend data, district labels | No overlaps; identical input yields identical geometry; three metric states distinguishable | — |
+| 5 | Inventory collector: Node access module, bounded async walk, exclusions, cancellation, metrics | Cross-platform and no-source-write fixtures pass; plugin outputs stay outside collection scope | — |
+| 6 | Profiles, bindings, hybrid settings tab | Profiles persist; a missing binding prompts reconnect | — |
+| 7 | Source selection and scope consent: two native modals — three source modes with validation, then resolved root, exclusions, limits, unchecked acknowledgement, Scan disabled until approved, approval fingerprint | A scan cannot start without consent; a changed root invalidates approval | — |
+| 8 | Scan wiring and run lifecycle: coordinator, `scan-codebase` (which doubles as refresh), `cancel-scan`, progress, `cancelling`→`cancelled`, atomic publication after validation, stale-callback rejection | A real external project renders as a real city; cancel retains the previous snapshot | **#2** |
+| 9 | Vue UI: app shell, file list, search, inspector, state surface (C16/C17), responsive drawers, announcement region, copy-path | Canvas and HTML selection stay synchronised; every state has a surface | — |
+| 10 | Renderer hardening: instancing with batch-and-instance to entity map, picking, camera, hover, focus, fit, top/3D, reduced motion, context loss | Correct file selected; rendering on demand only | — |
+| 11 | Lifecycle: multiple leaves, workspace state, hidden and resized leaves, pop-out migration, dispose, per-leaf snapshot reconciliation | No leaks, no wrong-window DOM; a removed selected file is reported, never replaced by index | **#3** |
+| 12 | Safety, evidence and accessibility gates; benchmark fixtures; fallow on our own source | G2, G3, G4 and G5 evidence recorded | — |
+| 13 | Release gate: throwaway clean vault, scripted demo, benchmark record, limitations, implementation report | WP-01 complete and honestly reported | **#4** |
 
-Two deliberate ordering choices. Layout precedes the real scan, so the renderer
-is fed by a pure function from the start. The Vue UI precedes renderer
-hardening, so the keyboard and non-WebGL paths are built in rather than bolted
-on.
+Ordering rationale unchanged: layout precedes the real scan so the renderer is
+fed by a pure function; the Vue UI precedes renderer hardening so the keyboard
+and non-WebGL paths are built in, not bolted on.
 
-Command ids are registered without the plugin-id prefix — `open-city`,
-`scan-codebase`, `cancel-scan` — because Obsidian adds it. No command is
-registered for an unimplemented capability.
-
-**Task 7 source selection**: the primary path probes for
-`window.electron.remote.dialog.showOpenDialogSync({ properties: ['openDirectory', 'dontAddToRecent'] })`
-behind `Platform.isDesktopApp`, which is what Obsidian's own first-party
-importer plugin does. `window.electron` is absent from the published types and
-needs a local `declare`. The pasted absolute path always remains available, so
-the dialog is never a prerequisite and its future removal is not a breaking
-change.
-
-**Task 10 pop-out migration**: the hook is
-`this.containerEl.onWindowMigrated(win => …)` — an `HTMLElement` augmentation,
-not a `View` method — and the returned destroy function must be retained and
-called on close. The owning window is `containerEl.win` or
-`leaf.getContainer().win`, never the global `window` or `activeWindow`.
-`workspace.on('window-open' | 'window-close')` is not the per-view hook.
-
-**Task 10 visibility**: resize is `View.onResize()`, which is per-view and needs
-no teardown. There is **no documented API for "is my view visible."** The pause
-trigger is `containerEl.isShown()` re-evaluated on `onResize`,
-`active-leaf-change` and `layout-change` — composed from documented primitives,
-not a supported API, and recorded as such. Deferred views already remove the
-never-yet-shown case, so this work covers only a view hidden after being shown.
+Commands registered without the plugin-id prefix: `open-city`, `scan-codebase`,
+`cancel-scan`. **`scan-codebase` doubles as refresh** — its behaviour differs
+when a snapshot already exists (the previous snapshot stays visible, a separate
+running state shows, and publication is an atomic swap after validation). No
+fourth command, and none for an unimplemented capability.
 
 ### 5.1 Spike scope and pass criteria
 
 One throwaway plugin outside this repository, installed into the dev vault,
-logging one distinct line per probe so a single failure does not mask the rest.
+logging one line per probe. Probes: a registered `ItemView`; a Vue 3 SFC with
+template, scoped style and reactive click handler mounted on `contentEl`; Pinia;
+a Three.js `InstancedMesh` of ~1,000 boxes with `OrbitControls`; and — the point
+— directory reads through `window.require('node:original-fs')` and
+`window.require('node:path')`, compared against bundled static imports of `fs`
+and `node:fs`.
 
-Probes: a registered `ItemView`; a Vue 3 SFC with a template, a scoped style
-block and a reactive click handler mounted on `contentEl`; Pinia; a Three.js
-`InstancedMesh` of ~1,000 boxes with `OrbitControls`; and — **the point of the
-exercise** — directory reads through `window.require('node:original-fs')`,
-`window.require('node:path')`, and for comparison a bundled static import of
-`fs` and of `node:fs`.
+Passes only if `dist/` contains exactly `main.js`, `styles.css` and
+`manifest.json`; the bundle is CommonJS; the plugin enables with no console
+error; the SFC renders with scoped styles applied; the Three.js scene draws and
+orbits; **the `window.require` reads return real directory entries**; no
+`new Function(` or `eval(` survives in the production bundle; and two
+disable/enable cycles leave no errors. Record whether the static imports work
+(the disputed claim) and `dist/main.js` size as the baseline budget.
 
-Passes only if: `dist/` contains exactly `main.js`, `styles.css` and
-`manifest.json`, with any fourth file a failure; the bundle is CommonJS; the
-plugin enables with no console error; the SFC renders with its scoped styles
-actually applied; the Three.js scene draws and orbits; **the `window.require`
-reads return real directory entries**; `grep` finds no `new Function(` or
-`eval(` in the production bundle; and disabling and re-enabling twice leaves no
-errors. Record whether the bundled static imports work, since that is the
-disputed claim, and record `dist/main.js` size as the baseline budget.
+The spike also answers cheaply whether `vault.getFiles()` returns entries for
+`.ts` files, and whether `styles.css` is auto-injected with no loader code.
 
-The spike also answers, cheaply: whether `vault.getFiles()` returns entries for
-`.ts` files (section 4.4), and whether `styles.css` is auto-injected without any
-loader code.
+### 5.2 Resolved interaction defaults
+
+These come from the v1.1 handoff and are binding. They are recorded here because
+leaving them to an implementer would mean re-deciding them badly.
+
+**Camera and pointer.** Orthographic projection in both 3D and top view, with an
+oblique default. Drag threshold is **5 CSS pixels** — never device pixels;
+movement beyond it is an orbit and release never selects. Wheel zoom only over
+the focused canvas, never captured from lists or other leaves. No inertial
+drift. Top→3D restores the saved `CameraBookmark` in full; top-view operations
+never mutate it. Resize never implies Fit.
+
+**Selection.** A click selects and opens the inspector; it does not move the
+camera, change the search, or rebuild layout. Focus is a separate explicit
+action. Empty-space click is a no-op. Double-click focus is deferred out of
+WP-01. Moving keyboard focus in the list does not select. Closing the inspector
+preserves the selection; clearing it is explicit. Ray picking runs only against
+file lots — never labels, ground planes, district borders or overlays.
+
+**Hover.** ~200 ms tooltip with path, category and value; no camera or selection
+change; dismissed on leave or Escape; emits no screen-reader announcement.
+
+**Search.** Case-insensitive substring over included file paths; empty or
+whitespace-only matches all. Placeholder "Search files or paths…". Debounce
+~150 ms with immediate input text. Enter selects the first match in deterministic
+order **without moving the camera**; Enter with no matches is a no-op. Escape
+clears only a non-empty query and keeps focus in the field. **Dims non-matches
+in place — never hides, relocates or relayouts.** A filter-hidden selection stays
+selected and is explained ("Selected file is outside the current search"), never
+silently replaced.
+
+**Escape resolves exactly one layer per press:** modal → camera interaction/help
+→ nonmodal drawer → query or selection, and only when the corresponding control
+has focus. It must not disturb IME composition or a Markdown editor.
+
+**Keyboard.** No host-wide default bindings; register commands so users bind
+their own. `F`, `T`, `+`/`-`, arrows, Shift-arrows and Enter work only when the
+canvas itself has focus. `/` focuses search only when this view owns focus and
+the target is not editable. Composing input and Ctrl/Meta/Alt combinations are
+ignored. The canvas is one named region with a help description, not thousands of
+tabbable buildings. List rows are native buttons; no `role=tree` on an
+incomplete implementation.
+
+**Non-drag alternatives (WCAG 2.5.7).** Every dragging gesture needs a
+single-pointer route: zoom `+`/`-` buttons, direction and rotate step controls in
+a camera help popover, Fit, Top, Focus. A keyboard-only alternative is explicitly
+not sufficient. These are UI work in task 9, not renderer work in task 10.
+
+**Responsive.** Measured on the leaf, never the window, via container queries.
+**One collapse threshold at 820 CSS px**: above it, list + canvas + inspector;
+below, canvas with Files and Inspector drawers, one overlay at a time, each with
+a visible close returning focus to its opener. Below a hard floor the view
+renders list-first and **creates no WebGL context at all** — a leaf dragged into
+a sidebar can be ~150 px, and this also protects the live-context cap. Switching
+to the HTML inventory preserves query, selection and camera bookmark.
+
+**Progress.** Unknown total means no percentage, no `aria-valuenow`, and no
+fabricated ETA — report the stage and offer cancellation. Counts such as "96
+files read so far" are not a percentage.
+
+**Announcements.** A polite status region for scan stage transitions, snapshot
+completion, cancellation, and control-initiated selection changes. Assertive
+only for a blocking failure. Hover announces nothing. Throttle rapidly changing
+counters.
+
+**Microcopy.** Adopt COPY-01…COPY-14, COPY-27, COPY-28 and COPY-30 as the WP-01
+strings. COPY-20 ("Unused candidate") is WP-02+ and must not leak forward. Drop
+S01's "Analysis reports can be added later", which promises a capability WP-01
+does not ship. The strings "Read-only source access" and "Source remains
+unchanged" are factual claims made on the product's behalf: **they ship only
+after task 12 records the G2 evidence**, and the release report cites it.
 
 ## 6. Testing
 
-Five layers:
+Six layers:
 
-- **Unit** — metrics, identity encoding, validator, layout. Pure and exhaustive.
-- **Contract** — one shared suite that every implementation of a port must pass,
-  so a test fake and the Node adapter cannot drift apart.
-- **Integration** — real temporary directories generated per test: Unicode
-  names, spaces, deep nesting, duplicate basenames, binary content, oversized
-  files, unreadable files, symlinks and junctions, nested ignore rules, and
-  Windows drive paths.
-- **Host** — manual checklists the user executes in Obsidian at each checkpoint.
-- **Benchmark** — a 1,000-file functional fixture and a 5,000-file performance
-  fixture.
+- **Unit** — metrics, identity encoding, classifier, validator, layout, and the
+  **interaction-state invariants**. The design package's 31 state tests
+  (`wp01-review/validation/model.test.cjs`) are ported to Vitest, keeping the
+  invariants rather than copying function names. Highest-value: top-view round
+  trip restores the exact 3D camera; late completion after cancel is ignored; an
+  old run cannot overwrite a newer run; scan completion preserves inspection
+  context.
+- **Contract** — one shared suite every port implementation must pass, so a fake
+  and the Node adapter cannot drift.
+- **Integration** — real temporary directories: Unicode names, spaces, deep
+  nesting, duplicate basenames, binary content, oversized files, unreadable
+  files, symlinks and junctions, nested ignore rules, Windows drive paths.
+- **Component** — jsdom tests replaying the design's browser checks B02–B10,
+  B18–B19, B21 and B23–B26 against our production controls.
+- **Accessibility** — keyboard-only; a screen reader (NVDA on Windows or
+  equivalent); 200% text zoom; focus visibility and order; dark, light and one
+  third-party theme; non-drag single-pointer equivalence; reduced motion; long
+  Unicode paths. Checkpoint work except where a jsdom assertion suffices.
+- **Benchmark** — 1,000-file functional and 5,000-file performance fixtures.
 
 Every task is test-driven: a failing test precedes implementation.
 
 Two gates get purpose-built proofs rather than assertions:
 
 - **No source writes.** Hash every file in the fixture tree before and after a
-  scan, and diff the whole tree, including modification times.
-- **Secrets are never read.** The filesystem port records every path it opens,
-  and the test asserts that excluded paths never appear in that read log. This
-  proves the absence of a read, not merely absence from the interface. When the
-  vault is the codebase, this covers `.obsidian`, other plugins' `data.json`,
-  and `.git`.
+  scan and diff the whole tree, including modification times.
+- **Secrets are never read.** The filesystem port records every path it opens;
+  the test asserts excluded paths never appear in that read log — proving the
+  absence of a read, not absence from the interface. When the vault is the
+  codebase this covers `vault.configDir`, other plugins' `data.json`, and `.git`.
+
+**The design package's own results are never cited as evidence for this
+implementation.** Its 31 state tests and 28 browser checks prove a Canvas 2D
+reference; `type-contract-check.txt` proves one declaration file compiles. The
+package says so itself, and the two validation records in it describe different
+runs — quoting "28" requires saying which 28.
+
+`tests/acceptance/wp01.feature` adopts `production-acceptance.feature`'s 21
+scenarios, with three repairs: add "Vault is the codebase" and "theme change
+while a city is open" (both required by `Native Codebase City.md` and missing),
+and restore the late-result scenario to its **cross-profile** form, which is what
+section 7 actually requires.
 
 ## 7. Failure behaviour
 
-Stated once, applied everywhere:
-
-- Unavailable is never 0.
-- A cancelled or partial scan is marked `partial`, and never replaces the last
-  complete snapshot.
-- Every scan carries a job token, so a late result for profile A cannot
-  overwrite profile B.
-- Validation failures surface as visible warnings carrying their reason. They
-  are never dropped silently.
-- Provider run completion, findings, and policy verdict remain separate fields.
+- Unavailable is never 0, in the model and in presentation.
+- **A cancelled run publishes nothing.** `partial` means read gaps in a run that
+  finished. A failed run leaves the previous snapshot intact and labels the
+  failed refresh. Publication is an atomic swap after validation; the previous
+  snapshot is immutable until then.
+- `cancelling` is distinct from `cancelled`; the UI never claims work stopped
+  before the collector confirms.
+- **Run identity is the full tuple** `{profileId, sourceFingerprint,
+  scopeFingerprint, runId, generation}`. A result may publish only if every
+  identity still matches, cancellation has not invalidated it, and validation
+  succeeds. A scope fingerprint is what makes "a changed root invalidates
+  approval" mechanical rather than advisory.
+- View-level states each have a surface: no source selected, invalid directory,
+  read not approved, scanning with unknown or known denominator, cancelled,
+  empty included scope, no search matches, partial read evidence, root moved or
+  unavailable (inspect the retained snapshot; never scan a fallback root), 3D
+  unavailable, and WebGL context lost (no scan restart).
+- Validation failures surface as visible warnings carrying their reason, in
+  `CodebaseSnapshot.warnings`. Never dropped silently.
+- Provider run completion, findings and policy verdict remain separate fields.
 - Teardown is synchronous and idempotent, because `onunload` is not awaited.
 
 ## 8. Execution model
 
-Work proceeds on branch `feat/wp-01-codebase-city`, merged to `main` at the
-release gate.
+Branch `feat/wp-01-codebase-city`, merged to `main` at the release gate.
 
-Each plan task is executed by a fresh implementer subagent, which receives the
-task text, this document, explicit file ownership, and the test-driven
-requirement. A fresh reviewer subagent then audits the diff against that task's
-acceptance criteria and the relevant quality gate. Review findings are relayed
-and fixed before the task is committed. One completed task is one commit.
+Each task goes to a fresh **implementer** subagent with the task text, this
+document, explicit file ownership and the test-driven requirement. A fresh
+**reviewer** subagent then audits the diff against that task's acceptance
+criteria and the relevant quality gate. Findings are relayed and fixed before
+the task is committed. One task, one commit. Checkpoints at tasks 3, 8, 11 and
+13 pause for a manual checklist in Obsidian.
 
-At tasks 3, 7, 10, and 12, work pauses and the user runs a manual checklist in
-Obsidian. Results are recorded, so that the release report can separate passed
-automated checks, manually verified host checks, and untested behaviour.
+**This model governs, and the v1.1 prompts do not.**
+`wp01-review/docs/04-first-release-build-order.md` proposes three parallel work
+streams with an "integration owner" who may change shared contracts; that is the
+model section 2's ordering rationale replaces, and only the user may change a
+section 4 contract. **`08-implementation-agent-prompt.md` and
+`handoff/agent-implementation-prompt.md` are not pasted into an implementer
+session** — their acceptance criteria are absorbed per task instead. Both assume
+an existing implementation that does not exist, and `08`'s internal path
+`docs/04-first-release-build-order.md` does not resolve from this repository
+root.
 
-## 9. Definition of done
+Checkpoint #2 additionally verifies: the consent gate blocks a scan, a changed
+root invalidates approval, and cancel retains the previous snapshot with its
+timestamp.
 
-An installable plugin build satisfies the real-root workflow for both a
-vault-based and an external project; file measurements match fixtures; scanning
-changes no file in the inspected project; accessibility and lifecycle checks
-pass; benchmark results and limitations are recorded; and every visible command
-and setting is implemented.
+## 9. Packet traceability
 
-The README discloses, in plain terms, that the plugin reads files outside the
-vault and why. This is required by Obsidian's developer policies for any future
-directory submission, and it is honest documentation regardless. The README also
-states positively that there is no network use and no telemetry. A recognised
-`LICENSE` file is present.
+The v1.1 packets cut by user-visible use case; our tasks cut by architectural
+layer and host risk. The tasks are the unit of execution; this table exists so no
+packet's acceptance evidence is silently dropped.
+
+| Packet | Produced by |
+|---|---|
+| IP-01 Consolidate contracts | 2 (plus the classifier and the renderer-port reconciliation in 4.1–4.2) |
+| IP-02 Open a native inspector view | 1, 3, 6 |
+| IP-03 Source selection and read-only inventory | 5, 7, 8, with the no-write proof in 12 |
+| IP-04 Render the city with Three.js | 4, 10, with the benchmark in 12 |
+| IP-05 Find and inspect without losing context | 9, plus fit/top/focus in 10 |
+| IP-06 Refresh, cancel, fail, recover | 8, with per-leaf reconciliation in 11 |
+| IP-07 Validate the actual Obsidian host | 11 and 12, checkpoints #3 and #4 |
+| IP-08 Package and release | 13 |
+
+Packets supply nothing on bundling, Node access, the toolchain, or Obsidian host
+APIs; sections 3 and 4.4 stand unchallenged by them. Conversely the packets
+carried real unowned work — the consent artefact, the run lifecycle, the
+responsive drawer, path-copy recovery, accessibility validation — now absorbed
+above.
+
+## 10. Definition of done
+
+An installable build satisfies the real-root workflow for a vault-based and an
+external project; measurements match fixtures; scanning changes no file in the
+inspected project; the accessibility matrix and lifecycle checks pass; benchmark
+results and limitations are recorded; and every visible command and setting is
+implemented.
+
+The scripted demo runs: real external repository → scope approval → scan → find a
+known file → confirm measurements → keyboard and HTML paths → cancel a refresh →
+reopen → source unchanged; then repeated vault-based.
+
+The README discloses that the plugin reads files outside the vault and why —
+required by Obsidian's developer policies for any future submission, and honest
+documentation regardless — and states positively that there is no network use
+and no telemetry. A recognised `LICENSE` file is present.
 
 Then the increment stops, before fallow.
 
-## 10. Verification basis
+## 11. Verification basis
 
-Research was conducted on 2026-09-17 against `docs.obsidian.md`, the
-`obsidianmd/obsidian-api` typings, `obsidianmd/eslint-plugin`, the official
-sample plugin, Obsidian's first-party `obsidian-importer`, and a working
-Vite + Vue Obsidian plugin in this workspace (`C:\Projects\renovation-planner`).
+Verified on 2026-09-17 against `docs.obsidian.md`, the `obsidianmd/obsidian-api`
+typings, `obsidianmd/eslint-plugin`, the official sample plugin, Obsidian's
+first-party `obsidian-importer`, and a working Vite + Vue plugin in this
+workspace (`C:\Projects\renovation-planner`).
 
-**Settled, contrary to the first draft of this document:** Vite library mode
-builds loadable Obsidian plugins; Vue 3 SFCs and Three.js are both proven in
-published plugins; `minAppVersion` must be three-segment; the lint package is
-`eslint-plugin-obsidianmd`; deferred views change every view access; the pop-out
-hook is `HTMLElement.onWindowMigrated`; reading files outside the vault is
-permitted with README disclosure, not prohibited.
+**Settled:** Vite library mode builds loadable plugins; Vue 3 SFCs and Three.js
+are proven in published plugins; `minAppVersion` must be three-segment; the lint
+package is `eslint-plugin-obsidianmd`; deferred views change every view access;
+the pop-out hook is `HTMLElement.onWindowMigrated`; reading files outside the
+vault is permitted with README disclosure.
 
-**Inferred, not documented, and therefore load-bearing risks rather than
-facts:**
+**Inferred, and therefore risks rather than facts:**
 
-- That Obsidian's injected bundle `require` returns `null` for Node built-ins
-  while `window.require` works. The spike settles it. The design is correct
-  either way.
-- That `styles.css` is auto-injected from the plugin folder. Universally
-  practised, implied by the install list, never stated. Checked in the spike.
+- That Obsidian's injected `require` returns `null` for Node built-ins while
+  `window.require` works. The spike settles it; the design is correct either way.
+- That `styles.css` is auto-injected. Universally practised, never stated.
 - That `adapter.list()` returns dot-entries.
+- **The design package's Three.js and Obsidian citations** (`[T1]`–`[T4]`,
+  `[O1]`–`[O2]` in `07-sources-and-limits.md`) use non-canonical URL forms —
+  `threejs.org/docs/pages/InstancedMesh.html` rather than
+  `threejs.org/docs/#api/en/objects/InstancedMesh` — which suggests they were
+  constructed rather than fetched. Treat as inferred until re-fetched,
+  particularly `[T4]`, the Three.js version pin, which the document itself
+  hedges.
 
-**Open, and deliberately not resolved here:**
+**Open:**
 
-- Whether the community directory's build verification accepts a `dist/`
-  output. Irrelevant until submission is a goal; recorded so it is not
-  rediscovered.
-- Whether a loaded view ever reverts to `DeferredView` when hidden again. If it
-  does, `onClose` runs on tab switch and part of task 10's pause work is moot;
-  if it does not, a long session accumulates one live WebGL context per city tab
-  ever shown. Answered empirically at checkpoint #3.
-- Whether the WebGL context survives pop-out migration. The chosen
-  dispose-and-reconstruct strategy makes this a performance question rather than
-  a correctness one.
-- The ordering of `setState` relative to `onOpen` on workspace restore. No
-  official statement exists. Established empirically at task 3 and recorded.
+- **Whether `getSettingDefinitions()` can express a dynamic per-profile list
+  with buttons and custom rows.** Blocks task 6; the hybrid in section 4.4 is the
+  fallback.
+- Three.js version pin. The design mentions 0.184.0 as inspected but not
+  installed or benchmarked. Pin it at task 1 against what actually resolves.
+- Whether a loaded view reverts to `DeferredView` when hidden again. If it does,
+  `onClose` runs on tab switch and part of task 11's pause work is moot; if not,
+  a long session accumulates one live WebGL context per city tab ever shown.
+  Answered at checkpoint #3.
+- Whether the WebGL context survives pop-out migration. Dispose-and-reconstruct
+  makes this a performance question, not a correctness one.
+- Ordering of `setState` relative to `onOpen` on workspace restore. No official
+  statement; established empirically at task 3.
+- Whether the community directory's build verification accepts a `dist/` output.
+  Irrelevant until submission is a goal.
 - Whether external process execution is permitted by policy. No official text
-  exists either way. WP-02's concern, but the boundary is frozen now: the
-  plugin never installs, downloads, or updates any executable, because
-  *"install or update themselves or their dependencies"* is an explicit
-  prohibition. **verified**
+  either way. WP-02's concern, but the boundary is frozen now: the plugin never
+  installs, downloads or updates any executable, because *"install or update
+  themselves or their dependencies"* is an explicit prohibition. **verified**
