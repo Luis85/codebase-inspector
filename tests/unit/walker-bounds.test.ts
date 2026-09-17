@@ -1,12 +1,15 @@
-// Direct evidence for how the bounded walk bounds itself (depth, entry count) and how
-// promptly cancellation interrupts it — none of the brief's required scenarios exercise
-// these directly (the defaults, 128 and 200,000, are far beyond anything a required
-// fixture needs), so this file exists purely to prove the bounding mechanism itself
-// works, using small overrides against the fake port.
+// Direct evidence for how the bounded walk bounds itself (depth, entry count), how
+// promptly cancellation interrupts it, and how a genuine failure (spec 7's "a failed
+// run") propagates — none of the brief's required scenarios exercise the first two
+// directly (the defaults, 128 and 200,000, are far beyond anything a required fixture
+// needs) or the third at all, so this file exists purely to prove these mechanisms work,
+// using small overrides and hand-rolled deps against the fake port and walkTree itself.
 import { describe, expect, it } from 'vitest';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import type { FakeTree } from '../fixtures/fake-source-filesystem';
 import { createCancellationToken } from '../fixtures/cancellation-token';
+import { walkTree } from '../../src/adapters/filesystem/walker';
+import type { WalkerDeps } from '../../src/adapters/filesystem/walker';
 import type { WalkEntry, WalkOptions } from '../../src/application/ports/source-filesystem-port';
 
 async function collect(port: ReturnType<typeof createFakeSourceFileSystem>['port'],
@@ -67,5 +70,28 @@ describe('bounded walk: depth and entry-count limits', () => {
     expect(seen).toBe(20);
     cancel();
     await expect(iterator.next()).rejects.toThrow();
+  });
+});
+
+describe('root read failure propagates (fix-round-1 MINOR finding 8, spec 7 "a failed run")', () => {
+  it('re-throws when the ROOT directory itself cannot be listed, distinguishable from cancellation', async () => {
+    const { token } = createCancellationToken();
+    const rootFailure = new Error('EACCES: permission denied, scandir /root');
+    const deps: WalkerDeps = {
+      caseSensitive: true,
+      onOpen: () => {},
+      joinPath: (base, name) => `${base}/${name}`,
+      readdirNames: () => Promise.reject(rootFailure),
+      lstat: () => Promise.reject(new Error('must not be called: the root readdir itself failed')),
+      readAsText: () => Promise.reject(new Error('must not be called: the root readdir itself failed')),
+    };
+    const opts: WalkOptions = { exclusions: [], maxFileBytes: 1000, followSymlinks: false };
+    const iterator = walkTree('/root', opts, token, deps)[Symbol.asyncIterator]();
+
+    // Propagates the ROOT's own failure — not swallowed into an empty snapshot (spec 7:
+    // a failed run must be visibly failed, never silently empty) and not disguised as a
+    // cancellation, which never happened here.
+    await expect(iterator.next()).rejects.toBe(rootFailure);
+    expect(token.cancelled).toBe(false);
   });
 });

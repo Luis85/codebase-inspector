@@ -5,6 +5,7 @@ import type { FakeTree } from '../fixtures/fake-source-filesystem';
 import { createCancellationToken } from '../fixtures/cancellation-token';
 import { createFixedClock } from '../fixtures/clock';
 import type { AnalysisScope, ApprovedInventoryRun } from '../../src/domain/model';
+import type { SourceFileSystemPort } from '../../src/application/ports/source-filesystem-port';
 
 const SCOPE: AnalysisScope = {
   rootPath: '/fake-root', exclusions: ['excluded'], maxFileBytes: 100, followSymlinks: false,
@@ -95,6 +96,56 @@ describe('collectInventory', () => {
     const { token, cancel } = createCancellationToken();
     cancel();
     await expect(collectInventory(port, SCOPE, APPROVAL, token, clock)).rejects.toBeInstanceOf(CancellationError);
+  });
+
+  // CRITICAL fix-round-1 finding 1: a cancellation fired AFTER the walk completes, during
+  // the read/measure phase, must still reject and must stop reading further files — the
+  // committed code only ever checked cancellation before the walk, on every walk entry,
+  // and once right after the walk loop, never again during the per-file readText() loop
+  // that follows. This test cancels from INSIDE the very first readText() call (i.e.
+  // after the walk has already produced all four kept files), matching exactly how the
+  // reviewer reproduced the defect.
+  it('rejects and stops reading further files when cancelled during the read phase', async () => {
+    const { port, clock } = setUp({
+      'a.ts': 'a\n', 'b.ts': 'b\n', 'c.ts': 'c\n', 'd.ts': 'd\n',
+    });
+    const { token, cancel } = createCancellationToken();
+    let readCalls = 0;
+    const wrappedPort: SourceFileSystemPort = {
+      ...port,
+      readText: async (absPath, maxBytes) => {
+        readCalls += 1;
+        if (readCalls === 1) cancel();   // fires only once the walk itself has finished
+        return port.readText(absPath, maxBytes);
+      },
+    };
+
+    await expect(collectInventory(wrappedPort, SCOPE, APPROVAL, token, clock))
+      .rejects.toBeInstanceOf(CancellationError);
+    // Stopped promptly: only the FIRST file's content was ever read — the loop noticed
+    // the cancellation before starting a second readText() call, not after reading all
+    // four kept files (which is what the uncancelled path would have done).
+    expect(readCalls).toBe(1);
+  });
+
+  // Fix-round-1 MINOR finding 8: a genuine walk failure (spec 7's "a failed run") must
+  // propagate distinguishably from a cancellation, and must not resolve with a snapshot.
+  it('propagates a genuine walk failure, distinguishable from CancellationError, with no snapshot', async () => {
+    const { port, token, clock } = setUp({ 'a.ts': 'x\n' });
+    const rootFailure = new Error('EACCES: permission denied, scandir /fake-root');
+    const failingPort: SourceFileSystemPort = {
+      ...port,
+      walk: () => ({
+        [Symbol.asyncIterator]() {
+          return {
+            next: (): Promise<IteratorResult<never>> => Promise.reject(rootFailure),
+          };
+        },
+      }),
+    };
+    await expect(collectInventory(failingPort, SCOPE, APPROVAL, token, clock)).rejects.toBe(rootFailure);
+    // Not disguised as cancellation — the token was never cancelled.
+    expect(token.cancelled).toBe(false);
   });
 
   it('returns a snapshot that independently passes validateSnapshot', async () => {

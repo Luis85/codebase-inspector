@@ -140,6 +140,12 @@ export async function collectInventory(
   clock: Clock,
 ): Promise<CodebaseSnapshot> {
   checkCancelled(token);
+  // Explicit WP-01 assumption, adjudicated in fix round 1: repositoryId = profileId.
+  // Spec §4.1 never spells out CodebaseProfile's field shape or its relationship to a
+  // repository, but WP-01's model is one profile per bound codebase root, so the two
+  // identities coincide for this plan. Task 6 owns profiles — if a later plan allows a
+  // profile to span more than one root, or a root to have more than one profile, this is
+  // the one line that assumption would need to revisit.
   const repositoryId = approval.profileId;
   const capturedAt = clock.nowIso();
 
@@ -174,6 +180,15 @@ export async function collectInventory(
   const warningReasons = new Set<string>();
 
   for (const file of keptFiles) {
+    // Fix-round-1 CRITICAL finding 1: this read/measure phase is unbounded I/O — half of
+    // everything collectInventory does — and had NO cancellation check at all after the
+    // walk loop finished. A cancellation fired during this phase (a real scenario: the
+    // walk can finish quickly while reading hundreds of files' content takes seconds)
+    // was silently ignored, and the function resolved with a full, valid, publishable
+    // snapshot instead of rejecting (ruling M21). Checked at the TOP of each iteration,
+    // before starting that file's readText() call, so a cancellation noticed here stops
+    // the loop before reading one more file, not just before returning at the very end.
+    checkCancelled(token);
     const entity = buildFileEntity(repositoryId, file.path, directories, repositoryEntity);
     entities.push(entity);
     const read = await port.readText(file.absolutePath, scope.maxFileBytes);
@@ -195,6 +210,11 @@ export async function collectInventory(
     observations.push(...unavailableObservations(entity.id, entry.reason));
     warningReasons.add(entry.reason);
   }
+
+  // Checked once more, after every read/measure is done and before anything is built:
+  // a cancellation that lands after the LAST readText() call (in the gap before this
+  // point) is otherwise invisible to every check above.
+  checkCancelled(token);
 
   const completedAt = clock.nowIso();
   const fileSetDigest = fnv1a([...keptFiles.map((f) => f.path), ...skipped.map((s) => s.path)].sort().join('\u0000'));
