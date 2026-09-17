@@ -37,9 +37,12 @@ none of them overrides another by silence.
    document and the concept kit are both silent.
 5. **Screen specifications S01–S13 and S23** — layout zones and content,
    subordinate to the v1.1 handoff where it refines them.
-6. **Mockup PNGs** — composition only. **The review prototype, the older SVG
-   prototype and `concepts/00-visual-exploration.png` are never behavioural
-   sources and never ship.**
+6. **Mockup PNGs** — composition only. **The review prototype
+   (`docs/concept/design/wp01-review/`), the Three.js prototype
+   (`docs/concept/prototype/`), the older SVG prototype and
+   `concepts/00-visual-exploration.png` are never behavioural sources and never
+   ship.** Where two prototypes disagree, neither wins: the v1.1 handoff's
+   documented value governs, and the disagreement is recorded here.
 
 The working rule: **this document wins on how the plugin is built and how it
 touches Obsidian; v1.1 wins on how it behaves.**
@@ -202,7 +205,7 @@ plus a **build-time assertion that `dist/main.js` contains no
 removed in a future release, at which point the `require` condition disappears
 entirely.
 
-Three migration items apply to our usage and are cheap:
+Migration items that apply to our usage:
 
 - **r186** — `Object3D` gained `dispose()`. Any subclass overriding `dispose()`
   must call `super.dispose()`.
@@ -210,6 +213,18 @@ Three migration items apply to our usage and are cheap:
   `colorSpaceToWorking()`. The old names still exist but `warnOnce`. This is
   directly on the host-CSS-colour conversion path in section 4.4.
 - **r183** — `Clock` is deprecated in favour of `Timer` (core since r179).
+- **r152, and this one is silent** — `ColorManagement.enabled` now defaults to
+  **true**, so `new Color(hex)` already converts sRGB→working. **Never call
+  `convertSRGBToLinear()` on a constructed colour.** The method still exists and
+  was not removed, so double-converting raises no error and no warning; it simply
+  renders every colour markedly darker and desaturated, losing roughly 2–3× of
+  mid-tone luminance. The Three.js prototype in this repository does exactly this
+  about twenty times, because r140 shipped `ColorManagement.enabled = false`.
+  Section 3.4 bans the call by lint, because no test catches a uniformly darker
+  render.
+- **r155/r165** — `useLegacyLights` and `physicallyCorrectLights` are gone. Light
+  intensities authored before r155 must be multiplied by π. Any lighting values
+  lifted from the r140 prototype are wrong by that factor.
 
 `WebGLRenderer` is **not** deprecated — zero deprecation markers in the 0.186.0
 source or docs, and `dispose()`/`forceContextLoss()` are both present. The
@@ -270,6 +285,10 @@ workspace's existing convention:
 2. **Layering** — `no-restricted-imports` enforces that `src/domain/**` imports
    nothing from Obsidian, Vue, Three.js, Node or fallow, and that
    `src/visualization/**` reaches neither the filesystem nor the host.
+3. **Colour management** — `no-restricted-syntax` bans
+   `convertSRGBToLinear` and `convertLinearToSRGB` in `src/visualization/**`.
+   Double conversion is silent (section 3.2), so lint is the only thing that
+   catches it.
 
 ### 3.5 Test and dev loop
 
@@ -366,6 +385,24 @@ payload limits, schema version, finite numbers, duplicate ids, reference
 integrity, containment-tree cycles and path safety. Persisted settings and
 restored view state are untrusted input.
 
+**Provenance is never read from a payload.** It is a property of the run that
+produced a snapshot (`ProviderRun.provider`, `origin`, `capturedAt`), established
+by the collector. A restored or imported value claiming provenance is data to be
+validated, never a label to be displayed. The Three.js prototype demonstrates the
+hole: its UI prints "Synthetic example" or "Imported JSON · not source-verified"
+based on a `source` field read straight out of the imported file, so a crafted
+file declaring `"source":"synthetic"` is displayed as synthetic. Our
+`getState()`/`workspace.json` path is user-editable by section 4.4, so the same
+shape of hole is reachable here.
+
+**`docs/concept/prototype/fixtures/snapshot.schema.json` is not a candidate
+schema.** It is a demo interchange format with nullable scalars, caller-assigned
+ids, no directory entities, no completeness, no warnings, no reason strings and
+no snapshot identity — and its own demo fixture violates its own category enum on
+24 of 144 records, passing only because the validator silently re-infers. Task 2
+therefore checks that **a category outside the classifier vocabulary is rejected,
+never silently re-inferred.**
+
 `CityViewState` carries `profileId`, `snapshotId`, `selectedEntityId`, `query`,
 `viewMode: '3d' | 'top' | 'list'`, `camera`, `previous3dCamera`, and
 `inspectorOpen`. `previous3dCamera` is load-bearing: without persisting it, the
@@ -390,23 +427,68 @@ export interface CityRendererPort {
   setColors(palette: CityPalette): void;         // colorKey -> resolved colour
   setSelection(selectedEntityId: EntityId | null): void;
   setFilter(matching: ReadonlySet<EntityId> | null): void;  // null = unfiltered, empty = no matches
+  setLabels(visible: boolean): void;
   setCameraMode(mode: '3d' | 'top'): void;
   getCamera(): CameraBookmark;
   setCamera(camera: CameraBookmark): void;
+  nudgeCamera(delta: { orbit?: [number, number]; pan?: [number, number]; zoomFactor?: number }): void;
   focus(entityId: EntityId): void;
   fit(): void;
   resize(cssWidth: number, cssHeight: number, pixelRatio: number): void;
   pause(): void;
   resume(): void;
   dispose(): void;
+  getDiagnostics(): RendererDiagnostics;   // instrumentation
+  debugLoseContext(): void;                // instrumentation
 }
 
 export type CityRendererEvent =
   | { type: 'entity-picked'; entityId: EntityId; snapshotId: string }
-  | { type: 'hover-changed'; entityId: EntityId | null; snapshotId: string }
+  | { type: 'hover-changed'; entityId: EntityId | null; snapshotId: string;
+      position: { x: number; y: number } | null }   // canvas-relative, for tooltip anchoring
   | { type: 'camera-changed'; camera: CameraBookmark }
   | { type: 'unavailable'; reason: 'unsupported' | 'context-lost' | 'initialization-failed' };
 ```
+
+Four of those exist because the Three.js prototype proved the hole:
+
+- **`nudgeCamera`** — section 5.2 requires single-pointer camera controls for
+  WCAG 2.5.7, and section 5 assigns the buttons to task 9. Without this the only
+  route is `getCamera()` → mutate → `setCamera()`, which forces the Vue layer to
+  understand the camera parameterisation and defeats the port.
+- **`position` on `hover-changed`** — a tooltip carrying path, category and value
+  must be anchored to the building. The event previously carried only an id.
+- **`setLabels`** — both prototypes have it and section 4.3 makes district labels
+  a task-4 output. Labels are DOM elements in a sibling overlay created through
+  `containerEl.ownerDocument`, repositioned on render — which keeps them
+  text-scalable for the 200% zoom check and cross-window correct.
+- **`getDiagnostics`/`debugLoseContext`** — the G5 benchmark and checkpoint #3's
+  leak check both need `info.memory.geometries` and a way to force
+  `WEBGL_lose_context`. Ship the loss seam; **do not** ship a restore partner.
+
+**The port never throws.** WebGL2 unavailability, context-creation failure and
+initialization failure are reported through `onEvent` as `unavailable`. The view
+always mounts and always has a surface. The prototype throws from its
+constructor, which inside `onOpen` would break view construction and leave a
+half-built leaf.
+
+**The renderer consumes a `LayoutResult`, never a `CodebaseSnapshot`.** It never
+computes layout, grouping or district assignment. A renderer API taking a
+snapshot is a defect, not a convenience — the prototype's `loadSnapshot(snapshot)`
+is the single most copy-pasteable mistake in this repository.
+
+**The view owns sizing.** The renderer installs no `ResizeObserver` of its own;
+`resize` is called by the view, re-applies `setPixelRatio` on **every** call
+rather than once at construction, and no-ops on a zero-size box so hidden leaves
+cost nothing. Resize never implies fit.
+
+**Camera mode is spelled `'3d' | 'top'`** everywhere, matching
+`CityViewState.viewMode`. `CameraBookmark` is adopted from `renderer-port.ts`
+with `mode` respelled from `'three-dimensional' | 'top-down'`. Keep its
+**absolute `position`/`target`/`up`** as the persisted form and derive spherical
+angles internally: the prototype stores `theta/phi/radius` but recomputes
+`radius` from layout extent, so under dispose-and-reconstruct a restored bookmark
+would only be exact if the layout were byte-identical.
 
 Five additions over the previous revision, each closing a hole:
 
@@ -433,6 +515,14 @@ synchronisation does not loop.
 **No `restored` event and no self-healing.** On `unavailable{context-lost}` the
 *view* disposes and reconstructs. Window migration and context loss are one
 recovery path, deliberately.
+
+Both prototypes implement self-healing, so this rule will be argued against with
+a working, screenshotted, test-passing implementation. It is not a
+counter-argument: the Three.js prototype's own recorded run logged **33
+`WebGL: INVALID_OPERATION: delete: object does not belong to this context`
+warnings** in the loss-and-restore path — stale GPU handles surviving the
+restore, which is precisely the failure dispose-and-reconstruct exists to
+prevent. Its validation summary does not mention them.
 
 **Pop-out migration is `dispose()` plus constructing a new renderer** — there is
 no `rebind`. This was reached independently by the design package, whose bridge
@@ -475,11 +565,15 @@ interface LayoutResult {
 `css-change` never re-runs layout. Layout consumes a validated snapshot, never
 the filesystem.
 
-**Three presentation states, not two.** Measured-above-zero, **measured zero**
-(a minimum-height box that stays selectable), and **unavailable** (a neutral
-minimum-height shape with a question marker and an exposed reason). A 0-height
-building is never a proxy for unknown — without `metricState`, measured-zero and
-unavailable render identically.
+**Three presentation states, not two.** Measured-above-zero; **measured zero** —
+a minimum-height box that **keeps its category colour** and stays selectable; and
+**unavailable** — a neutral colour **plus a distinct silhouette or marker
+geometry**, with the reason carried on the `Observation` and surfaced in the
+inspector. Colour alone is not enough: the Three.js prototype gives measured-zero
+and unavailable identical geometry and distinguishes unavailable only by a grey
+that destroys the category signal, with no marker and no reason. Task 4's check
+is that **measured-zero and unavailable are distinguishable without reading the
+inspector.**
 
 **Display scale:** physical lines on a square-root scale, labelled *"physical
 lines · square-root scale"*. The design's reference formula is
@@ -490,6 +584,20 @@ repository every file over 600 lines would render at identical height. The
 legend names the actual cap and `clampedCount`; raw values are always in the
 inspector. Footprint is an equal lot and never encodes the same metric as
 height.
+
+Two consequences to state rather than discover. Deriving the cap from the
+snapshot means a file's height depends on unrelated files, so the same file
+changes height between refreshes — accepted, because a hardcoded cap is either
+never reached (the prototype's bites at ~5,690 lines against a fixture maximum of
+568) or wrong for the next repository. And `clampedCount` is **the number of lots
+whose raw value exceeded the cap**, with the legend naming the cap in source
+units (lines), never scene units. Task 4 requires a fixture that actually
+exercises the cap — neither prototype's does.
+
+**Switching the height metric re-runs pure layout and arrives via `setLayout`.**
+The full instance-matrix upload is accepted to keep the boundary clean. The
+prototype has a `setMetric` that mutates matrices in place, which is faster and
+moves height ownership into the renderer; we do not.
 
 **Ports** under `src/application/ports/`: `SourceFileSystemPort` (walk, read,
 stat), `ProfileStore`, `LocalBindingStore`, `SnapshotStore`, `Clock`,
@@ -636,7 +744,12 @@ preserves the selection; clearing it is explicit. Ray picking runs only against
 file lots — never labels, ground planes, district borders or overlays.
 
 **Hover.** ~200 ms tooltip with path, category and value; no camera or selection
-change; dismissed on leave or Escape; emits no screen-reader announcement.
+change; dismissed on leave or Escape; emits no screen-reader announcement. The
+200 ms comes from the concept kit, not the v1.1 handoff, which is silent — and
+**neither prototype implements any delay**, so the number is unreplicated. Keep
+it as a decision rather than an inherited value: without hover intent the
+renderer raycasts on every `pointermove`, which is what the Three.js prototype
+does.
 
 **Search.** Case-insensitive substring over included file paths; empty or
 whitespace-only matches all. Placeholder "Search files or paths…". Debounce
@@ -660,12 +773,26 @@ tabbable buildings. List rows are native buttons; no `role=tree` on an
 incomplete implementation.
 
 **Non-drag alternatives (WCAG 2.5.7).** Every dragging gesture needs a
-single-pointer route: zoom `+`/`-` buttons, direction and rotate step controls in
-a camera help popover, Fit, Top, Focus. A keyboard-only alternative is explicitly
-not sufficient. These are UI work in task 9, not renderer work in task 10.
+single-pointer route. **Minimum set: zoom in and out, rotate left and right, pan
+in four directions, Fit, Top, Focus** — all single-pointer. A keyboard-only
+alternative is explicitly not sufficient, and neither is a single rotate button
+with keyboard arrows for the rest: the Three.js prototype's camera dock offers
+zoom, Fit and one "Rotate left", with no pointer-only pan and no rotate-right, so
+its capture is not a sufficient reference. These are UI work in task 9 driving
+`nudgeCamera`, not renderer work in task 10.
+
+**Step increments**, adopted from the Three.js prototype, which is the only
+source that supplies them: orbit 0.12 rad per arrow press, pan 30 px, keyboard
+zoom ×1.15, button zoom ×1.2, rotate button π/8.
 
 **Responsive.** Measured on the leaf, never the window, via container queries.
-**One collapse threshold at 820 CSS px**: above it, list + canvas + inspector;
+**One collapse threshold at 820 CSS px** — provisional and now contested: the
+v1.1 handoff uses a container query at 820, the Three.js prototype uses viewport
+media queries at 1200/960/700 and `window.innerWidth > 960` in JS, and the v1.1
+document itself calls 820 *"a new provisional threshold … not a claim about
+optimal device breakpoints."* Section 0 ranks v1.1 higher, so 820 with container
+queries stands, but re-check it at checkpoint #3 against a normal leaf, a sidebar
+leaf and a pop-out. Above it, list + canvas + inspector;
 below, canvas with Files and Inspector drawers, one overlay at a time, each with
 a visible close returning focus to its opener. Below a hard floor the view
 renders list-first and **creates no WebGL context at all** — a leaf dragged into
@@ -723,11 +850,27 @@ Two gates get purpose-built proofs rather than assertions:
   absence of a read, not absence from the interface. When the vault is the
   codebase this covers `vault.configDir`, other plugins' `data.json`, and `.git`.
 
-**The design package's own results are never cited as evidence for this
-implementation.** Its 31 state tests and 28 browser checks prove a Canvas 2D
-reference; `type-contract-check.txt` proves one declaration file compiles. The
-package says so itself, and the two validation records in it describe different
-runs — quoting "28" requires saying which 28.
+**No prototype's results are ever cited as evidence for this implementation.**
+The design package's 31 state tests and 28 browser checks prove a Canvas 2D
+reference; its `type-contract-check.txt` proves one declaration file compiles,
+and its two validation records describe different runs, so quoting "28" requires
+saying which 28. The `docs/concept/prototype/` tree's 23 model tests, 37 browser
+checks, 6 embedding checks, 7 server checks and one type check likewise prove a
+standalone browser reference **on a software rasteriser** (ANGLE SwiftShader,
+with the HTML injected via `page.set_content` because `file://` was blocked) —
+not this implementation, and not a hardware GPU. It exercises no Obsidian host,
+no filesystem, no repeated construct-and-dispose cycle, no second leaf, no window
+migration, and asserts no timing at any scale.
+
+Two different files are named `model.test.cjs` and test different things. Both
+are worth porting: `docs/concept/design/wp01-review/validation/model.test.cjs`
+(31 tests over the interaction state machine — camera, selection and inspector
+invariants) and `docs/concept/prototype/tests/model.test.cjs` (23 tests over
+normalisation, path safety, determinism and layout, covering tasks 2 and 4
+directly — including "zero is a valid measurement", "unknown is not coerced to
+zero", "identical inventory creates identical lot positions", "filtering does not
+mutate layout or inventory", and "many directories are explicitly aggregated, not
+dropped").
 
 `tests/acceptance/wp01.feature` adopts `production-acceptance.feature`'s 21
 scenarios, with three repairs: add "Vault is the codebase" and "theme change
@@ -862,7 +1005,16 @@ vault is permitted with README disclosure.
 - Whether Three.js 0.186.0 behaves correctly **inside Obsidian**. The bundling,
   types and API surface were verified empirically under Node and two bundlers,
   but WebGL2 context creation, the on-demand render loop and GPU disposal under
-  Electron 43 were not exercised in the host. The spike covers it.
+  Electron 43 were not exercised in the host. The spike covers it. **The Three.js
+  prototype does not reduce this risk at all** — every rendering, colour,
+  lighting, picking and disposal behaviour it demonstrates is r140's, and its own
+  README says to *"revalidate rendering, color management, picking, lifecycle,
+  and context recovery before integration."* Its visual result is not
+  transferable, because of the two silent breaks in section 3.2.
+- Whether a renderer reconstructed from a `CameraBookmark` and a `LayoutResult`
+  lands where it left off. Dispose-and-reconstruct is agreed by both prototypes
+  and demonstrated by neither: the Three.js prototype disposes exactly once, on
+  `pagehide`, and never reconstructs.
 - Visual regression against the design's mockups. r181 changed PBR energy
   conservation and indirect specular, so rough materials render brighter than in
   earlier versions. If any reference screenshot was taken against an older
