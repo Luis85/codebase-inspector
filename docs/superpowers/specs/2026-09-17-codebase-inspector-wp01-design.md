@@ -173,6 +173,51 @@ Externalised: `obsidian`, `electron`, nine `@codemirror/*`, three `@lezer/*`, an
 all Node built-ins in both forms. Bundled: Vue, Pinia, Three.js and the addons
 used.
 
+**Three.js is pinned exactly at `0.186.0`** (published 2026-09-08), with
+`"@types/three": "^0.186.0"` — three ships no types of its own. The exact pin is
+deliberate: Three.js publishes breaking changes in every `0.x` minor and does not
+follow semver, so a caret range there is a range of unreviewed migration guides.
+The types package is the opposite case — DefinitelyTyped ships pure fixes as
+patches within a minor, so a caret picks up corrections with no runtime risk.
+`"moduleResolution": "bundler"` is **required**, not preferred: `node16` fails
+the addon imports with TS1479, and `node` no longer exists in TypeScript 7.
+
+**r186 deprecated the CommonJS build**, and this needs a guard. `build/three.cjs`
+is now a 631-byte stub that calls `process.emitWarning` and re-exports the ESM
+file. That deprecation is about *consuming* three via `require()`, whereas we
+*produce* CommonJS from three's ESM source — so it does not block us, and a
+single CJS `main.js` containing `WebGLRenderer`, `InstancedMesh`, `setColorAt`,
+`computeBoundingSphere`, `Raycaster` and `OrbitControls` was built and executed
+successfully at this exact configuration. But if the bundler ever resolves the
+`require` condition instead of `import`, it pulls the stub and injects a
+`process` reference into the Obsidian renderer. Therefore:
+
+```ts
+resolve: { conditions: ['import', 'module', 'browser', 'default'] },
+// or: resolve.alias = { three: 'three/build/three.module.js' }
+```
+
+plus a **build-time assertion that `dist/main.js` contains no
+`THREE_CJS_DEPRECATED`**, added in task 1 and kept. `build/three.cjs` will be
+removed in a future release, at which point the `require` condition disappears
+entirely.
+
+Three migration items apply to our usage and are cheap:
+
+- **r186** — `Object3D` gained `dispose()`. Any subclass overriding `dispose()`
+  must call `super.dispose()`.
+- **r177** — use `ColorManagement.workingToColorSpace()` and
+  `colorSpaceToWorking()`. The old names still exist but `warnOnce`. This is
+  directly on the host-CSS-colour conversion path in section 4.4.
+- **r183** — `Clock` is deprecated in favour of `Timer` (core since r179).
+
+`WebGLRenderer` is **not** deprecated — zero deprecation markers in the 0.186.0
+source or docs, and `dispose()`/`forceContextLoss()` are both present. The
+project's feature focus has moved to `WebGPURenderer`, but no removal timeline
+is published; for a box-and-raycast renderer, feature-freeze is a stability
+asset. Three.js core plus `OrbitControls` measures ~554 kB minified (~137 kB
+gzipped), about 21 kB more than 0.184.0.
+
 **Vue is runtime-only, permanently** — SFC templates compile at build time and
 `vue` is never aliased to a full build, because the runtime compiler uses
 `new Function`. Expect `dist/main.js` around 0.8–1.2 MB minified. Named imports
@@ -814,8 +859,20 @@ vault is permitted with README disclosure.
 - **Whether `getSettingDefinitions()` can express a dynamic per-profile list
   with buttons and custom rows.** Blocks task 6; the hybrid in section 4.4 is the
   fallback.
-- Three.js version pin. The design mentions 0.184.0 as inspected but not
-  installed or benchmarked. Pin it at task 1 against what actually resolves.
+- Whether Three.js 0.186.0 behaves correctly **inside Obsidian**. The bundling,
+  types and API surface were verified empirically under Node and two bundlers,
+  but WebGL2 context creation, the on-demand render loop and GPU disposal under
+  Electron 43 were not exercised in the host. The spike covers it.
+- Visual regression against the design's mockups. r181 changed PBR energy
+  conservation and indirect specular, so rough materials render brighter than in
+  earlier versions. If any reference screenshot was taken against an older
+  Three.js, expect to retake it. Magnitude unmeasured.
+- The Three.js migration wiki omits r186's CommonJS deprecation entirely — it is
+  documented only in the GitHub release notes and visible in the published
+  tarball. Treat that wiki page as incomplete for r186 when upgrading.
+- r187 is already in development and will make `WebGLRenderer` use `WeakRef` and
+  `FinalizationRegistry` internally, which could interact with our
+  strict-disposal-on-close pattern. Re-test at upgrade time.
 - Whether a loaded view reverts to `DeferredView` when hidden again. If it does,
   `onClose` runs on tab switch and part of task 11's pause work is moot; if not,
   a long session accumulates one live WebGL context per city tab ever shown.
