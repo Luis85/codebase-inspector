@@ -10,13 +10,18 @@
 import type { Plugin } from 'obsidian';
 import { CITY_VIEW_TYPE } from './city-view';
 
-/** Reaches an existing city leaf or opens a new one. Never casts a leaf's `.view` —
- *  callers that need the CityView itself use `leaf.view instanceof CityView`. */
+/** Always opens a NEW city tab (ruling M9, review round 2). Multiple leaves are a
+ *  first-class WP-01 capability, not an edge case: spec 4.4 says "the factory may run
+ *  more than once," and task 11's per-leaf snapshot reconciliation only means anything
+ *  if two leaves can hold different snapshots. A reveal-existing convention (the
+ *  brief's own original line) silently removed that capability — checkpoint #1's
+ *  "opening a second city tab works" line failed against it in the real host. Never
+ *  casts a leaf's `.view` — callers that need the CityView itself use
+ *  `leaf.view instanceof CityView`. */
 export async function openCity(plugin: Plugin): Promise<void> {
   const { workspace } = plugin.app;
-  const existing = workspace.getLeavesOfType(CITY_VIEW_TYPE);
-  const leaf = existing[0] ?? workspace.getLeaf('tab');
-  if (!existing[0]) await leaf.setViewState({ type: CITY_VIEW_TYPE, active: true });
+  const leaf = workspace.getLeaf('tab');
+  await leaf.setViewState({ type: CITY_VIEW_TYPE, active: true });
   // Since 1.7.2 every view is created as a DeferredView, so reveal before acting.
   await workspace.revealLeaf(leaf);
 }
