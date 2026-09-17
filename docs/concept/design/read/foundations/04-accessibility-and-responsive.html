@@ -1,0 +1,52 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Accessibility and constrained-leaf behavior</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../foundations/04-accessibility-and-responsive.md">Markdown source</a></header><main><h1>Accessibility and constrained-leaf behavior</h1>
+<h2>Target, not certification</h2>
+<p>Target WCAG 2.2 AA for the plugin’s HTML interface and provide equivalent non-3D access to its information. This package is not a conformance claim. Static images, a browser render, and an accessibility checklist cannot establish host integration or assistive-technology support.</p>
+<p>W3C documents normal-text contrast of at least 4.5:1 (3:1 for qualifying large text), meaningful non-text contrast of 3:1, and the target-size minimum with its exceptions [S5–S7]. The design prefers 32 px controls rather than treating the 24 px minimum as an ergonomic target.</p>
+<h2>Core equivalent access</h2>
+<p>Every included file can be reached through the HTML list and search. Exact values, metric states, findings, and relation direction can be read without the canvas. The canvas is a complementary spatial representation, not thousands of individually tabbable buildings.</p>
+<p>Provide a named canvas region and a short help description. A keyboard user can enter camera-control mode explicitly, use bounded commands, and leave it with Escape/Tab. Do not set a page-wide application role or trap focus in WebGL. Arrow keys continue to behave normally in source text, lists, native selectors, Markdown, and dialogs.</p>
+<p>A functional alternative must exist for dragging. W3C’s dragging-movements guidance requires a non-drag single-pointer method unless an exception applies [S8]. Camera buttons, directory focus, file search, Fit, Top, zoom buttons, and step controls provide those alternatives. A keyboard-only alternative alone is not sufficient for the single-pointer requirement.</p>
+<h2>Responsive rules (measure the leaf)</h2>
+<table>
+<thead>
+<tr>
+<th>Available leaf width</th>
+<th>Default composition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>≥1180 px</td>
+<td>File list + canvas + inspector when a file is selected</td>
+</tr>
+<tr>
+<td>900–1179 px</td>
+<td>Collapse file list before reducing the canvas; inspector may dock</td>
+</tr>
+<tr>
+<td>640–899 px</td>
+<td>Canvas with Files and Inspector drawers; show one overlay at a time</td>
+</tr>
+<tr>
+<td>420–639 px</td>
+<td>Wrapped toolbar; large drawer; optional list-first view</td>
+</tr>
+<tr>
+<td>&lt;420 px</td>
+<td>Offer list-first inspection; source/form content single-column</td>
+</tr>
+</tbody>
+</table>
+<p>Breakpoints are provisional and must be tuned against actual rendered minimum widths, large fonts, and host themes. A narrow desktop leaf is not evidence of mobile-platform support.</p>
+<p>At 200% text zoom, dialogs and inspectors scroll internally; primary actions remain reachable. Preserve the full path through wrapping, a copy action, and accessible text. Do not expose crucial content only in an ellipsis tooltip. Horizontal scroll can be appropriate inside a code excerpt or table; not for the entire leaf.</p>
+<h2>Dialog and drawer focus</h2>
+<p>Use native Modal for root/source and note-write confirmation. Set an accessible title, choose the initial focus deliberately, contain Tab within an actual modal, allow Escape when safe, and restore focus to the invoking control. WAI-ARIA’s modal pattern specifies focus containment and dialog labeling behavior [S9].</p>
+<p>A nonmodal inspector drawer is a different surface: do not mark the background inert or trap focus unless the drawer is explicitly modal. Closing the inspector drawer keeps the selected file and returns focus to its opener. Clearing selection is a separate action. Resizing/collapsing panels must not remove keyboard focus without relocating it predictably.</p>
+<h2>Announcements</h2>
+<p>Use a polite status region for scan stage transitions, completed snapshot, cancelled scan, selected-file changes initiated through a control, and note creation. Throttle rapidly changing counters. Use an assertive alert for a blocking user-action failure that otherwise goes unnoticed, not for each skipped file. Changing hover does not emit screen-reader announcements.</p>
+<p>Represent indeterminate progress without <code>aria-valuenow</code>; add numeric progress only after a legitimate total is known. Counts such as “96 files read so far” are not a percentage. Preserve the readable file list during recoverable renderer failure.</p>
+<h2>Reduced motion and visual alternatives</h2>
+<p>Respect reduced motion; stop damping/animations when hidden and on request. No auto-rotation. Unknown, failure, selection, and changed-state encodings need text or shape, not color alone. Test with monochrome, a custom accent, high-contrast OS settings, and custom themes. A low-contrast theme must not silently make selection or warnings unusable; provide an accessible alternative presentation and report limitations.</p>
+<h2>Required manual test matrix</h2>
+<p>Keyboard only, NVDA on Windows or an equivalent target-platform screen reader, 200% text scaling, dark/light and one third-party theme, narrow leaf, two simultaneous leaves, pop-out migration, WebGL unavailable, GPU context recovery, reduced motion, and long Unicode paths. Run these inside actual supported Obsidian versions before release. Pop-out windows have distinct document/window contexts and require correct resource ownership [S3].</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

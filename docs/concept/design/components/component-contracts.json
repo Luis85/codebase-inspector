@@ -1,0 +1,610 @@
+{
+  "version": "1.0",
+  "status": "design-contract-not-compiled-api",
+  "components": [
+    {
+      "id": "C01",
+      "name": "InspectorWorkspace",
+      "surface": "ItemView + Vue root",
+      "inputs": [
+        "profile",
+        "snapshot",
+        "capabilities",
+        "leafState"
+      ],
+      "events": [
+        "modeRequested",
+        "closeRequested"
+      ],
+      "states": [
+        "empty",
+        "restoring",
+        "ready",
+        "unavailable"
+      ],
+      "rules": "Own one renderer/UI scope per leaf. Keep shared data immutable; never share camera or focus across leaves."
+    },
+    {
+      "id": "C02",
+      "name": "ProfileSelector",
+      "surface": "Native menu / compact toolbar",
+      "inputs": [
+        "profiles",
+        "activeId",
+        "localBindings"
+      ],
+      "events": [
+        "profileSelected",
+        "sourceEditRequested"
+      ],
+      "states": [
+        "none",
+        "bound",
+        "unbound",
+        "invalid"
+      ],
+      "rules": "Selection changes presentation context; it is not source authorization. Long roots belong in details, not truncated identity labels."
+    },
+    {
+      "id": "C03",
+      "name": "SourceSelector",
+      "surface": "Native Modal + validated fields",
+      "inputs": [
+        "sourceKind",
+        "typedPath",
+        "validation"
+      ],
+      "events": [
+        "sourceChanged",
+        "validateRequested",
+        "continueRequested",
+        "cancelled"
+      ],
+      "states": [
+        "editing",
+        "validating",
+        "valid",
+        "invalid"
+      ],
+      "rules": "Validate path data through a port; do not interpolate into commands. Restore typed values and focus on errors."
+    },
+    {
+      "id": "C04",
+      "name": "ScopeReview",
+      "surface": "Native Modal / settings detail",
+      "inputs": [
+        "resolvedRoot",
+        "exclusions",
+        "limits",
+        "consent"
+      ],
+      "events": [
+        "consentChanged",
+        "scanRequested",
+        "backRequested"
+      ],
+      "states": [
+        "unapproved",
+        "approved",
+        "invalidated"
+      ],
+      "rules": "Consent defaults false and binds to reviewed inputs. It does not authorize analyzers or note creation."
+    },
+    {
+      "id": "C05",
+      "name": "ScanProgress",
+      "surface": "Progressbar + status + cancel",
+      "inputs": [
+        "stage",
+        "counts",
+        "optionalTotal",
+        "jobId",
+        "priorSnapshot"
+      ],
+      "events": [
+        "cancelRequested"
+      ],
+      "states": [
+        "indeterminate",
+        "determinate",
+        "cancelling",
+        "complete",
+        "failed"
+      ],
+      "rules": "Publish meaningful totals only. Throttle announcements; never swap a cancelled partial snapshot into the city."
+    },
+    {
+      "id": "C06",
+      "name": "FileSearch",
+      "surface": "Labeled search input",
+      "inputs": [
+        "query",
+        "matchCount",
+        "totalCount"
+      ],
+      "events": [
+        "queryChanged",
+        "clearRequested",
+        "focusResultsRequested"
+      ],
+      "states": [
+        "idle",
+        "typing",
+        "matches",
+        "no-matches"
+      ],
+      "rules": "WP-01 searches paths, not all symbols. Preserve geometry and selected identity across search changes."
+    },
+    {
+      "id": "C07",
+      "name": "CodebaseFileList",
+      "surface": "HTML list / accessible virtual list",
+      "inputs": [
+        "fileIds",
+        "grouping",
+        "selection",
+        "filters"
+      ],
+      "events": [
+        "selectionRequested",
+        "directoryFocusRequested"
+      ],
+      "states": [
+        "loaded",
+        "filtered",
+        "empty",
+        "partial"
+      ],
+      "rules": "All files remain accessible; native list buttons are preferable to an incomplete ARIA tree. Disambiguate duplicate basenames."
+    },
+    {
+      "id": "C08",
+      "name": "CityViewport",
+      "surface": "Three.js renderer port + HTML wrapper",
+      "inputs": [
+        "snapshot",
+        "layout",
+        "palette",
+        "selection",
+        "lens"
+      ],
+      "events": [
+        "entityPicked",
+        "hoverChanged",
+        "cameraChanged",
+        "rendererStateChanged"
+      ],
+      "states": [
+        "initializing",
+        "ready",
+        "paused",
+        "lost",
+        "fallback"
+      ],
+      "rules": "Consumes normalized data only. No direct filesystem or process access. Cap labels, isolate GPU objects from deep Vue reactivity."
+    },
+    {
+      "id": "C09",
+      "name": "CameraControls",
+      "surface": "Labeled button group",
+      "inputs": [
+        "cameraMode",
+        "zoomBounds",
+        "selection",
+        "reducedMotion"
+      ],
+      "events": [
+        "fitRequested",
+        "focusRequested",
+        "topRequested",
+        "stepRequested"
+      ],
+      "states": [
+        "enabled",
+        "at-bound",
+        "no-selection"
+      ],
+      "rules": "Every gesture has a non-drag alternative. Bind keys only to the active camera region, not the host window."
+    },
+    {
+      "id": "C10",
+      "name": "FileInspector",
+      "surface": "Complementary panel / nonmodal drawer",
+      "inputs": [
+        "fileRecord",
+        "observations",
+        "findings",
+        "sourceBinding"
+      ],
+      "events": [
+        "focusRequested",
+        "pathCopyRequested",
+        "sourceOpenRequested",
+        "closeRequested"
+      ],
+      "states": [
+        "selected",
+        "unavailable-metric",
+        "stale",
+        "removed"
+      ],
+      "rules": "Keep exact raw values and scope. Hiding panel does not clear selection; Clear selection is distinct."
+    },
+    {
+      "id": "C11",
+      "name": "MetricLegend",
+      "surface": "HTML text and swatches",
+      "inputs": [
+        "metricDefinition",
+        "scale",
+        "units",
+        "bins",
+        "missingStates"
+      ],
+      "events": [
+        "definitionRequested"
+      ],
+      "states": [
+        "category",
+        "numeric",
+        "binned",
+        "unavailable"
+      ],
+      "rules": "Names the raw metric, aggregation, scale, and cap. Color alone is insufficient; unknown is never zero."
+    },
+    {
+      "id": "C12",
+      "name": "SnapshotStatus",
+      "surface": "Compact footer + details",
+      "inputs": [
+        "snapshotId",
+        "observedAt",
+        "scope",
+        "jobState"
+      ],
+      "events": [
+        "provenanceRequested"
+      ],
+      "states": [
+        "complete-for-scope",
+        "retained",
+        "partial"
+      ],
+      "rules": "Absolute time and scope are available in details. Important errors also appear near the affected content."
+    },
+    {
+      "id": "C13",
+      "name": "EvidenceBadge",
+      "surface": "Text badge + details popover",
+      "inputs": [
+        "provider",
+        "status",
+        "freshness",
+        "availability",
+        "sourceMatch"
+      ],
+      "events": [
+        "detailsRequested"
+      ],
+      "states": [
+        "current",
+        "imported",
+        "stale",
+        "unknown",
+        "mismatch"
+      ],
+      "rules": "Do not reduce execution state, quality verdict, and freshness to one colored dot."
+    },
+    {
+      "id": "C14",
+      "name": "ProviderConnection",
+      "surface": "Native setup panel",
+      "inputs": [
+        "capabilities",
+        "importState",
+        "executableConfig"
+      ],
+      "events": [
+        "importRequested",
+        "runReviewRequested",
+        "disconnectRequested"
+      ],
+      "states": [
+        "unconfigured",
+        "importing",
+        "configured",
+        "running",
+        "failed"
+      ],
+      "rules": "Only installed trusted executables; no auto-install/update. Report content cannot create execution authority."
+    },
+    {
+      "id": "C15",
+      "name": "DialogFrame",
+      "surface": "Native Modal",
+      "inputs": [
+        "title",
+        "initialFocus",
+        "dirtyState",
+        "actions"
+      ],
+      "events": [
+        "confirmRequested",
+        "cancelRequested"
+      ],
+      "states": [
+        "pristine",
+        "dirty",
+        "submitting",
+        "failed"
+      ],
+      "rules": "Use real modal focus containment, safe Escape, and focus restoration; preserve drafts on errors."
+    },
+    {
+      "id": "C16",
+      "name": "StatusBanner",
+      "surface": "Status / alert / inline feedback",
+      "inputs": [
+        "cause",
+        "consequence",
+        "recoveryActions"
+      ],
+      "events": [
+        "recoveryRequested",
+        "dismissed"
+      ],
+      "states": [
+        "info",
+        "warning",
+        "blocking-error"
+      ],
+      "rules": "Explain what remains usable. No operational failure is turned into a clean result. Escape unsafe source strings."
+    },
+    {
+      "id": "C17",
+      "name": "EmptyState",
+      "surface": "HTML content + primary action",
+      "inputs": [
+        "reason",
+        "contextCounts",
+        "recovery"
+      ],
+      "events": [
+        "primaryRequested"
+      ],
+      "states": [
+        "no-profile",
+        "no-files",
+        "no-matches",
+        "no-baseline"
+      ],
+      "rules": "Different causes need different copy and actions. Do not show an empty city after a failed scan."
+    },
+    {
+      "id": "C18",
+      "name": "ResponsivePanelHost",
+      "surface": "Container-query panel composition",
+      "inputs": [
+        "leafWidth",
+        "panelWidths",
+        "openDrawer",
+        "selectedId"
+      ],
+      "events": [
+        "panelVisibilityChanged",
+        "panelSizeChanged"
+      ],
+      "states": [
+        "docked",
+        "collapsed",
+        "drawer",
+        "list-first"
+      ],
+      "rules": "Use leaf dimensions, not entire app width. Keep one narrow overlay at a time and preserve focus/selection."
+    },
+    {
+      "id": "C19",
+      "name": "EvidenceTable",
+      "surface": "Semantic table",
+      "inputs": [
+        "columns",
+        "rows",
+        "sort",
+        "pagination"
+      ],
+      "events": [
+        "rowSelected",
+        "sortChanged",
+        "pageChanged"
+      ],
+      "states": [
+        "loaded",
+        "empty",
+        "partial",
+        "unmapped"
+      ],
+      "rules": "Column headings name units/scope. Sort numeric values as numbers and give missing values an explicit policy."
+    },
+    {
+      "id": "C20",
+      "name": "InspectorSettings",
+      "surface": "Native Setting controls",
+      "inputs": [
+        "validatedSettings",
+        "profiles",
+        "storageSummary"
+      ],
+      "events": [
+        "settingsChanged",
+        "sourceRequested",
+        "clearBindingRequested"
+      ],
+      "states": [
+        "valid",
+        "invalid",
+        "saving",
+        "error"
+      ],
+      "rules": "Do not render future-release settings. Changes save configuration without starting scans or analyzers."
+    },
+    {
+      "id": "C21",
+      "name": "DependencyNeighborhood",
+      "surface": "Edge query + city overlay + HTML list",
+      "inputs": [
+        "edges",
+        "direction",
+        "hops",
+        "cap",
+        "hiddenCount"
+      ],
+      "events": [
+        "edgeSelected",
+        "directionChanged",
+        "expandRequested"
+      ],
+      "states": [
+        "bounded",
+        "truncated",
+        "cycle",
+        "unresolved"
+      ],
+      "rules": "Importer \u2192 imported target. Type-only, import, co-change and runtime relations are distinct, not interchangeable."
+    },
+    {
+      "id": "C22",
+      "name": "FindingWorkbench",
+      "surface": "Queue + evidence details",
+      "inputs": [
+        "findings",
+        "selectedFinding",
+        "provenance",
+        "sourceMatch"
+      ],
+      "events": [
+        "findingSelected",
+        "sourceReadRequested",
+        "noteRequested"
+      ],
+      "states": [
+        "loaded",
+        "no-matches",
+        "stale",
+        "missing-source"
+      ],
+      "rules": "Evidence supports and limitations are visible. No safe-to-delete score, automatic fix, or tests-will-pass claim."
+    },
+    {
+      "id": "C23",
+      "name": "InvestigationComposer",
+      "surface": "Native Modal + Markdown preview",
+      "inputs": [
+        "draft",
+        "vaultDestination",
+        "evidenceRefs",
+        "sourceInclusion"
+      ],
+      "events": [
+        "draftChanged",
+        "createRequested",
+        "discardRequested"
+      ],
+      "states": [
+        "editing",
+        "validating",
+        "writing",
+        "collision",
+        "failed"
+      ],
+      "rules": "Write human notes only on explicit action. No absolute machine paths/source text by default; never overwrite silently."
+    },
+    {
+      "id": "C24",
+      "name": "SnapshotComparison",
+      "surface": "Selectors + linked city/table",
+      "inputs": [
+        "baseline",
+        "current",
+        "compatibility",
+        "deltas",
+        "cameraLock"
+      ],
+      "events": [
+        "baselineChanged",
+        "selectionRequested",
+        "cameraLockChanged"
+      ],
+      "states": [
+        "compatible",
+        "incompatible",
+        "missing-provider"
+      ],
+      "rules": "Shared layout/scale and explicit matching. Deleted/excluded/unavailable are distinct; provider failure is not resolution."
+    },
+    {
+      "id": "C25",
+      "name": "EvidenceOverview",
+      "surface": "Independent cards + investigation queue",
+      "inputs": [
+        "metrics",
+        "definitions",
+        "providerStates",
+        "orderingRules"
+      ],
+      "events": [
+        "evidenceRequested",
+        "priorityRuleChanged"
+      ],
+      "states": [
+        "inventory-only",
+        "partial-providers",
+        "complete-context"
+      ],
+      "rules": "Every priority explains its inputs. Do not manufacture an aggregate quality percentage."
+    },
+    {
+      "id": "C26",
+      "name": "FocusedNoteEmbed",
+      "surface": "Markdown renderer integration + static preview",
+      "inputs": [
+        "pinnedReference",
+        "preview",
+        "availableSnapshot"
+      ],
+      "events": [
+        "openFocusRequested",
+        "artifactImportRequested"
+      ],
+      "states": [
+        "static",
+        "unavailable",
+        "activated"
+      ],
+      "rules": "No scan on render; bound renderer budget; no executable parameters. Human notes stay authoritative."
+    },
+    {
+      "id": "C27",
+      "name": "ArtifactAndWatchPanel",
+      "surface": "Artifact form + separate session controls",
+      "inputs": [
+        "artifactValidation",
+        "sourceBinding",
+        "watchSession",
+        "jobs"
+      ],
+      "events": [
+        "artifactImportRequested",
+        "watchReviewRequested",
+        "stopRequested"
+      ],
+      "states": [
+        "unbound",
+        "ready",
+        "watching",
+        "stopping",
+        "failed"
+      ],
+      "rules": "Import is not execution consent. Explicit source/scope/session lifetime, debounce, cancellation, newest-result ordering."
+    }
+  ]
+}

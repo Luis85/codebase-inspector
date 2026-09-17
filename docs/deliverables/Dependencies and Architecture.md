@@ -1,10 +1,12 @@
 ---
 type: Deliverable
-order: 70
+order: 8.75
 id: WP-03
 title: Dependency and architecture explorer
 status: planned
-dependsOn: [WP-02]
+dependsOn:
+  - WP-02
+parent: "[[Plugin MVP]]"
 ---
 # Package 03 — Dependency and architecture explorer
 

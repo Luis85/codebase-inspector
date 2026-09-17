@@ -1,10 +1,12 @@
 ---
 type: Deliverable
-order: 100
+order: 60
 id: WP-06
 title: Test coverage and test effectiveness
 status: planned
-dependsOn: [WP-02]
+dependsOn:
+  - WP-02
+parent: "[[Plugin MVP]]"
 ---
 # Package 06 — Test coverage and test effectiveness
 

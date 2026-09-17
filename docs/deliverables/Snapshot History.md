@@ -1,10 +1,12 @@
 ---
 type: Deliverable
-order: 90
+order: 50
 id: WP-05
 title: Snapshot history and change evidence
 status: planned
-dependsOn: [WP-02]
+dependsOn:
+  - WP-02
+parent: "[[Plugin MVP]]"
 ---
 # Package 05 — Snapshot history and change evidence
 

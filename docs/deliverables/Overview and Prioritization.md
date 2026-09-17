@@ -1,10 +1,13 @@
 ---
 type: Deliverable
-order: 130
+order: 90
 id: WP-09
 title: Overview and explainable prioritization
 status: planned
-dependsOn: [WP-04, WP-05]
+dependsOn:
+  - WP-04
+  - WP-05
+parent: "[[Plugin MVP]]"
 ---
 # Package 09 — Overview and explainable prioritization
 

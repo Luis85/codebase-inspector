@@ -1,0 +1,37 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>User flows and decision points</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../flows/user-flows.md">Markdown source</a></header><main><h1>User flows and decision points</h1>
+<h2>F01 — First structural inspection (WP-01)</h2>
+<pre><code class="language-mermaid">flowchart LR
+  A[Open inspector] --&gt; B[S01: No source]
+  B --&gt; C[S02: Choose source]
+  C --&gt; D{Valid root?}
+  D --&gt;|No| C
+  D --&gt;|Yes| E[S03: Review scope]
+  E --&gt; F{Read access approved?}
+  F --&gt;|No| E
+  F --&gt;|Yes| G[S04: Inventory]
+  G --&gt;|Complete| H[S05: City]
+  G --&gt;|Cancel| I[S12: Previous snapshot]
+  G --&gt;|Error| J[Repair source or scope]
+  H --&gt; K[S07: Select and inspect file]
+</code></pre>
+<p>Success: the selected source is the one scanned; the user sees exact values; the source remains unchanged. Failures preserve inputs and previous completed evidence.</p>
+<h2>F02 — Find and inspect without spatial navigation</h2>
+<p>S05 → search path → S08 matching list → select file → S07 inspector → Focus (optional). No match → S23 → clear query. WebGL unavailable → S11 list → same inspector. A keyboard user does not need to navigate buildings.</p>
+<h2>F03 — External source binding</h2>
+<p>Choose external directory → paste path → validate → review resolved path and exclusions → approve read → scan. If the binding is unavailable on another machine, retain the snapshot and ask for a new explicit binding. Never infer a different root from a similarly named folder.</p>
+<h2>F04 — Add analysis evidence</h2>
+<p>City → connect provider S14 → choose import <strong>or</strong> installed executable. Import validates version/schema/scope/source mapping; execution separately reviews executable, args, root, side effects, and consent. Valid compatible evidence → S15. Failure → S22 with structural city still available. Mismatch → keep report separate; no silent attachment.</p>
+<h2>F05 — Investigate and document</h2>
+<p>S15 selected finding → S17 workbench → review evidence and limitations → S18 composer → validate vault destination → create note → Open note. Name collision offers deliberate alternatives. Write failure keeps the draft. Source text and absolute machine paths are excluded by default.</p>
+<h2>F06 — Dependency reasoning</h2>
+<p>Select file → S16 outgoing one-hop neighborhood → inspect typed edge → optionally expand scope → read equivalent edge list → return to file. Cycle or boundary finding links to supporting edges. No transition claims proven behavioral impact from imports alone.</p>
+<h2>F07 — Compare change</h2>
+<p>S19 choose baseline/current → validate definitions/scope/provider config → build identity mapping → shared-layout comparison → inspect file/finding delta. Incompatibility offers separate inspection or a matching baseline. A missing provider is not a resolved-finding transition.</p>
+<h2>F08 — Constrained view</h2>
+<p>Leaf narrows → file list collapses → inspector changes to drawer → only one drawer at a time → close returns focus to opener → leaf widens → restore user-docked panels. Snapshot/camera/selection remain stable. Below practical 3D width, offer list-first inspection.</p>
+<h2>F09 — Note to source context</h2>
+<p>Read S24 note → static pinned preview → Open focused city → resolve profile/snapshot/file → inspect. Missing snapshot offers artifact import. A stale file mapping offers the pinned baseline or explicit alternate revision. Reading the note starts no scan, watch, or process.</p>
+<h2>F10 — Watch and artifact lifecycle</h2>
+<p>S27 import artifact → validate → inspect offline (no source authorization). Separate Watch action → review source/scope/session → start → debounce changes → newest completed valid result → stop. Window close or plugin unload cancels view work and stops sessions according to the explicit session contract, without losing the last complete snapshot.</p>
+<p>See the <a href="../README.html">screen catalogue</a> for all main, failure, and later-release states.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

@@ -1,0 +1,61 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Design and implementation review checklist</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../validation/design-review-checklist.md">Markdown source</a></header><main><h1>Design and implementation review checklist</h1>
+<h2>Structure and scope</h2>
+<ul>
+<li>[ ] One native Obsidian workspace view; no independent app shell/account/theme setting.</li>
+<li>[ ] WP-01 exposes only implemented structural features.</li>
+<li>[ ] File list is clearly distinct from the host vault note explorer.</li>
+<li>[ ] Current-vault, vault-directory, and external-directory flows work.</li>
+<li>[ ] Enabling/reopening the plugin does not start scans or analyzers.</li>
+<li>[ ] A supplied source or provider report is treated as data, not execution authority.</li>
+</ul>
+<h2>City and inspection</h2>
+<ul>
+<li>[ ] Buildings map to unique normalized file IDs; different basenames do not collide.</li>
+<li>[ ] Height metric/scale/cap and equal-lot meaning are explained.</li>
+<li>[ ] Exact values remain accessible in list/inspector.</li>
+<li>[ ] Unknown measurements are not encoded as zero.</li>
+<li>[ ] Click selects; drag does not also select; focus is explicit.</li>
+<li>[ ] Search/filter does not arbitrarily reshuffle the city.</li>
+<li>[ ] Category, selected, changed, warning, and unknown states are distinguishable.</li>
+<li>[ ] Directional edges agree with readable edge lists.</li>
+</ul>
+<h2>Host behavior</h2>
+<ul>
+<li>[ ] All CSS is scoped; host globals and base colors are not overwritten.</li>
+<li>[ ] Light/dark/custom theme changes preserve state and readable selection.</li>
+<li>[ ] Two leaves maintain independent camera, query, selection, and panel state.</li>
+<li>[ ] Pop-out migration uses the owning document/window.</li>
+<li>[ ] Closing a view cancels frames, listeners, observers, and GPU resources.</li>
+<li>[ ] Hidden leaves pause unnecessary rendering.</li>
+<li>[ ] Keyboard input in a Markdown editor is not intercepted by inspector controls.</li>
+</ul>
+<h2>Accessibility and resilience</h2>
+<ul>
+<li>[ ] Complete core task via keyboard and HTML list without 3D.</li>
+<li>[ ] Non-drag single-pointer camera alternatives exist.</li>
+<li>[ ] Accessible names, focus-visible states, modal focus return, and safe Escape.</li>
+<li>[ ] Increased text size and narrow leaves retain primary actions.</li>
+<li>[ ] Measured contrast checked in supported default/theme combinations.</li>
+<li>[ ] Reduced motion disables nonessential camera transitions and auto-motion.</li>
+<li>[ ] Progress uses real denominators; cancellation retains completed evidence.</li>
+<li>[ ] WebGL failure does not remove normalized file/analysis data.</li>
+</ul>
+<h2>Evidence and note writing</h2>
+<ul>
+<li>[ ] Provider operation status, verdict, freshness, and metric availability are distinct.</li>
+<li>[ ] Scope/version/source match visible for important evidence.</li>
+<li>[ ] No safe-deletion probability, synthetic overall health score, or pass guarantee.</li>
+<li>[ ] Coverage totals aggregate correctly; omitted metrics remain unknown.</li>
+<li>[ ] Notes use deliberate vault writes, safe paths, collision handling, and preserved drafts.</li>
+<li>[ ] Absolute machine paths/source text are excluded from exports by default.</li>
+<li>[ ] Note embeds/deep links do not authorize work or rewrite human content.</li>
+</ul>
+<h2>Release evidence</h2>
+<ul>
+<li>[ ] Actual plugin installed from release artifacts in an isolated Obsidian vault.</li>
+<li>[ ] Real repository and current-vault workflow exercised read-only.</li>
+<li>[ ] Performance benchmarks recorded with hardware, versions, dataset, and actual results.</li>
+<li>[ ] Accessibility/host checks record pass/fail/not-run, not assumed compliance.</li>
+<li>[ ] Synthetic review fixtures are not shipped as the only functioning experience.</li>
+</ul>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

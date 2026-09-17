@@ -1,0 +1,25 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Investigate layout complexity</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../templates/investigation-note.md">Markdown source</a></header><main><h1>Investigate layout complexity</h1>
+<h2>Question</h2>
+<p>Can district partitioning be simplified while preserving deterministic placement?</p>
+<h2>Evidence</h2>
+<p>The imported report identifies cognitive complexity of 27 at a configured threshold of 15 for <code>partitionDistrict</code>, at the snapshot-relative location <code>src/visualization/layout/city-layout.ts:84</code>.</p>
+<p>This is synthetic example content. A real note records the actual provider version, configuration/scope, source match, observation time, and normalized finding identity.</p>
+<h2>What remains unknown</h2>
+<p>Whether decomposition improves the design, whether current tests cover behavior, and whether a specific refactor is safe.</p>
+<h2>Proposed investigation</h2>
+<ul>
+<li>[ ] Read the complete function and its consumers.</li>
+<li>[ ] Describe its behavior with focused tests.</li>
+<li>[ ] Compare deterministic placement before and after a proposed change.</li>
+<li>[ ] Re-run relevant checks through the approved workflow.</li>
+</ul>
+<h2>Decision and verification</h2>
+<p>Record the decision, tradeoffs, verified outcome, and follow-up work here. Analyzer refresh must not overwrite this human-authored section.</p>
+<h2>Inspector reference</h2>
+<pre><code class="language-codebase-inspector">profile: demo-inspector
+snapshot: demo-2026-09-17
+file: src/visualization/layout/city-layout.ts
+finding: F-001
+</code></pre>
+<p>The fenced syntax above is a <strong>proposed WP-11 format</strong>, not an already implemented command. It carries portable references only: no absolute executable paths, process arguments, or automatic scan authorization. Until WP-11, keep these as plain readable properties/references.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

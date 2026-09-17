@@ -1,10 +1,12 @@
 ---
 type: Deliverable
-order: 120
+order: 80
 id: WP-08
 title: Bundle and dependency footprint
 status: planned
-dependsOn: [WP-02]
+dependsOn:
+  - WP-02
+parent: "[[Plugin MVP]]"
 ---
 # Package 08 — Bundle and dependency footprint
 

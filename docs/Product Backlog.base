@@ -1,6 +1,11 @@
 views:
   - type: product-backlog
-    name: Table
+    name: Product Backlog
+    order:
+      - file.name
+      - id
+      - status
+      - dependsOn
     stateProperty: note.status
     startedDateProperty: note.started
     finishedDateProperty: note.finished
@@ -14,3 +19,19 @@ views:
     iterationProperty: note.iteration
     iterationGoalProperty: note.goal
     releaseProperty: note.release
+  - type: table
+    name: Data Quality
+    groupBy:
+      property: type
+      direction: ASC
+    order:
+      - file.name
+      - id
+      - order
+      - dependsOn
+      - type
+    sort:
+      - property: order
+        direction: ASC
+    columnSize:
+      note.order: 92

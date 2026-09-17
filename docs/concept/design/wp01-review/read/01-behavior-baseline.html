@@ -1,0 +1,81 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>01-behavior-baseline — Codebase Inspector</title><style>body{margin:0;background:#f5f4f8;color:#2f2939;font:15px/1.65 system-ui,sans-serif}header{background:#242229;color:#f2eff6;padding:42px 6vw}header p{max-width:880px;color:#c7c0d1}h1{font-size:36px;line-height:1.2;letter-spacing:-.025em}h2{font-size:24px}main{max-width:1320px;margin:auto;padding:26px 34px 60px}a{color:#684199}header a{color:#eadbff}.button{display:inline-block;background:#7451ad;color:white;padding:10px 17px;border-radius:6px;text-decoration:none;margin-right:10px;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.card{background:white;border:1px solid #ded9e6;border-radius:8px;overflow:hidden}.card img{display:block;width:100%;height:240px;object-fit:contain;background:#252429}.card section{padding:14px 18px}.card h3{margin:0;font-size:17px}.card p{font-size:13px;color:#675e72;line-height:1.6}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:10px 12px;text-align:left;border:1px solid #ded9e6;vertical-align:top}th{background:#eeebf3}pre{padding:17px;background:#eeebf3;overflow:auto;border-radius:6px}code{font-size:13px}blockquote{border-left:3px solid #9471bd;padding:10px 17px;background:#eeebf3}.notice{padding:16px 20px;background:#eae3f3;border-left:3px solid #8058b6;margin:20px 0}.doc{max-width:1030px}.doc img{max-width:100%}@media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.grid{grid-template-columns:1fr}main{padding:20px}.card img{height:auto}h1{font-size:29px}table{display:block;overflow:auto}}</style></head><body><header><div>CODEBASE INSPECTOR · WP-01 · 1.1</div><nav><a href="../gallery.html">Review library</a> · <a href="../index.html">Interactive reference</a></nav></header><main class="doc"><h1>WP-01 interaction baseline — version 1.1</h1>
+<p>Status: proposed implementation baseline. Product: <strong>Codebase Inspector</strong>. Host: Obsidian desktop. Language: English. Release boundary: the first structural city only.</p>
+<p>This document resolves ambiguous interaction choices in the earlier design package. It does not authorize new product features. The production renderer remains Three.js. The accompanying browser reference uses a dependency-free Canvas 2D projection simulator because a Three.js dependency download was unavailable in the authoring environment. Its renderer must not be copied into the plugin.</p>
+<h2>Authority and relationship to the existing package</h2>
+<p>Keep the original 28 screen specifications, component library, and twelve-package roadmap. Apply this version to WP-01 screens S01–S13 and S23. Safety and evidence constraints from the implementation kit remain binding. Where a previous interaction was described as optional, this baseline chooses a default. Original screen images remain visual references, not proofs of working behavior. The older all-package SVG prototype is retained for browsing later-release concepts; use this WP-01 reference for first-release behavior.</p>
+<p>The new prototype is not a production plugin, not an inventory scanner, and not a fallow integration. Its review toolbar, theme selector, simulated failure controls, synthetic scan consent, and sibling-note fixture are review equipment, not plugin features.</p>
+<h2>Selection is not camera focus</h2>
+<p>A primary click on a file lot or a file-list button selects that file and opens its inspector. It updates the selected marker and the corresponding list row. It does not move the camera, change the search, or rebuild the layout. Keyboard activation of a file button has the same effect. Merely moving keyboard focus to another list button does not select it.</p>
+<p><strong>Focus in city</strong> is the explicit camera action. It frames the selected file with surrounding context, retaining other lots. Canvas Enter invokes the same action. Closing the inspector hides the panel but preserves selection; the persistent Details button restores it. Clear selection is explicit. A click on empty space is a no-op in WP-01. Double-click-to-focus is deferred until the click/drag/double-click sequence is implemented and tested; it is not required for the first release.</p>
+<p>The reference proves that selection does not mutate camera state. It does not prove that a production panel resize leaves pixel framing unchanged. The Three.js integration must preserve the camera bookmark and may resize the projection viewport; it must never call Fit as a side effect of selecting a file.</p>
+<h2>Search is a presentation filter</h2>
+<p>The search field searches <strong>included file paths</strong>, case-insensitively. Empty or whitespace-only queries match all included files. WP-01 does not search source text, symbols, or every quality finding. Use “Search files or paths…” rather than “Search everything.”</p>
+<p>Typing filters the list and dims nonmatching buildings in place. It does not hide or relocate lots. A selected file remains selected even when it does not match; the inspector and outlined marker remain available, and a banner states “Selected file is outside the current search.” Clear search is an explicit recovery action. No-result search does not erase the snapshot.</p>
+<p>Enter in the search field selects the first matching file in deterministic display order without moving the camera. Enter with no matches is a no-op. Escape in this field clears only a nonempty query and keeps focus in the field. Do not globally clear the query on Escape elsewhere. Production search may debounce expensive filtering by about 150 ms; input text remains immediate. The small reference fixture filters synchronously.</p>
+<h2>Camera defaults</h2>
+<p>The first production view uses an orthographic, oblique perspective of the city. Top view also uses orthographic projection. Retain the existing square-root display scale for physical line count and show exact counts in the inspector. The first lot layout is deterministic and has equal file footprints; do not encode the same size metric into both footprint and height.</p>
+<table>
+<thead>
+<tr>
+  <th>Interaction</th>
+  <th>Chosen behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Primary drag</td>
+  <td>Orbit in 3D; pan in top view</td>
+</tr>
+<tr>
+  <td>Shift-primary or right drag</td>
+  <td>Pan</td>
+</tr>
+<tr>
+  <td>Wheel over focused canvas</td>
+  <td>Zoom; do not capture wheel input from lists, forms, or other leaves</td>
+</tr>
+<tr>
+  <td>Primary click with movement ≤5 CSS pixels</td>
+  <td>Select a visible file</td>
+</tr>
+<tr>
+  <td>Movement &gt;5 CSS pixels</td>
+  <td>Treat as drag; release never selects</td>
+</tr>
+<tr>
+  <td>Fit city</td>
+  <td>Frame the entire current inventory, retaining selection/query</td>
+</tr>
+<tr>
+  <td>Focus in city</td>
+  <td>Frame the selected lot with context</td>
+</tr>
+<tr>
+  <td>Top → 3D</td>
+  <td>Restore the saved 3D camera, including target and zoom</td>
+</tr>
+<tr>
+  <td>Resize</td>
+  <td>Resize the projection without resetting semantic view state</td>
+</tr>
+<tr>
+  <td>Hidden leaf</td>
+  <td>Suspend drawing/input; do not scan</td>
+</tr>
+</tbody>
+</table>
+<p>The 5-pixel threshold and step increments are proposed usability defaults, not research results. Avoid inertial drift in the first implementation. Motion can be instant; reduced-motion mode must not require animation to understand a selection change. Every drag action has single-pointer and keyboard alternatives in Camera help.</p>
+<h2>Keyboard ownership and Escape</h2>
+<p>Do not install default host-wide shortcuts. Register Obsidian commands so users can bind their own keys. The local slash shortcut focuses search only when focus belongs to this view and is not in an editable control. F, T, +/−, arrows, Shift-arrows, and Enter work only when the city canvas itself has focus. Ignore composing input, handled events, and Ctrl/Meta/Alt combinations unless explicitly registered by the host.</p>
+<p>Escape processes one context only: a modal closes itself; search clears its own query; a narrow nonmodal inspector closes only while focus is inside it; the canvas clears its own selection. A wide inspector does not close simply because Escape was pressed in an unrelated control. Keyboard input in a sibling note must never be consumed by the plugin.</p>
+<p>Use normal HTML button/list semantics for the initial file list. A virtualized tree is a separate component implementation requiring a complete keyboard and accessible-name contract, not a role attribute added to an incomplete control.</p>
+<h2>Panel and layout behavior</h2>
+<p>Measure the <strong>leaf content width</strong>, not the application window. At ample width, display file list, city, and inspector. At constrained width, retain city/list switching and present details as a nonmodal drawer. The reference collapses at 820 CSS pixels; this is a new provisional threshold replacing coarse window-based review styles, not a claim about optimal device breakpoints.</p>
+<p>A drawer has a visible close button and an explicit return path. Closing returns focus to Details. Switching to the HTML inventory preserves query, selection, and camera bookmark. At very narrow widths, actions wrap rather than clipping. Additional production tests must include text zoom, host fonts, custom themes, and narrow leaves inside a wide host window.</p>
+<h2>Source and scan behavior</h2>
+<p>Opening the plugin or a saved view is not authorization to scan. Selecting a source mode is not execution. Production scope approval must identify the actual root, exclusions, operation, and side effects. A changed root or scope invalidates old approval. Use read-only inventory; no Git, fallow, scripts, package installation, or source writes in WP-01.</p>
+<p>During a refresh of the same profile and scope, keep the previous valid snapshot visible. Show a separate running state. Cancel stops publication immediately, requests cancellation of actual work, and retains the previous snapshot. Late completion cannot publish. Failure leaves the previous snapshot intact and labels the failed refresh. A success publishes only after validation.</p>
+<p>The reference exercises the same-data refresh branch only. Initial scanning with no snapshot, switching to a different profile, unreadable paths, partial inventories, and source disappearance are implementation-stage cases described in the original package and the acceptance scenarios below.</p>
+<h2>Evidence language</h2>
+<p>Large means many physical lines, not poor quality. Missing measurements are unavailable, not zero. The structural city is not a health score. No dependency arcs, security labels, test coverage, finding severity, or safe-to-delete probability appear in WP-01. The published synthetic fixture contains 144 files; it is not an analysis of a user repository.</p>
+</main></body></html>

@@ -1,0 +1,66 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>05-review-script-and-host-gates — Codebase Inspector</title><style>body{margin:0;background:#f5f4f8;color:#2f2939;font:15px/1.65 system-ui,sans-serif}header{background:#242229;color:#f2eff6;padding:42px 6vw}header p{max-width:880px;color:#c7c0d1}h1{font-size:36px;line-height:1.2;letter-spacing:-.025em}h2{font-size:24px}main{max-width:1320px;margin:auto;padding:26px 34px 60px}a{color:#684199}header a{color:#eadbff}.button{display:inline-block;background:#7451ad;color:white;padding:10px 17px;border-radius:6px;text-decoration:none;margin-right:10px;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.card{background:white;border:1px solid #ded9e6;border-radius:8px;overflow:hidden}.card img{display:block;width:100%;height:240px;object-fit:contain;background:#252429}.card section{padding:14px 18px}.card h3{margin:0;font-size:17px}.card p{font-size:13px;color:#675e72;line-height:1.6}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:10px 12px;text-align:left;border:1px solid #ded9e6;vertical-align:top}th{background:#eeebf3}pre{padding:17px;background:#eeebf3;overflow:auto;border-radius:6px}code{font-size:13px}blockquote{border-left:3px solid #9471bd;padding:10px 17px;background:#eeebf3}.notice{padding:16px 20px;background:#eae3f3;border-left:3px solid #8058b6;margin:20px 0}.doc{max-width:1030px}.doc img{max-width:100%}@media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.grid{grid-template-columns:1fr}main{padding:20px}.card img{height:auto}h1{font-size:29px}table{display:block;overflow:auto}}</style></head><body><header><div>CODEBASE INSPECTOR · WP-01 · 1.1</div><nav><a href="../gallery.html">Review library</a> · <a href="../index.html">Interactive reference</a></nav></header><main class="doc"><h1>Review script and validation boundaries</h1>
+<h2>Open the reference</h2>
+<p>Open <code>index.html</code> in a desktop browser. It is a self-contained HTML file with no runtime network dependency. The archive also includes the editable sources. A host policy can block local-file navigation; this environment used Playwright <code>set_content</code> with the same HTML bytes for capture rather than a file URL. The file can also be served through ordinary local development tooling outside Obsidian; no server is part of the plugin architecture.</p>
+<p>The source and scan controls are explicitly simulated. No repository path is opened. The “Sibling note” text is not saved to a vault. The renderer uses Canvas 2D projection, not Three.js/WebGL. This is an interaction review, not product installation.</p>
+<h2>Ten-minute walkthrough</h2>
+<ol>
+<li>Select <code>city-layout.ts</code> in <code>src/visualization</code>. Confirm the exact relative path and 342 physical lines. The camera should not move merely because the inspector opens. Use Focus in city and compare the explicit framing change.</li>
+<li>Close Details, then reopen it. Confirm the same selected file remains. Search for <code>snapshot</code>; the selected file remains inspectable while a search-mismatch explanation appears.</li>
+<li>Press Escape while search is focused. Only the query clears. Focus the canvas and press Escape: only selection clears. Select the file again and open Sibling note. Type <code>/</code>, <code>f</code>, and <code>t</code>, then press Escape in the note. None should navigate the city.</li>
+<li>Orbit, pan, and zoom. Use Top, pan in top view, and return to 3D. The earlier 3D pose must return. Repeat navigation through the camera-help buttons and canvas keys.</li>
+<li>Search for <code>ÜBER</code>; select the non-ASCII fixture path. Search for a nonexistent path; observe zero matches without losing the snapshot or selected file.</li>
+<li>Open Review scan. Tab through the modal and dismiss with Escape. Confirm focus returns to the trigger. Reopen and confirm that consent has reset.</li>
+<li>Start a simulated scan, then cancel. Wait for the simulated run's old timer callbacks. The previous snapshot remains current. Run the failed-refresh scenario and compare its message with cancellation.</li>
+<li>Use Test 3D fallback. The HTML table retains every included file and exact measurements. Search/select through it. This is a simulated renderer failure, not a real WebGL context-loss test.</li>
+<li>Resize the window and toggle Sibling note to constrain the leaf. Close the details drawer with Escape while inside it; the selected file remains, and focus returns to Details.</li>
+<li>Preview light/dark themes. Selection, query, camera, and snapshot identity remain unchanged. The theme selector is review-only; the production plugin follows Obsidian's theme.</li>
+</ol>
+<p>Ask reviewers to explain what building height means, what the scan control actually did, and how they would inspect a file without using 3D. Record observations rather than asking whether they “like” the design. No user-study results are supplied in this package.</p>
+<h2>Completed checks</h2>
+<p>See <code>validation/model-test-results.tap</code> and <code>validation/browser-results.json</code> for executable results and test names. The current run contains 31 passing state tests and 28 passing headless Chromium checks. Those counts refer to this reference only. Twelve current-run screenshots capture selected review states. Syntax and artifact checks are recorded separately.</p>
+<p>Browser checks cover identity-preserving selection, context-scoped keys, source-modal focus, search/no-result semantics, camera bookmark behavior, simulated scan publication, clipping at selected viewport sizes, fallback table retention, clipboard failure, and idle render scheduling. A basic button-label check is not an accessibility audit. The observed absence of network requests applies to the reference page during these tests.</p>
+<h2>Outstanding production gates</h2>
+<table>
+<thead>
+<tr>
+  <th>Area</th>
+  <th>Evidence still required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Three.js</td>
+  <td>Actual renderer loads; InstancedMesh picking; bounds; resource disposal; GPU/context-loss recovery; documented scale benchmark</td>
+</tr>
+<tr>
+  <td>Obsidian</td>
+  <td>Clean-vault installation; real ItemView lifecycle; split leaves; host command routing; pop-out migration; disable/re-enable</td>
+</tr>
+<tr>
+  <td>Inventory</td>
+  <td>Actual paths; scope confinement; ignored/generated files; symlink behavior; non-ASCII Windows paths; cancellation; partial reads; no unintended source writes</td>
+</tr>
+<tr>
+  <td>Authorization</td>
+  <td>Actual approval fingerprints; root changes; machine-local external bindings; no run on restore</td>
+</tr>
+<tr>
+  <td>Accessibility</td>
+  <td>Screen-reader testing, focus order/visibility, zoom, custom themes, reduced motion, non-drag equivalence in the actual host</td>
+</tr>
+<tr>
+  <td>UX</td>
+  <td>Maintainer/new-contributor reviews; comprehension of physical lines versus complexity; first-run success; narrow-leaf task completion</td>
+</tr>
+<tr>
+  <td>Performance</td>
+  <td>Real-codebase load/interaction measurements with hardware and application versions documented</td>
+</tr>
+<tr>
+  <td>Persistence</td>
+  <td>Workspace restoration, profile/snapshot reconciliation, missing selected file, stale/unbound source, snapshot retention</td>
+</tr>
+</tbody>
+</table>
+<p>Do not merge browser checks and future host gates into a single misleading “all tests passed” claim. The view is ready for implementation review, not certified for release.</p>
+</main></body></html>

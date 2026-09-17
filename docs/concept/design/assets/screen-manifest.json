@@ -1,0 +1,226 @@
+[
+  {
+    "id": "S01",
+    "slug": "welcome",
+    "title": "Welcome and first run",
+    "package": 1,
+    "theme": "dark",
+    "goal": "Choose a source without implying that enabling the plugin starts a scan."
+  },
+  {
+    "id": "S02",
+    "slug": "source",
+    "title": "Choose a codebase source",
+    "package": 1,
+    "theme": "dark",
+    "goal": "Select current vault, a vault directory, or an external local directory."
+  },
+  {
+    "id": "S03",
+    "slug": "scope",
+    "title": "Review scope and read access",
+    "package": 1,
+    "theme": "dark",
+    "goal": "Understand the resolved root and exclusions before starting a read-only inventory."
+  },
+  {
+    "id": "S04",
+    "slug": "scanning",
+    "title": "Scan progress and cancellation",
+    "package": 1,
+    "theme": "dark",
+    "goal": "Know what is happening, cancel safely, and retain previous complete results."
+  },
+  {
+    "id": "S05",
+    "slug": "city",
+    "title": "Structural city \u2014 dark",
+    "package": 1,
+    "theme": "dark",
+    "goal": "Orient to directory districts and inspect the shape of a codebase."
+  },
+  {
+    "id": "S06",
+    "slug": "city-light",
+    "title": "Structural city \u2014 light",
+    "package": 1,
+    "theme": "light",
+    "goal": "See the same source, layout, and selection through the host light theme."
+  },
+  {
+    "id": "S07",
+    "slug": "selected",
+    "title": "File selection and inspector",
+    "package": 1,
+    "theme": "dark",
+    "goal": "Select a building and read exact file measurements."
+  },
+  {
+    "id": "S08",
+    "slug": "search",
+    "title": "Search and filtered context",
+    "package": 1,
+    "theme": "dark",
+    "goal": "Find a path without destroying the spatial context."
+  },
+  {
+    "id": "S09",
+    "slug": "top",
+    "title": "Top-down orientation",
+    "package": 1,
+    "theme": "dark",
+    "goal": "Inspect overlapping districts without depending on orbit gestures."
+  },
+  {
+    "id": "S10",
+    "slug": "narrow",
+    "title": "Narrow leaf and inspector drawer",
+    "package": 1,
+    "theme": "dark",
+    "goal": "Complete the same tasks in a narrow desktop workspace leaf."
+  },
+  {
+    "id": "S11",
+    "slug": "fallback",
+    "title": "Accessible list and 3D fallback",
+    "package": 1,
+    "theme": "light",
+    "goal": "Continue inspection when 3D is unavailable or deliberately not used."
+  },
+  {
+    "id": "S12",
+    "slug": "cancelled",
+    "title": "Cancelled scan with previous snapshot",
+    "package": 1,
+    "theme": "dark",
+    "goal": "Understand that a cancelled run has not replaced a complete snapshot."
+  },
+  {
+    "id": "S13",
+    "slug": "settings",
+    "title": "Native settings and profiles",
+    "package": 1,
+    "theme": "light",
+    "goal": "Manage source scope, exclusions, and storage without a second application shell."
+  },
+  {
+    "id": "S14",
+    "slug": "provider",
+    "title": "Connect fallow evidence",
+    "package": 2,
+    "theme": "dark",
+    "goal": "Choose report import or explicit execution of an already installed analyzer."
+  },
+  {
+    "id": "S15",
+    "slug": "findings",
+    "title": "Fallow findings lens",
+    "package": 2,
+    "theme": "dark",
+    "goal": "Distinguish reported findings from unavailable measurements."
+  },
+  {
+    "id": "S16",
+    "slug": "dependencies",
+    "title": "Dependency neighborhood",
+    "package": 3,
+    "theme": "dark",
+    "goal": "Read direction and investigate a bounded set of actual dependency edges."
+  },
+  {
+    "id": "S17",
+    "slug": "workbench",
+    "title": "Finding investigation workbench",
+    "package": 4,
+    "theme": "dark",
+    "goal": "Investigate the selected finding using provenance and evidence."
+  },
+  {
+    "id": "S18",
+    "slug": "note",
+    "title": "Create investigation note",
+    "package": 4,
+    "theme": "light",
+    "goal": "Preview a deliberate Markdown note write without changing source code."
+  },
+  {
+    "id": "S19",
+    "slug": "compare",
+    "title": "Compare compatible snapshots",
+    "package": 5,
+    "theme": "dark",
+    "goal": "Compare evidence without reshuffling the city or hiding incompatibilities."
+  },
+  {
+    "id": "S20",
+    "slug": "coverage",
+    "title": "Coverage with unknown evidence",
+    "package": 6,
+    "theme": "light",
+    "goal": "Distinguish measured zero coverage from unavailable coverage."
+  },
+  {
+    "id": "S21",
+    "slug": "overview",
+    "title": "Explainable overview",
+    "package": 9,
+    "theme": "dark",
+    "goal": "Prioritize investigation through explicit signals rather than a synthetic score."
+  },
+  {
+    "id": "S22",
+    "slug": "failure",
+    "title": "Provider failure and retained evidence",
+    "package": 2,
+    "theme": "dark",
+    "goal": "Recover a failed provider while keeping the structural city usable."
+  },
+  {
+    "id": "S23",
+    "slug": "no-results",
+    "title": "No matching files",
+    "package": 1,
+    "theme": "light",
+    "goal": "Recover from a filter that hides all files without mistaking it for an empty repository."
+  },
+  {
+    "id": "S24",
+    "slug": "embed",
+    "title": "Investigation note and focused city",
+    "package": 11,
+    "theme": "light",
+    "goal": "Navigate from notes to a pinned, focused snapshot without authorizing a scan."
+  },
+  {
+    "id": "S25",
+    "slug": "security",
+    "title": "Diagnostics and security evidence",
+    "package": 7,
+    "theme": "dark",
+    "goal": "Separate package advisories from source diagnostics and exploitability claims."
+  },
+  {
+    "id": "S26",
+    "slug": "bundle",
+    "title": "Bundle contribution",
+    "package": 8,
+    "theme": "light",
+    "goal": "Inspect shipped bytes without conflating them with source size or runtime speed."
+  },
+  {
+    "id": "S27",
+    "slug": "artifacts",
+    "title": "CI artifacts and explicit watch",
+    "package": 10,
+    "theme": "dark",
+    "goal": "Import results and authorize a bounded watch session explicitly."
+  },
+  {
+    "id": "S28",
+    "slug": "runtime",
+    "title": "Runtime observation window",
+    "package": 12,
+    "theme": "dark",
+    "goal": "Distinguish not observed, not instrumented, and unmapped execution evidence."
+  }
+]

@@ -1,7 +1,8 @@
 ---
 pbl-id: 7
 type: Deliverable
-order: 40
+order: 1
+parent: "[[Plugin MVP]]"
 ---
 ## Techstack
 

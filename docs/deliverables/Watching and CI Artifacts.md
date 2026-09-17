@@ -1,10 +1,13 @@
 ---
 type: Deliverable
-order: 140
+order: 100
 id: WP-10
 title: Watch mode and CI artifact exchange
 status: planned
-dependsOn: [WP-02, WP-05]
+dependsOn:
+  - WP-02
+  - WP-05
+parent: "[[Plugin MVP]]"
 ---
 # Package 10 — Watch mode and CI artifact exchange
 

@@ -1,10 +1,11 @@
 ---
 type: Deliverable
-order: 50
+order: 5
 id: WP-01
 title: Native Obsidian Three.js codebase city
 status: planned
 dependsOn: []
+parent: "[[Plugin MVP]]"
 ---
 # Package 01 — Native Obsidian Three.js codebase city
 

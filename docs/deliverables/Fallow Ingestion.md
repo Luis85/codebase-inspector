@@ -1,10 +1,12 @@
 ---
 type: Deliverable
-order: 60
+order: 7.5
 id: WP-02
 title: Fallow ingestion and quality lenses
 status: planned
-dependsOn: [WP-01]
+dependsOn:
+  - WP-01
+parent: "[[Plugin MVP]]"
 ---
 # Package 02 — Fallow ingestion and quality lenses
 

@@ -1,10 +1,12 @@
 ---
 type: Deliverable
-order: 110
+order: 70
 id: WP-07
 title: Diagnostics and security evidence
 status: planned
-dependsOn: [WP-02]
+dependsOn:
+  - WP-02
+parent: "[[Plugin MVP]]"
 ---
 # Package 07 — Diagnostics and security evidence
 

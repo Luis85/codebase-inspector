@@ -1,0 +1,196 @@
+TAP version 13
+# Subtest: file selection does not move camera
+ok 1 - file selection does not move camera
+  ---
+  duration_ms: 2.11479
+  type: 'test'
+  ...
+# Subtest: file selection preserves query
+ok 2 - file selection preserves query
+  ---
+  duration_ms: 0.187167
+  type: 'test'
+  ...
+# Subtest: closing inspector preserves selection
+ok 3 - closing inspector preserves selection
+  ---
+  duration_ms: 0.106818
+  type: 'test'
+  ...
+# Subtest: reopening inspector preserves selection
+ok 4 - reopening inspector preserves selection
+  ---
+  duration_ms: 0.091606
+  type: 'test'
+  ...
+# Subtest: inspector cannot open without selection
+ok 5 - inspector cannot open without selection
+  ---
+  duration_ms: 0.136722
+  type: 'test'
+  ...
+# Subtest: clear selection leaves query unchanged
+ok 6 - clear selection leaves query unchanged
+  ---
+  duration_ms: 0.092307
+  type: 'test'
+  ...
+# Subtest: clearing query preserves selection and camera
+ok 7 - clearing query preserves selection and camera
+  ---
+  duration_ms: 0.13555
+  type: 'test'
+  ...
+# Subtest: top view round trip restores the exact 3D camera
+ok 8 - top view round trip restores the exact 3D camera
+  ---
+  duration_ms: 0.431909
+  type: 'test'
+  ...
+# Subtest: fit retains selection and query
+ok 9 - fit retains selection and query
+  ---
+  duration_ms: 0.274616
+  type: 'test'
+  ...
+# Subtest: HTML list retains selection
+ok 10 - HTML list retains selection
+  ---
+  duration_ms: 0.322327
+  type: 'test'
+  ...
+# Subtest: return from HTML list retains previous top mode
+ok 11 - return from HTML list retains previous top mode
+  ---
+  duration_ms: 0.178544
+  type: 'test'
+  ...
+# Subtest: scan does not replace snapshot before completion
+ok 12 - scan does not replace snapshot before completion
+  ---
+  duration_ms: 0.08098
+  type: 'test'
+  ...
+# Subtest: duplicate start is a no-op during a run
+ok 13 - duplicate start is a no-op during a run
+  ---
+  duration_ms: 0.065537
+  type: 'test'
+  ...
+# Subtest: cancel preserves last valid snapshot
+ok 14 - cancel preserves last valid snapshot
+  ---
+  duration_ms: 0.144023
+  type: 'test'
+  ...
+# Subtest: late completion after cancel is ignored
+ok 15 - late completion after cancel is ignored
+  ---
+  duration_ms: 0.09412
+  type: 'test'
+  ...
+# Subtest: progress after cancel is ignored
+ok 16 - progress after cancel is ignored
+  ---
+  duration_ms: 0.149191
+  type: 'test'
+  ...
+# Subtest: old run cannot overwrite newer run
+ok 17 - old run cannot overwrite newer run
+  ---
+  duration_ms: 0.106297
+  type: 'test'
+  ...
+# Subtest: failure does not replace previous snapshot
+ok 18 - failure does not replace previous snapshot
+  ---
+  duration_ms: 0.08804
+  type: 'test'
+  ...
+# Subtest: success republishes once
+ok 19 - success republishes once
+  ---
+  duration_ms: 0.077024
+  type: 'test'
+  ...
+# Subtest: scan completion preserves inspection context
+ok 20 - scan completion preserves inspection context
+  ---
+  duration_ms: 0.0807
+  type: 'test'
+  ...
+# Subtest: path search is case insensitive
+ok 21 - path search is case insensitive
+  ---
+  duration_ms: 0.079838
+  type: 'test'
+  ...
+# Subtest: path search preserves non-ASCII characters
+ok 22 - path search preserves non-ASCII characters
+  ---
+  duration_ms: 0.087289
+  type: 'test'
+  ...
+# Subtest: whitespace-only query matches every included path
+ok 23 - whitespace-only query matches every included path
+  ---
+  duration_ms: 0.05396
+  type: 'test'
+  ...
+# Subtest: Escape prioritizes modal over query
+ok 24 - Escape prioritizes modal over query
+  ---
+  duration_ms: 0.07461
+  type: 'test'
+  ...
+# Subtest: Escape in search clears only query
+ok 25 - Escape in search clears only query
+  ---
+  duration_ms: 0.055502
+  type: 'test'
+  ...
+# Subtest: Escape in unrelated editable surface does nothing
+ok 26 - Escape in unrelated editable surface does nothing
+  ---
+  duration_ms: 0.046939
+  type: 'test'
+  ...
+# Subtest: IME composition suppresses shortcut dispatch
+ok 27 - IME composition suppresses shortcut dispatch
+  ---
+  duration_ms: 0.046709
+  type: 'test'
+  ...
+# Subtest: canvas Escape clears selection, not query
+ok 28 - canvas Escape clears selection, not query
+  ---
+  duration_ms: 0.046169
+  type: 'test'
+  ...
+# Subtest: narrow inspector Escape closes drawer only
+ok 29 - narrow inspector Escape closes drawer only
+  ---
+  duration_ms: 0.044656
+  type: 'test'
+  ...
+# Subtest: unknown event preserves state identity
+ok 30 - unknown event preserves state identity
+  ---
+  duration_ms: 0.047651
+  type: 'test'
+  ...
+# Subtest: reference transitions leave inputs immutable
+ok 31 - reference transitions leave inputs immutable
+  ---
+  duration_ms: 0.099848
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 71.264106

@@ -1,0 +1,151 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>02-state-and-command-contract — Codebase Inspector</title><style>body{margin:0;background:#f5f4f8;color:#2f2939;font:15px/1.65 system-ui,sans-serif}header{background:#242229;color:#f2eff6;padding:42px 6vw}header p{max-width:880px;color:#c7c0d1}h1{font-size:36px;line-height:1.2;letter-spacing:-.025em}h2{font-size:24px}main{max-width:1320px;margin:auto;padding:26px 34px 60px}a{color:#684199}header a{color:#eadbff}.button{display:inline-block;background:#7451ad;color:white;padding:10px 17px;border-radius:6px;text-decoration:none;margin-right:10px;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.card{background:white;border:1px solid #ded9e6;border-radius:8px;overflow:hidden}.card img{display:block;width:100%;height:240px;object-fit:contain;background:#252429}.card section{padding:14px 18px}.card h3{margin:0;font-size:17px}.card p{font-size:13px;color:#675e72;line-height:1.6}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:10px 12px;text-align:left;border:1px solid #ded9e6;vertical-align:top}th{background:#eeebf3}pre{padding:17px;background:#eeebf3;overflow:auto;border-radius:6px}code{font-size:13px}blockquote{border-left:3px solid #9471bd;padding:10px 17px;background:#eeebf3}.notice{padding:16px 20px;background:#eae3f3;border-left:3px solid #8058b6;margin:20px 0}.doc{max-width:1030px}.doc img{max-width:100%}@media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.grid{grid-template-columns:1fr}main{padding:20px}.card img{height:auto}h1{font-size:29px}table{display:block;overflow:auto}}</style></head><body><header><div>CODEBASE INSPECTOR · WP-01 · 1.1</div><nav><a href="../gallery.html">Review library</a> · <a href="../index.html">Interactive reference</a></nav></header><main class="doc"><h1>State ownership and command contract</h1>
+<h2>Separate domain data from transient presentation</h2>
+<p>The plugin has shared immutable snapshots and per-leaf interaction state. A leaf must not own a second copy of the scanner's mutable working inventory. A renderer must not own the authoritative selected file. The application layer interprets actions; visual components emit intent.</p>
+<table>
+<thead>
+<tr>
+  <th>Owner</th>
+  <th>Data</th>
+  <th>Persistence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Plugin/application services</td>
+  <td>Profiles, supported providers, immutable snapshots, approved run coordinator</td>
+  <td>Explicit local persistence</td>
+</tr>
+<tr>
+  <td>Machine-local binding store</td>
+  <td>Resolved external roots and trusted executable bindings</td>
+  <td>Machine-local; never assume portable across synced machines</td>
+</tr>
+<tr>
+  <td>View state</td>
+  <td>Profile ID, snapshot ID, selection ID, query, panel presentation, camera bookmark</td>
+  <td>Small host workspace state; no source text or process object</td>
+</tr>
+<tr>
+  <td>Per-leaf Pinia instance</td>
+  <td>Reactive representation of that leaf's state</td>
+  <td>Do not use a global singleton selection store</td>
+</tr>
+<tr>
+  <td>Renderer instance</td>
+  <td>Scene objects, resources, pick-index mapping, render scheduling</td>
+  <td>None; reconstruct from snapshot/layout/view state</td>
+</tr>
+<tr>
+  <td>Active run</td>
+  <td>ID, generation, approval fingerprint, progress, cancellation signal</td>
+  <td>Session only; a saved run is not resumed implicitly</td>
+</tr>
+</tbody>
+</table>
+<p>Obsidian custom views can be created multiple times; use the registered view factory and retrieve leaves through the workspace rather than maintaining one permanent view reference [O1]. Pop-out windows have their own document and window contexts [O2].</p>
+<h2>Proposed events and effects</h2>
+<p>The executable reference model is in <code>src/interaction-state.js</code>. The typed production seam is <code>integration/renderer-port.ts</code>. Reconcile both with existing implemented domain contracts before adoption.</p>
+<table>
+<thead>
+<tr>
+  <th>Intent / result</th>
+  <th>State change</th>
+  <th>Permitted side effects</th>
+  <th>Forbidden side effects</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>FILE_SELECTED</td>
+  <td>Selected ID + inspector visible</td>
+  <td>Recolor/marker and row update</td>
+  <td>Fit camera, run analyzer, open editor</td>
+</tr>
+<tr>
+  <td>QUERY_CHANGED</td>
+  <td>Query + derived match set</td>
+  <td>Update list and dim instances</td>
+  <td>Recompute layout, clear selection</td>
+</tr>
+<tr>
+  <td>INSPECTOR_CLOSED</td>
+  <td>Inspector visibility only</td>
+  <td>Restore focus when appropriate</td>
+  <td>Clear selected file or query</td>
+</tr>
+<tr>
+  <td>FOCUS_REQUESTED</td>
+  <td>Camera bookmark</td>
+  <td>Frame selected geometry</td>
+  <td>Hide unmatched files or change scope</td>
+</tr>
+<tr>
+  <td>TOP_TOGGLED</td>
+  <td>View mode + saved 3D bookmark</td>
+  <td>Change projection pose</td>
+  <td>Lose previous 3D pose</td>
+</tr>
+<tr>
+  <td>SCAN_REQUESTED</td>
+  <td>No change until approval validation</td>
+  <td>Present scope review</td>
+  <td>Start filesystem access implicitly</td>
+</tr>
+<tr>
+  <td>SCAN_STARTED</td>
+  <td>Run ID/generation/running state</td>
+  <td>Start approved collector</td>
+  <td>Mutate current published snapshot</td>
+</tr>
+<tr>
+  <td>SCAN_PROGRESS</td>
+  <td>Progress for matching active run only</td>
+  <td>Bounded progress announcement</td>
+  <td>Publish partial working state as complete</td>
+</tr>
+<tr>
+  <td>SCAN_CANCEL_REQUESTED</td>
+  <td>Run is nonpublishable</td>
+  <td>Abort actual work; show stopping if needed</td>
+  <td>Claim process stopped before confirmation</td>
+</tr>
+<tr>
+  <td>SCAN_COMPLETED</td>
+  <td>Validated snapshot replaces compatible prior snapshot</td>
+  <td>Reconcile selected IDs and rebuild geometry once</td>
+  <td>Publish stale generation or mismatched scope</td>
+</tr>
+<tr>
+  <td>SCAN_FAILED</td>
+  <td>Failed-run state</td>
+  <td>Error with old snapshot retained</td>
+  <td>Replace quality data with zeros</td>
+</tr>
+<tr>
+  <td>RENDERER_UNAVAILABLE</td>
+  <td>View mode fallback</td>
+  <td>Show HTML inventory</td>
+  <td>Discard snapshot or restart scan</td>
+</tr>
+<tr>
+  <td>VIEW_DISPOSED</td>
+  <td>No future view mutations</td>
+  <td>Detach listeners, release owned resources</td>
+  <td>Leave scheduled work retaining DOM</td>
+</tr>
+</tbody>
+</table>
+<p>The reference shortens cancellation to an immediate <code>cancelled</code> model state because its only asynchronous work is timer-driven fixture publication. Production must distinguish <code>cancelling</code> from <code>cancelled</code> whenever the collector/worker needs time to stop. In both cases, publication becomes forbidden immediately.</p>
+<h2>Async publication guard</h2>
+<p>Each scan is associated with <code>{profileId, sourceFingerprint, scopeFingerprint, runId, generation}</code>. A result may publish only if all identities still match, cancellation has not invalidated it, and validation succeeds. The previous snapshot is immutable until the atomic swap. A late progress/result from an older run is ignored and may be logged as such; it never overwrites a newer result.</p>
+<p>The UI's single-profile reference tests the run-ID/generation behavior only. It does not test real root authorization, fingerprint generation, filesystem cancellation, or multi-view orchestration. Those remain explicit host/integration gates.</p>
+<p>When two leaves show the same profile, their selection, camera, and query remain independent. Shared snapshot availability can update both views, but each independently reconciles whether its selected file still exists. If not, show a non-destructive “File is no longer in this snapshot” state rather than selecting another file by index.</p>
+<h2>Search + selection + geometry invariants</h2>
+<p>File identity is not a render-array index. Every render batch has an explicit instance-to-file mapping. A match set of <code>null</code> means unfiltered; an empty set means no matches. Neither changes the lot layout. Unknown measurements stay typed as unknown; no sentinel numeric zero.</p>
+<p>Store the previous 3D camera as a full value object. Top-view operations must not mutate it. The renderer event <code>camera-changed</code> is separate from a command to move the camera, so host synchronization does not produce loops. Compare semantic values or attach origins to avoid reapplying the same change.</p>
+<h2>Focus ownership</h2>
+<p>Keep DOM focus outside domain state. View-specific focus coordinators remember an initiating element or stable control identity for modal return. If a trigger has disappeared, focus a documented safe control in that same view. Do not return focus to <code>document.body</code> or to another leaf. All source paths and labels are plain text, not HTML.</p>
+<h2>Unit-test scope</h2>
+<p>The reference has deterministic state tests for preservation, top-mode restoration, cancellation, stale completions, path lookup, and Escape intent. They do not validate the production application's reducers automatically. Port the tests to the chosen implementation, keeping the invariants intact rather than merely copying function names.</p>
+<p>Sources: <code>07-sources-and-limits.md</code>.</p>
+</main></body></html>

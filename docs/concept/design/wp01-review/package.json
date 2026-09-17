@@ -1,0 +1,7 @@
+{
+  "name": "codebase-inspector-wp01-interaction-reference",
+  "version": "1.1.0",
+  "private": true,
+  "description": "Offline design review reference; not an Obsidian plugin or Three.js implementation",
+  "scripts": {"test": "node --test validation/model.test.cjs", "build": "python3 build.py"}
+}
