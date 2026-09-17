@@ -56,19 +56,31 @@ codebase-inspector/
   vite.config.ts  tsconfig.json  tsconfig.test.json
   eslint.config.ts  .oxlintrc.json  vitest.config.ts
   .env.example                      # .env is gitignored
-  scripts/install-to-vault.mjs
+  scripts/                          # every project script lives here
+    install-to-vault.mjs
   src/        host/ application/ domain/ adapters/ visualization/ ui/
   tests/      unit/ contracts/ integration/ host/ fixtures/ benchmarks/
+  dist/                             # build output only; gitignored
   docs/
 ```
 
 `src/` follows the structure proposed in section 2 of the concept kit.
 
-**Build.** Vite library mode emits `main.js` as a single CommonJS file, plus
-`styles.css`. No additional chunks and no worker assets in WP-01. Externalised:
-`obsidian`, `electron`, all Node built-ins, `@codemirror/*`, `@lezer/*`.
-Bundled: Vue, Pinia, Three.js, and the addons actually used. The release path
-requires no dev server, no network, and no install in the inspected project.
+**No build output at the repository root.** `main.js` and `styles.css` are
+artefacts, and they are written to `dist/`, never beside the source. `dist/` is
+gitignored.
+
+**Every script lives in `scripts/`.** Build, install, fixture generation, and
+benchmark helpers are files under `scripts/`, invoked through npm scripts. No
+loose script at the repository root.
+
+**Build.** Vite library mode emits `dist/main.js` as a single CommonJS file,
+plus `dist/styles.css`. The build also copies `manifest.json` into `dist/`, so
+`dist/` is the complete, ready-to-install plugin folder. No additional chunks
+and no worker assets in WP-01. Externalised: `obsidian`, `electron`, all Node
+built-ins, `@codemirror/*`, `@lezer/*`. Bundled: Vue, Pinia, Three.js, and the
+addons actually used. The release path requires no dev server, no network, and
+no install in the inspected project.
 
 **Manifest.** id `codebase-inspector`, name `Codebase Inspector`,
 `isDesktopOnly: true`. `minAppVersion` starts at the Foundations value (1.13)
@@ -92,10 +104,18 @@ integration) and `jsdom` (Vue components and stores).
 
 **Test vault.** `.env` holds `CODEBASE_INSPECTOR_TEST_VAULT`, an absolute path
 to a vault outside this repository. `.env.example` is committed; `.env` is not.
-`scripts/install-to-vault.mjs` copies `main.js`, `manifest.json`, and
-`styles.css` into
+The development vault is `C:\Projects\renovation-planner`.
+`scripts/install-to-vault.mjs` copies the contents of `dist/` into
 `$CODEBASE_INSPECTOR_TEST_VAULT/.obsidian/plugins/codebase-inspector/`. This is
-the artefact reloaded at every manual checkpoint.
+the artefact reloaded at every manual checkpoint. The script refuses to run when
+the variable is unset, when the target is not a vault, or when the resolved
+target lies inside this repository.
+
+That vault is a working project checkout with other plugins installed, which
+makes it a realistic host and a useful external codebase to inspect. It is not
+an isolated vault, so it cannot satisfy gate G1 on its own. The release gate
+(task 12) additionally installs `dist/` into a throwaway vault created for that
+purpose, with no source checkout, no dev server, and no package install.
 
 **fallow.** A development-time quality gate on this repository's own source,
 introduced once there is source worth checking (task 11). It is not a runtime
@@ -170,7 +190,7 @@ state are treated as untrusted input.
 | 9 | Renderer hardening: instancing with a batch-and-instance to entity map, picking, camera controls, hover, focus, fit and top-down, reduced motion, context loss | The correct file is selected; rendering happens on demand only | — |
 | 10 | Lifecycle: multiple leaves, workspace state, hidden and resized leaves, pop-out rebind, dispose, stale-result guard | No leaks and no wrong-window DOM | manual #3 |
 | 11 | Safety and evidence gates, benchmark fixtures, fallow on our own source | G2, G3, and G5 evidence recorded | — |
-| 12 | Release gate: clean-vault install, benchmark record, limitations, implementation report | WP-01 complete and honestly reported | manual #4 |
+| 12 | Release gate: install into a throwaway clean vault, benchmark record, limitations, implementation report | WP-01 complete and honestly reported | manual #4 |
 
 Two deliberate ordering choices. Layout precedes the real scan, so the renderer
 is fed by a pure function from the start. The Vue UI precedes renderer
