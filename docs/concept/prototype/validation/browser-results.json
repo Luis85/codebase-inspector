@@ -1,0 +1,355 @@
+{
+  "environment": "Chromium 144, headed under Xvfb, ANGLE SwiftShader software WebGL2",
+  "execution": "Actual standalone HTML injected with Playwright set_content; URL and file navigation are blocked by environment policy. No WebGL mocking.",
+  "results": [
+    {
+      "name": "Actual WebGL2 renderer and exact Three.js r140 runtime",
+      "status": "passed",
+      "seconds": 0.005
+    },
+    {
+      "name": "144 file buildings rendered as an InstancedMesh",
+      "status": "passed",
+      "seconds": 0.002
+    },
+    {
+      "name": "Unselected city uses 16 scene draw calls",
+      "status": "passed",
+      "seconds": 0.002
+    },
+    {
+      "name": "On-demand renderer is idle without input",
+      "status": "passed",
+      "seconds": 0.754
+    },
+    {
+      "name": "File-list selection does not move camera",
+      "status": "passed",
+      "seconds": 0.452
+    },
+    {
+      "name": "Explicit Focus in city changes the camera",
+      "status": "passed",
+      "seconds": 0.054
+    },
+    {
+      "name": "Closing and reopening Details preserves selection and pose",
+      "status": "passed",
+      "seconds": 0.4
+    },
+    {
+      "name": "Search dims in place and retains out-of-filter selection",
+      "status": "passed",
+      "seconds": 0.075
+    },
+    {
+      "name": "Zero matches does not erase geometry or the snapshot",
+      "status": "passed",
+      "seconds": 0.041
+    },
+    {
+      "name": "Escape in search clears only the query",
+      "status": "passed",
+      "seconds": 0.035
+    },
+    {
+      "name": "Enter in search selects the first match without focus movement",
+      "status": "passed",
+      "seconds": 0.069
+    },
+    {
+      "name": "File-kind filter synchronizes list, city, and selection warning",
+      "status": "passed",
+      "seconds": 0.048
+    },
+    {
+      "name": "Top view restores the full prior 3D camera bookmark",
+      "status": "passed",
+      "seconds": 1.276
+    },
+    {
+      "name": "Pointer selection is driven by actual Three.js raycasting",
+      "status": "passed",
+      "seconds": 0.272
+    },
+    {
+      "name": "Primary drag orbits without accidental selection",
+      "status": "passed",
+      "seconds": 0.997
+    },
+    {
+      "name": "Shift-drag pans instead of orbiting",
+      "status": "passed",
+      "seconds": 0.683
+    },
+    {
+      "name": "Wheel zoom works over the focused canvas",
+      "status": "passed",
+      "seconds": 0.377
+    },
+    {
+      "name": "Canvas shortcuts and scoped search shortcut work",
+      "status": "passed",
+      "seconds": 0.052
+    },
+    {
+      "name": "Typing into search does not trigger camera shortcuts",
+      "status": "passed",
+      "seconds": 0.068
+    },
+    {
+      "name": "Changing height metric preserves camera state",
+      "status": "passed",
+      "seconds": 0.05
+    },
+    {
+      "name": "Label and shadow switches control real scene state",
+      "status": "passed",
+      "seconds": 0.943
+    },
+    {
+      "name": "HTML inventory shares selection and suspends drawing",
+      "status": "passed",
+      "seconds": 0.812
+    },
+    {
+      "name": "Light and dark themes update both UI and WebGL scene",
+      "status": "passed",
+      "seconds": 1.037
+    },
+    {
+      "name": "Malformed JSON import retains the previous snapshot",
+      "status": "passed",
+      "seconds": 0.267
+    },
+    {
+      "name": "Raw fallow output is explicitly rejected without an adapter",
+      "status": "passed",
+      "seconds": 0.375
+    },
+    {
+      "name": "JSON file input imports actual custom snapshot data",
+      "status": "passed",
+      "seconds": 0.486
+    },
+    {
+      "name": "Unicode search and unknown-versus-zero measurements are distinct",
+      "status": "passed",
+      "seconds": 0.046
+    },
+    {
+      "name": "Imported markup is displayed as text, not executed",
+      "status": "passed",
+      "seconds": 0.022
+    },
+    {
+      "name": "Empty snapshot renders an explicit empty state",
+      "status": "passed",
+      "seconds": 0.634
+    },
+    {
+      "name": "Repeated snapshot loads do not grow geometry allocations",
+      "status": "passed",
+      "seconds": 2.006
+    },
+    {
+      "name": "Actual WebGL context loss and restoration preserve data and selection",
+      "status": "passed",
+      "seconds": 1.865
+    },
+    {
+      "name": "Narrow layout retains controls without document overflow",
+      "status": "passed",
+      "seconds": 1.497
+    },
+    {
+      "name": "5,000 files render with bounded HTML list population",
+      "status": "passed",
+      "seconds": 1.228
+    },
+    {
+      "name": "Real scene capture returns PNG image data",
+      "status": "passed",
+      "seconds": 0.419
+    },
+    {
+      "name": "No script errors during interaction checks",
+      "status": "passed",
+      "seconds": 0.0
+    },
+    {
+      "name": "Standalone artifact makes no network requests",
+      "status": "passed",
+      "seconds": 0.0
+    },
+    {
+      "name": "Viewer disposal stops work and removes labels",
+      "status": "passed",
+      "seconds": 0.01
+    }
+  ],
+  "errors": [],
+  "console": [
+    {
+      "type": "log",
+      "text": "THREE.WebGLRenderer: Context Lost."
+    },
+    {
+      "type": "log",
+      "text": "THREE.WebGLRenderer: Context Restored."
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: deleteVertexArray: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: deleteVertexArray: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: deleteVertexArray: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: deleteVertexArray: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: deleteVertexArray: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: deleteVertexArray: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: deleteVertexArray: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: deleteVertexArray: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: deleteVertexArray: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    },
+    {
+      "type": "warning",
+      "text": "WebGL: INVALID_OPERATION: delete: object does not belong to this context"
+    }
+  ],
+  "networkRequests": [],
+  "engine": {
+    "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+    "shading": "WebGL GLSL ES 3.00 (OpenGL ES GLSL ES 3.0 Chromium)",
+    "runtime": "140",
+    "diagnostics": {
+      "revision": "140",
+      "backend": "WebGL2",
+      "files": 144,
+      "frameCount": 61,
+      "drawCalls": 16,
+      "triangles": 3530,
+      "geometries": 5,
+      "contextLost": false,
+      "mode": "3d"
+    }
+  },
+  "passed": 37,
+  "failed": 0,
+  "limitations": [
+    "Not tested inside Obsidian",
+    "No hardware GPU performance claim",
+    "Direct file:// navigation is not verified in this managed browser",
+    "Touch behavior still requires real-device testing"
+  ]
+}

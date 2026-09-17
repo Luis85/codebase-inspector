@@ -238,7 +238,7 @@ gzipped), about 21 kB more than 0.184.0.
 `new Function`. Expect `dist/main.js` around 0.8–1.2 MB minified. Named imports
 from `'three'`, never `import * as THREE`; one addon path convention.
 
-A task-8 acceptance criterion: SFC `<style scoped>` blocks all merge into the
+A task-9 acceptance criterion: SFC `<style scoped>` blocks all merge into the
 single `dist/styles.css`, so a later component split must not quietly emit a
 fourth file.
 

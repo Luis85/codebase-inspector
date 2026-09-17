@@ -1,0 +1,15 @@
+{
+  "name": "codebase-inspector-threejs-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline real Three.js interaction reference for Codebase Inspector",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test tests/model.test.cjs",
+    "serve": "node serve.mjs"
+  }
+}

@@ -1,0 +1,20 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Codebase Inspector — viewer embedding example</title><style>
+*{box-sizing:border-box}body{margin:0;background:#181c26;color:#dfe6f1;font-family:system-ui,sans-serif}header{display:flex;gap:12px;align-items:center;padding:18px 24px;background:#222735;flex-wrap:wrap}header strong{margin-right:auto}button{color:inherit;background:#303749;border:1px solid #505b73;border-radius:6px;padding:9px 14px;cursor:pointer}button:focus-visible,canvas:focus-visible{outline:2px solid #c7b3ff;outline-offset:-3px}#viewer-host{position:relative;width:100%;height:calc(100vh - 135px);min-height:260px}canvas{display:block;width:100%;height:100%;touch-action:none}.district-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}.district-label{position:absolute;transform:translate(-50%,-50%);background:#222735ec;color:#c6cfdf;border:1px solid #4a5571;border-radius:4px;padding:4px 7px;font:11px ui-monospace,monospace;white-space:nowrap}.district-label span{margin-left:8px;color:#9aa8c4}footer{padding:14px 24px;font-size:13px;line-height:1.5}#status{overflow-wrap:anywhere}a{color:#c7b3ff}</style></head><body>
+<header><strong>Codebase Inspector · embedded viewer</strong><button id="fit">Fit</button><button id="top">Top / 3D</button><button id="focus" disabled>Focus selected</button><button id="save">Save canvas PNG</button></header>
+<div id="viewer-host"><canvas id="city" tabindex="0" aria-label="Codebase city. Drag to orbit; shift-drag to pan. Click a building to select it."></canvas><div id="labels" class="district-labels"></div></div>
+<footer><span id="status">Loading local Three.js…</span> · <a href="index.html">Full interaction demo</a></footer>
+<script src="viewer.bundle.js"></script><script src="src/fixture.js"></script>
+<script>
+'use strict';
+let city,selected=null;const status=document.getElementById('status');
+try {
+ city=new CodebaseInspectorViewer.CityViewer({canvas:document.getElementById('city'),labels:document.getElementById('labels'),onSelect(id){selected=id;city.setSelected(id);status.textContent=id;document.getElementById('focus').disabled=false;},onContextLost(){status.textContent='WebGL context lost. Open the full demo for its HTML inventory and recovery controls.';}});
+ city.loadSnapshot(CIModel.validateSnapshot(CI_DEMO_SNAPSHOT));status.textContent='144 synthetic files · real Three.js r140 · drag to orbit';
+ document.getElementById('fit').onclick=()=>city.fit();document.getElementById('top').onclick=()=>city.setMode(city.mode==='top'?'3d':'top');document.getElementById('focus').onclick=()=>{if(selected)city.focusFile(selected);};
+ document.getElementById('save').onclick=()=>{try{const a=document.createElement('a');a.href=city.capture();a.download='codebase-city.png';a.click();}catch(error){status.textContent=error.message;}};
+ window.addEventListener('pagehide',e=>{if(!e.persisted)city.dispose();});
+} catch(error) {
+ status.textContent=error.message+' Open the full demo for an HTML inventory.';
+ document.querySelectorAll('button').forEach(button=>button.disabled=true);
+}
+</script></body></html>

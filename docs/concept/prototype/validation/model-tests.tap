@@ -1,0 +1,148 @@
+TAP version 13
+# Subtest: 144 synthetic files validate and remain immutable
+ok 1 - 144 synthetic files validate and remain immutable
+  ---
+  duration_ms: 0.941386
+  type: 'test'
+  ...
+# Subtest: vendor is the exact upstream r140 Git blob
+ok 2 - vendor is the exact upstream r140 Git blob
+  ---
+  duration_ms: 1.577793
+  type: 'test'
+  ...
+# Subtest: sorting is deterministic
+ok 3 - sorting is deterministic
+  ---
+  duration_ms: 1.234617
+  type: 'test'
+  ...
+# Subtest: identical inventory creates identical lot positions
+ok 4 - identical inventory creates identical lot positions
+  ---
+  duration_ms: 1.780081
+  type: 'test'
+  ...
+# Subtest: fixture has six districts
+ok 5 - fixture has six districts
+  ---
+  duration_ms: 0.305269
+  type: 'test'
+  ...
+# Subtest: every file has its own lot
+ok 6 - every file has its own lot
+  ---
+  duration_ms: 0.280253
+  type: 'test'
+  ...
+# Subtest: filtering does not mutate layout or inventory
+ok 7 - filtering does not mutate layout or inventory
+  ---
+  duration_ms: 1.021214
+  type: 'test'
+  ...
+# Subtest: search is case-insensitive and trimmed
+ok 8 - search is case-insensitive and trimmed
+  ---
+  duration_ms: 0.297027
+  type: 'test'
+  ...
+# Subtest: no results are different from no inventory
+ok 9 - no results are different from no inventory
+  ---
+  duration_ms: 0.286011
+  type: 'test'
+  ...
+# Subtest: kind filter matches 24 Vue files
+ok 10 - kind filter matches 24 Vue files
+  ---
+  duration_ms: 0.286512
+  type: 'test'
+  ...
+# Subtest: zero is a valid measurement
+ok 11 - zero is a valid measurement
+  ---
+  duration_ms: 0.227345
+  type: 'test'
+  ...
+# Subtest: unknown is not coerced to zero
+ok 12 - unknown is not coerced to zero
+  ---
+  duration_ms: 0.099516
+  type: 'test'
+  ...
+# Subtest: negative and noninteger measurements fail
+ok 13 - negative and noninteger measurements fail
+  ---
+  duration_ms: 0.231781
+  type: 'test'
+  ...
+# Subtest: duplicate paths and IDs fail
+ok 14 - duplicate paths and IDs fail
+  ---
+  duration_ms: 0.104864
+  type: 'test'
+  ...
+# Subtest: absolute paths and traversal fail
+ok 15 - absolute paths and traversal fail
+  ---
+  duration_ms: 0.135059
+  type: 'test'
+  ...
+# Subtest: Windows relative separators normalize
+ok 16 - Windows relative separators normalize
+  ---
+  duration_ms: 0.06123
+  type: 'test'
+  ...
+# Subtest: Unicode paths can be searched
+ok 17 - Unicode paths can be searched
+  ---
+  duration_ms: 0.214977
+  type: 'test'
+  ...
+# Subtest: empty snapshot is valid and has finite geometry bounds
+ok 18 - empty snapshot is valid and has finite geometry bounds
+  ---
+  duration_ms: 0.107999
+  type: 'test'
+  ...
+# Subtest: raw analysis reports fail instead of being guessed
+ok 19 - raw analysis reports fail instead of being guessed
+  ---
+  duration_ms: 0.183701
+  type: 'test'
+  ...
+# Subtest: oversize snapshots are rejected
+ok 20 - oversize snapshots are rejected
+  ---
+  duration_ms: 15.733046
+  type: 'test'
+  ...
+# Subtest: small source extensions map without executing source
+ok 21 - small source extensions map without executing source
+  ---
+  duration_ms: 0.393339
+  type: 'test'
+  ...
+# Subtest: summary sums raw counts rather than file averages
+ok 22 - summary sums raw counts rather than file averages
+  ---
+  duration_ms: 0.413359
+  type: 'test'
+  ...
+# Subtest: many directories are explicitly aggregated, not dropped
+ok 23 - many directories are explicitly aggregated, not dropped
+  ---
+  duration_ms: 0.415261
+  type: 'test'
+  ...
+1..23
+# tests 23
+# suites 0
+# pass 23
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 91.020687

@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "name": "Example repository",
+  "files": [
+    {
+      "id": "file-main",
+      "path": "src/main.ts",
+      "lines": 120,
+      "bytes": 4096
+    },
+    {
+      "id": "file-view",
+      "path": "src/ui/CityView.vue",
+      "lines": 280,
+      "bytes": 9200
+    },
+    {
+      "path": "tests/city.test.ts",
+      "lines": 96,
+      "bytes": 2500
+    },
+    {
+      "path": "assets/banner.bin",
+      "lines": null,
+      "bytes": 16384
+    }
+  ]
+}
