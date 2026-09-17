@@ -1,0 +1,49 @@
+PASS 1 Real Three.js r184 / WebGL2 starts
+PASS 2 144 file records render as 144 pickable buildings
+PASS 3 Overview totals derive from fixture
+PASS 4 All 30 sample connections aggregate into 11 district routes
+PASS 5 Selecting a file does not move camera
+PASS 6 Inspector shows exact selected measurements
+PASS 7 Selection switches route overlay to its five connections
+PASS 8 Connection inspector shows linked endpoints
+PASS 9 Following a connection changes selection without camera jump
+PASS 10 Explicit focus changes camera target and zoom
+PASS 11 Top-down mode uses top camera
+PASS 12 Returning to 3D restores prior camera
+PASS 13 Search preserves selection and explains hidden match
+PASS 14 Filtering does not rearrange buildings
+PASS 15 Escape in search clears only the query
+PASS 16 Connections toggle clears actual arc geometry
+PASS 17 Connections restore without changing file selection
+PASS 18 Detail toggle disables facade uniform and rooftop detail
+PASS 19 Label toggle hides projected HTML labels
+PASS 20 Category lens recolors without changing geometry count
+PASS 21 Light theme updates both UI and shader
+PASS 22 Closing inspector preserves selected file and reveals overview
+PASS 23 District list focuses the corresponding district
+PASS 24 Mini-map click focuses a district
+PASS 25 Details reopens the same selected file
+PASS 26 HTML inventory preserves selected file
+PASS 27 Sibling note input does not trigger city shortcuts
+PASS 28 Inspector tabs support keyboard arrow navigation
+PASS 29 Pointer drag orbits the actual camera
+PASS 30 Shift-drag pans camera target
+PASS 31 Focused wheel zoom changes camera scale
+PASS 32 Raycaster finds a real building instance
+PASS 33 Clicking a raycast hit selects that file
+PASS 34 Renderer stops drawing while idle
+PASS 35 PNG export comes from the rendered canvas
+PASS 36 Cancelled refresh rejects late completion callbacks
+PASS 37 Failed refresh preserves prior snapshot
+PASS 38 Successful simulated refresh advances only the snapshot revision
+PASS 39 Real context loss retains inventory and disables blank-city return
+PASS 40 Real context restore returns to the working 3D view
+PASS 41 Repeated arc rebuilds do not accumulate geometries
+PASS 42 Narrow leaf exposes a usable inspector drawer
+PASS 43 Narrow city has no document horizontal overflow
+PASS 44 Small viewport retains toolbar and avoids horizontal overflow
+PASS 45 No runtime network requests
+PASS 46 No JavaScript page errors or shader compile errors
+PASS 47 No graphics warnings after context recovery and repeated disposal
+PASS 48 Dispose stops the renderer and releases owned resources
+TOTAL 48

@@ -1,0 +1,14 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Codebase Inspector — embedded Three.js viewer</title><link rel="icon" href="data:,"><style>
+*{box-sizing:border-box}body{margin:0;background:#091425;color:#e6eaf3;font:14px system-ui}header{display:flex;gap:12px;align-items:center;padding:16px 24px;border-bottom:1px solid #374052}header strong{margin-right:auto}button,a{background:#2a3040;color:#e6eaf3;border:1px solid #46506a;border-radius:6px;padding:8px 12px;cursor:pointer;text-decoration:none}main{height:calc(100vh - 130px);position:relative;overflow:hidden}canvas{width:100%;height:100%;display:block;touch-action:none}.three-labels{position:absolute;inset:0;pointer-events:none}.district-label{position:absolute;display:flex;flex-direction:column;gap:5px;white-space:nowrap;background:#161b23e8;border:1px solid #374052;border-radius:5px;padding:7px;font-size:10px}.district-label span{color:#afbad0}.city-tooltip{position:absolute;pointer-events:none;background:#222837;border:1px solid #c9b0f5;padding:8px;border-radius:5px;font-size:11px}footer{padding:15px 24px;color:#afbad0;font-size:12px}[hidden]{display:none!important}
+</style></head><body data-theme="dark"><header><strong>Codebase Inspector / concept viewer</strong><button id="fit">Fit city</button><button id="focus" disabled>Focus selected</button><a href="index.html">Full demo</a></header><main><canvas id="city" tabindex="0" aria-label="Interactive codebase city"></canvas></main><footer id="status">Starting Three.js…</footer>
+<script src="viewer.bundle.js"></script><script src="src/fixtures.js"></script><script src="src/relationships.js"></script><script>
+let state={selectedId:null,query:'',mode:'3d',camera:{yaw:.44,pitch:.71,zoom:1,x:0,y:2,z:0}};let viewer;
+try{viewer=new CodebaseInspector3D.ThreeCity(document.getElementById('city'),CIFiles,()=>state,
+patch=>{state.camera={...state.camera,...patch};viewer.invalidate();},
+id=>{state.selectedId=id;document.getElementById('focus').disabled=false;viewer.invalidate();},
+{relationships:CIRelationships,onStats:s=>{const f=CIFiles.find(f=>f.id===state.selectedId);document.getElementById('status').textContent=`Three.js r${s.revision} · ${s.buildings} synthetic files · `+(f?f.path:'Click to inspect. Drag to orbit. Shift-drag to pan.');}});
+}catch(error){document.getElementById('status').textContent='WebGL2 unavailable. Open the full demo for its HTML file inventory.';}
+document.getElementById('fit').onclick=()=>{state.camera={yaw:.44,pitch:.71,zoom:1,x:0,y:2,z:0};viewer?.invalidate();};
+document.getElementById('focus').onclick=()=>{if(!state.selectedId||!viewer)return;state.camera={...state.camera,...viewer.position(state.selectedId),zoom:2.1};viewer.invalidate();};
+window.addEventListener('pagehide',()=>viewer?.dispose(),{once:true});
+</script></body></html>

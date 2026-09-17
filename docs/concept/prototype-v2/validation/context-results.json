@@ -1,0 +1,14 @@
+{
+  "pageErrors": [],
+  "console": [
+    {
+      "type": "log",
+      "text": "THREE.WebGLRenderer: Context Lost."
+    },
+    {
+      "type": "log",
+      "text": "THREE.WebGLRenderer: Context Restored."
+    }
+  ],
+  "passed": true
+}
