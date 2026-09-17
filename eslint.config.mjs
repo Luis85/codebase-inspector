@@ -58,20 +58,12 @@ export default tseslint.config(
     'obsidianmd/hardcoded-config-path': 'off',
     'obsidianmd/rule-custom-message': 'off',
   } },
-  // tests/** legitimately parses/writes real paths and JSON.parse results while
-  // exercising Node-only fixtures; these are strictness defaults, not load-bearing
-  // guards, and do not appear in ruling P3's do-not-weaken list.
-  {
-    files: ['tests/**/*.ts'],
-    rules: {
-      'obsidianmd/hardcoded-config-path': 'off',
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-argument': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/no-unsafe-return': 'off',
-    },
-  },
+  // tests/** legitimately writes real, literal paths (scratch vault fixtures) while
+  // exercising Node-only fixtures; this is a strictness default, not a load-bearing
+  // guard, and does not appear in ruling P3's do-not-weaken list. Fixture values read
+  // via JSON.parse are typed at the call site instead of disabling no-unsafe-* here —
+  // see tests/unit/manifest.test.ts's ManifestJson interface.
+  { files: ['tests/**/*.ts'], rules: { 'obsidianmd/hardcoded-config-path': 'off' } },
 
   // Rule 1 — size
   { files: ['src/**/*.{ts,vue}'], rules: { 'max-lines': ['error', 400] } },

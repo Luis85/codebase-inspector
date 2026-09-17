@@ -2,7 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const manifest = JSON.parse(readFileSync(fileURLToPath(new URL('../../manifest.json', import.meta.url)), 'utf8'));
+// Typed so JSON.parse's result isn't `any` — an untyped fixture forced
+// @typescript-eslint/no-unsafe-* off across every access below, which is a
+// permanent type-safety reduction that isn't needed once the shape is known.
+interface ManifestJson {
+  id: string;
+  name: string;
+  version: string;
+  minAppVersion: string;
+  description: string;
+  author: string;
+  authorUrl: string;
+  isDesktopOnly: boolean;
+}
+
+const manifest = JSON.parse(
+  readFileSync(fileURLToPath(new URL('../../manifest.json', import.meta.url)), 'utf8'),
+) as ManifestJson;
 const ALLOWED = new Set(['id', 'name', 'version', 'minAppVersion', 'description',
                          'author', 'authorUrl', 'isDesktopOnly']);
 

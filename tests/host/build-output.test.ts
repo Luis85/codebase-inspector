@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -8,7 +8,15 @@ const dist = fileURLToPath(new URL('../../dist/', import.meta.url));
 let main = '';
 
 beforeAll(() => {
-  execFileSync('npm', ['run', 'build'], { cwd: root, stdio: 'inherit', shell: true });
+  // execSync, not execFileSync(cmd, args, { shell: true }): the latter triggers
+  // Node's DEP0190 deprecation warning (an args array plus shell:true is what lets
+  // an argv element be unsafely concatenated into the shell command line).
+  // execSync takes one already-composed command string, so it runs through the
+  // shell (needed for `npm`, whose own launcher is a .cmd/.ps1 wrapper on
+  // Windows) without that pairing. A deliberate, authorised departure from the
+  // plan's original snippet, to keep the suite's own output clean (fix round 1,
+  // finding 3) — see tests/global-setup.ts for the identical reasoning.
+  execSync('npm run build', { cwd: root, stdio: 'inherit' });
   main = readFileSync(dist + 'main.js', 'utf8');
 }, 180_000);
 
