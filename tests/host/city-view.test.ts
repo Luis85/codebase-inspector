@@ -297,6 +297,36 @@ describe('CityView', () => {
       await selectPromise;
     });
 
+    // Ruling M57 (fix wave item 4, resolves I3): the WIRING, not the rule -- runRefresh's
+    // own four cases live in tests/component/consent-chain.test.ts. This pins that
+    // city-view.ts actually hands runRefresh the App and the ProfileStore it needs to
+    // open and settle that consent screen; before M57 it passed neither, and `profile`
+    // was used only for its id.
+    it('opens the scope modal from scan-codebase when Settings changed the scope (M57 wiring)', async () => {
+      const snapshotStore = new InMemorySnapshotStore(createFixedClock());
+      snapshotStore.put(publishedSnapshot());
+      const { port } = createFakeSourceFileSystem({});
+      const profileStore = makeProfileStoreDouble([
+        // Diverges from FAKE_ROOT_SCOPE's `exclusions: []` -- the Settings edit itself.
+        { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: ['node_modules'], maxFileBytes: 5_000_000 },
+      ]);
+      const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock() };
+      const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
+      await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1' }, {} as never);
+      await view.onOpen();
+
+      const runPromise = view.startScan();
+      const modal = await waitForModal();
+      expect(modal.textContent).toContain('Review scope and read access');
+      expect(modal.textContent).toContain('node_modules');
+
+      modal.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
+      await runPromise;
+      // Cancelled: nothing scanned, the retained snapshot is untouched.
+      expect(snapshotStore.latestFor('p1')?.snapshotId).toBe('s1');
+      document.querySelectorAll('.modal-container').forEach((el) => { el.remove(); });
+    });
+
     it('scan-codebase\'s startScan() still refreshes silently, with NO modal, when a snapshot exists', async () => {
       const { deps, snapshotStore } = depsWithSnapshot();
       const view = await viewWithSnapshot(deps);

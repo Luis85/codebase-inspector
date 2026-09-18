@@ -10,12 +10,12 @@ import { FileSystemAdapter } from '../mocks/obsidian';
 import type { App } from 'obsidian';
 import { openSourceModal } from '../../src/host/modals/source-modal';
 import { openScopeModal } from '../../src/host/modals/scope-modal';
-import { runInitialScan } from '../../src/host/scan-flow';
+import { runInitialScan, runRefresh } from '../../src/host/scan-flow';
 import { ScanCoordinator, createCancellationToken } from '../../src/application/scan-coordinator';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
-import type { CodebaseProfile } from '../../src/domain/model';
+import type { AnalysisScope, CodebaseProfile } from '../../src/domain/model';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
 
 function makeProfile(overrides: Partial<CodebaseProfile> = {}): CodebaseProfile {
@@ -259,5 +259,113 @@ describe('runInitialScan persists the approved scope to the profile (ruling M53)
 
     await expect(runPromise).rejects.toThrow('store write failed');
     expect(start).not.toHaveBeenCalled();
+  });
+});
+
+// Ruling M57 (fix wave item 4, resolves I3): refresh keeps scanning the SNAPSHOT's
+// recorded scope -- and now DETECTS divergence. Before this, city-view.ts took the
+// refresh scope entirely from the previous snapshot and used `profile` only for its id,
+// so a user who added `node_modules` in Settings ran scan-codebase and the exclusion had
+// no effect, with nothing saying so. Silently adopting the profile's scope instead would
+// be worse: runRefresh SELF-MINTS an approval with no user interaction, and it may only
+// do that for a scope the user has actually seen and approved -- a Settings edit that
+// REMOVES an exclusion would otherwise self-mint consent covering files the user never
+// agreed to, exactly what spec 4.1's "a changed root or scope invalidates prior
+// approval" exists to prevent. So a diverged scope re-opens the SCOPE modal (never the
+// source modal: the root has not changed).
+describe('refresh detects a scope that has diverged from the snapshot (ruling M57)', () => {
+  const SNAPSHOT_SCOPE: AnalysisScope = {
+    rootPath: '/fake-root', exclusions: ['.git'], maxFileBytes: 1_000_000, followSymlinks: false,
+  };
+
+  function setUp(profileOverrides: Partial<CodebaseProfile>) {
+    const app = makeApp();
+    const { port } = createFakeSourceFileSystem({});
+    const profile = makeProfile({ profileId: 'p1', ...profileOverrides });
+    const { store, update } = makeProfileStoreDouble(profile);
+    const { coordinator, start } = makeCoordinator(port);
+    return { app, profile, store, update, coordinator, start };
+  }
+
+  it('stays silent when the profile still matches: no modal, and the SNAPSHOT scope is scanned', async () => {
+    const { app, profile, store, update, coordinator, start } = setUp(
+      { exclusions: ['.git'], maxFileBytes: 1_000_000 });
+
+    await runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store);
+
+    expect(document.querySelector('.modal-container')).toBeNull();
+    expect(start).toHaveBeenCalledTimes(1);
+    // The snapshot's own scope object, not a copy rebuilt from the profile.
+    expect(start.mock.calls[0]![1]).toBe(SNAPSHOT_SCOPE);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('re-orders exclusions without prompting: fingerprintScope sorts, so that is not divergence', async () => {
+    const { app, profile, store, coordinator, start } = setUp(
+      { exclusions: ['.git'], maxFileBytes: 1_000_000 });
+    const reordered: AnalysisScope = { ...SNAPSHOT_SCOPE, exclusions: ['.git'] };
+
+    await runRefresh(app, coordinator, profile, reordered, createFixedClock(), store);
+    expect(document.querySelector('.modal-container')).toBeNull();
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the SCOPE modal prefilled from the profile, carrying the snapshot root, when they diverge', async () => {
+    const { app, profile, store, coordinator, start } = setUp(
+      { exclusions: ['.git', 'node_modules'], maxFileBytes: 2_000_000 });
+
+    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store);
+    const modal = await waitForModal();
+
+    // The scope modal, never the source modal: the root has not changed.
+    expect(modal.textContent).toContain('Review scope and read access');
+    expect(modal.textContent).not.toContain('Select a codebase');
+    // Root from the SNAPSHOT's recorded scope; the profile carries a bindingId, never a
+    // path (§4.1), so it could not supply one.
+    expect(modal.textContent).toContain('/fake-root');
+    // Scope values prefilled from the PROFILE -- the edit the user actually made.
+    expect(modal.textContent).toContain('node_modules');
+    expect(modal.querySelector<HTMLInputElement>('[data-field="max-file-bytes"]')!.value).toBe('2000000');
+    expect(start).not.toHaveBeenCalled();
+
+    modal.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
+    await runPromise;
+  });
+
+  it('scans and persists the newly approved scope once the user approves it', async () => {
+    const { app, profile, store, update, coordinator, start } = setUp(
+      { exclusions: ['.git', 'node_modules'], maxFileBytes: 2_000_000 });
+
+    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store);
+    await waitForModal();
+    const ack = modalRoot().querySelector<HTMLInputElement>('[data-field="acknowledge"]')!;
+    ack.checked = true;
+    ack.dispatchEvent(new Event('change'));
+    modalRoot().querySelector<HTMLButtonElement>('[data-action="confirm-scan"]')!.click();
+    await runPromise;
+
+    expect(start).toHaveBeenCalledTimes(1);
+    const [, scanned] = start.mock.calls[0]!;
+    expect(scanned.rootPath).toBe('/fake-root');
+    expect(scanned.exclusions).toEqual(['.git', 'node_modules']);
+    expect(scanned.maxFileBytes).toBe(2_000_000);
+    // Ruling M53 still applies to this new consent path: on approval ONLY, through
+    // ProfileStore.update(), never get() + save().
+    expect(update).toHaveBeenCalledWith('p1', expect.any(Function));
+    expect((await store.get('p1'))!.maxFileBytes).toBe(2_000_000);
+  });
+
+  it('leaves everything untouched when the user cancels that consent screen', async () => {
+    const { app, profile, store, update, coordinator, start } = setUp(
+      { exclusions: ['.git', 'node_modules'], maxFileBytes: 2_000_000 });
+
+    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store);
+    await waitForModal();
+    modalRoot().querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
+    await runPromise;
+
+    expect(start).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect((await store.get('p1'))!.maxFileBytes).toBe(2_000_000);
   });
 });

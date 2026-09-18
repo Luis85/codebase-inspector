@@ -5,7 +5,8 @@
 // the 400-line src/** budget.
 import { openSourceModal } from './modals/source-modal';
 import { openScopeModal } from './modals/scope-modal';
-import { approve } from '../application/approval';
+import type { ScopeApproval } from './modals/scope-modal';
+import { approve, fingerprintScope } from '../application/approval';
 import type { App } from 'obsidian';
 import type { ScanCoordinator } from '../application/scan-coordinator';
 import type { ProfileStore } from '../application/ports/profile-store';
@@ -141,7 +142,17 @@ export async function runInitialScan(
   if (!selection) return;
   const result = await openScopeModal(app, selection);
   if (!result) return;
-  await profileStore.update(profile.profileId, (current) => (
+  await persistThenScan(coordinator, profileStore, profile.profileId, result);
+}
+
+/** Ruling M53's persist-then-scan step, shared by the first-scan chain above and the
+ *  M57 divergence path below so the two cannot drift. `result.scope` is passed to
+ *  `coordinator.start` BY IDENTITY -- never a value re-read from the profile afterward,
+ *  and never a copy: what was approved is exactly what is scanned. */
+async function persistThenScan(
+  coordinator: ScanCoordinator, profileStore: ProfileStore, profileId: string, result: ScopeApproval,
+): Promise<void> {
+  await profileStore.update(profileId, (current) => (
     { ...current, exclusions: result.scope.exclusions, maxFileBytes: result.scope.maxFileBytes }
   ));
   await coordinator.start(result.approval, result.scope);
@@ -152,10 +163,48 @@ export async function runInitialScan(
  *  modal, because the root and scope have not changed from what was already consented
  *  to. A changed root or scope is exactly what approval fingerprints exist to
  *  invalidate; refreshing an UNCHANGED one is not a new grant, so re-showing the same
- *  consent screen for the same answer would be friction with no safety benefit. */
+ *  consent screen for the same answer would be friction with no safety benefit.
+ *
+ *  Ruling M57 (fix wave item 4, resolves I3). Refresh continues to scan the SNAPSHOT's
+ *  recorded scope -- and additionally DETECTS divergence. Before this, city-view.ts took
+ *  the refresh scope entirely from the previous snapshot and used `profile` only for its
+ *  id, so a user who added `node_modules` in Settings ran scan-codebase and the new
+ *  exclusion had no effect, with nothing saying so.
+ *
+ *  Why detect-and-re-consent rather than just adopting the profile's scope: this
+ *  function SELF-MINTS an approval (`approve(...)` below) with no user interaction at
+ *  all. It may only do that for a scope the user has actually seen and approved. The
+ *  snapshot's scope is exactly that; the profile's current scope is not. Silently
+ *  adopting the latter would let a Settings edit that REMOVES an exclusion self-mint an
+ *  approval covering files the user never consented to -- precisely the failure spec
+ *  §4.1's "a changed root or scope invalidates prior approval" exists to prevent.
+ *  Applying that same §4.1 rule here removes the silence without weakening consent.
+ *
+ *  Only the SCOPE modal is re-opened, never the source modal: the root has not changed,
+ *  so the friction stays proportionate. `rootPath` comes from the snapshot's recorded
+ *  scope in both branches -- a profile carries a `bindingId`, never a path (§4.1), so it
+ *  could not supply one. Comparison goes through `fingerprintScope`, the function the
+ *  approval model itself already uses to decide "has the scope changed", rather than a
+ *  bespoke field-by-field check: reusing it means the two answers cannot diverge (and it
+ *  sorts exclusions, so a pure re-ordering is correctly not divergence). */
 export async function runRefresh(
-  coordinator: ScanCoordinator, profile: CodebaseProfile, storedScope: AnalysisScope, clock: Clock,
+  app: App, coordinator: ScanCoordinator, profile: CodebaseProfile, storedScope: AnalysisScope,
+  clock: Clock, profileStore: ProfileStore,
 ): Promise<void> {
+  const profileScope: AnalysisScope = {
+    rootPath: storedScope.rootPath,
+    exclusions: profile.exclusions,
+    maxFileBytes: profile.maxFileBytes,
+    followSymlinks: false,
+  };
+  if (fingerprintScope(profileScope) !== fingerprintScope(storedScope)) {
+    // Ruling M31 still holds: the modal takes no store reference and reads no file --
+    // persistence is sited here, in scan-flow.ts, exactly as it is for the first scan.
+    const result = await openScopeModal(app, { profile, resolvedRoot: storedScope.rootPath });
+    if (!result) return;   // cancelled: no approval, no scan, profile untouched
+    await persistThenScan(coordinator, profileStore, profile.profileId, result);
+    return;
+  }
   const approval = approve(profile.profileId, storedScope.rootPath, storedScope, clock);
   await coordinator.start(approval, storedScope);
 }

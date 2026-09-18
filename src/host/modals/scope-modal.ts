@@ -8,8 +8,19 @@ import type { App } from 'obsidian';
 import { approve } from '../../application/approval';
 import { scopeValidationReasons } from '../../domain/validator';
 import type { Clock } from '../../application/ports/clock';
-import type { AnalysisScope, ApprovedInventoryRun } from '../../domain/model';
-import type { SourceSelection } from './source-modal';
+import type { AnalysisScope, ApprovedInventoryRun, CodebaseProfile } from '../../domain/model';
+
+/** Everything this modal actually needs: the profile it prefills its editable scope from,
+ *  and the resolved root it displays. `SourceSelection` (source-modal.ts) structurally
+ *  satisfies this, so the first-scan consent chain still passes its own result straight
+ *  through unchanged — but the REFRESH path (ruling M57) has no SourceSelection to hand:
+ *  it knows the root from the SNAPSHOT's recorded scope and the scope values from the
+ *  profile, and has no honest answer for `mode`. Nothing in this modal ever reads `mode`,
+ *  so narrowing the parameter is what stops the refresh path having to invent one. */
+export interface ScopeSubject {
+  profile: CodebaseProfile;
+  resolvedRoot: string;
+}
 
 /** Task 8 extension: the modal's own editable AnalysisScope (exclusions/max bytes can be
  *  edited live -- see updateScope below) is never persisted anywhere, so the resolved
@@ -79,7 +90,7 @@ class ScopeModal extends Modal {
 
   constructor(
     app: App,
-    sourceSelection: SourceSelection,
+    sourceSelection: ScopeSubject,
     private readonly settle: (result: ScopeApproval | null) => void,
     private readonly opener: HTMLElement | null,
   ) {
@@ -176,7 +187,7 @@ class ScopeModal extends Modal {
   }
 }
 
-export function openScopeModal(app: App, selection: SourceSelection): Promise<ScopeApproval | null> {
+export function openScopeModal(app: App, selection: ScopeSubject): Promise<ScopeApproval | null> {
   return new Promise((resolve) => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const modal = new ScopeModal(app, selection, resolve, opener);

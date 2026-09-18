@@ -126,7 +126,7 @@ export class CityView extends ItemView {
       if (this.state.snapshotId) {
         const existing = this.deps.snapshotStore.get(this.state.snapshotId);
         if (existing) {
-          await runRefresh(this.coordinator, profile, existing.scope, this.deps.clock);
+          await runRefresh(this.plugin.app, this.coordinator, profile, existing.scope, this.deps.clock, this.deps.profileStore);
           return;
         }
         // The in-memory store no longer has this id (e.g. the plugin reloaded) --
