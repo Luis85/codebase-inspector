@@ -8,12 +8,19 @@
 // Never shipped: src/visualization/city-renderer.ts only reaches this file behind an
 // `import.meta.env.DEV` branch. Vite always replaces that with the compile-time
 // constant `false` in a production build, so Rollup's dead-code elimination strips the
-// whole branch — including this import — from dist/main.js (verified after build; see
-// task-3-report.md). It is not a rendered control: nothing in the UI references or
-// toggles it.
-import type { LayoutResult } from '../../src/domain/layout/types';
-import { CATEGORY_IDS } from '../../src/domain/classify';
-import { makeEntityId } from '../../src/domain/entity-id';
+// whole branch — including this import — from dist/main.js. It is not a rendered
+// control: nothing in the UI references or toggles it.
+//
+// Fix wave item 2 (M3): moved here from tests/fixtures/. It used to be the codebase's
+// ONE src -> tests import edge, and per I1 it demonstrably reached dist/main.js, because
+// the test harness built with NODE_ENV=test and `import.meta.env.DEV` was therefore
+// true. Two independent things now hold it down: eslint.config.mjs forbids src/** from
+// importing tests/** at all (static AND dynamic), and scripts/assert-bundle.mjs fails
+// any build whose dist/main.js still contains this file's marker. Neither depends on a
+// reader remembering the claim in the paragraph above.
+import type { LayoutResult } from '../domain/layout/types';
+import { CATEGORY_IDS } from '../domain/classify';
+import { makeEntityId } from '../domain/entity-id';
 
 const REPO = 'dev-fixture-repo';
 const DIR = makeEntityId(REPO, 'directory', 'src');

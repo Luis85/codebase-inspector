@@ -16,7 +16,14 @@ beforeAll(() => {
   // Windows) without that pairing. A deliberate, authorised departure from the
   // plan's original snippet, to keep the suite's own output clean (fix round 1,
   // finding 3) — see tests/global-setup.ts for the identical reasoning.
-  execSync('npm run build', { cwd: root, stdio: 'inherit' });
+  // NODE_ENV is pinned to 'production' explicitly (fix wave item 2, I1): this process is
+  // Vitest, so NODE_ENV=test is inherited by the child, and Vite's MODE follows NODE_ENV
+  // even though vite.config.ts pins `define: { 'process.env.NODE_ENV': '"production"' }`
+  // for source substitution. `import.meta.env.DEV` is driven by the mode, not by that
+  // define -- so without this the child produced a 152-module bundle carrying
+  // tests/fixtures/dev-fixture, and every assertion below described an artefact that
+  // never ships.
+  execSync('npm run build', { cwd: root, stdio: 'inherit', env: { ...process.env, NODE_ENV: 'production' } });
   main = readFileSync(dist + 'main.js', 'utf8');
 }, 180_000);
 
@@ -46,5 +53,18 @@ describe('dist/', () => {
 
   it('does not bundle externalised host modules', () => {
     expect(main).toMatch(/require\(["']obsidian["']\)/);
+  });
+
+  // Fix wave item 2 (I1, Important): this whole suite used to assert against a bundle
+  // nobody ships. `execSync('npm run build')` from inside Vitest inherited NODE_ENV=test,
+  // which flips Vite's own mode, which drives `import.meta.env.DEV` -- so
+  // city-renderer.ts's dev-only branch was NOT stripped and
+  // `import('../../tests/fixtures/dev-fixture')` landed in dist/main.js (152 modules /
+  // 733.17 kB, against production's 150 / 731.60 kB). Asserting on the MARKER, not on the
+  // byte size: a size check would drift with every real change, where this names the
+  // exact thing that must never be there.
+  it('is the production bundle: no test fixture reaches the shipped artefact', () => {
+    expect(main).not.toContain('devFixtureLayout');
+    expect(main).not.toContain('dev-fixture');
   });
 });

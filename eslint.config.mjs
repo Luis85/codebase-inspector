@@ -2,6 +2,14 @@ import tseslint from 'typescript-eslint';
 import vue from 'eslint-plugin-vue';
 import obsidianmd from 'eslint-plugin-obsidianmd';
 
+// M3 (fix wave item 2), shared between the src/** block and the src/visualization/**
+// block below, because flat config REPLACES a rule's options rather than merging them —
+// and src/visualization is precisely where the one real src -> tests edge lived.
+const RESTRICT_DYNAMIC_TESTS_IMPORT = {
+  selector: 'ImportExpression > Literal[value=/(^|\\/)tests\\//]',
+  message: 'src/** must not import from tests/**, dynamically either: core no-restricted-imports does not inspect import() expressions.',
+};
+
 export default tseslint.config(
   // package.json is excluded: eslint-plugin-vue's unscoped essential/strongly-recommended
   // rule blocks (no `files` restriction) assume a script/template AST and crash the JSON
@@ -123,6 +131,31 @@ export default tseslint.config(
   { files: ['tests/**/*.ts'], rules: { 'max-lines': ['error', 450] } },
 
   // Rule 2 — layering
+  //
+  // M3 (fix wave item 2): src/** must never reach into tests/**. There was exactly one
+  // such edge — city-renderer.ts's dev-fixture import — and per I1 it demonstrably
+  // reached dist/main.js, so this makes the leak structurally impossible rather than
+  // merely fixed. Declared FIRST and repeated inside the two narrower blocks below on
+  // purpose: flat config REPLACES a rule's options rather than merging them, so a
+  // src/domain or src/visualization file would otherwise lose this pattern entirely.
+  //
+  // The no-restricted-syntax half is not belt-and-braces. Verified by running eslint:
+  // core `no-restricted-imports` sees `import ... from '…'` declarations but NOT an
+  // `import('…')` EXPRESSION — and the one real edge that existed (city-renderer.ts's
+  // dev fixture) was exactly a dynamic import, so the patterns alone would have left the
+  // hole they were added to close. The fixture itself was moved into src/visualization/,
+  // so no src -> tests edge remains in either form.
+  {
+    files: ['src/**/*.{ts,vue}'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [
+        { group: ['**/tests/**', '../tests/*', '../../tests/*'],
+          message: 'src/** must not import from tests/**: a test fixture reaching the bundle ships test code.' },
+      ] }],
+      'no-restricted-syntax': ['error', { selector: RESTRICT_DYNAMIC_TESTS_IMPORT.selector,
+        message: RESTRICT_DYNAMIC_TESTS_IMPORT.message }],
+    },
+  },
   {
     files: ['src/domain/**/*.ts'],
     rules: {
@@ -133,6 +166,8 @@ export default tseslint.config(
         { group: ['../adapters/*', '../host/*', '../ui/*', '../visualization/*', '../application/*',
                   '**/adapters/**', '**/host/**', '**/ui/**', '**/visualization/**', '**/application/**'],
           message: 'src/domain must not depend on an outer layer.' },
+        { group: ['**/tests/**', '../../tests/*'],
+          message: 'src/** must not import from tests/**.' },
       ] }],
     },
   },
@@ -143,10 +178,14 @@ export default tseslint.config(
         { group: ['obsidian', 'electron', 'fs', 'path', 'node:*',
                   '**/host/**', '**/adapters/**', '**/application/**'],
           message: 'src/visualization reaches neither the filesystem nor the host.' },
+        { group: ['**/tests/**', '../../tests/*'],
+          message: 'src/** must not import from tests/**.' },
       ] }],
       // Rule 3 — colour management. Double conversion is SILENT: no error, no warning,
       // just a 2-3x darker render. Lint is the only thing that catches it (spec 3.2, 3.4).
       'no-restricted-syntax': ['error',
+        // Repeated from the src/** block above: flat config replaces, never merges.
+        { selector: RESTRICT_DYNAMIC_TESTS_IMPORT.selector, message: RESTRICT_DYNAMIC_TESTS_IMPORT.message },
         { selector: "MemberExpression[property.name='convertSRGBToLinear']",
           message: 'ColorManagement.enabled defaults to true since r152 — new Color(hex) already converts sRGB to working. Calling this renders everything markedly darker, with no error and no warning.' },
         { selector: "MemberExpression[property.name='convertLinearToSRGB']",

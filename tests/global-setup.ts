@@ -29,5 +29,12 @@ export default function setup(): void {
   // execSync takes one already-composed command string and has no separate args
   // array to concatenate, so it runs through the shell (needed for `npm`, whose
   // own launcher is a .cmd/.ps1 wrapper on Windows) without triggering the warning.
-  execSync('npm run build', { cwd: root, stdio: 'inherit' });
+  //
+  // NODE_ENV is pinned to 'production' (fix wave item 2, I1): this process is Vitest, so
+  // the child would otherwise inherit NODE_ENV=test, which flips Vite's mode, which
+  // drives `import.meta.env.DEV` -- leaving city-renderer.ts's dev branch (and
+  // tests/fixtures/dev-fixture with it) in dist/main.js. tests/unit/install-script.test.ts
+  // copies whatever this leaves behind into a scratch vault, so a polluted bundle here
+  // is a polluted bundle there too.
+  execSync('npm run build', { cwd: root, stdio: 'inherit', env: { ...process.env, NODE_ENV: 'production' } });
 }

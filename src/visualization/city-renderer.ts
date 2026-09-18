@@ -251,14 +251,14 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
     },
   };
 
-  // Dev-only fixture path (never shipped — see tests/fixtures/dev-fixture.ts's own
+  // Dev-only fixture path (never shipped — see ./dev-fixture.ts's own
   // comment for the dead-code-elimination mechanism: import.meta.env.DEV is a
   // Vite-injected compile-time constant, `false` in every production build, so this
   // whole branch is stripped from dist/main.js). Lets an implementer see the
   // instanced-box pipeline actually draw something while working on this file; it is
   // not a rendered control and nothing in the UI toggles it.
   if (import.meta.env.DEV && win.localStorage.getItem('codebase-inspector:dev-fixture') === '1') {
-    void import('../../tests/fixtures/dev-fixture').then(({ devFixtureLayout }) => {
+    void import('./dev-fixture').then(({ devFixtureLayout }) => {
       const controller = new AbortController();
       void port.setLayout(devFixtureLayout(), { generation: 0, signal: controller.signal });
     });

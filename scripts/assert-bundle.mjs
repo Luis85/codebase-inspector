@@ -1,5 +1,6 @@
 // scripts/assert-bundle.mjs — build-time guard, kept for the life of the project.
 import { readdirSync, readFileSync } from 'node:fs';
+import { builtinModules } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
@@ -18,5 +19,38 @@ if (main.includes('new Function(') || /\beval\(/.test(main)) {
 }
 if (!main.includes('__esModule') || !/exports\.default\s*=/.test(main)) {
   fail('dist/main.js is not the named-CommonJS shape Obsidian loads.');
+}
+
+// Fix wave item 2 (I1). The test harness used to build with NODE_ENV=test inherited from
+// Vitest, which flips Vite's mode, which drives import.meta.env.DEV — so
+// city-renderer.ts's dev-only branch survived and tests/fixtures/dev-fixture was bundled
+// into the shipped artefact. Both execSync call sites now pin NODE_ENV=production; this
+// is the permanent guard behind that, on every build, including one a developer runs by
+// hand.
+if (main.includes('dev-fixture') || main.includes('devFixtureLayout')) {
+  fail('dist/main.js contains the dev fixture. Check NODE_ENV / import.meta.env.DEV.');
+}
+
+// A Node built-in must never be BUNDLED (the ledger's long-standing deferred minor, and a
+// cheap second guard behind obsidianmd/no-nodejs-modules). Reasoning for the shape of this
+// check, which is not "does the string `node:` appear":
+//   * vite.config.ts externalises every built-in in both bare and `node:` form, so a
+//     static import that slipped past the lint rule does NOT get inlined — it surfaces as
+//     a top-level `require("fs")` the Obsidian renderer would have to resolve itself.
+//     That require call is therefore the actual symptom of a bundled built-in.
+//   * node-access.ts legitimately contains the strings `node:original-fs` and `node:path`
+//     — it passes them to Obsidian's own injected `window.require` at runtime, which is
+//     the ONE sanctioned route to Node (spec 4.4) and must stay. Asserting on the bare
+//     string would forbid the correct code and prove nothing about the incorrect code.
+// The discriminator is the CALLEE: `window.require(...)` is node-access.ts asking the
+// host; an unqualified `require(...)` is the bundler's own externalised import. Minified
+// output may quote the specifier with ', " or a backtick, so all three are matched.
+const builtins = new Set([...builtinModules, ...builtinModules.map((m) => `node:${m}`)]);
+const bundledBuiltins = [...main.matchAll(/(?:([A-Za-z_$][\w$]*)\s*\.\s*)?require\(\s*(["'`])([^"'`]+)\2\s*\)/g)]
+  .filter((m) => m[1] !== 'window' && builtins.has(m[3]))
+  .map((m) => m[3]);
+if (bundledBuiltins.length > 0) {
+  fail(`dist/main.js bundles Node built-in(s): ${[...new Set(bundledBuiltins)].join(', ')}. `
+    + 'All Node access goes through window.require in src/adapters/filesystem/node-access.ts.');
 }
 console.log(`assert-bundle: OK — dist/main.js is ${(main.length / 1024).toFixed(0)} kB`);
