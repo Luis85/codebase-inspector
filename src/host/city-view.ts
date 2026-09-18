@@ -40,7 +40,7 @@ import { ScanCoordinator, createCancellationToken } from '../application/scan-co
 import { resolveOrCreateProfile, runInitialScan, runRefresh } from './scan-flow';
 import { useCityStore } from '../ui/stores/city-store';
 import { useRunStore } from '../ui/stores/run-store';
-import { CITY_RENDERER_KEY } from '../ui/renderer-handle';
+import { CITY_RENDERER_KEY, LAYOUT_GENERATION_KEY, createLayoutGenerationSource } from '../ui/renderer-handle';
 import { reactToLifecycleChange } from './lifecycle-notices';
 import type { CityRendererPort } from '../visualization/renderer-port';
 import type { ScanLifecycleState } from '../application/run-state';
@@ -102,7 +102,13 @@ export class CityView extends ItemView {
   // a profile, and both open a modal. This flag closes the gap for the async method
   // itself, independent of the coordinator's own state.
   private startingScan = false;
-  private layoutGeneration = 0;
+  // Ruling M78: ONE monotonic token source per view, shared with `CityViewport`, which
+  // writes setLayout to the same live port this file does (on every reconstruct, where
+  // this file writes on every publish). Two private counters meant two sequences against
+  // one `latestGeneration`, and the port correctly discarded whichever was lower — so a
+  // publish after a reconstruct was silently never applied, leaving the city showing a
+  // snapshot the store no longer held. See renderer-handle.ts for the full reasoning.
+  private readonly nextLayoutGeneration = createLayoutGenerationSource();
   private layoutAbort: AbortController | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: Plugin, deps: CityViewDeps) {
@@ -219,6 +225,7 @@ export class CityView extends ItemView {
     // this file only ever READS the handle afterwards, directly (below, and
     // in `publishLayout`).
     this.vueApp.provide(CITY_RENDERER_KEY, this.cityRendererHandle);
+    this.vueApp.provide(LAYOUT_GENERATION_KEY, this.nextLayoutGeneration);
     this.vueApp.provide('createCityRenderer', createCityRenderer);
     this.vueApp.use(this.pinia);
     this.vueApp.mount(this.contentEl);
@@ -353,8 +360,9 @@ export class CityView extends ItemView {
     try {
       this.layoutAbort?.abort();
       this.layoutAbort = new AbortController();
-      this.layoutGeneration += 1;
-      await renderer.setLayout(layout, { generation: this.layoutGeneration, signal: this.layoutAbort.signal });
+      await renderer.setLayout(layout, {
+        generation: this.nextLayoutGeneration(), signal: this.layoutAbort.signal,
+      });
     } catch {
       this.showNotice(CITY_RENDER_FAILURE_NOTICE);
     }

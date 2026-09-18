@@ -47,11 +47,20 @@ const DUMMY_CAMERA: CameraBookmark = {
 // `setSelection` its OWN plain-`vi.fn()` identity up front rather than accessing it
 // back off `inertPort` afterwards.
 const setSelectionSpy = vi.fn();
+// Fix round 2, item 1 (ruling M78): every generation token this port is handed, from
+// BOTH writers, in the order it received them. The invariant is that the sequence is
+// strictly increasing — with two independent counters it reads 1, 2, 1 and the port
+// correctly discards the newest layout.
+const setLayoutSpy = vi.fn(async (_layout: unknown, opts: { generation: number; signal: AbortSignal }) => {
+  void _layout; void opts;
+});
+const layoutGenerations = (): number[] =>
+  setLayoutSpy.mock.calls.map(([, opts]) => opts.generation);
 // Same reason, same pattern -- see setSelectionSpy's own comment.
 const setColorsSpy = vi.fn();
 
 const inertPort: CityRendererPort = {
-  setLayout: vi.fn(async () => {}),
+  setLayout: setLayoutSpy,
   setColors: setColorsSpy,
   setSelection: setSelectionSpy,
   setFilter: vi.fn(),
@@ -96,6 +105,25 @@ function makePluginDouble(): {
 
 function makeLeafDouble(width = 1000): { width: number } {
   return { width };
+}
+
+/** jsdom has no real ResizeObserver and tests/mocks/obsidian.ts installs a no-op stub,
+ *  so the 320 px floor round trip — the second of the two writers' triggers — is
+ *  unreachable without one that a test can fire. Installed per test and restored. */
+function installControllableResizeObserver(): { trigger: () => void; restore: () => void } {
+  const callbacks: (() => void)[] = [];
+  const holder = window as unknown as { ResizeObserver: unknown };
+  const previous = holder.ResizeObserver;
+  holder.ResizeObserver = class {
+    constructor(cb: () => void) { callbacks.push(cb); }
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  };
+  return {
+    trigger: () => { callbacks.forEach((cb) => { cb(); }); },
+    restore: () => { holder.ResizeObserver = previous; },
+  };
 }
 
 function makeProfileStoreDouble(initial: CodebaseProfile[] = []): ProfileStore {
@@ -163,6 +191,7 @@ describe('CityView wiring: stores, renderer port and theme colors', () => {
     vi.mocked(createRendererSpy).mockClear();
     setSelectionSpy.mockClear();
     setColorsSpy.mockClear();
+    setLayoutSpy.mockClear();
   });
 
   // Task 9 fix round 2, item 1 (Important, ruling M68): before this fix,
@@ -295,5 +324,43 @@ describe('CityView wiring: stores, renderer port and theme colors', () => {
     expect(view1.contentEl.querySelectorAll('.ci-file-list__row').length).toBe(1);
     expect(view2.contentEl.querySelectorAll('.ci-file-list__row').length).toBe(0);
     expect(view2.contentEl.textContent).toContain('Understand your codebase. Start with its structure.');
+  });
+  // Fix round 2, item 1 (ruling M78): the reachable user path, end to end. Retained
+  // state (spec 4.5) means a reopened view already holds a layout, so CityViewport's
+  // mount re-send is the FIRST setLayout the live port sees. One drag below the 320 px
+  // floor and back reconstructs the renderer WITHOUT unmounting the component, which is
+  // a second re-send. A scan then publishes. With a counter per writer those three are
+  // 1, 2, 1 — and the port, correctly, discards the third: the city keeps the old
+  // buildings while the list, inspector and legend all show the new snapshot, with no
+  // error and no visible cue. The fix is one shared source, so the sequence only climbs.
+  it('feeds the port a STRICTLY INCREASING generation across both writers', async () => {
+    const observer = installControllableResizeObserver();
+    try {
+      const { deps } = depsWithSnapshot();
+      const view = await viewWithSnapshot(deps);
+      stubStageRect(view, 1000);
+      await nextTick();                       // construct: re-send #1
+
+      stubStageRect(view, 200);               // below the 320 px floor: disposed, handle nulled
+      observer.trigger();
+      await nextTick();
+      stubStageRect(view, 1000);              // back above it: reconstruct, re-send #2
+      observer.trigger();
+      await nextTick();
+
+      await view.startScan();                 // publish: city-view's own setLayout
+      await nextTick();
+
+      const sent = layoutGenerations();
+      expect(sent.length).toBeGreaterThanOrEqual(3);
+      sent.forEach((generation, i) => {
+        if (i > 0) expect(generation).toBeGreaterThan(sent[i - 1]!);
+      });
+      // And specifically: the publish — the LAST thing that happened — is the highest,
+      // so the port applies it rather than discarding it.
+      expect(Math.max(...sent)).toBe(sent[sent.length - 1]);
+    } finally {
+      observer.restore();
+    }
   });
 });

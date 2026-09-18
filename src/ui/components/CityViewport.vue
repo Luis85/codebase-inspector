@@ -20,7 +20,7 @@ import { inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type {
   CityRendererEvent, CityRendererPort, CreateCityRenderer,
 } from '../../visualization/renderer-port';
-import { useCityRendererHandle, useCityStageEl } from '../renderer-handle';
+import { useCityRendererHandle, useCityStageEl, useLayoutGeneration } from '../renderer-handle';
 import { useCityStore } from '../stores/city-store';
 import { useInspectorOpener } from '../drawer-focus';
 import { COPY_14, CONTEXT_LOST_NOTICE } from '../copy';
@@ -41,6 +41,11 @@ const cityRendererHandle = useCityRendererHandle();
 const cityStageHandle = useCityStageEl();
 const store = useCityStore();
 const inspectorOpener = useInspectorOpener();
+// Ruling M78: the SHARED token source, not a private counter. `city-view.ts` writes
+// setLayout to this same live port on every publish, and the port discards a generation
+// lower than one it has already seen — which, with a counter each, is exactly what a
+// publish after a reconstruct becomes. See renderer-handle.ts.
+const nextLayoutGeneration = useLayoutGeneration();
 
 const stageEl = ref<HTMLElement | null>(null);
 // Task 9 fix round 2, item 1: replaces the externally-injected `rendererAvailable`
@@ -50,11 +55,6 @@ const stageEl = ref<HTMLElement | null>(null);
 const available = ref(true);
 const unavailableReason = ref<UnavailableReason | null>(null);
 let resizeObserver: ResizeObserver | null = null;
-// This component's OWN monotonic token, deliberately separate from city-view.ts's
-// (spec 4.2 asks only for SOME strictly-increasing per-call token). The two never race
-// on the same port: each targets whichever handle existed when it was called, and a
-// replaced port is already disposed, so its own setLayout bails on `disposed`.
-let layoutGeneration = 0;
 let layoutAbort: AbortController | null = null;
 
 interface WinBearing { win?: Window }
@@ -130,8 +130,9 @@ function applyStoreState(handle: CityRendererPort | null): void {
   if (!store.layout) return;
   layoutAbort?.abort();
   layoutAbort = new AbortController();
-  layoutGeneration += 1;
-  void handle.setLayout(store.layout, { generation: layoutGeneration, signal: layoutAbort.signal });
+  void handle.setLayout(store.layout, {
+    generation: nextLayoutGeneration(), signal: layoutAbort.signal,
+  });
 }
 
 watch(() => store.selectedEntityId, (id) => { cityRendererHandle.value?.setSelection(id); });

@@ -53,6 +53,47 @@ export function useCityRendererHandle(): ShallowRef<CityRendererPort | null> {
   return inject(CITY_RENDERER_KEY, () => shallowRef<CityRendererPort | null>(null), true);
 }
 
+/** The `{generation}` half of spec 4.2's setLayout job token, shared by every caller
+ *  that writes to one live port (ruling M78).
+ *
+ *  TWO writers call setLayout on the SAME port: `city-view.ts` on every publish, and
+ *  `CityViewport` on every renderer construction — a context loss, or a drag below the
+ *  320 px floor and back, neither of which unmounts the component. Each used to keep its
+ *  own counter, so one port received two independent sequences against one
+ *  `latestGeneration`, and the port — correctly, per a contract that is frozen and right
+ *  — discarded whichever was lower. The reachable path: a retained-state reopen sends 1,
+ *  one floor round trip makes the live port 2, and the next publish sends its own 1,
+ *  which is silently never applied. The city then shows a snapshot the store no longer
+ *  holds, with no error and no visible cue.
+ *
+ *  A DISPENSER, not a counter: there is deliberately no way to read the current value
+ *  without advancing it. That is what makes the port's `<` rule sound. Two calls at the
+ *  same generation are not ordered at all — neither supersedes the other, so whichever
+ *  build finishes last wins, which is how a 1200-lot layout lands on top of a 10-lot one
+ *  issued after it. The fix for that is a fresh token per CALL, not a different operator:
+ *  `<=` would be worse than wrong, because setLayout raises `latestGeneration` to its own
+ *  generation before the check, so every call would find itself superseded and nothing
+ *  would ever render at all. */
+export type LayoutGenerationSource = () => number;
+
+export const LAYOUT_GENERATION_KEY: InjectionKey<LayoutGenerationSource> = Symbol('layout-generation');
+
+/** One per view, created by `city-view.ts` and provided at the app level beside the
+ *  shared handle — the same lifetime as the port those tokens are addressed to. */
+export function createLayoutGenerationSource(): LayoutGenerationSource {
+  let issued = 0;
+  return () => {
+    issued += 1;
+    return issued;
+  };
+}
+
+/** The default is a fresh, locally-owned source — never a shared one — so a component
+ *  mounted standalone behaves like a view of its own rather than throwing. */
+export function useLayoutGeneration(): LayoutGenerationSource {
+  return inject(LAYOUT_GENERATION_KEY, () => createLayoutGenerationSource(), true);
+}
+
 // The stage element itself (CityViewport's focusable, named region) is shared the
 // same way: CameraControls needs to know whether IT currently has focus (spec 5.2:
 // "F, T, +/-, arrows... work only when the canvas itself has focus"), and does not

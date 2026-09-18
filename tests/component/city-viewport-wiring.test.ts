@@ -16,6 +16,7 @@ import '../mocks/obsidian';
 import CityViewport from '../../src/ui/components/CityViewport.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { INSPECTOR_OPENER_KEY } from '../../src/ui/drawer-focus';
+import { LAYOUT_GENERATION_KEY, createLayoutGenerationSource } from '../../src/ui/renderer-handle';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import type { CityRendererEvent, CreateCityRenderer } from '../../src/visualization/renderer-port';
@@ -23,7 +24,9 @@ import type { CityRendererEvent, CreateCityRenderer } from '../../src/visualizat
 function makeRendererDouble() {
   return {
     setLayout: vi.fn(async (_layout: unknown, _opts: { generation: number; signal: AbortSignal }) => {}),
-    setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setLabels: vi.fn(),
+    setColors: vi.fn(),
+    setSelection: vi.fn((_entityId: string | null) => {}),
+    setFilter: vi.fn(), setLabels: vi.fn(),
     setCameraMode: vi.fn(), setMotion: vi.fn(),
     getCamera: vi.fn(() => ({
       projection: 'orthographic' as const, mode: '3d' as const,
@@ -64,6 +67,8 @@ interface Harness {
   stage: HTMLElement;
   opener: ReturnType<typeof shallowRef<HTMLElement | null>>;
   triggerResize: () => void;
+  /** Every token the shared source handed out, in order. */
+  issued: number[];
 }
 
 async function mountViewport(): Promise<Harness> {
@@ -76,9 +81,21 @@ async function mountViewport(): Promise<Harness> {
     return next;
   }) as unknown as CreateCityRenderer;
   const opener = shallowRef<HTMLElement | null>(null);
+  const issued: number[] = [];
+  const source = createLayoutGenerationSource();
   const { win, triggerResize } = makeFakeWin();
   const wrapper = mount(CityViewport, {
-    global: { provide: { createCityRenderer: factory, [INSPECTOR_OPENER_KEY as symbol]: opener } },
+    global: {
+      provide: {
+        createCityRenderer: factory,
+        [INSPECTOR_OPENER_KEY as symbol]: opener,
+        [LAYOUT_GENERATION_KEY as symbol]: () => {
+          const token = source();
+          issued.push(token);
+          return token;
+        },
+      },
+    },
   });
   const stage = wrapper.get('[data-ci-role="stage"]').element as HTMLElement;
   (stage as unknown as { win: Window }).win = win;
@@ -87,7 +104,7 @@ async function mountViewport(): Promise<Harness> {
   });
   await nextTick();   // CityViewport defers its first measurement one microtask
   await nextTick();   // ...and the handle watcher's own flush is one tick after that
-  return { renderers, events: (e) => emit?.(e), stage, opener, triggerResize };
+  return { renderers, events: (e) => emit?.(e), stage, opener, triggerResize, issued };
 }
 
 function seedSnapshot(): { id: string; otherId: string } {
@@ -111,15 +128,22 @@ describe('CityViewport: the store-to-port mirror', () => {
     expect(h.renderers[0]!.setSelection).toHaveBeenCalledWith(id);
   });
 
+  // Fix round 2, item 2: this used to assert `toHaveBeenLastCalledWith(null)`, which the
+  // construct-time applyStoreState already satisfies on its own — so it passed with the
+  // selection watcher deleted, and did not check what its name says. Call COUNT and
+  // ORDER instead: the null it asserts has to be the one the CLEAR produced.
   it('clears the renderer selection when the store clears it', async () => {
     const h = await mountViewport();
     const { id } = seedSnapshot();
     const store = useCityStore();
+    const setSelection = h.renderers[0]!.setSelection;
+    setSelection.mockClear();          // drop the construct-time apply; this is about the watcher
+
     store.select(id);
     await nextTick();
     store.clearSelection();
     await nextTick();
-    expect(h.renderers[0]!.setSelection).toHaveBeenLastCalledWith(null);
+    expect(setSelection.mock.calls.map((call) => call[0])).toEqual([id, null]);
   });
 
   it('mirrors the search match set onto the renderer, so search dims the city', async () => {
@@ -198,6 +222,27 @@ describe('CityViewport: the store-to-port mirror', () => {
     expect(opts.generation).toBeGreaterThan(
       h.renderers[0]!.setLayout.mock.calls[0]![1].generation,
     );
+  });
+
+  it('draws its layout generation from the SHARED source, never a private counter', async () => {
+    // Ruling M78. `city-view.ts` writes to the SAME live port on every publish, so a
+    // private counter here means two independent sequences against one
+    // `latestGeneration` — and the port, correctly, discards the lower one. Whichever
+    // writer is behind loses its result silently.
+    seedSnapshot();
+    const h = await mountViewport();
+    expect(h.issued).toEqual([1]);
+    expect(h.renderers[0]!.setLayout.mock.calls[0]![1].generation).toBe(1);
+
+    h.events({ type: 'unavailable', reason: 'context-lost' });
+    await nextTick();
+    h.triggerResize();
+    await nextTick();
+
+    // The second construction takes the NEXT token from the shared source, not a 1 of
+    // its own — so a publish that follows is guaranteed a higher one still.
+    expect(h.issued).toEqual([1, 2]);
+    expect(h.renderers[1]!.setLayout.mock.calls[0]![1].generation).toBe(2);
   });
 
   it('opens the inspector on a canvas pick, with the stage as the focus-return opener', async () => {
