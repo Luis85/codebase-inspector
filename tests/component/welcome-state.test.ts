@@ -1,9 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import { ref } from 'vue';
 import App from '../../src/ui/App.vue';
 
+// Task 9 replaces the task-3 welcome-shell App.vue pins here with the real C01
+// shell (ten components, two stores). Every assertion below is retained UNCHANGED
+// in substance — same copy, same "no disabled placeholder", same exposed
+// `rendererHost` contract city-view.ts (unmodified this task) depends on — the only
+// addition is `setActivePinia(createPinia())` per test, because App.vue now calls
+// `useCityStore()`/`useRunStore()` directly (task 3's shell never touched Pinia).
+// See task-9-report.md for the full account of what moved where.
 describe('App.vue welcome-state shell', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
   it('shows the first-run headline and the source action, verbatim', () => {
     const wrapper = mount(App);
     expect(wrapper.text()).toContain('Understand your codebase. Start with its structure.');

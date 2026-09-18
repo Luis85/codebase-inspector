@@ -30,6 +30,238 @@
   :where(.codebase-inspector-root) { --ci-focus-duration: 0ms; }
 }
 
+/* Ruling A1 (task-3-context.md, confirmed task-9-context.md §2): the ten
+   --ci-cat-* custom properties are the ONE plugin-owned palette, declared as CSS
+   custom properties, never hex constants in the renderer (task-9-brief.md's own
+   "Three.js hazard"). They cross into WebGL only through cssColorToSrgbBytes
+   (src/visualization/color.ts), never through `new Color(...)` +
+   convertSRGBToLinear(). One member per CATEGORY_IDS entry (src/domain/classify.ts) —
+   the closed, ten-member vocabulary; adding an eleventh is a spec 4.1 contract
+   change, not a styling one. */
+:where(.codebase-inspector-root) {
+  --ci-cat-typescript: #4a86c8;
+  --ci-cat-javascript: #d1a944;
+  --ci-cat-vue: #3fa06e;
+  --ci-cat-test: #b25ec9;
+  --ci-cat-style: #d9707a;
+  --ci-cat-markup: #7a8fa8;
+  --ci-cat-config: #8a8f98;
+  --ci-cat-docs: #6fa8c9;
+  --ci-cat-asset: #c98f5e;
+  --ci-cat-other: #9a9a9a;
+}
+
+/* Visually hidden but still reachable by assistive tech — used for the viewport's
+   help description and the polite/assertive announcement region. */
+:where(.codebase-inspector-root) .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* --- C01 shell layout ------------------------------------------------------- */
+:where(.codebase-inspector-root) .ci-app {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ci-space-3);
+  padding: var(--ci-space-4);
+  box-sizing: border-box;
+  min-height: 100%;
+}
+:where(.codebase-inspector-root) .ci-app__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ci-space-3);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+:where(.codebase-inspector-root) .ci-app__stage-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ci-space-2);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* One collapse threshold at 820 CSS px, measured on the leaf via container
+   queries (spec 5.2), provisional and contested (re-check at checkpoint #3). At
+   or above it: list + canvas + inspector side by side. Below it: canvas-first,
+   list and inspector become full overlays (task-9-report.md notes what is and
+   is not independently test-covered about the overlay's own focus-return). */
+@container (min-width: 820px) {
+  :where(.codebase-inspector-root) .ci-app__body {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  :where(.codebase-inspector-root) .ci-app__list {
+    flex: 0 0 260px;
+    overflow-y: auto;
+  }
+  :where(.codebase-inspector-root) .ci-inspector {
+    flex: 0 0 280px;
+  }
+}
+@container (max-width: 819px) {
+  :where(.codebase-inspector-root) .ci-app__list,
+  :where(.codebase-inspector-root) .ci-inspector {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: var(--ci-surface);
+    overflow-y: auto;
+  }
+}
+
+/* --- FileSearch (C06) -------------------------------------------------------- */
+:where(.codebase-inspector-root) .ci-search__input {
+  width: 100%;
+  min-height: var(--ci-control-min);
+  box-sizing: border-box;
+  padding-inline: var(--ci-space-3);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  color: var(--ci-text);
+}
+
+/* --- CodebaseFileList (C07) -------------------------------------------------- */
+:where(.codebase-inspector-root) .ci-file-list__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+:where(.codebase-inspector-root) .ci-file-list__row {
+  width: 100%;
+  text-align: left;
+  padding: var(--ci-space-2) var(--ci-space-3);
+  border: none;
+  background: transparent;
+  color: var(--ci-text);
+  cursor: pointer;
+  border-radius: var(--ci-radius-small);
+}
+:where(.codebase-inspector-root) .ci-file-list__row--selected {
+  background: var(--ci-action);
+  color: var(--ci-on-action);
+}
+:where(.codebase-inspector-root) .ci-file-list__row--dimmed {
+  opacity: 0.4;
+}
+:where(.codebase-inspector-root) .ci-file-list__empty {
+  color: var(--ci-text-muted);
+  padding: var(--ci-space-3);
+}
+
+/* --- CityViewport (C08) ------------------------------------------------------ */
+:where(.codebase-inspector-root) .ci-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 240px;
+}
+:where(.codebase-inspector-root) .ci-viewport__stage {
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  border-radius: var(--ci-radius-modal);
+  background: var(--ci-panel);
+  border: 1px solid var(--ci-border);
+  box-sizing: border-box;
+}
+:where(.codebase-inspector-root) .ci-viewport__notice {
+  position: absolute;
+  inset: auto var(--ci-space-3) var(--ci-space-3) var(--ci-space-3);
+  margin: 0;
+  color: var(--ci-warning);
+  background: var(--ci-surface);
+  padding: var(--ci-space-2);
+  border-radius: var(--ci-radius-small);
+}
+
+/* --- CameraControls (C09) ---------------------------------------------------- */
+:where(.codebase-inspector-root) .ci-camera-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ci-space-1);
+}
+:where(.codebase-inspector-root) .ci-camera-controls button {
+  min-height: var(--ci-control-min);
+  min-width: var(--ci-control-min);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  color: var(--ci-text);
+  cursor: pointer;
+}
+
+/* --- FileInspector (C10) ------------------------------------------------------ */
+:where(.codebase-inspector-root) .ci-inspector {
+  border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-modal);
+  background: var(--ci-panel);
+  padding: var(--ci-space-3);
+  box-sizing: border-box;
+}
+:where(.codebase-inspector-root) .ci-inspector__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+:where(.codebase-inspector-root) .ci-inspector__title {
+  margin: 0;
+  font-size: 1em;
+}
+:where(.codebase-inspector-root) .ci-inspector__measurements {
+  margin: var(--ci-space-2) 0;
+}
+:where(.codebase-inspector-root) .ci-inspector__actions {
+  display: flex;
+  gap: var(--ci-space-2);
+}
+:where(.codebase-inspector-root) .ci-inspector__fallback input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* --- MetricLegend (C11) -------------------------------------------------------- */
+:where(.codebase-inspector-root) .ci-legend__swatches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ci-space-2);
+}
+:where(.codebase-inspector-root) .ci-legend__entry {
+  display: flex;
+  align-items: center;
+  gap: var(--ci-space-1);
+  font-size: 0.85em;
+}
+:where(.codebase-inspector-root) .ci-legend__swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--ci-radius-small);
+  border: 1px solid var(--ci-border);
+}
+
+/* --- SnapshotStatus (C12) / StatusBanner (C16) / EmptyState (C17) -------------- */
+:where(.codebase-inspector-root) .ci-snapshot-status,
+:where(.codebase-inspector-root) .ci-status-banner {
+  margin: 0;
+  color: var(--ci-text-muted);
+}
+:where(.codebase-inspector-root) .ci-empty-state {
+  padding: var(--ci-space-4);
+}
+:where(.codebase-inspector-root) .ci-empty-state__copy {
+  margin: 0;
+}
+
 /* Welcome-state shell (task 3). Task 9 replaces this with the real C01 layout; these
    rules only need to hold up the empty renderer-host box and the two lines of copy. */
 :where(.codebase-inspector-root) .ci-welcome {
