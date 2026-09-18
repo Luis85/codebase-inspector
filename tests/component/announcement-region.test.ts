@@ -70,18 +70,19 @@ describe('AnnouncementRegion.vue', () => {
     expect(wrapper.get('[aria-live="assertive"]').text()).toContain('disk error');
   });
 
-  it('announces NOTHING on hover', () => {
-    const wrapper = mountRegion({ value: 0 });
-    const exposed = wrapper.vm as unknown as { politeMessage: string; assertiveMessage: string };
-    // No hover-related method is exposed at all — this component never subscribes
-    // to CityRendererEvent's 'hover-changed' (that stays entirely inside task 10's
-    // renderer territory; nothing in src/ui/** reads it this task). Calling every
-    // exposed announcement entry point with a hover-shaped payload proves none of
-    // them treats it as anything worth announcing.
-    expect('announceHover' in (wrapper.vm as object)).toBe(false);
-    expect(exposed.politeMessage).toBe('');
-    expect(exposed.assertiveMessage).toBe('');
-  });
+  // Task 9 fix round 1, item 8 (fold): DELETED, not fixed in place. This
+  // asserted that a method named 'announceHover' — never declared anywhere,
+  // never mentioned by any other test — is absent from the exposed instance.
+  // That is true by construction and could never fail; nobody could
+  // accidentally add a same-named method by coincidence, and checking `'x' in
+  // obj` for an `x` this file itself invented is not a regression guard.
+  // The REAL invariant ("hover never reaches this component") already has no
+  // observable signal to assert against: AnnouncementRegion only watches
+  // `runStore.run` and `cityStore.selectedEntityId` (both read directly in
+  // this file's own tests above); CityRendererEvent's 'hover-changed' stays
+  // entirely inside task 10's renderer territory and reaches neither store
+  // this task. Per this item's own "make it assert something that can fail,
+  // or delete it and say why", deleted.
 
   it('throttles a rapidly changing counter', () => {
     const nowMs = { value: 1000 };

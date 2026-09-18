@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import StatusBanner from '../../src/ui/components/StatusBanner.vue';
 import EmptyState from '../../src/ui/components/EmptyState.vue';
@@ -49,13 +49,18 @@ describe('StatusBanner.vue (C16) + EmptyState.vue (C17) — every view-level sta
     expect(text.trim()).toBe('');
   });
 
-  it('never restarts a scan on WebGL context loss', () => {
-    const startScan = vi.fn();
-    const state: ViewSurfaceState = { kind: 'context-lost' };
-    mount(StatusBanner, { props: { state }, global: { provide: { startScan } } });
-    mount(EmptyState, { props: { state }, global: { provide: { startScan } } });
-    expect(startScan).not.toHaveBeenCalled();
-  });
+  // Task 9 fix round 1, item 8 (fold): DELETED, not fixed in place. This used to
+  // `provide` a `startScan` key neither component ever injects, then assert it
+  // was not called — nothing could ever fail. Unlike SnapshotStatus.vue (which
+  // at least touches `cityStore` and could plausibly grow a scan-triggering
+  // path someday, so its own analogous test was rewritten instead to check the
+  // run store's real, observable status), StatusBanner and EmptyState are
+  // PURE functions of their `state` prop: no injects, no store access, no event
+  // handlers, nothing capable of starting a scan by construction. There is no
+  // observable signal left to assert against, so — per this item's own explicit
+  // "make it assert something that can fail, or delete it and say why" — this
+  // is deleted rather than kept as a test that documents intent but pins
+  // nothing.
 
   it('StatusBanner and EmptyState never both render text for the same state', () => {
     const states: ViewSurfaceState[] = [
