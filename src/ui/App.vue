@@ -68,13 +68,45 @@ defineExpose({ rendererHost });
   <div class="ci-app">
     <div class="ci-app__toolbar">
       <FileSearch />
+      <!-- Task 9 fix round 1, item 3 (Important): list mode is the FALLBACK, not
+           the default (spec 5.2), but must stay genuinely reachable both ways —
+           `returnFromList()` had no caller at all before this. Always visible,
+           never hidden by viewMode itself, or leaving list mode would be
+           unreachable again the moment it is entered. -->
+      <button
+        v-if="store.viewMode !== 'list'"
+        type="button"
+        aria-label="List view"
+        class="ci-app__mode-toggle"
+        @click="store.setViewMode('list')"
+      >
+        List view
+      </button>
+      <button
+        v-else
+        type="button"
+        aria-label="Return to city view"
+        class="ci-app__mode-toggle"
+        @click="store.returnFromList()"
+      >
+        Return to city view
+      </button>
     </div>
     <div class="ci-app__body">
-      <CodebaseFileList
-        v-if="store.viewMode === 'list'"
-        class="ci-app__list"
-      />
+      <!-- Rendered per the container-query layout (styles.css's 820px threshold),
+           never per viewMode: the >=820px layout is "list + canvas + inspector"
+           together, regardless of which spatial mode the camera is in. -->
+      <CodebaseFileList class="ci-app__list" />
       <div class="ci-app__stage-column">
+        <!-- CityViewport itself stays unconditionally mounted, even in list mode:
+             city-view.ts (frozen this task, store-wiring only per ruling M66)
+             captures `instance.rendererHost` ONCE, at initial mount, and keeps
+             using that exact element for the lifetime of the view — v-if'ing this
+             element's owner would detach it from the DOM the next time viewMode
+             changed, leaving city-view.ts's own renderer pointed at a node no
+             longer on screen. CameraControls has no camera to command once
+             `viewMode === 'list'` (spec 4.2: "no renderer exists"), so IT is what
+             list mode actually hides. -->
         <CityViewport ref="cityViewportRef" />
         <CameraControls v-if="store.viewMode !== 'list'" />
         <MetricLegend />

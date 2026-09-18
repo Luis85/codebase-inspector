@@ -40,7 +40,12 @@ function initialState(): CityStoreState {
     focusedEntityId: null,
     query: '',
     matchingIds: null,
-    viewMode: 'list',
+    // Task 9 fix round 1, item 3 (Important): a SPATIAL default, not 'list' — the
+    // eleven WCAG 2.5.7 camera controls only render when viewMode !== 'list', and
+    // 'list' was the shipped default with no reachable switch off it, so those
+    // controls never appeared in production at all. List stays reachable as the
+    // FALLBACK (spec 5.2's "list-first" below the 320px floor), never the default.
+    viewMode: '3d',
     camera: null,
     previous3dCamera: null,
     inspectorOpen: false,

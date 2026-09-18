@@ -55,4 +55,39 @@ describe('App.vue welcome-state shell', () => {
     const button = wrapper.get('button');
     expect(button.attributes('disabled')).toBeUndefined();
   });
+
+  // Task 9 fix round 1, item 3 (Important): city-store.ts defaulted to
+  // `viewMode: 'list'`, and CameraControls only renders when `viewMode !== 'list'`
+  // — so the eleven WCAG 2.5.7 single-pointer controls never appeared in the
+  // shipped UI at all, on any leaf, ever, until something explicitly switched
+  // away from list mode. Nothing did: the only production caller of setViewMode
+  // was CameraControls' own "Top" button, which was itself hidden. Default is now
+  // a spatial mode; list stays reachable as the FALLBACK (spec 5.2's "list-first"
+  // below the 320px floor), never the default.
+  it('defaults to a spatial mode, so the WCAG 2.5.7 camera controls render out of the box', () => {
+    const wrapper = mount(App);
+    expect(wrapper.find('[aria-label="Fit"]').exists()).toBe(true);
+    expect(wrapper.find('[aria-label="Rotate left"]').exists()).toBe(true);
+  });
+
+  it('renders the file list regardless of view mode — per the container-query layout, not per viewMode', () => {
+    const wrapper = mount(App);
+    // Default is a spatial mode (previous test), yet the list still renders: the
+    // >=820px "list + canvas + inspector" layout needs it present unconditionally,
+    // with CSS (not viewMode) deciding whether it is a static pane or a drawer.
+    expect(wrapper.find('.ci-app__list').exists()).toBe(true);
+  });
+
+  it('makes list mode reachable, both to enter it and to return from it', async () => {
+    const wrapper = mount(App);
+    expect(wrapper.find('[aria-label="Fit"]').exists()).toBe(true);
+
+    await wrapper.get('[aria-label="List view"]').trigger('click');
+    // In list mode there is no renderer and no camera to control (spec 4.2: "In
+    // 'list' mode no renderer exists and setCameraMode is never called").
+    expect(wrapper.find('[aria-label="Fit"]').exists()).toBe(false);
+
+    await wrapper.get('[aria-label="Return to city view"]').trigger('click');
+    expect(wrapper.find('[aria-label="Fit"]').exists()).toBe(true);
+  });
 });

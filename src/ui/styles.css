@@ -71,6 +71,21 @@
   box-sizing: border-box;
   min-height: 100%;
 }
+:where(.codebase-inspector-root) .ci-app__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--ci-space-2);
+}
+:where(.codebase-inspector-root) .ci-app__mode-toggle {
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-3);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  color: var(--ci-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
 :where(.codebase-inspector-root) .ci-app__body {
   display: flex;
   flex-direction: column;
