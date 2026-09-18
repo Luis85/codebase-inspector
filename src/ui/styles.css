@@ -314,30 +314,11 @@
   margin: 0;
 }
 
-/* Welcome-state shell (task 3). Task 9 replaces this with the real C01 layout; these
-   rules only need to hold up the empty renderer-host box and the two lines of copy. */
-:where(.codebase-inspector-root) .ci-welcome {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ci-space-4);
-  padding: var(--ci-space-6);
-  box-sizing: border-box;
-  min-height: 100%;
-}
-:where(.codebase-inspector-root) .ci-welcome__viewport-host {
-  min-height: 160px;
-  border-radius: var(--ci-radius-modal);
-  background: var(--ci-panel);
-  border: 1px solid var(--ci-border);
-}
-:where(.codebase-inspector-root) .ci-welcome__notice {
-  margin: 0;
-  color: var(--ci-warning);
-}
-:where(.codebase-inspector-root) .ci-welcome__title {
-  margin: 0;
-  font-size: 1.1em;
-}
+/* Task 9 fix round 1 (deferred Minor 14, re-checked): the task-3 welcome-shell
+   rules ARE now dead — App.vue's real C01 layout uses .ci-app/.ci-empty-state
+   instead — except .ci-welcome__action below, kept deliberately: it is the
+   exact selector tests/host/city-view.test.ts (task 8, unmodified this task)
+   still uses to find the "Select a codebase" button. Deleted the rest. */
 :where(.codebase-inspector-root) .ci-welcome__action {
   align-self: flex-start;
   min-height: var(--ci-control-min);
