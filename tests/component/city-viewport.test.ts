@@ -228,11 +228,22 @@ describe('CityViewport.vue (C08)', () => {
     const factory = vi.fn(() => makeRendererDouble()) as unknown as CreateCityRenderer;
     const { win, matchMediaSpy } = makeFakeWin();
     const globalSpy = vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    // Deferred Minor 12, fixed here since item 2/6 already touch this file:
+    // restores whatever `window.matchMedia` was before (jsdom provides none by
+    // default, so that is `undefined` — deleting the property, not merely
+    // reassigning it, is what "restore" means here) rather than leaking this
+    // spy into every test that runs after this one in the same file/worker.
+    const original = Object.getOwnPropertyDescriptor(window, 'matchMedia');
     Object.defineProperty(window, 'matchMedia', { value: globalSpy, configurable: true, writable: true });
-    mountWithFactory(factory, win, { width: 800, height: 600 });
-    await nextTick();
-    expect(matchMediaSpy).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
-    expect(globalSpy).not.toHaveBeenCalled();
+    try {
+      mountWithFactory(factory, win, { width: 800, height: 600 });
+      await nextTick();
+      expect(matchMediaSpy).toHaveBeenCalledWith('(prefers-reduced-motion: reduce)');
+      expect(globalSpy).not.toHaveBeenCalled();
+    } finally {
+      if (original) Object.defineProperty(window, 'matchMedia', original);
+      else delete (window as { matchMedia?: unknown }).matchMedia;
+    }
   });
 
   it('passes setMotion("reduced") when prefers-reduced-motion matches', async () => {
