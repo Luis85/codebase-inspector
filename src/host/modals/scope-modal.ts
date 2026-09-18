@@ -47,19 +47,43 @@ class ScopeModal extends Modal {
   private ackEl!: HTMLInputElement;
   private scanBtn!: HTMLButtonElement;
   private settled = false;
+  // Fix round 2, Item 1 (Critical): NOT a field named `selection`, and not merely
+  // renamed either -- this is the confirm-scan CLICK HANDLER ITSELF, created here in
+  // the constructor so it closes over `profileId` as a true lexical local that never
+  // lives on `this` at all. Confirmed against the shipped 1.12.4 obsidian.asar:
+  // `Modal`'s own constructor sets `this.selection = null`, and `Modal.prototype.open`
+  // OVERWRITES `this.selection` again with a captured DOM-selection descriptor
+  // immediately before calling `this.onOpen()` -- every time the modal opens, every
+  // time, regardless of subclass. A `private readonly selection: SourceSelection`
+  // field on THIS class (the shipped code, before this fix) was silently clobbered
+  // between construction and the moment onOpen() wires up its own handlers, so
+  // `this.selection.profile.profileId` inside the click handler read `undefined.profileId`
+  // off Obsidian's own selection-descriptor object -- exactly the checkpoint #2 crash.
+  // A same-day rename to some other field name only defends against TODAY's exact
+  // collision; capturing the value in true closure scope, never as a `this.<name>` at
+  // all, defends against ANY future Obsidian version adding some other internal field
+  // under some other name too, which is why this is a handler-as-closure, not a
+  // second differently-spelled field.
+  private readonly handleConfirmScan: () => void;
 
   constructor(
     app: App,
-    private readonly selection: SourceSelection,
+    sourceSelection: SourceSelection,
     private readonly settle: (result: ScopeApproval | null) => void,
     private readonly opener: HTMLElement | null,
   ) {
     super(app);
     this.analysisScope = {
-      rootPath: selection.resolvedRoot,
-      exclusions: selection.profile.exclusions,
-      maxFileBytes: selection.profile.maxFileBytes,
+      rootPath: sourceSelection.resolvedRoot,
+      exclusions: sourceSelection.profile.exclusions,
+      maxFileBytes: sourceSelection.profile.maxFileBytes,
       followSymlinks: false,
+    };
+    const profileId = sourceSelection.profile.profileId;   // a true lexical local, not `this.*`
+    this.handleConfirmScan = () => {
+      const approval = approve(profileId, this.analysisScope.rootPath, this.analysisScope, SYSTEM_CLOCK);
+      this.finish({ approval, scope: this.analysisScope });
+      this.close();
     };
   }
 
@@ -98,11 +122,7 @@ class ScopeModal extends Modal {
       text: COPY_07, attr: { type: 'button', 'data-action': 'confirm-scan' },
     });
     this.scanBtn.disabled = true;
-    this.scanBtn.addEventListener('click', () => {
-      const approval = approve(this.selection.profile.profileId, this.analysisScope.rootPath, this.analysisScope, SYSTEM_CLOCK);
-      this.finish({ approval, scope: this.analysisScope });
-      this.close();
-    });
+    this.scanBtn.addEventListener('click', this.handleConfirmScan);
 
     // See source-modal.ts's identical comment: this double gets no free focus trap,
     // so the modal moves focus onto itself explicitly.

@@ -220,6 +220,19 @@ export class Modal {
   modalEl: HTMLElement;
   titleEl: HTMLElement;
   contentEl: HTMLElement;
+  shouldRestoreSelection = true;
+  /** Fix round 2, Item 1: undocumented in obsidian.d.ts but REAL -- confirmed against
+   *  the shipped 1.12.4 obsidian.asar's own `Modal.prototype.open`, which reads:
+   *  `this.shouldRestoreSelection ? this.selection = <captured DOM selection
+   *  descriptor> : this.selection = null` immediately before calling `this.onOpen()`.
+   *  A Modal subclass with its OWN field also named `selection` (scope-modal.ts had
+   *  exactly this) has that field silently overwritten before its own onOpen() ever
+   *  runs -- this is what crashed checkpoint #2's very first real scan
+   *  ("Cannot read properties of undefined (reading 'profileId')"). Modelling it here
+   *  is what makes the hazard reproducible under test at all: without this line, no
+   *  test at any level could have caught the real crash, because nothing in this file
+   *  previously touched `this.selection`. */
+  selection: unknown = null;
 
   constructor(app: unknown) {
     this.app = app;
@@ -232,6 +245,9 @@ export class Modal {
 
   open(): void {
     document.body.appendChild(this.containerEl);
+    // Mirrors the real Modal.prototype.open() exactly: (re-)assigned immediately
+    // before onOpen(), never after.
+    this.selection = this.shouldRestoreSelection ? { win: null, range: null, focusEl: null } : null;
     void this.onOpen();
   }
 

@@ -94,10 +94,26 @@ describe('onload', () => {
     expect(p.app.vault.adapter.list).not.toHaveBeenCalled();
   });
 
-  it('defers startup work to onLayoutReady and first-enable opening to onUserEnable', () => {
+  it('defers startup work to onLayoutReady', () => {
     const p = makePluginDouble();
     p.onload();
     expect(p.app.workspace.onLayoutReady).toHaveBeenCalled();
+  });
+
+  // Fix round 2, Item 2: a USER DIRECTIVE ("when activating the plugin, it should not
+  // open the plugin"), not a defect -- see the comment in src/main.ts for the full
+  // history (spec 4.4 originally called for this, reported to the user at checkpoint #1
+  // as a named deviation they could ask to change; they have). This test REPLACES one
+  // whose NAME claimed "first-enable opening to onUserEnable" but never actually called
+  // onUserEnable() or asserted anything about it -- a vacuous assertion in the same
+  // category this plan's reviews have repeatedly flagged. Rewritten to deliberately test
+  // the opposite, real behaviour, rather than silently dropped.
+  it('does NOT open a city tab when the plugin is enabled (user directive)', () => {
+    const p = makePluginDouble();
+    p.onload();
+    p.onUserEnable();
+    expect(p.app.workspace.getLeaf).not.toHaveBeenCalled();
+    expect(p.app.workspace.revealLeaf).not.toHaveBeenCalled();
   });
 
   it('never detaches leaves in onunload', () => {

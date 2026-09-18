@@ -50,10 +50,15 @@ export default class CodebaseInspectorPlugin extends Plugin {
     });
   }
 
-  // First-enable view opening only. Never on every load.
-  override onUserEnable(): void {
-    void openCity(this);
-  }
+  // Fix round 2, Item 2: a USER DIRECTIVE, not a defect and not this session's own
+  // ruling -- "when activating the plugin, it should not open the plugin," verbatim.
+  // Spec 4.4 says "first-enable view opening uses onUserEnable()," and at checkpoint #1
+  // that auto-open was reported to the user as spec-mandated, with the auto-open itself
+  // named explicitly as a §4.4 deviation the user could ask to change. They have now
+  // asked. Only the user may change a §4 rule, and this is that change -- there is
+  // deliberately NO onUserEnable() override any more. The ribbon icon and the
+  // `open-city` command remain the ways to open a city tab; do not "restore" this as a
+  // regression without a new instruction from the user reversing the directive.
 
   // Typed void and never awaited. Teardown is synchronous and idempotent.
   // NEVER detachLeavesOfType here (spec 4.4).
