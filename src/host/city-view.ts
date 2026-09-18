@@ -27,7 +27,7 @@ import { CANCELLED_BANNER } from '../application/run-state';
 import { resolveOrCreateProfile, runInitialScan, runRefresh } from './scan-flow';
 import type { CityRendererEvent, CityRendererPort } from '../visualization/renderer-port';
 import type { ScanLifecycleState } from '../application/run-state';
-import type { CodebaseSnapshot, CityViewState } from '../domain/model';
+import type { CodebaseSnapshot, CityViewState, CodebaseProfile } from '../domain/model';
 import type { ProfileStore } from '../application/ports/profile-store';
 import type { SourceFileSystemPort } from '../application/ports/source-filesystem-port';
 import type { SnapshotStore } from '../application/ports/snapshot-store';
@@ -104,16 +104,24 @@ export class CityView extends ItemView {
   override getDisplayText(): string { return 'Codebase city'; }
   override getIcon(): string { return 'building-2'; }
 
-  /** `scan-codebase` (no snapshot: the full consent chain; a snapshot present: a silent
-   *  refresh against the stored scope, keeping the previous city visible) and the
-   *  welcome shell's "Select a codebase" button both call this one method. A no-op
-   *  while a run is already in flight, never throws. */
+  /** `scan-codebase`'s own behaviour (spec 5: "scan-codebase doubles as refresh") --
+   *  refreshes silently against the stored scope when a snapshot already exists, else
+   *  runs the full consent chain. A no-op while a run is already in flight, never
+   *  throws.
+   *
+   *  Ruling M46 (fix round 3, Important): this is now DELIBERATELY distinct from
+   *  `selectCodebase()` below, which the welcome shell's "Select a codebase" button
+   *  calls. Before this fix both were the same method, so once a snapshot existed the
+   *  button silently re-ran the SAME scope with no modal — indistinguishable from doing
+   *  nothing, and re-selecting a different codebase became unreachable. Spec §5's
+   *  "doubles as refresh" attaches to the `scan-codebase` COMMAND specifically, not to
+   *  COPY-02's source-selection action — they are two different user intentions task 8
+   *  originally collapsed into one. Chose two separate methods over a boolean
+   *  parameter: a `forceFullChain` flag would let a caller silently pick the wrong one
+   *  by accident, where two names make the intention explicit at every call site
+   *  (commands.ts vs. App.vue's injected callback). */
   async startScan(): Promise<void> {
-    if (this.startingScan) return;
-    if (this.coordinator.state.status === 'running' || this.coordinator.state.status === 'cancelling') return;
-    this.startingScan = true;
-    try {
-      const profile = await resolveOrCreateProfile(this.deps.profileStore, this.state.profileId);
+    await this.withScanGuard(async (profile) => {
       if (this.state.snapshotId) {
         const existing = this.deps.snapshotStore.get(this.state.snapshotId);
         if (existing) {
@@ -124,6 +132,32 @@ export class CityView extends ItemView {
         // fall through to a full consent chain rather than "refreshing" against nothing.
       }
       await runInitialScan(this.plugin.app, this.coordinator, profile, this.deps.getFilesystem());
+    });
+  }
+
+  /** Ruling M46: "Select a codebase" (COPY-02, App.vue) ALWAYS opens the source modal
+   *  and runs the full consent chain, whether or not a snapshot already exists —
+   *  re-selecting a different codebase must stay reachable. See `startScan()`'s own
+   *  comment for why this is a second method rather than a flag. */
+  async selectCodebase(): Promise<void> {
+    await this.withScanGuard((profile) => runInitialScan(this.plugin.app, this.coordinator, profile, this.deps.getFilesystem()));
+  }
+
+  /** Shared guard for both entry points above: refuses to start while `this.coordinator`
+   *  is already running/cancelling OR another call is still resolving a profile/showing
+   *  a modal (fix round 1, Minor 6 -- `coordinator.state.status` alone stays 'idle' for
+   *  the whole time either modal is open, so two fast clicks across EITHER method must
+   *  share one in-flight flag, not one per method). Resolves the profile once, then
+   *  hands it to `body`. */
+  private async withScanGuard(body: (profile: CodebaseProfile) => Promise<void>): Promise<void> {
+    if (this.startingScan) return;
+    if (this.coordinator.state.status === 'running' || this.coordinator.state.status === 'cancelling') return;
+    this.startingScan = true;
+    try {
+      const profile = await resolveOrCreateProfile(
+        this.deps.profileStore, this.state.profileId, this.plugin.app.vault.configDir,
+      );
+      await body(profile);
     } finally {
       this.startingScan = false;
     }
@@ -152,7 +186,7 @@ export class CityView extends ItemView {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- see comment above: vue-tsc, not eslint's type-aware linting, is the accurate check here
     this.vueApp = createApp(RootComponent);
     this.vueApp.provide('rendererAvailable', this.rendererAvailable);
-    this.vueApp.provide('onSelectCodebase', () => { void this.startScan(); });
+    this.vueApp.provide('onSelectCodebase', () => { void this.selectCodebase(); });
     this.vueApp.use(this.pinia);
     const instance = this.vueApp.mount(this.contentEl) as unknown as ExposedRoot;
     this.rendererMountEl = instance.rendererHost;

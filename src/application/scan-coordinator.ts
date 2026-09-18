@@ -9,7 +9,7 @@ import {
 } from './run-state';
 import type { RunAction, RunIdentity, ScanLifecycleState } from './run-state';
 import type { AnalysisScope, ApprovedInventoryRun, CodebaseSnapshot, InventoryRunState } from '../domain/model';
-import type { SourceFileSystemPort } from './ports/source-filesystem-port';
+import type { SourceFileSystemPort, WalkEntry } from './ports/source-filesystem-port';
 import type { CancellationToken } from './ports/cancellation-token';
 import type { Clock } from './ports/clock';
 import type { SnapshotStore } from './ports/snapshot-store';
@@ -230,20 +230,30 @@ export class ScanCoordinator {
     for (const listener of this.listeners) listener(this.lifecycle);
   }
 
-  /** Wraps `readText` only: `collectInventory` calls it exactly once per KEPT file (spec
-   *  5.2's "Reading included files" -- files excluded or skipped during the walk are
-   *  never read at all), so counting these calls is exactly "files read so far", never
-   *  a fabricated percentage (there is no total here to divide by). */
+  /** Wraps `walk` only. Fix round 3, ruling M45: the walk itself now does the only read
+   *  a kept file gets (collectInventory no longer calls `readText()` a second time per
+   *  file — see inventory-collector.ts), so counting readText calls would count zero
+   *  forever. Counts each `kind: 'file'` entry the walk yields instead — exactly one per
+   *  KEPT file (spec 5.2's "Reading included files"; excluded or skipped entries never
+   *  reach this count), so this is still exactly "files read so far", never a fabricated
+   *  percentage (there is no total here to divide by). */
   private progressTrackingPort(runId: string): SourceFileSystemPort {
     const port = this.deps.port;
     let processed = 0;
     return {
       ...port,
-      readText: async (absPath: string, maxBytes: number) => {
-        const result = await port.readText(absPath, maxBytes);
-        processed += 1;
-        this.dispatch({ type: 'PROGRESS', runId, processedFiles: processed });
-        return result;
+      walk: (root, opts, token) => {
+        const dispatch = (n: number): void => { this.dispatch({ type: 'PROGRESS', runId, processedFiles: n }); };
+        async function* wrapped(): AsyncGenerator<WalkEntry> {
+          for await (const entry of port.walk(root, opts, token)) {
+            if (entry.kind === 'file') {
+              processed += 1;
+              dispatch(processed);
+            }
+            yield entry;
+          }
+        }
+        return wrapped();
       },
     };
   }

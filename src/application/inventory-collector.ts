@@ -153,7 +153,13 @@ export async function collectInventory(
     exclusions: scope.exclusions, maxFileBytes: scope.maxFileBytes, followSymlinks: scope.followSymlinks,
   };
 
-  const keptFiles: { path: string; absolutePath: string }[] = [];
+  // Fix round 3, ruling M45: the walk already read and decoded this file's content
+  // (that is WHY it is `kind: 'file'` rather than `kind: 'skipped'` — a file the walk
+  // could not read or decode never reaches here at all) -- `text`/`bytes` are carried
+  // straight off the WalkEntry now, so the loop below never calls port.readText() a
+  // second time for the same bytes. Halves this scan's file I/O; see task-8 fix round 3
+  // report for the measured effect on a real vault.
+  const keptFiles: { path: string; absolutePath: string; text: string; bytes: Uint8Array }[] = [];
   // Fix-round-1 MINOR finding 7: `wasDirectory` distinguishes a skipped DIRECTORY (an
   // unreadable directory, or one sitting at the walk's maxDepth limit) from a skipped
   // FILE (symlink, oversized, binary, unreadable file). Before this fix, every 'skipped'
@@ -166,7 +172,9 @@ export async function collectInventory(
     for await (const entry of port.walk(scope.rootPath, walkOpts, token)) {
       checkCancelled(token);
       if (entry.kind === 'file') {
-        keptFiles.push({ path: entry.relativePath, absolutePath: entry.absolutePath });
+        keptFiles.push({
+          path: entry.relativePath, absolutePath: entry.absolutePath, text: entry.text, bytes: entry.bytes,
+        });
       } else if (entry.kind === 'skipped') {
         skipped.push({ path: entry.relativePath, reason: entry.reason, wasDirectory: entry.wasDirectory ?? false });
       }
@@ -190,29 +198,23 @@ export async function collectInventory(
   const warningReasons = new Set<string>();
 
   for (const file of keptFiles) {
-    // Fix-round-1 CRITICAL finding 1: this read/measure phase is unbounded I/O — half of
-    // everything collectInventory does — and had NO cancellation check at all after the
-    // walk loop finished. A cancellation fired during this phase (a real scenario: the
-    // walk can finish quickly while reading hundreds of files' content takes seconds)
-    // was silently ignored, and the function resolved with a full, valid, publishable
-    // snapshot instead of rejecting (ruling M21). Checked at the TOP of each iteration,
-    // before starting that file's readText() call, so a cancellation noticed here stops
-    // the loop before reading one more file, not just before returning at the very end.
+    // Fix-round-1 CRITICAL finding 1 (still applies): this loop is bounded, in-memory
+    // work now — no I/O of its own left to wait on, since fix round 3 (ruling M45)
+    // moved the only read into the walk above. Still checked every iteration, because a
+    // cancellation landing between the walk finishing and this loop finishing must not
+    // silently resolve with a full, publishable snapshot (ruling M21).
     checkCancelled(token);
     const entity = buildFileEntity(repositoryId, file.path, directories, repositoryEntity);
     entities.push(entity);
-    const read = await port.readText(file.absolutePath, scope.maxFileBytes);
-    if (read.status === 'ok') {
-      // byteSize(read.bytes), not the walk's own stat-reported file.byteSize: the byte
-      // count for a MEASURED file is derived through the domain's own metric function
-      // (task 2) applied to the bytes actually read, not trusted as a number an adapter
-      // merely reports (the two agree for any successful read; this is which one the
-      // domain layer is authoritative for).
-      observations.push(...measuredObservations(entity.id, read.text, byteSize(read.bytes)));
-    } else {
-      observations.push(...unavailableObservations(entity.id, read.reason));
-      warningReasons.add(read.reason);
-    }
+    // byteSize(file.bytes), not the walk's own stat-reported byteSize: the byte count
+    // for a MEASURED file is derived through the domain's own metric function (task 2)
+    // applied to the bytes actually read, not trusted as a number an adapter merely
+    // reports (the two agree for any successful read; this is which one the domain
+    // layer is authoritative for). This can never reach an `unavailable` branch: only a
+    // file the walk already successfully decoded as text produces a `kind: 'file'`
+    // entry at all — a file it could not read or decode is already `kind: 'skipped'`,
+    // handled below.
+    observations.push(...measuredObservations(entity.id, file.text, byteSize(file.bytes)));
   }
   for (const entry of skipped) {
     warningReasons.add(entry.reason);
@@ -230,9 +232,9 @@ export async function collectInventory(
     observations.push(...unavailableObservations(entity.id, entry.reason));
   }
 
-  // Checked once more, after every read/measure is done and before anything is built:
-  // a cancellation that lands after the LAST readText() call (in the gap before this
-  // point) is otherwise invisible to every check above.
+  // Checked once more, after every observation is built and before the snapshot is
+  // assembled: a cancellation that lands in the gap before this point is otherwise
+  // invisible to every check above.
   checkCancelled(token);
 
   const completedAt = clock.nowIso();

@@ -100,10 +100,11 @@ export function createNodeSourceFileSystem(deps: NodeSourceFileSystemDeps = {}):
     joinPath: (base, name) => path.join(base, name),
     readdirNames: (absPath) => fsp.readdir(absPath),
     lstat: (absPath) => fsp.lstat(absPath),
-    readAsText: async (absPath): Promise<ReadTextOutcome> => {
-      const outcome = await readRawText(absPath);
-      return outcome.ok ? { ok: true, text: outcome.text } : outcome;
-    },
+    // Fix round 3, ruling M45: DecodedText and ReadTextOutcome are now the identical
+    // shape ({ok:true, text, bytes} | {ok:false, reason}) -- `outcome` needs no
+    // reshaping at all, so both fields the walk's own read produced travel forward
+    // onto the WalkEntry, not just `text`.
+    readAsText: (absPath): Promise<ReadTextOutcome> => readRawText(absPath),
   };
 
   async function readText(absPath: string, maxBytes: number): Promise<ReadResult> {

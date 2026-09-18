@@ -72,7 +72,9 @@ vi.mock('../../src/visualization/city-renderer', () => ({
 // Imported AFTER vi.mock so this binding is the mocked, spy-wrapped function.
 const { createCityRenderer: createRendererSpy } = await import('../../src/visualization/city-renderer');
 
-function makePluginDouble(): { app: { workspace: Record<string, ReturnType<typeof vi.fn>>; vault: { adapter: Record<string, ReturnType<typeof vi.fn>> } } } {
+function makePluginDouble(): {
+  app: { workspace: Record<string, ReturnType<typeof vi.fn>>; vault: { adapter: Record<string, ReturnType<typeof vi.fn>>; configDir: string } };
+} {
   return {
     app: {
       workspace: {
@@ -83,7 +85,10 @@ function makePluginDouble(): { app: { workspace: Record<string, ReturnType<typeo
         on: vi.fn(() => ({})),
         offref: vi.fn(),
       },
-      vault: { adapter: { read: vi.fn(), list: vi.fn() } },
+      // The REAL vault.configDir, never a literal '.obsidian' in production (ruling
+      // M44) -- this double still names it '.obsidian' because that IS this fake
+      // vault's real config directory name, exactly as a real Obsidian App would report.
+      vault: { adapter: { read: vi.fn(), list: vi.fn() }, configDir: '.obsidian' },
     },
   };
 }
@@ -220,7 +225,7 @@ describe('CityView', () => {
     expect(getFilesystem).toHaveBeenCalledTimes(1);
   });
 
-  it('clicking "Select a codebase" runs the consent chain, the same one scan-codebase drives', async () => {
+  it('clicking "Select a codebase" runs the full consent chain (selectCodebase, not startScan)', async () => {
     const deps = makeDepsDouble({ profileStore: makeProfileStoreDouble([
       { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 },
     ]) });
@@ -229,7 +234,7 @@ describe('CityView', () => {
 
     const button = view.contentEl.querySelector<HTMLButtonElement>('.ci-welcome__action')!;
     button.click();
-    // startScan() is async; let it reach the point of opening the first modal.
+    // selectCodebase() is async; let it reach the point of opening the first modal.
     await Promise.resolve();
     await Promise.resolve();
 
@@ -242,6 +247,59 @@ describe('CityView', () => {
     modal!.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
     await Promise.resolve();
     document.querySelectorAll('.modal-container').forEach((el) => { el.remove(); });
+  });
+
+  // Ruling M46 (fix round 3, Important): "Select a codebase" and scan-codebase's own
+  // refresh-when-a-snapshot-exists behaviour are now two DIFFERENT methods
+  // (selectCodebase vs startScan) sharing one guard, specifically so the button never
+  // becomes a silent no-op once a snapshot exists.
+  describe('selectCodebase vs startScan (ruling M46)', () => {
+    function depsWithSnapshot(): { deps: CityViewDeps; snapshotStore: InMemorySnapshotStore } {
+      const snapshotStore = new InMemorySnapshotStore(createFixedClock());
+      snapshotStore.put(publishedSnapshot());
+      const { port } = createFakeSourceFileSystem({});
+      const profileStore = makeProfileStoreDouble([
+        { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 },
+      ]);
+      return { deps: { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock() }, snapshotStore };
+    }
+
+    async function viewWithSnapshot(deps: CityViewDeps): Promise<CityView> {
+      const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
+      await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1' }, {} as never);
+      await view.onOpen();
+      return view;
+    }
+
+    it('"Select a codebase" ALWAYS opens the modal, even with a snapshot already present', async () => {
+      const { deps } = depsWithSnapshot();
+      const view = await viewWithSnapshot(deps);
+
+      // App.vue is still task 3's welcome-only shell (task 9 builds the real C01 shell
+      // with its own "Select a codebase" affordance once a city is showing) -- calling
+      // selectCodebase() directly is exactly what that future affordance's click
+      // handler will do, and is what App.vue's OWN button already calls today.
+      const selectPromise = view.selectCodebase();
+      await Promise.resolve(); await Promise.resolve();
+
+      const modal = document.querySelector('.modal-container');
+      expect(modal).not.toBeNull();
+      expect(modal!.textContent).toContain('Select a codebase');
+      modal!.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
+      await selectPromise;
+    });
+
+    it('scan-codebase\'s startScan() still refreshes silently, with NO modal, when a snapshot exists', async () => {
+      const { deps, snapshotStore } = depsWithSnapshot();
+      const view = await viewWithSnapshot(deps);
+
+      const runPromise = view.startScan();
+      await waitUntilRunning(view);
+      expect(document.querySelector('.modal-container')).toBeNull();
+      await runPromise;
+      // A real refresh happened -- a NEW snapshot was published, not the modal chain.
+      expect(snapshotStore.latestFor('p1')?.snapshotId).not.toBe('s1');
+    });
   });
 
   it('isScanRunning() reflects the coordinator, not a separate flag', () => {

@@ -17,8 +17,17 @@ import type { CancellationToken } from './cancellation-token';
 // thing" (the only case that existed before this fix), so every pre-existing producer
 // and consumer of a 'skipped' entry that never sets or reads this field keeps working
 // unchanged.
+//
+// `text`/`bytes` on the 'file' variant (fix round 3, ruling M45) are ADDITIVE too, and
+// are why 'file' and 'directory' are now split into separate members instead of sharing
+// one shape: the walk already reads and decodes a kept file's content to classify it
+// (binary vs UTF-8 text) before it can even yield 'file' rather than 'skipped' — this
+// carries that already-done read forward so `collectInventory` never has to call
+// `readText()` a second time for the exact same bytes. A 'directory' entry has no
+// content to carry and keeps its original three fields.
 export type WalkEntry =
-  | { kind: 'file' | 'directory'; absolutePath: string; relativePath: string; byteSize: number }
+  | { kind: 'file'; absolutePath: string; relativePath: string; byteSize: number; text: string; bytes: Uint8Array }
+  | { kind: 'directory'; absolutePath: string; relativePath: string; byteSize: number }
   | { kind: 'skipped'; relativePath: string; reason: string; wasDirectory?: boolean };
 
 /** The scan's tunable inputs, everything `walk` needs besides the root itself (the root

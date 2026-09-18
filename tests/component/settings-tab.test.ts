@@ -29,13 +29,18 @@ async function makeTab(
   profiles: readonly CodebaseProfile[],
   bindings: readonly LocalBinding[] = [],
   filesystem: SourceFileSystemPort = createFakeSourceFileSystem({}).port,
+  // Fix round 3 (ruling M44): defaults to '{}' exactly as before -- every EXISTING test
+  // only ever drives the source modal's 'external' mode (never touches app.vault at
+  // all), so this stays a no-op override for them. The new "Add profile" test below
+  // supplies a real vault.configDir instead.
+  app: App = {} as unknown as App,
 ) {
   const profileHarness = createFakeProfileStoreHarness();
   const bindingHarness = createFakeBindingStoreHarness();
   for (const p of profiles) await profileHarness.store.save(p);
   for (const b of bindings) await bindingHarness.store.save(b);
   const tab = new CodebaseInspectorSettingTab(
-    {} as unknown as App, {} as unknown as Plugin, profileHarness.store, bindingHarness.store, () => filesystem);
+    app, {} as unknown as Plugin, profileHarness.store, bindingHarness.store, () => filesystem);
   await tab.refresh();
   return { tab, profileStore: profileHarness.store, bindingStore: bindingHarness.store };
 }
@@ -367,6 +372,24 @@ describe('settings tab', () => {
     await tab.waitForPendingUpdates();
     // Blank/whitespace-only lines are dropped, matching parseExclusions.
     expect((await profileStore.get('p1'))!.exclusions).toEqual(['dist', 'node_modules']);
+  });
+
+  // Fix round 3, ruling M44 (Critical): "Add profile" must use the SAME default
+  // exclusions scan-flow.ts's resolveOrCreateProfile uses, so the two paths cannot
+  // drift apart -- driven through the REAL settings-tab wiring (the list's addItem
+  // action), with a real vault.configDir supplied, never a literal '.obsidian'.
+  it('"Add profile" creates a profile with the M44 default exclusions, using the real vault.configDir', async () => {
+    const app = { vault: { configDir: '.my-vault-config' } } as unknown as App;
+    const { tab, profileStore } = await makeTab([], [], undefined, app);
+    const [list] = tab.getSettingDefinitions() as [SettingDefinitionList];
+    const affordanceEl = newContainer();
+    list.addItem!.action(affordanceEl);
+
+    for (let i = 0; i < 50 && (await profileStore.list()).length < 1; i += 1) await Promise.resolve();
+    const profiles = await profileStore.list();
+    expect(profiles).toHaveLength(1);
+    expect(profiles[0]!.exclusions).toEqual(['.git', 'node_modules', '.my-vault-config']);
+    expect(profiles[0]!.name).toBe('New profile');
   });
 
   it('edits maxFileBytes through the settings-tab wiring', async () => {

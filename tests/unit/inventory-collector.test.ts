@@ -98,34 +98,45 @@ describe('collectInventory', () => {
     await expect(collectInventory(port, SCOPE, APPROVAL, token, clock)).rejects.toBeInstanceOf(CancellationError);
   });
 
-  // CRITICAL fix-round-1 finding 1: a cancellation fired AFTER the walk completes, during
-  // the read/measure phase, must still reject and must stop reading further files — the
-  // committed code only ever checked cancellation before the walk, on every walk entry,
-  // and once right after the walk loop, never again during the per-file readText() loop
-  // that follows. This test cancels from INSIDE the very first readText() call (i.e.
-  // after the walk has already produced all four kept files), matching exactly how the
-  // reviewer reproduced the defect.
-  it('rejects and stops reading further files when cancelled during the read phase', async () => {
+  // CRITICAL fix-round-1 finding 1, RESTRUCTURED at fix round 3 (ruling M45): this used
+  // to cancel from inside a SEPARATE per-file readText() loop that ran after the walk
+  // finished. That second loop no longer exists — the walk itself now does the only read
+  // a kept file gets (see inventory-collector.ts), so there is nothing left to wrap by
+  // wrapping readText(); cancelling that way would never fire at all, since collectInventory
+  // never calls it. The underlying invariant this test protects — a cancellation noticed
+  // while files are still being read must stop the scan promptly, not resolve with a full,
+  // publishable snapshot (ruling M21) — is unchanged and, if anything, now enforced
+  // earlier: reading happens INSIDE the already cancellation-checked walk loop, so this
+  // cancels from inside the walk's own iteration instead, after the FIRST kept file has
+  // already been yielded (and therefore already read).
+  it('rejects and stops reading further files when cancelled during the walk (which now does the only read)', async () => {
     const { port, clock } = setUp({
       'a.ts': 'a\n', 'b.ts': 'b\n', 'c.ts': 'c\n', 'd.ts': 'd\n',
     });
     const { token, cancel } = createCancellationToken();
-    let readCalls = 0;
+    let filesYielded = 0;
     const wrappedPort: SourceFileSystemPort = {
       ...port,
-      readText: async (absPath, maxBytes) => {
-        readCalls += 1;
-        if (readCalls === 1) cancel();   // fires only once the walk itself has finished
-        return port.readText(absPath, maxBytes);
-      },
+      walk: (root, opts, walkToken) => ({
+        async *[Symbol.asyncIterator]() {
+          for await (const entry of port.walk(root, opts, walkToken)) {
+            if (entry.kind === 'file') {
+              filesYielded += 1;
+              if (filesYielded === 1) cancel();   // fires once the first kept file is read
+            }
+            yield entry;
+          }
+        },
+      }),
     };
 
     await expect(collectInventory(wrappedPort, SCOPE, APPROVAL, token, clock))
       .rejects.toBeInstanceOf(CancellationError);
-    // Stopped promptly: only the FIRST file's content was ever read — the loop noticed
-    // the cancellation before starting a second readText() call, not after reading all
-    // four kept files (which is what the uncancelled path would have done).
-    expect(readCalls).toBe(1);
+    // Stopped promptly: only the FIRST file was ever read — the walk noticed the
+    // cancellation (checked at the top of its own per-entry loop) before processing a
+    // second entry, not after reading all four kept files (which is what the
+    // uncancelled path would have done).
+    expect(filesYielded).toBe(1);
   });
 
   // Fix-round-1 MINOR finding 8: a genuine walk failure (spec 7's "a failed run") must

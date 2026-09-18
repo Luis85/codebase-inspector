@@ -4,6 +4,7 @@
 // that would pass against an empty log proves nothing).
 import { afterEach, describe, expect, it } from 'vitest';
 import { collectInventory } from '../../src/application/inventory-collector';
+import { defaultExclusionsFor } from '../../src/host/scan-flow';
 import { createRealNodePort } from '../fixtures/real-node-port';
 import { createCancellationToken } from '../fixtures/cancellation-token';
 import { createFixedClock } from '../fixtures/clock';
@@ -38,6 +39,27 @@ async function scan(spec: TempTreeSpec, exclusions: readonly string[]): Promise<
 }
 
 describe('read-log proof', () => {
+  // Fix round 3, ruling M44 (Critical): task 5's own read-log proof (below) always
+  // passed exclusions explicitly, so it never covered what a NEW profile actually
+  // excludes with none of that spelled out by hand -- which is exactly the gap that
+  // let "0 files found" (an unbounded scan reading .git, node_modules and the vault
+  // config directory) ship. This applies the same technique to `defaultExclusionsFor`
+  // itself, not a hand-picked list, over a real temporary tree.
+  it('excludes .git, node_modules and the vault config directory by DEFAULT -- the same defaults a newly created profile actually carries', async () => {
+    const log = await scan({
+      'src/a.ts': 'export const a = 1;\n',
+      '.git/config': '[core]\n',
+      'node_modules/pkg/index.js': 'module.exports = {};\n',
+      '.obsidian/workspace.json': '{}',
+    }, defaultExclusionsFor('.obsidian'));
+
+    expect(log.some((p) => p.includes('.git'))).toBe(false);
+    expect(log.some((p) => p.includes('node_modules'))).toBe(false);
+    expect(log.some((p) => p.includes('.obsidian'))).toBe(false);
+    // Positive control: the log is real, not vacuously empty.
+    expect(log.some((p) => p.replace(/\\/g, '/').endsWith('src/a.ts'))).toBe(true);
+  });
+
   it('never reads an excluded path, proving absence of a read', async () => {
     const log = await scan({
       'src/a.ts': 'export const a = 1;\n',

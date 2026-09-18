@@ -67,7 +67,7 @@ describe('bounded walk: depth and entry-count limits', () => {
         isFile: () => absPath === '/root/kept.ts',
         isSymbolicLink: () => false,
       }),
-      readAsText: () => Promise.resolve({ ok: true, text: 'x\n' }),
+      readAsText: () => Promise.resolve({ ok: true, text: 'x\n', bytes: new TextEncoder().encode('x\n') }),
     };
     const opts: WalkOptions = { exclusions: [], maxFileBytes: 1000, followSymlinks: false };
     const entries: WalkEntry[] = [];
@@ -180,7 +180,7 @@ describe('containment actually intercepts an escaping entry name (fix-round-1 fi
       lstat: () => Promise.resolve({
         size: 10, isDirectory: () => false, isFile: () => true, isSymbolicLink: () => false,
       }),
-      readAsText: () => Promise.resolve({ ok: true, text: 'escaped content' }),
+      readAsText: () => Promise.resolve({ ok: true, text: 'escaped content', bytes: new TextEncoder().encode('escaped content') }),
     };
     const opts: WalkOptions = { exclusions: [], maxFileBytes: 1000, followSymlinks: false };
     const entries: WalkEntry[] = [];
@@ -220,7 +220,7 @@ function treeWithMixedCaseConfigDir(): WalkerDeps {
       isFile: () => files.has(absPath),
       isSymbolicLink: () => false,
     }),
-    readAsText: () => Promise.resolve({ ok: true, text: 'x\n' }),
+    readAsText: () => Promise.resolve({ ok: true, text: 'x\n', bytes: new TextEncoder().encode('x\n') }),
   };
 }
 

@@ -15,11 +15,42 @@ import type { AnalysisScope, CodebaseProfile } from '../domain/model';
 
 const DEFAULT_MAX_FILE_BYTES = 5_000_000;
 
+/** Ruling M44 (fix round 3, Critical): a new profile is NEVER exclusion-less. Measured
+ *  root cause of "0 files found" in the real host: an empty-exclusions profile scanning
+ *  a vault-as-codebase reads `.git`, `node_modules`, the vault config directory and
+ *  every plugin's `data.json` -- spec §6's secrets gate names the first and third of
+ *  those explicitly ("When the vault is the codebase this covers vault.configDir, other
+ *  plugins' data.json, and .git"). `node_modules` is the single largest source of files
+ *  that are not the user's own codebase, and its omission is what made the scan
+ *  effectively non-terminating (measured: ~163,854 files on the dev vault). Every
+ *  exclusion here is one the scope modal shows in an editable field BEFORE the user
+ *  approves the scan (spec 7) -- the user sees and consents to exactly what is skipped,
+ *  which is the whole point of that screen; nothing here is hidden.
+ *
+ *  `vaultConfigDir` is supplied by the CALLER, never discovered here: this file is not
+ *  under `src/adapters/**`, but `hardcoded-config-path` is a protected rule regardless,
+ *  and the one real host call site (CityView) already has `app.vault.configDir` --
+ *  passing it down keeps this function testable with a plain string and keeps it, and
+ *  settings-tab.ts's "Add profile" (which uses the SAME function, so the two paths
+ *  cannot drift), from ever needing to reach `app` themselves. */
+export function defaultExclusionsFor(vaultConfigDir: string): string[] {
+  return ['.git', 'node_modules', vaultConfigDir];
+}
+
+/** The one place a default (exclusion-having) CodebaseProfile is constructed --
+ *  scan-flow.ts's own `resolveOrCreateProfile` and settings-tab.ts's "Add profile" both
+ *  call this, so the two paths cannot drift back apart (ruling M44's other half). */
+export function createDefaultProfile(vaultConfigDir: string): CodebaseProfile {
+  return {
+    profileId: crypto.randomUUID(), name: 'New profile', bindingId: null,
+    exclusions: defaultExclusionsFor(vaultConfigDir), maxFileBytes: DEFAULT_MAX_FILE_BYTES,
+  };
+}
+
 /** Resolves the profile a scan/refresh from THIS view should operate on: the profile
  *  already bound to `profileId` if one exists; else the first existing profile (WP-01's
  *  model is one profile per bound codebase root -- inventory-collector.ts's own comment
- *  makes the same assumption); else a freshly minted one, using the same defaults
- *  settings-tab.ts's "Add profile" uses.
+ *  makes the same assumption); else a freshly minted one via `createDefaultProfile`.
  *
  *  Open decision, stated explicitly: this auto-created profile is NOT given a
  *  LocalBinding (task 6/7's concern) -- its resolved root lives only in the
@@ -27,7 +58,7 @@ const DEFAULT_MAX_FILE_BYTES = 5_000_000;
  *  show it as unbound until a later task wires the two paths together; task 8's scope
  *  is the scan lifecycle, not profile/binding management. */
 export async function resolveOrCreateProfile(
-  profileStore: ProfileStore, profileId: string | null,
+  profileStore: ProfileStore, profileId: string | null, vaultConfigDir: string,
 ): Promise<CodebaseProfile> {
   if (profileId) {
     const existing = await profileStore.get(profileId);
@@ -35,10 +66,7 @@ export async function resolveOrCreateProfile(
   }
   const [first] = await profileStore.list();
   if (first) return first;
-  const created: CodebaseProfile = {
-    profileId: crypto.randomUUID(), name: 'New profile', bindingId: null,
-    exclusions: [], maxFileBytes: DEFAULT_MAX_FILE_BYTES,
-  };
+  const created = createDefaultProfile(vaultConfigDir);
   await profileStore.save(created);
   return created;
 }

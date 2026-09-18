@@ -15,6 +15,7 @@ import { buildSettingDefinitions } from './setting-definitions';
 import type { ProfileEntry } from './setting-definitions';
 import { ClearBindingModal } from './modals/clear-binding-modal';
 import { openSourceModal } from './modals/source-modal';
+import { createDefaultProfile } from './scan-flow';
 
 function parseExclusions(rawLines: string): string[] {
   return rawLines.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
@@ -89,10 +90,11 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
   }
 
   private async addProfile(): Promise<void> {
-    const profile: CodebaseProfile = {
-      profileId: crypto.randomUUID(), name: 'New profile', bindingId: null,
-      exclusions: [], maxFileBytes: 5_000_000,
-    };
+    // Ruling M44 (fix round 3): the SAME default-exclusions function scan-flow.ts's
+    // resolveOrCreateProfile uses, so this path and the auto-created-from-a-scan path
+    // cannot drift apart. `this.app.vault.configDir` is the real vault config directory
+    // -- never a literal '.obsidian' (hardcoded-config-path is a protected rule).
+    const profile = createDefaultProfile(this.app.vault.configDir);
     await this.profileStore.save(profile);
     await this.refresh();
     this.update();

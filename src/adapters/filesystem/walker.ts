@@ -17,7 +17,10 @@ export interface WalkerStats {
   isSymbolicLink(): boolean;
 }
 
-export type ReadTextOutcome = { ok: true; text: string } | { ok: false; reason: string };
+// `bytes` (fix round 3, ruling M45) travels alongside `text` so the walk's own
+// already-done read can be carried forward on the 'file' WalkEntry it produces, instead
+// of collectInventory calling readText() a second time for the same file.
+export type ReadTextOutcome = { ok: true; text: string; bytes: Uint8Array } | { ok: false; reason: string };
 
 /** The minimal filesystem surface the walk algorithm needs. Both implementations log
  *  every path they open themselves (via `onOpen`) rather than the walker doing it, so
@@ -233,5 +236,10 @@ async function* classifyEntry(
     yield { kind: 'skipped', relativePath: relPath, reason: read.reason };
     return;
   }
-  yield { kind: 'file', absolutePath: absPath, relativePath: relPath, byteSize: stat.size };
+  // Fix round 3, ruling M45: carries the read this call already did forward on the
+  // entry itself, so collectInventory never opens and re-reads the same file again.
+  yield {
+    kind: 'file', absolutePath: absPath, relativePath: relPath, byteSize: stat.size,
+    text: read.text, bytes: read.bytes,
+  };
 }
