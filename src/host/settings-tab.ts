@@ -5,12 +5,12 @@
 // obsidianmd/prefer-setting-definitions disable is used anywhere in this file: a real,
 // non-trivial getSettingDefinitions() already satisfies the rule (see the verification
 // document's answer to question C).
-import { PluginSettingTab } from 'obsidian';
+import { Notice, PluginSettingTab } from 'obsidian';
 import type { App, Plugin, SettingDefinitionItem } from 'obsidian';
 import type { ProfileStore } from '../application/ports/profile-store';
 import type { LocalBindingStore } from '../application/ports/local-binding-store';
 import type { CodebaseProfile } from '../domain/model';
-import { buildSettingDefinitions } from './setting-definitions';
+import { RECONNECT_NOT_AVAILABLE_TEXT, buildSettingDefinitions } from './setting-definitions';
 import type { ProfileEntry } from './setting-definitions';
 import { ClearBindingModal } from './modals/clear-binding-modal';
 
@@ -20,6 +20,12 @@ function parseExclusions(rawLines: string): string[] {
 
 export class CodebaseInspectorSettingTab extends PluginSettingTab {
   private entries: ProfileEntry[] = [];
+  // Fix round 1, Important 4: test-only convenience so a test that fires two
+  // overlapping edits (e.g. a rename and an exclusions change on the same profile)
+  // has a deterministic way to know both have settled, without depending on timing.
+  // Production code never reads this -- refresh()/update() already run at the end of
+  // every mutation below.
+  private pendingUpdates: Promise<void>[] = [];
 
   constructor(
     app: App,
@@ -47,16 +53,32 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     return buildSettingDefinitions(this.entries, {
       onAddProfile: () => { void this.addProfile(); },
       onDeleteProfile: (id) => { void this.deleteProfile(id); },
-      onRenameProfile: (id, name) => { void this.updateProfile(id, (p) => ({ ...p, name })); },
+      onRenameProfile: (id, name) => { this.trackUpdate(this.updateProfile(id, (p) => ({ ...p, name }))); },
       onExclusionsChange: (id, raw) => {
-        void this.updateProfile(id, (p) => ({ ...p, exclusions: parseExclusions(raw) }));
+        this.trackUpdate(this.updateProfile(id, (p) => ({ ...p, exclusions: parseExclusions(raw) })));
       },
       onMaxFileBytesChange: (id, raw) => {
-        void this.updateProfile(id, (p) => ({ ...p, maxFileBytes: Number(raw) }));
+        this.trackUpdate(this.updateProfile(id, (p) => ({ ...p, maxFileBytes: Number(raw) })));
       },
       onReconnect: (id) => { this.reconnect(id); },
       onClearBinding: (id) => { this.confirmClearBinding(id); },
     });
+  }
+
+  private trackUpdate(pending: Promise<void>): void {
+    this.pendingUpdates.push(pending);
+    void pending.finally(() => {
+      this.pendingUpdates = this.pendingUpdates.filter((p) => p !== pending);
+    });
+  }
+
+  /** Test-only: resolves once every update triggered so far (including any fired
+   *  after this call started, up until they all drain) has settled. See
+   *  `pendingUpdates`'s comment above for why production code never needs this. */
+  async waitForPendingUpdates(): Promise<void> {
+    while (this.pendingUpdates.length > 0) {
+      await Promise.allSettled(this.pendingUpdates);
+    }
   }
 
   private async addProfile(): Promise<void> {
@@ -76,10 +98,13 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
   }
 
   private async updateProfile(id: string, mutate: (profile: CodebaseProfile) => CodebaseProfile): Promise<void> {
-    const current = await this.profileStore.get(id);
-    if (!current) return;
+    // Fix round 1, Critical 1: this used to be `get(id)` then, much later, `save()` a
+    // full object built from that now-possibly-stale read -- exactly the shape that
+    // let two overlapping edits on the same profile silently discard one of them.
+    // ProfileStore.update() performs the read, the mutation and the write as ONE
+    // indivisible operation, so `mutate` is always applied to the current value.
     try {
-      await this.profileStore.save(mutate(current));
+      await this.profileStore.update(id, mutate);
     } catch {
       // An invalid edit (e.g. maxFileBytes not a positive integer) is rejected by the
       // store's own validation and simply not persisted -- never silently coerced
@@ -89,10 +114,16 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     this.update();
   }
 
-  // No source-selection flow exists yet -- a later task wires it. Enabled, never
-  // disabled (spec 1), and doing nothing observable is the correct WP-01 behaviour,
-  // exactly like src/host/commands.ts's scan-codebase/cancel-scan commands.
-  private reconnect(_profileId: string): void {}
+  // No source-selection flow exists yet -- task 7 owns wiring this to the real
+  // source-selection modal (ruling M26). Enabled, never disabled (spec 1), but a
+  // silent no-op is a broken promise a disabled button would not have made: this
+  // shows a visible, honest Notice instead (fix round 1, Important 2).
+  private reconnect(_profileId: string): void {
+    // Assigned (not a bare `new` statement) only to satisfy no-new; Notice displays
+    // itself as a side effect of construction, per Obsidian's own API.
+    const notice = new Notice(RECONNECT_NOT_AVAILABLE_TEXT);
+    void notice;
+  }
 
   private confirmClearBinding(profileId: string): void {
     const entry = this.entries.find((e) => e.profile.profileId === profileId);

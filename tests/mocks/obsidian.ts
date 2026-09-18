@@ -227,6 +227,28 @@ export class Modal {
   setContent(content: string): this { this.contentEl.textContent = content; return this; }
 }
 
+// Fix round 1, Important 2: settings-tab.ts's reconnect() shows a real Notice instead
+// of doing nothing at all. Real Notice appends a `.notice` element to the document
+// (inside a notice container) and auto-dismisses after `duration`; this double skips
+// the auto-dismiss timer (tests assert presence right after the click, never a delay)
+// but genuinely appends real, queryable DOM with the message text, which is the one
+// thing a test here needs to tell "a notice appeared" from "nothing happened".
+export class Notice {
+  containerEl: HTMLElement;
+  messageEl: HTMLElement;
+  noticeEl: HTMLElement;
+
+  constructor(message: string, _duration?: number) {
+    this.containerEl = document.body.createDiv({ cls: 'notice-container' });
+    this.messageEl = this.containerEl.createDiv({ cls: 'notice' });
+    this.noticeEl = this.messageEl;
+    this.messageEl.textContent = message;
+  }
+
+  setMessage(message: string): this { this.messageEl.textContent = message; return this; }
+  hide(): void { this.containerEl.remove(); }
+}
+
 // createEl/createDiv/createSpan/empty (obsidian.d.ts's `Node`/`HTMLElement` global
 // augmentation). obsidianmd/prefer-create-el requires plugin source to use these
 // instead of document.createElement, so any DOM-building code under test needs a real

@@ -17,7 +17,8 @@ import { CodebaseInspectorSettingTab } from '../../src/host/settings-tab';
 import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
 import { createFakeBindingStoreHarness } from '../fixtures/fake-binding-store';
 import type { CodebaseProfile, LocalBinding } from '../../src/domain/model';
-import { BINDING_MISSING_TEXT, STORAGE_DISCLOSURE_TEXT, SYMLINK_POLICY_TEXT } from '../../src/host/setting-definitions';
+import { BINDING_MISSING_TEXT, RECONNECT_NOT_AVAILABLE_TEXT, STORAGE_DISCLOSURE_TEXT,
+  SYMLINK_POLICY_TEXT } from '../../src/host/setting-definitions';
 
 function makeProfile(overrides: Partial<CodebaseProfile> = {}): CodebaseProfile {
   return { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 1_000_000, ...overrides };
@@ -66,7 +67,14 @@ function invokeRender(def: SettingDefinitionRender, setting: Setting): void {
 }
 
 const containers: HTMLElement[] = [];
-afterEach(() => { containers.splice(0).forEach((c) => { c.remove(); }); });
+afterEach(() => {
+  containers.splice(0).forEach((c) => { c.remove(); });
+  // Fix round 1, Important 2: Notice appends to document.body directly (real Obsidian
+  // behaviour), outside any container this suite tracks otherwise -- clean it up so a
+  // stale notice from an earlier test cannot make a later "a notice appeared" assertion
+  // pass vacuously.
+  document.querySelectorAll('.notice-container').forEach((n) => { n.remove(); });
+});
 
 function newContainer(): HTMLElement {
   const el = document.body.createDiv();
@@ -161,10 +169,12 @@ describe('settings tab', () => {
     const files = collect(join(process.cwd(), 'src')).filter((f) => f.endsWith('.ts') || f.endsWith('.vue'));
     expect(files.length).toBeGreaterThan(0);
     for (const file of files) {
-      // Strip `//` line comments first: walker.ts's own case-sensitivity example
-      // quotes '.obsidian' in prose inside a comment, which is not a path value
-      // anywhere in the running program.
-      const codeOnly = readFileSync(file, 'utf8').replace(/\/\/.*$/gm, '');
+      // Strip block comments (/* ... */, including /** ... */ JSDoc) and `//` line
+      // comments before checking: walker.ts's case-sensitivity example quotes
+      // '.obsidian' in a `//` comment, and plugin-data-binding-store.ts's machineId
+      // doc comment (fix round 1, Important 3) cites "docs.obsidian.md" by domain name
+      // in a `/** */` block -- neither is a path value anywhere in the running program.
+      const codeOnly = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
       expect(literalObsidian.test(codeOnly), file).toBe(false);
     }
   });
@@ -177,5 +187,121 @@ describe('settings tab', () => {
     // capability (spec 1).
     expect(defs.map((d) => ('name' in d ? d.name : ('heading' in d ? d.heading : undefined))))
       .toEqual(['Codebase profiles', 'Follow symbolic links', 'Storage']);
+  });
+
+  // Fix round 1, Important 2 (ruling M26): an enabled button that silently does
+  // nothing is a broken promise a disabled one would not have made. Reconnect/Connect
+  // must produce a visible, honest response.
+  it('shows a visible, honest notice when Reconnect is clicked, not a silent no-op', async () => {
+    const { tab } = await makeTab([makeProfile({ profileId: 'p1', bindingId: 'b1' })]);
+    // bindingId 'b1' was never saved to the binding store: "missing on this machine".
+    const page = findProfilePage(tab.getSettingDefinitions(), 'Alpha');
+    const def = findRenderDef(page.items, 'Source folder');
+    const setting = new Setting(newContainer());
+    invokeRender(def, setting);
+    const reconnectButton = setting.settingEl.querySelector<HTMLButtonElement>('[data-action="reconnect"]');
+    expect(reconnectButton).not.toBeNull();
+    expect(document.querySelector('.notice')).toBeNull();
+
+    reconnectButton!.click();
+
+    const notice = document.querySelector('.notice');
+    expect(notice).not.toBeNull();
+    expect(notice!.textContent).toBe(RECONNECT_NOT_AVAILABLE_TEXT);
+    // Truthful and undated (ruling M26): no specific version or date is promised.
+    expect(RECONNECT_NOT_AVAILABLE_TEXT).not.toMatch(/\d/);
+  });
+
+  it('shows the same visible notice when Connect is clicked for a never-bound profile', async () => {
+    const { tab } = await makeTab([makeProfile({ profileId: 'p1', bindingId: null })]);
+    const page = findProfilePage(tab.getSettingDefinitions(), 'Alpha');
+    const def = findRenderDef(page.items, 'Source folder');
+    const setting = new Setting(newContainer());
+    invokeRender(def, setting);
+    const connectButton = setting.settingEl.querySelector<HTMLButtonElement>('[data-action="connect"]');
+    expect(connectButton).not.toBeNull();
+
+    connectButton!.click();
+
+    expect(document.querySelector('.notice')?.textContent).toBe(RECONNECT_NOT_AVAILABLE_TEXT);
+  });
+
+  // Fix round 1, Important 4: renderNameRow/renderExclusionsRow/renderMaxFileBytesRow
+  // and their onRenameProfile/onExclusionsChange/onMaxFileBytesChange wiring had no
+  // coverage at any level. Driven end to end through the real settings-tab wiring below
+  // (dispatch a real DOM 'change' event, not a direct callback call).
+  it('renames the CORRECT profile through the settings-tab wiring, not a swapped id', async () => {
+    const { tab, profileStore } = await makeTab([
+      makeProfile({ profileId: 'p1', name: 'Alpha' }),
+      makeProfile({ profileId: 'p2', name: 'Beta' }),
+    ]);
+    const page = findProfilePage(tab.getSettingDefinitions(), 'Beta');
+    const def = findRenderDef(page.items, 'Name');
+    const setting = new Setting(newContainer());
+    invokeRender(def, setting);
+    const input = setting.controlEl.querySelector<HTMLInputElement>('input[type="text"]')!;
+    input.value = 'Beta Renamed';
+    input.dispatchEvent(new Event('change'));
+
+    await tab.waitForPendingUpdates();
+    expect((await profileStore.get('p2'))!.name).toBe('Beta Renamed');
+    // A swapped id (editing p2's row but writing p1) would fail this line.
+    expect((await profileStore.get('p1'))!.name).toBe('Alpha');
+  });
+
+  it('edits exclusions through the settings-tab wiring', async () => {
+    const { tab, profileStore } = await makeTab([makeProfile({ profileId: 'p1' })]);
+    const page = findProfilePage(tab.getSettingDefinitions(), 'Alpha');
+    const def = findRenderDef(page.items, 'Excluded paths');
+    const setting = new Setting(newContainer());
+    invokeRender(def, setting);
+    const textarea = setting.controlEl.querySelector<HTMLTextAreaElement>('textarea')!;
+    textarea.value = 'dist\nnode_modules\n\n  \n';
+    textarea.dispatchEvent(new Event('change'));
+
+    await tab.waitForPendingUpdates();
+    // Blank/whitespace-only lines are dropped, matching parseExclusions.
+    expect((await profileStore.get('p1'))!.exclusions).toEqual(['dist', 'node_modules']);
+  });
+
+  it('edits maxFileBytes through the settings-tab wiring', async () => {
+    const { tab, profileStore } = await makeTab([makeProfile({ profileId: 'p1' })]);
+    const page = findProfilePage(tab.getSettingDefinitions(), 'Alpha');
+    const def = findRenderDef(page.items, 'Maximum file size to read');
+    const setting = new Setting(newContainer());
+    invokeRender(def, setting);
+    const input = setting.controlEl.querySelector<HTMLInputElement>('input[type="number"]')!;
+    input.value = '2000000';
+    input.dispatchEvent(new Event('change'));
+
+    await tab.waitForPendingUpdates();
+    expect((await profileStore.get('p1'))!.maxFileBytes).toBe(2_000_000);
+  });
+
+  // Fix round 1, Critical 1 + Important 4 combined: the exact ordinary-use scenario
+  // named in the finding, driven through the real UI wiring end to end -- a user
+  // renames a profile then, before that save round-trips, edits its exclusions.
+  it('survives an interleaved rename and exclusions edit on the SAME profile, fired without an await between them', async () => {
+    const { tab, profileStore } = await makeTab([makeProfile({ profileId: 'p1', name: 'Original', exclusions: [] })]);
+    const page = findProfilePage(tab.getSettingDefinitions(), 'Original');
+    const nameSetting = new Setting(newContainer());
+    invokeRender(findRenderDef(page.items, 'Name'), nameSetting);
+    const exclusionsSetting = new Setting(newContainer());
+    invokeRender(findRenderDef(page.items, 'Excluded paths'), exclusionsSetting);
+
+    const nameInput = nameSetting.controlEl.querySelector<HTMLInputElement>('input[type="text"]')!;
+    const exclusionsTextarea = exclusionsSetting.controlEl.querySelector<HTMLTextAreaElement>('textarea')!;
+    nameInput.value = 'Renamed';
+    exclusionsTextarea.value = 'dist';
+    // No await between these two dispatches -- this is what two near-simultaneous
+    // settings-tab events produce in real use.
+    nameInput.dispatchEvent(new Event('change'));
+    exclusionsTextarea.dispatchEvent(new Event('change'));
+
+    await tab.waitForPendingUpdates();
+    const profile = (await profileStore.get('p1'))!;
+    // Not vacuous: before this fix round, one of these two always lost.
+    expect(profile.name).toBe('Renamed');
+    expect(profile.exclusions).toEqual(['dist']);
   });
 });
