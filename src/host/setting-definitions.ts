@@ -40,11 +40,6 @@ export const STORAGE_DISCLOSURE_TEXT =
 export const SYMLINK_POLICY_TEXT =
   'Symbolic links and junctions are never followed. They are reported as skipped, with a reason.';
 
-// Fix round 1, Important 2 (ruling M26): Connect/Reconnect must not be a silent
-// no-op. Short, truthful, and makes no promise about when it will exist -- task 7
-// owns wiring this button to the real source-selection modal.
-export const RECONNECT_NOT_AVAILABLE_TEXT = 'Connecting to a source folder isn’t available yet.';
-
 function renderNameRow(setting: Setting, profile: CodebaseProfile, onChange: (name: string) => void): void {
   setting.setName('Name').setDesc('Shown in the profile list.');
   const input = setting.controlEl.createEl('input', { attr: { type: 'text', value: profile.name } });
@@ -66,11 +61,9 @@ function renderMaxFileBytesRow(setting: Setting, profile: CodebaseProfile, onCha
 /** The one row that needs a genuine custom render rather than a plain control: its
  *  content (text vs. button label vs. data-action) depends on binding state, which no
  *  SettingDefinitionControl can express. Reconnect/Connect are wired to a real, ENABLED
- *  callback (never a disabled placeholder — spec 1); task 7 owns wiring it to the real
- *  source-selection modal (ruling M26), but until then settings-tab.ts's reconnect()
- *  shows a visible, honest Notice rather than doing nothing at all — an enabled button
- *  that silently does nothing is a broken promise a disabled one would not have made
- *  (fix round 1, Important 2). Clear binding is fully implemented here: settings-tab.ts
+ *  callback (never a disabled placeholder — spec 1): settings-tab.ts's reconnect()
+ *  opens the real source-selection modal (ruling M30). Clear binding is fully
+ *  implemented here: settings-tab.ts
  *  opens ClearBindingModal before calling onClearBinding, so this row itself never
  *  mutates anything (acceptance criterion 6). */
 function renderBindingStatusRow(setting: Setting, entry: ProfileEntry, callbacks: SettingDefinitionsCallbacks): void {

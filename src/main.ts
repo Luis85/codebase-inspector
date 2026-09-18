@@ -4,6 +4,7 @@ import { openCity, registerCommands } from './host/commands';
 import { CodebaseInspectorSettingTab } from './host/settings-tab';
 import { PluginDataProfileStore } from './adapters/storage/plugin-data-profile-store';
 import { PluginDataBindingStore, getOrCreateMachineId } from './adapters/storage/plugin-data-binding-store';
+import { createNodeSourceFileSystem } from './adapters/filesystem/node-source-filesystem';
 import './ui/styles.css';
 
 export default class CodebaseInspectorPlugin extends Plugin {
@@ -18,7 +19,13 @@ export default class CodebaseInspectorPlugin extends Plugin {
 
     const profileStore = new PluginDataProfileStore(this);
     const bindingStore = new PluginDataBindingStore(this, getOrCreateMachineId(this.app));
-    const settingTab = new CodebaseInspectorSettingTab(this.app, this, profileStore, bindingStore);
+    // Ruling M30/M31: the settings tab's Connect/Reconnect flow (source-modal.ts)
+    // stats a directory through this SAME adapter layer task 5 built -- never a
+    // second path to Node. A FACTORY, not an already-built port: onload() registers
+    // only, so building the real Node-backed port is deferred to the moment Connect/
+    // Reconnect is actually clicked, never during onload itself.
+    const settingTab = new CodebaseInspectorSettingTab(
+      this.app, this, profileStore, bindingStore, () => createNodeSourceFileSystem());
     this.addSettingTab(settingTab);
     void settingTab.refresh();
 

@@ -16,23 +16,54 @@ import type { App, Plugin, Setting as ObsidianSetting, SettingDefinitionItem, Se
 import { CodebaseInspectorSettingTab } from '../../src/host/settings-tab';
 import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
 import { createFakeBindingStoreHarness } from '../fixtures/fake-binding-store';
+import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
+import type { SourceFileSystemPort } from '../../src/application/ports/source-filesystem-port';
 import type { CodebaseProfile, LocalBinding } from '../../src/domain/model';
-import { BINDING_MISSING_TEXT, RECONNECT_NOT_AVAILABLE_TEXT, STORAGE_DISCLOSURE_TEXT,
-  SYMLINK_POLICY_TEXT } from '../../src/host/setting-definitions';
+import { BINDING_MISSING_TEXT, STORAGE_DISCLOSURE_TEXT, SYMLINK_POLICY_TEXT } from '../../src/host/setting-definitions';
 
 function makeProfile(overrides: Partial<CodebaseProfile> = {}): CodebaseProfile {
   return { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 1_000_000, ...overrides };
 }
 
-async function makeTab(profiles: readonly CodebaseProfile[], bindings: readonly LocalBinding[] = []) {
+async function makeTab(
+  profiles: readonly CodebaseProfile[],
+  bindings: readonly LocalBinding[] = [],
+  filesystem: SourceFileSystemPort = createFakeSourceFileSystem({}).port,
+) {
   const profileHarness = createFakeProfileStoreHarness();
   const bindingHarness = createFakeBindingStoreHarness();
   for (const p of profiles) await profileHarness.store.save(p);
   for (const b of bindings) await bindingHarness.store.save(b);
   const tab = new CodebaseInspectorSettingTab(
-    {} as unknown as App, {} as unknown as Plugin, profileHarness.store, bindingHarness.store);
+    {} as unknown as App, {} as unknown as Plugin, profileHarness.store, bindingHarness.store, () => filesystem);
   await tab.refresh();
   return { tab, profileStore: profileHarness.store, bindingStore: bindingHarness.store };
+}
+
+// Task 7 (ruling M30): the settings tab's Connect/Reconnect button opens the real
+// source-selection modal. These tests drive that modal exactly as
+// tests/component/source-modal.test.ts does -- real DOM, no shortcuts into its
+// private state -- so "wired to the real modal" is proven by actually opening and
+// completing it, not by a mock that stands in for the modal itself.
+function findModal(): HTMLElement {
+  const el = document.querySelector('.modal-container');
+  if (!el) throw new Error('no modal is open');
+  return el as HTMLElement;
+}
+
+function completeExternalSelection(resolvedRoot: string): void {
+  const modal = findModal();
+  const externalRadio = modal.querySelector<HTMLInputElement>('input[type="radio"][value="external"]')!;
+  externalRadio.checked = true;
+  externalRadio.dispatchEvent(new Event('change'));
+  const input = modal.querySelector<HTMLInputElement>('[data-field="external-path"]')!;
+  input.value = resolvedRoot;
+  input.dispatchEvent(new Event('input'));
+  modal.querySelector<HTMLButtonElement>('[data-action="continue"]')!.click();
+}
+
+function cancelModal(): void {
+  findModal().querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
 }
 
 function findList(defs: SettingDefinitionItem[]): SettingDefinitionList {
@@ -74,6 +105,9 @@ afterEach(() => {
   // stale notice from an earlier test cannot make a later "a notice appeared" assertion
   // pass vacuously.
   document.querySelectorAll('.notice-container').forEach((n) => { n.remove(); });
+  // Task 7: a cancelled or abandoned source modal from an earlier test must not be
+  // picked up by findModal() in a later one.
+  document.querySelectorAll('.modal-container').forEach((m) => { m.remove(); });
 });
 
 function newContainer(): HTMLElement {
@@ -189,31 +223,16 @@ describe('settings tab', () => {
       .toEqual(['Codebase profiles', 'Follow symbolic links', 'Storage']);
   });
 
-  // Fix round 1, Important 2 (ruling M26): an enabled button that silently does
-  // nothing is a broken promise a disabled one would not have made. Reconnect/Connect
-  // must produce a visible, honest response.
-  it('shows a visible, honest notice when Reconnect is clicked, not a silent no-op', async () => {
-    const { tab } = await makeTab([makeProfile({ profileId: 'p1', bindingId: 'b1' })]);
-    // bindingId 'b1' was never saved to the binding store: "missing on this machine".
-    const page = findProfilePage(tab.getSettingDefinitions(), 'Alpha');
-    const def = findRenderDef(page.items, 'Source folder');
-    const setting = new Setting(newContainer());
-    invokeRender(def, setting);
-    const reconnectButton = setting.settingEl.querySelector<HTMLButtonElement>('[data-action="reconnect"]');
-    expect(reconnectButton).not.toBeNull();
-    expect(document.querySelector('.notice')).toBeNull();
-
-    reconnectButton!.click();
-
-    const notice = document.querySelector('.notice');
-    expect(notice).not.toBeNull();
-    expect(notice!.textContent).toBe(RECONNECT_NOT_AVAILABLE_TEXT);
-    // Truthful and undated (ruling M26): no specific version or date is promised.
-    expect(RECONNECT_NOT_AVAILABLE_TEXT).not.toMatch(/\d/);
-  });
-
-  it('shows the same visible notice when Connect is clicked for a never-bound profile', async () => {
-    const { tab } = await makeTab([makeProfile({ profileId: 'p1', bindingId: null })]);
+  // Ruling M30: task 7 owns wiring Connect/Reconnect to the real source-selection
+  // modal task 6 deliberately left as a placeholder. This is the first caller of
+  // LocalBindingStore.save() -- task-7-context.md section 9's trap -- so the covering
+  // assertion below checks the profile's bindingId is a NEW id (never read from a
+  // prior get()+mutate()+save() on this store), and that both the binding row and the
+  // profile update land correctly.
+  it('opens the source modal when Connect is clicked for a never-bound profile, and binds it on a successful selection', async () => {
+    const { port } = createFakeSourceFileSystem({});
+    const { tab, profileStore, bindingStore } = await makeTab(
+      [makeProfile({ profileId: 'p1', bindingId: null })], [], port);
     const page = findProfilePage(tab.getSettingDefinitions(), 'Alpha');
     const def = findRenderDef(page.items, 'Source folder');
     const setting = new Setting(newContainer());
@@ -222,8 +241,56 @@ describe('settings tab', () => {
     expect(connectButton).not.toBeNull();
 
     connectButton!.click();
+    expect(document.querySelector('.modal-container')).not.toBeNull();
+    completeExternalSelection('/fake-root');
+    await tab.waitForPendingUpdates();
 
-    expect(document.querySelector('.notice')?.textContent).toBe(RECONNECT_NOT_AVAILABLE_TEXT);
+    const profile = (await profileStore.get('p1'))!;
+    expect(profile.bindingId).not.toBeNull();
+    const binding = await bindingStore.get(profile.bindingId!);
+    expect(binding?.rootPath).toBe('/fake-root');
+  });
+
+  it('reconnects an existing binding to a new root WITHOUT changing the profile\'s bindingId', async () => {
+    const { port } = createFakeSourceFileSystem({});
+    // bindingId 'b1' was never saved to the binding store: "missing on this machine"
+    // (COPY-28) -- exactly the state Reconnect is for.
+    const { tab, profileStore, bindingStore } = await makeTab(
+      [makeProfile({ profileId: 'p1', bindingId: 'b1' })], [], port);
+    const page = findProfilePage(tab.getSettingDefinitions(), 'Alpha');
+    const def = findRenderDef(page.items, 'Source folder');
+    const setting = new Setting(newContainer());
+    invokeRender(def, setting);
+    const reconnectButton = setting.settingEl.querySelector<HTMLButtonElement>('[data-action="reconnect"]');
+    expect(reconnectButton).not.toBeNull();
+
+    reconnectButton!.click();
+    completeExternalSelection('/fake-root');
+    await tab.waitForPendingUpdates();
+
+    const profile = (await profileStore.get('p1'))!;
+    expect(profile.bindingId).toBe('b1');   // unchanged -- same logical connection
+    const binding = await bindingStore.get('b1');
+    expect(binding?.rootPath).toBe('/fake-root');
+  });
+
+  it('changes nothing when the source modal is cancelled', async () => {
+    const { port } = createFakeSourceFileSystem({});
+    const { tab, profileStore, bindingStore } = await makeTab(
+      [makeProfile({ profileId: 'p1', bindingId: null })], [], port);
+    const page = findProfilePage(tab.getSettingDefinitions(), 'Alpha');
+    const def = findRenderDef(page.items, 'Source folder');
+    const setting = new Setting(newContainer());
+    invokeRender(def, setting);
+    setting.settingEl.querySelector<HTMLButtonElement>('[data-action="connect"]')!.click();
+
+    cancelModal();
+    await tab.waitForPendingUpdates();
+
+    const profile = (await profileStore.get('p1'))!;
+    expect(profile.bindingId).toBeNull();
+    expect(port.readLog()).toEqual([]);
+    expect(await bindingStore.get('b1')).toBeNull();
   });
 
   // Fix round 1, Important 4: renderNameRow/renderExclusionsRow/renderMaxFileBytesRow

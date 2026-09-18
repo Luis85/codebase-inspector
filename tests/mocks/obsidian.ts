@@ -193,6 +193,25 @@ export class ButtonComponent {
   }
 }
 
+// Task 7: the desktop DataAdapter, resolved behind an `instanceof FileSystemAdapter`
+// check (obsidianmd/prefer-instanceof; spec 4.4) -- never a cast, because mobile
+// supplies a CapacitorAdapter instead (below). A real, minimal double: the entire
+// surface source-modal.ts depends on is `getBasePath()`.
+export class FileSystemAdapter {
+  constructor(private readonly basePath: string) {}
+  getBasePath(): string { return this.basePath; }
+}
+
+// Task 7: mobile's adapter (spec 4.4). Deliberately NOT a subclass of
+// FileSystemAdapter and deliberately without a getBasePath() that returns anything
+// usable, so a test asserting the instanceof branch is SKIPPED for this adapter is a
+// genuine negative case -- not one a permissive double would pass vacuously.
+export class CapacitorAdapter {
+  getBasePath(): never {
+    throw new Error('CapacitorAdapter has no getBasePath — mobile has no filesystem root.');
+  }
+}
+
 // Real Modal.open()/close() attach/detach the modal from the document and drive
 // onOpen()/onClose() — the part this plugin's ClearBindingModal actually depends on.
 export class Modal {

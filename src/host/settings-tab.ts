@@ -5,14 +5,16 @@
 // obsidianmd/prefer-setting-definitions disable is used anywhere in this file: a real,
 // non-trivial getSettingDefinitions() already satisfies the rule (see the verification
 // document's answer to question C).
-import { Notice, PluginSettingTab } from 'obsidian';
+import { PluginSettingTab } from 'obsidian';
 import type { App, Plugin, SettingDefinitionItem } from 'obsidian';
 import type { ProfileStore } from '../application/ports/profile-store';
 import type { LocalBindingStore } from '../application/ports/local-binding-store';
+import type { SourceFileSystemPort } from '../application/ports/source-filesystem-port';
 import type { CodebaseProfile } from '../domain/model';
-import { RECONNECT_NOT_AVAILABLE_TEXT, buildSettingDefinitions } from './setting-definitions';
+import { buildSettingDefinitions } from './setting-definitions';
 import type { ProfileEntry } from './setting-definitions';
 import { ClearBindingModal } from './modals/clear-binding-modal';
+import { openSourceModal } from './modals/source-modal';
 
 function parseExclusions(rawLines: string): string[] {
   return rawLines.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
@@ -32,6 +34,11 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     plugin: Plugin,
     private readonly profileStore: ProfileStore,
     private readonly bindingStore: LocalBindingStore,
+    // A FACTORY, not an already-built port: onload() registers only (spec 4.4), and
+    // building the real Node-backed port eagerly would touch window.require at
+    // construction time. Deferring construction to the moment Connect/Reconnect is
+    // actually clicked keeps onload() free of it entirely -- see main.ts's call site.
+    private readonly getFilesystem: () => SourceFileSystemPort,
   ) {
     super(app, plugin);
   }
@@ -114,15 +121,43 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     this.update();
   }
 
-  // No source-selection flow exists yet -- task 7 owns wiring this to the real
-  // source-selection modal (ruling M26). Enabled, never disabled (spec 1), but a
-  // silent no-op is a broken promise a disabled button would not have made: this
-  // shows a visible, honest Notice instead (fix round 1, Important 2).
-  private reconnect(_profileId: string): void {
-    // Assigned (not a bare `new` statement) only to satisfy no-new; Notice displays
-    // itself as a side effect of construction, per Obsidian's own API.
-    const notice = new Notice(RECONNECT_NOT_AVAILABLE_TEXT);
-    void notice;
+  // Ruling M30: task 7 owns wiring Connect/Reconnect to the real source-selection
+  // modal task 6 deliberately left as a placeholder (ruling M26's fix round put an
+  // honest interim Notice here; this replaces it, not supplements it).
+  private reconnect(profileId: string): void {
+    const entry = this.entries.find((e) => e.profile.profileId === profileId);
+    if (!entry) return;
+    this.trackUpdate(this.performReconnect(profileId, entry.profile));
+  }
+
+  // Task-7-context.md section 9's trap: this is the FIRST caller of
+  // LocalBindingStore.save() in this codebase, and LocalBindingStore deliberately has
+  // no atomic update() (task 6 never needed one). This is NOT a get()-then-save()
+  // race: `binding` below is built entirely from data already in hand (the profile
+  // entry's own bindingId, plus the modal's own resolvedRoot) -- never from a value
+  // this method itself read from bindingStore -- so save() is a single, self-contained
+  // write. Its own read-modify-write cycle is already atomic under the SAME lock
+  // ProfileStore.update() uses (writePluginDataSlice, plugin-data-shape.ts), so no
+  // second store-level primitive is needed here.
+  private async performReconnect(profileId: string, profile: CodebaseProfile): Promise<void> {
+    const selection = await openSourceModal(this.app, { profile, filesystem: this.getFilesystem() });
+    if (selection === null) return;   // cancelled -- changes nothing
+    // Reconnecting an EXISTING binding keeps its id (same logical connection, new
+    // root); Connecting a never-bound profile mints a fresh one. Either way this is
+    // the only place a LocalBinding's id is chosen.
+    const bindingId = profile.bindingId ?? crypto.randomUUID();
+    await this.bindingStore.save({
+      bindingId, label: profile.name, rootPath: selection.resolvedRoot,
+      // Always overwritten by PluginDataBindingStore.save() with the real machine id
+      // before validation (spec 4.1: provenance is never read from a caller-supplied
+      // payload) -- this value is never actually persisted.
+      machineId: 'stamped-by-store',
+    });
+    if (profile.bindingId === null) {
+      await this.profileStore.update(profileId, (p) => ({ ...p, bindingId }));
+    }
+    await this.refresh();
+    this.update();
   }
 
   private confirmClearBinding(profileId: string): void {
