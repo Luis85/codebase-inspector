@@ -53,4 +53,13 @@ if (bundledBuiltins.length > 0) {
   fail(`dist/main.js bundles Node built-in(s): ${[...new Set(bundledBuiltins)].join(', ')}. `
     + 'All Node access goes through window.require in src/adapters/filesystem/node-access.ts.');
 }
-console.log(`assert-bundle: OK — dist/main.js is ${(main.length / 1024).toFixed(0)} kB`);
+// Breakage-round item 2: GUARDED, because fail() sets process.exitCode and RETURNS --
+// every check above runs, so that every reason is reported, and the run therefore
+// carries on past a failure. Unconditional, this line made `OK` the last thing a build
+// log said about a bundle that had just been rejected; the exit status was right and the
+// output was a lie. Nothing above is changed: all reasons still go to stderr first.
+if (process.exitCode) {
+  console.error('assert-bundle: FAILED — dist/main.js was rejected for the reason(s) above.');
+} else {
+  console.log(`assert-bundle: OK — dist/main.js is ${(main.length / 1024).toFixed(0)} kB`);
+}
