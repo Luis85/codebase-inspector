@@ -97,9 +97,21 @@ let listenerDoc: Document | null = null;
 /** `event.isComposing` (native, spec-provided) rather than a locally tracked
  *  flag — this listens on `document`, never a specific input, so there is no
  *  single element whose own compositionstart/end this could track instead. */
+// Task 9 fix round 3, item 1 (Important): this listener used to act on EVERY
+// Escape reaching `document`, regardless of where focus actually was —
+// contradicting escape-intent.ts's own stated invariant ("must not disturb
+// composition or... a Markdown editor elsewhere in the workspace") and spec
+// 5.2, and cross-talking between two open leaves (M9: multiple leaves are a
+// first-class capability), since both listen on the SAME document and matched
+// on the GLOBAL activeElement. Gated here exactly like FileSearch.vue's own
+// `viewRoot.contains(doc.activeElement)` check (its `onGlobalKeydown`, same file
+// pattern) — this view resolves an Escape only when IT owns focus.
 function onGlobalKeydown(event: KeyboardEvent): void {
   if (event.key !== 'Escape' || event.defaultPrevented) return;
+  const el = rootEl.value;
+  if (!el) return;
   const active = listenerDoc?.activeElement ?? null;
+  if (!narrowContainer(el).contains(active)) return;
   const intent = escapeIntent({
     composing: event.isComposing,
     inInspector: store.inspectorOpen,

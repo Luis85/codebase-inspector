@@ -272,6 +272,12 @@ describe('App.vue welcome-state shell', () => {
 
         const row = wrapper.get('.ci-file-list__row');
         await row.trigger('click');
+        // A real click also focuses the activated element (HTML's own
+        // activation behaviour); jsdom's synthetic `.click()` does not, so this
+        // is made explicit -- round 3, item 1's own focus-containment gate
+        // (this view must OWN focus to act) depends on it genuinely being here,
+        // not merely on `document.body`.
+        (row.element as HTMLElement).focus();
         expect(wrapper.find('[aria-label="File inspector"]').exists()).toBe(true);
         expect(store.selectedEntityId).not.toBeNull();
 
@@ -294,6 +300,82 @@ describe('App.vue welcome-state shell', () => {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         await nextTick();
         expect(store.selectedEntityId).toBeNull();
+      } finally {
+        rectSpy.mockRestore();
+      }
+    });
+
+    // Task 9 fix round 3, item 1 (Important): the handler above used to act on
+    // EVERY Escape reaching `document`, regardless of where focus actually was --
+    // contradicting escape-intent.ts's own stated invariant ("must not disturb...
+    // a Markdown editor elsewhere in the workspace") and spec 5.2. Gated now,
+    // exactly like FileSearch.vue's own `viewRoot.contains(doc.activeElement)`.
+    it('does nothing, and steals no focus, when Escape is pressed outside this view', async () => {
+      const rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+        width: 400, height: 700, top: 0, left: 0, right: 400, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+      });
+      try {
+        const store = useCityStore();
+        const snapshot = buildSnapshotFixture({ files: 1 });
+        store.setCity(snapshot, computeLayout(snapshot));
+        const wrapper = mount(App, { attachTo: document.body });
+        await wrapper.get('.ci-file-list__row').trigger('click');
+        expect(wrapper.find('[aria-label="File inspector"]').exists()).toBe(true);
+
+        // A stand-in for "a Markdown editor elsewhere in the workspace" --
+        // outside this view's own root entirely.
+        const outsideInput = document.body.createEl('input');
+        outsideInput.focus();
+        expect(document.activeElement).toBe(outsideInput);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await nextTick();
+
+        expect(wrapper.find('[aria-label="File inspector"]').exists()).toBe(true);
+        expect(document.activeElement).toBe(outsideInput);
+        outsideInput.remove();
+      } finally {
+        rectSpy.mockRestore();
+      }
+    });
+
+    // Multiple leaves are a first-class WP-01 capability (ruling M9): two
+    // CityViews both listen on the SAME `document`, so without containment a
+    // row focused in leaf A satisfied leaf B's own `inCanvas` check too.
+    it('does not let one leaf\'s Escape resolve a layer in another leaf', async () => {
+      const rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+        width: 400, height: 700, top: 0, left: 0, right: 400, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+      });
+      try {
+        const pinia1 = createPinia();
+        const pinia2 = createPinia();
+        const snapshot1 = buildSnapshotFixture({ files: 1 });
+        const snapshot2 = buildSnapshotFixture({ files: 1 });
+        const store1 = useCityStore(pinia1);
+        const store2 = useCityStore(pinia2);
+        store1.setCity(snapshot1, computeLayout(snapshot1));
+        store2.setCity(snapshot2, computeLayout(snapshot2));
+        const entity1 = snapshot1.entities.find((e) => e.kind === 'file')!.id;
+        const entity2 = snapshot2.entities.find((e) => e.kind === 'file')!.id;
+        // Selected but NOT drawer-open (`close-inspector` ignores focus location
+        // entirely, so it would mask this specific cross-talk with round 3's own
+        // fix): a selection, cleared only by `inCanvas` focus containment.
+        store1.select(entity1);
+        store2.select(entity2);
+
+        mount(App, { attachTo: document.body, global: { plugins: [pinia1] } });
+        const wrapper2 = mount(App, { attachTo: document.body, global: { plugins: [pinia2] } });
+        // Focus is genuinely in leaf 2's own list, never leaf 1's.
+        (wrapper2.get('.ci-file-list__row').element as HTMLElement).focus();
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await nextTick();
+
+        // Leaf 1's own Escape must not have resolved -- focus was in leaf 2.
+        expect(store1.selectedEntityId).toBe(entity1);
+        // Leaf 2's OWN Escape still resolves normally -- containment attributes
+        // the press to the right leaf, it does not just suppress everything.
+        expect(store2.selectedEntityId).toBeNull();
       } finally {
         rectSpy.mockRestore();
       }
