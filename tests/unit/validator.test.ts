@@ -194,17 +194,29 @@ describe('validateCodebaseProfile', () => {
     expect(() => validateCodebaseProfile({ ...valid, name: 42 })).toThrow();
   });
 
-  // Fix wave item 1 (M1): setting-definitions.ts used to label this field "One relative
-  // path or PATTERN per line" and the validator accepted `*.log` / `src/**` -- but
-  // walker.ts's isExcluded does exact segment/prefix matching with no glob support at
-  // all, so an accepted glob was persisted, redisplayed on the consent screen as an
-  // approved exclusion, and excluded nothing. Spec 1 forbids a rendered control for
-  // unimplemented behaviour; an ENABLED one is worse. Rejected here, at the same
-  // validator the modal now shares, so the two answers cannot diverge.
-  it('rejects a glob exclusion, which walker.ts cannot honour (M1)', () => {
+  // Ruling M62 (breakage round, item 1) REVERSES the assertion the fix wave put here.
+  // `*.log` is a STRUCTURALLY VALID relative path -- no `..`, not absolute, no control
+  // characters, no empty segments -- and "walker.ts's isExcluded has no glob support"
+  // is a CAPABILITY limit, not a data-integrity failure. Putting that limit into the
+  // persisted-record schema made data the product's own former label ("One relative
+  // path or PATTERN per line") invited retroactively invalid: every such record made
+  // PluginDataProfileStore.list() throw, settings-tab.refresh() reject, and main.ts's
+  // `void settingTab.refresh()` an unhandled rejection that rendered an EMPTY profile
+  // list with no reason shown. The refusal now lives at the two INPUT surfaces (scope
+  // modal, settings tab); this boundary -- the data-integrity boundary for untrusted
+  // persisted input, spec 4.1 -- accepts the stored value so the user can still see it.
+  it('ACCEPTS a stored glob exclusion: a capability limit is not a data-integrity failure (M62)', () => {
     for (const pattern of ['*.log', 'src/**', 'a?.ts']) {
-      expect(() => validateCodebaseProfile({ ...valid, exclusions: [pattern] }), pattern)
-        .toThrow(/\* and \? are not supported/);
+      expect(validateCodebaseProfile({ ...valid, exclusions: [pattern] }).exclusions, pattern)
+        .toEqual([pattern]);
+    }
+  });
+
+  // ...and removing the glob check removes NOTHING else: every structural rule an
+  // exclusion line is held to still fires here.
+  it('still rejects a structurally unsafe exclusion, which IS a data-integrity failure', () => {
+    for (const bad of ['../escape', './dist', 'a//b', '']) {
+      expect(() => validateCodebaseProfile({ ...valid, exclusions: [bad] }), JSON.stringify(bad)).toThrow();
     }
   });
 

@@ -16,7 +16,7 @@ import type { ProfileEntry } from './setting-definitions';
 import { ClearBindingModal } from './modals/clear-binding-modal';
 import { openSourceModal } from './modals/source-modal';
 import { createDefaultProfile } from './scan-flow';
-import { validationFailureText } from '../domain/validator';
+import { ValidationError, exclusionInputReasons, validationFailureText } from '../domain/validator';
 
 function parseExclusions(rawLines: string): string[] {
   return rawLines.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
@@ -59,14 +59,35 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
    *  instance, and the four mutation paths below no longer call `update()` themselves --
    *  a second call would re-render twice for one change. */
   async refresh(): Promise<void> {
-    const profiles = await this.profileStore.list();
-    const entries: ProfileEntry[] = [];
-    for (const profile of profiles) {
-      const binding = profile.bindingId === null ? null : await this.bindingStore.get(profile.bindingId);
-      entries.push({ profile, binding });
+    try {
+      const profiles = await this.profileStore.list();
+      const entries: ProfileEntry[] = [];
+      for (const profile of profiles) {
+        const binding = profile.bindingId === null ? null : await this.bindingStore.get(profile.bindingId);
+        entries.push({ profile, binding });
+      }
+      this.entries = entries;
+    } catch (e) {
+      // Ruling M63 (breakage round): the destination this seam never had. ProfileStore
+      // .list() validates EVERY record (data.json is untrusted input, spec 4.1) and
+      // throws on the first bad one -- a hand-edited file, a record from a future
+      // schema, anything. main.ts calls `void settingTab.refresh()`, so that rejection
+      // was unhandled, and the tab then rendered from `entries = []`: every saved
+      // profile gone with no reason shown. Spec 7 names exactly that case:
+      // "Validation failures surface as visible warnings carrying their reason. Never
+      // dropped silently." This is the same destination city-view.ts's withScanGuard
+      // gives the scan path. `entries` is deliberately LEFT AS IT WAS -- a failed
+      // reload must not be indistinguishable from "you have no profiles".
+      this.showFailure(e);
     }
-    this.entries = entries;
     this.update();
+  }
+
+  /** Every reason on one line, in a Notice. `void notice` because Notice is constructed
+   *  for its side effect and nothing here reads the handle back. */
+  private showFailure(e: unknown): void {
+    const notice = new Notice(validationFailureText(e), 8000);
+    void notice;
   }
 
   override getSettingDefinitions(): SettingDefinitionItem[] {
@@ -74,9 +95,7 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       onAddProfile: () => { void this.addProfile(); },
       onDeleteProfile: (id) => { void this.deleteProfile(id); },
       onRenameProfile: (id, name) => { this.trackUpdate(this.updateProfile(id, (p) => ({ ...p, name }))); },
-      onExclusionsChange: (id, raw) => {
-        this.trackUpdate(this.updateProfile(id, (p) => ({ ...p, exclusions: parseExclusions(raw) })));
-      },
+      onExclusionsChange: (id, raw) => { this.trackUpdate(this.changeExclusions(id, raw)); },
       onMaxFileBytesChange: (id, raw) => {
         this.trackUpdate(this.updateProfile(id, (p) => ({ ...p, maxFileBytes: Number(raw) })));
       },
@@ -116,6 +135,24 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     await this.refresh();
   }
 
+  /** Ruling M62 (breakage round): the Excluded paths field is one of the two places a
+   *  user can TYPE an exclusion, and the glob refusal lives at those two surfaces --
+   *  never in `codebaseProfileSchema`, which would retroactively invalidate profiles
+   *  already on disk. The scope modal already calls the same rules through
+   *  `scopeValidationReasons`; this calls `exclusionInputReasons` directly, because a
+   *  settings edit carries no maxFileBytes of its own. Refused here, the typed value is
+   *  never persisted and `refresh()` below puts the stored value back in the field. */
+  private async changeExclusions(profileId: string, rawLines: string): Promise<void> {
+    const exclusions = parseExclusions(rawLines);
+    const reasons = exclusionInputReasons(exclusions);
+    if (reasons.length === 0) {
+      await this.updateProfile(profileId, (p) => ({ ...p, exclusions }));
+      return;
+    }
+    this.showFailure(new ValidationError(reasons, 'Excluded paths'));
+    await this.refresh();
+  }
+
   private async updateProfile(id: string, mutate: (profile: CodebaseProfile) => CodebaseProfile): Promise<void> {
     // Fix round 1, Critical 1: this used to be `get(id)` then, much later, `save()` a
     // full object built from that now-possibly-stale read -- exactly the shape that
@@ -136,8 +173,7 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       // reason. Never dropped silently." validationFailureText joins EVERY reason
       // ValidationError collected, not just the first -- that design work already
       // existed and was being thrown away here.
-      const notice = new Notice(validationFailureText(e), 8000);
-      void notice;
+      this.showFailure(e);
     }
     await this.refresh();
   }

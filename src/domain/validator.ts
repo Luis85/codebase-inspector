@@ -257,14 +257,51 @@ export function scopeValidationReasons(exclusions: readonly string[], maxFileByt
   if (!Number.isSafeInteger(maxFileBytes) || maxFileBytes <= 0) {
     reasons.push('maxFileBytes must be a positive integer');
   }
+  reasons.push(...exclusionInputReasons(exclusions));
+  return reasons;
+}
+
+/** Every reason an exclusion LINE is refused, for a surface where a user TYPES one:
+ *  the scope modal and the settings tab's Excluded paths field. `normalizeExclusion`
+ *  adds the glob refusal on top of the structural path-safety rules.
+ *
+ *  Ruling M62 (breakage round): this is the INPUT boundary, and it is the ONLY place
+ *  the glob refusal belongs. See exclusionRecordReasons below for why it may not also
+ *  live in the persisted-record schema. */
+export function exclusionInputReasons(exclusions: readonly string[]): string[] {
+  return exclusionReasons(exclusions, normalizeExclusion);
+}
+
+function exclusionReasons(
+  exclusions: readonly string[], normalize: (value: string) => string,
+): string[] {
+  const reasons: string[] = [];
   for (const exclusion of exclusions) {
     try {
-      normalizeExclusion(exclusion);
+      normalize(exclusion);
     } catch (e) {
       reasons.push(`${(e as Error).message} (exclusion ${JSON.stringify(exclusion)})`);
     }
   }
   return reasons;
+}
+
+/** Ruling M62: the DATA-INTEGRITY rules an already-persisted exclusion is held to --
+ *  `normalizeRelativePath` only, deliberately NOT `normalizeExclusion`.
+ *
+ *  `*.log` is a structurally valid relative path: no `..`, not absolute, no control
+ *  characters, no empty segments. "WP-01's walker has no glob support" is a CAPABILITY
+ *  limit, and this schema is the data-integrity boundary for untrusted persisted input
+ *  (spec 4.1). The fix wave put the capability limit here, which made records the
+ *  product's own label ("One relative path or PATTERN per line") had invited
+ *  retroactively invalid with no migration -- PluginDataProfileStore.list() throws on
+ *  the first such record, so the settings tab lost EVERY profile with no reason shown.
+ *  An already-persisted glob now degrades to what it always did (it excludes nothing)
+ *  and is refused, visibly, the next time the user passes an input surface. Do not add
+ *  a migration that strips globs from stored profiles: silently rewriting a user's
+ *  typed value is worse than showing it and refusing it. */
+function exclusionRecordReasons(exclusions: readonly string[]): string[] {
+  return exclusionReasons(exclusions, normalizeRelativePath);
 }
 
 // A profile never carries a resolved path of its own — that lives on LocalBinding,
@@ -277,9 +314,13 @@ const codebaseProfileSchema = z.object({
   exclusions: z.array(z.string()),
   maxFileBytes: z.number(),
 }).strict().superRefine((val, ctx) => {
-  // Shared with the scope modal (scopeValidationReasons above), so the consent screen
-  // and the store can never disagree about what is acceptable.
-  for (const reason of scopeValidationReasons(val.exclusions, val.maxFileBytes)) {
+  // The limit check is shared verbatim with the scope modal (scopeValidationReasons
+  // above); the exclusion check is deliberately the RECORD one, not the input one --
+  // see exclusionRecordReasons's comment for ruling M62.
+  if (!Number.isSafeInteger(val.maxFileBytes) || val.maxFileBytes <= 0) {
+    ctx.addIssue({ code: 'custom', message: 'maxFileBytes must be a positive integer' });
+  }
+  for (const reason of exclusionRecordReasons(val.exclusions)) {
     ctx.addIssue({ code: 'custom', message: reason });
   }
 });

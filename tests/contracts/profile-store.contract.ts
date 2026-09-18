@@ -54,6 +54,21 @@ export function runProfileStoreContract(name: string, make: () => Promise<Profil
       await expect(store.get('corrupt-1')).rejects.toThrow();
     });
 
+    // Ruling M62 (breakage round, item 1): `*.log` is a structurally valid relative
+    // path that WP-01's walker cannot honour -- a CAPABILITY limit, refused at the two
+    // input surfaces, never at this boundary. The fix wave put it in the persisted-
+    // record schema instead, so a data.json carrying one (invited by the exclusions
+    // field's own former "or pattern" label) made list() throw on the first such record
+    // and the settings tab render an EMPTY profile list with the reason lost. Every
+    // stored profile must still LOAD.
+    it('loads a stored profile carrying a glob exclusion rather than refusing the whole list (M62)', async () => {
+      const { store, writeRaw } = await make();
+      const globbed = makeProfile({ profileId: 'globbed', exclusions: ['*.log'] });
+      await writeRaw({ profiles: [makeProfile({ profileId: 'plain' }), globbed] });
+      expect(await store.list()).toEqual([makeProfile({ profileId: 'plain' }), globbed]);
+      expect(await store.get('globbed')).toEqual(globbed);
+    });
+
     it('rejects a profile whose maxFileBytes is not a positive integer', async () => {
       const { store } = await make();
       for (const bad of [0, -1, 1.5, Number.NaN]) {
