@@ -11,9 +11,14 @@
 // stage element instead (renderer-handle.ts's own cross-window-correct handle),
 // resolved LAZILY inside `writeText` — not once at inject time, when the stage
 // may not have mounted yet — so a real copy always targets the window the view
-// is actually showing in. No bare-global fallback: if the stage never mounted
-// (a standalone FileInspector with nothing provided), this simply does nothing,
-// same as `win?.` already does everywhere else in src/ui/**.
+// is actually showing in.
+//
+// Task 9 fix round 2, item 3 (Minor fold): when the stage never mounted, this
+// used to silently do nothing — `win?.navigator.clipboard.writeText(text)`
+// short-circuits the WHOLE chain without throwing, so `await` sees a resolved
+// `undefined`, not a failure. `FileInspector.vue`'s `copyRelativePath` then
+// reported COPY-27 (success) without ever having copied anything. Throws instead,
+// so that existing catch block (its selectable-text fallback) actually runs.
 import { inject } from 'vue';
 import { useCityStageEl } from './renderer-handle';
 
@@ -28,7 +33,8 @@ export function useClipboard(): ClipboardLike {
   return inject<ClipboardLike>('clipboard', () => ({
     async writeText(text: string): Promise<void> {
       const win = (stageHandle.value as unknown as WinBearing | null)?.win;
-      await win?.navigator.clipboard.writeText(text);
+      if (!win) throw new Error('clipboard unavailable: no stage window');
+      await win.navigator.clipboard.writeText(text);
     },
   }), true);
 }
