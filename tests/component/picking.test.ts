@@ -90,8 +90,10 @@ const lotScreenPosition = (path: string): { x: number; y: number } => {
 };
 const districtGroundPosition = (): { x: number; y: number } => screenOf([0, 0, 5]);
 
-function pointerEvent(type: string, at: { x: number; y: number }, button = 0): Event {
-  const event = new MouseEvent(type, { clientX: at.x, clientY: at.y, button, bubbles: true });
+function pointerEvent(
+  type: string, at: { x: number; y: number }, button = 0, shiftKey = false,
+): Event {
+  const event = new MouseEvent(type, { clientX: at.x, clientY: at.y, button, bubbles: true, shiftKey });
   Object.assign(event, { pointerId: 1, pointerType: 'mouse' });
   return event;
 }
@@ -213,6 +215,43 @@ describe('picking', () => {
     canvas.dispatchEvent(pointerEvent('pointermove', { x: start.x + 4, y: start.y }));
     canvas.dispatchEvent(pointerEvent('pointerup', { x: start.x + 4, y: start.y }));
     expect(picked()).toHaveLength(1);
+  });
+
+  it('ORBITS on a primary-button drag, which is the gesture the WCAG alternatives exist for', () => {
+    const start = lotScreenPosition('src/domain/layout.ts');
+    const before = port.getCamera();
+    canvas.dispatchEvent(pointerEvent('pointerdown', start));
+    canvas.dispatchEvent(pointerEvent('pointermove', { x: start.x + 40, y: start.y }));
+    canvas.dispatchEvent(pointerEvent('pointerup', { x: start.x + 40, y: start.y }));
+    const after = port.getCamera();
+    expect(after.position).not.toEqual(before.position);
+    expect(after.target).toEqual(before.target);       // orbit, not pan
+    expect(events.some((e) => e.type === 'camera-changed')).toBe(true);
+    expect(picked()).toHaveLength(0);                  // and it is never also a click
+  });
+
+  it('PANS when a modifier is held, moving target and eye together', () => {
+    const start = lotScreenPosition('src/domain/layout.ts');
+    const before = port.getCamera();
+    canvas.dispatchEvent(pointerEvent('pointerdown', start));
+    canvas.dispatchEvent(pointerEvent('pointermove', { x: start.x + 40, y: start.y }, 0, true));
+    const after = port.getCamera();
+    expect(after.target).not.toEqual(before.target);
+  });
+
+  it('zooms on the wheel and suppresses the page scroll it would otherwise cause', () => {
+    const before = port.getCamera().zoom;
+    const wheel = new WheelEvent('wheel', { deltaY: -120, cancelable: true, bubbles: true });
+    canvas.dispatchEvent(wheel);
+    expect(port.getCamera().zoom).toBeGreaterThan(before);
+    expect(wheel.defaultPrevented).toBe(true);
+  });
+
+  it('does not zoom on the wheel while the view is paused', () => {
+    port.pause();
+    const before = port.getCamera().zoom;
+    canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -120, cancelable: true, bubbles: true }));
+    expect(port.getCamera().zoom).toBe(before);
   });
 
   it('emits hover-changed only AFTER the 200 ms dwell', () => {
