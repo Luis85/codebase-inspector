@@ -158,7 +158,7 @@ function stubStageRect(view: CityView, width: number, height = 700): void {
 // `runStore.setLifecycle` and `cityStore.setCity` had no production caller
 // anywhere, so the shipped UI rendered permanently empty. These tests prove the
 // PRODUCTION path, not a component-level stand-in.
-describe('CityView store wiring (task 9 fix round 1, item 1)', () => {
+describe('CityView wiring: stores, renderer port and theme colors', () => {
   beforeEach(() => {
     vi.mocked(createRendererSpy).mockClear();
     setSelectionSpy.mockClear();

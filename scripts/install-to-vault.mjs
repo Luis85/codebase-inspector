@@ -41,4 +41,11 @@ mkdirSync(dest, { recursive: true });
 cpSync(distSource, dest, { recursive: true });
 // The hot-reload plugin ignores folders lacking .git or .hotreload.
 writeFileSync(join(dest, '.hotreload'), '');
+// Task 9 fix round 4, item 2 (fold): `npm run install:vault` runs node with
+// --env-file-if-exists=.env, and a real exported shell variable beats the file,
+// so an override left set in a shell silently changes what ships. A bogus path
+// fails loudly (cpSync ENOENT); an EXISTING wrong directory did not, because
+// this line printed only the destination. Name the source whenever it is
+// overridden, so a wrong install is visible in the output. Unset: unchanged.
+if (process.env.CODEBASE_INSPECTOR_TEST_DIST_SOURCE) console.log(`install-to-vault: source OVERRIDDEN to ${distSource}`);
 console.log(`install-to-vault: installed to ${dest}`);
