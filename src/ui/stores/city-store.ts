@@ -164,7 +164,9 @@ export const useCityStore = defineStore('city-view', {
     /** Simulates a camera mutation that happens while in top view — e.g. a nudge or
      *  drag the renderer reports back through camera-changed. Deliberately does NOT
      *  touch `previous3dCamera`: top-view operations must never mutate the retained
-     *  3D bookmark (spec 4.2's round-trip guarantee). */
+     *  3D bookmark (spec 4.2's round-trip guarantee). Exists only as a test
+     *  double for that real event (task-9-fix-1.md, Minor 15) — no production
+     *  caller; a real camera-changed handler would call `setCamera` directly. */
     nudgeInTopView(): void {
       if (!this.camera) return;
       this.camera = { ...this.camera, mode: 'top', zoom: this.camera.zoom * 1.1 };
