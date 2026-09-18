@@ -15,6 +15,17 @@ export const CONTRACT_FIXTURE_OPTIONS: WalkOptions = {
   followSymlinks: false,
 };
 
+/** Fix wave item 10 (M6, and deferred minor #23): a deliberately NON-ASCII fixture file,
+ *  required in both driver fixtures. Every byte-size claim on this branch was previously
+ *  established only by source inspection, against an ASCII-only fixture where a byte
+ *  count and a UTF-16 code-unit count are the same number — so nothing anywhere would
+ *  have failed if a size had been measured in code units. `.length` on this string is 20
+ *  and its UTF-8 encoding is 27 bytes, so the two answers are now visibly different.
+ *  Comfortably under CONTRACT_FIXTURE_OPTIONS.maxFileBytes, so it is a KEPT file. */
+export const CONTRACT_UNICODE_PATH = 'unicode.ts';
+export const CONTRACT_UNICODE_CONTENT = 'const gruß = "日本語";\n';
+export const CONTRACT_UNICODE_BYTES = new TextEncoder().encode(CONTRACT_UNICODE_CONTENT).length;
+
 async function collectAll(port: SourceFileSystemPort, root: string, opts: WalkOptions): Promise<WalkEntry[]> {
   const { token } = createCancellationToken();
   const out: WalkEntry[] = [];
@@ -155,6 +166,106 @@ export function runContractSuite(
       await collectAll(port, root, CONTRACT_FIXTURE_OPTIONS);
       const log = port.readLog();
       expect(log.some((p) => p.includes('excluded'))).toBe(false);
+    });
+
+    // --- byteSize / byteLength are BYTES ------------------------------------------
+    // Fix wave item 10 (M6 + deferred minor #23). Both numbers used to be checked only
+    // against ASCII fixtures, where a byte count and a UTF-16 code-unit count coincide.
+    // This also caught real fake-vs-real drift: the fake reported `byteSize` from
+    // String.length while the Node adapter reports it from a real lstat.
+    it('measures a multi-byte file in BYTES, not UTF-16 code units', async () => {
+      const { port, root } = await make();
+      const entries = await collectAll(port, root, CONTRACT_FIXTURE_OPTIONS);
+      const found = entries.find((e) => e.relativePath === CONTRACT_UNICODE_PATH);
+      expect(found, CONTRACT_UNICODE_PATH).toBeDefined();
+      expect(found!.kind).toBe('file');
+      const file = found as Extract<WalkEntry, { kind: 'file' }>;
+      // Not vacuous: the two candidate answers genuinely differ for this fixture.
+      expect(CONTRACT_UNICODE_BYTES).not.toBe(CONTRACT_UNICODE_CONTENT.length);
+      expect(file.byteLength).toBe(CONTRACT_UNICODE_BYTES);
+      expect(file.byteSize).toBe(CONTRACT_UNICODE_BYTES);
+      expect(file.lineCount).toBe(1);
+    });
+
+    // --- readText() ---------------------------------------------------------------
+    // Fix wave item 10 (M6): all eleven original tests drove walk() and readLog(), so two
+    // of the port's four methods were never exercised at all -- and there was real
+    // fake-vs-real drift sitting in one of them (the Node adapter logged a readText path
+    // TWICE, once for its lstat and once inside readRawText; the fake logged it once).
+    // Spec 6 says the shared suite exists "so a fake and the Node adapter cannot drift".
+    it('readText() returns the decoded text and the raw bytes for a readable file', async () => {
+      const { port, root } = await make();
+      const result = await port.readText(`${root}/${CONTRACT_UNICODE_PATH}`, CONTRACT_FIXTURE_OPTIONS.maxFileBytes);
+      expect(result.status).toBe('ok');
+      const ok = result as Extract<typeof result, { status: 'ok' }>;
+      expect(ok.text).toBe(CONTRACT_UNICODE_CONTENT);
+      expect(ok.bytes.length).toBe(CONTRACT_UNICODE_BYTES);
+    });
+
+    it('readText() logs the path it opened EXACTLY once, however many syscalls it took', async () => {
+      const { port, root } = await make();
+      const absPath = `${root}/${CONTRACT_UNICODE_PATH}`;
+      await port.readText(absPath, CONTRACT_FIXTURE_OPTIONS.maxFileBytes);
+      // One logical read of one file is one entry. How many filesystem calls an
+      // implementation makes underneath is exactly the kind of detail a shared contract
+      // must not let vary: readLog() answers "which paths did this port open", and the
+      // safety proof that rests on it (tests/integration/read-log.test.ts) is about
+      // presence and absence of paths, not about call counts.
+      expect(port.readLog().filter((p) => p === absPath)).toHaveLength(1);
+    });
+
+    it('readText() reports an over-size file as unavailable with a reason, never truncated', async () => {
+      const { port, root } = await make();
+      const result = await port.readText(`${root}/oversized.ts`, CONTRACT_FIXTURE_OPTIONS.maxFileBytes);
+      expect(result.status).toBe('unavailable');
+      expect((result as Extract<typeof result, { status: 'unavailable' }>).reason).toMatch(/maximum size/i);
+    });
+
+    it('readText() reports binary content as unavailable with a reason', async () => {
+      const { port, root } = await make();
+      const result = await port.readText(`${root}/binary.dat`, CONTRACT_FIXTURE_OPTIONS.maxFileBytes);
+      expect(result.status).toBe('unavailable');
+      expect((result as Extract<typeof result, { status: 'unavailable' }>).reason).toMatch(/binary/i);
+    });
+
+    it('readText() reports a path that does not exist as unavailable, never as empty text', async () => {
+      const { port, root } = await make();
+      const result = await port.readText(`${root}/no-such-file.ts`, CONTRACT_FIXTURE_OPTIONS.maxFileBytes);
+      expect(result.status).toBe('unavailable');
+      expect((result as Extract<typeof result, { status: 'unavailable' }>).reason.length).toBeGreaterThan(0);
+    });
+
+    // --- stat() -------------------------------------------------------------------
+    it('stat() distinguishes a directory, a file and a missing path', async () => {
+      const { port, root } = await make();
+      const dir = await port.stat(`${root}/src`);
+      expect([dir.exists, dir.isDirectory, dir.isFile]).toEqual([true, true, false]);
+
+      const file = await port.stat(`${root}/${CONTRACT_UNICODE_PATH}`);
+      expect([file.exists, file.isDirectory, file.isFile]).toEqual([true, false, true]);
+      expect(file.size).toBe(CONTRACT_UNICODE_BYTES);
+
+      const missing = await port.stat(`${root}/no-such-file.ts`);
+      // Never a throw and never a half-populated record: a missing path is reported.
+      expect(missing).toEqual(
+        { exists: false, isDirectory: false, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 });
+    });
+
+    it('stat() reports a symlink WITHOUT following it', async () => {
+      const { port, root } = await make();
+      const link = await port.stat(`${root}/linked`);
+      expect(link.exists).toBe(true);
+      // lstat semantics, never stat: the link's target is a directory, so a following
+      // implementation would report isDirectory here.
+      expect(link.isSymbolicLink).toBe(true);
+      expect(link.isDirectory).toBe(false);
+    });
+
+    it('stat() logs the path it opened', async () => {
+      const { port, root } = await make();
+      const absPath = `${root}/${CONTRACT_UNICODE_PATH}`;
+      await port.stat(absPath);
+      expect(port.readLog().filter((p) => p === absPath)).toHaveLength(1);
     });
 
     it('is deterministic: two walks yield the same ordered relative paths', async () => {

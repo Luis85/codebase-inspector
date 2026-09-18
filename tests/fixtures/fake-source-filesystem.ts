@@ -65,8 +65,13 @@ function fakeStats(node: FakeNode | undefined): WalkerStats | null {
   if (typeof entry === 'object' && 'symlinkTo' in entry) {
     return { size: 0, isDirectory: () => false, isFile: () => false, isSymbolicLink: () => true };
   }
+  // Fix wave item 10 (M6): BYTES, not `entry.length`. A real lstat reports a file's size
+  // in bytes, so String.length (UTF-16 code units) made this fake disagree with the Node
+  // adapter for any non-ASCII content — invisible while every fixture was ASCII, and
+  // exactly the fake-vs-real drift spec 6's shared suite exists to prevent. Caught by
+  // the suite's new multi-byte fixture, which reported 20 here against the real 27.
   const size = typeof entry === 'string'
-    ? entry.length
+    ? new TextEncoder().encode(entry).length
     : 'oversizedBytes' in entry ? entry.oversizedBytes : 0;
   return { size, isDirectory: () => false, isFile: () => true, isSymbolicLink: () => false };
 }

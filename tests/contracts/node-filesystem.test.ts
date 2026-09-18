@@ -5,7 +5,7 @@
 import { afterEach } from 'vitest';
 import * as fsPromises from 'node:fs/promises';
 import * as path from 'node:path';
-import { runContractSuite } from './source-filesystem-port.contract';
+import { runContractSuite, CONTRACT_UNICODE_CONTENT, CONTRACT_UNICODE_PATH } from './source-filesystem-port.contract';
 import { createNodeSourceFileSystem } from '../../src/adapters/filesystem/node-source-filesystem';
 import { makeTempTree } from '../fixtures/temp-tree';
 import type { TempTreeSpec } from '../fixtures/temp-tree';
@@ -16,6 +16,7 @@ const FIXTURE: TempTreeSpec = {
   'oversized.ts': 'x'.repeat(500),
   'binary.dat': { binary: new Uint8Array([0x00, 0x01, 0x02, 0xff, 0x00]) },
   'unreadable.ts': { unreadable: 'secret content' },
+  [CONTRACT_UNICODE_PATH]: CONTRACT_UNICODE_CONTENT,
   linked: { symlinkTo: 'src' },
 };
 

@@ -84,14 +84,24 @@ export function createNodeSourceFileSystem(deps: NodeSourceFileSystemDeps = {}):
   // everything else this adapter touches.
   const caseSensitive = path.sep !== '\\';
 
-  async function readRawText(absPath: string): Promise<DecodedText> {
-    log.push(absPath);
+  /** Reads and classifies, WITHOUT logging. Fix wave item 10 (M6): logging was inside
+   *  this function, so `readText` below — which must log its own `lstat` before it can
+   *  even decide whether to read — logged the same path TWICE, while the fake logged it
+   *  once. Real fake-vs-real drift, and exactly what spec §6's shared suite exists to
+   *  prevent. Each caller now logs exactly once, for the one logical open it performs. */
+  async function readBytesAndDecode(absPath: string): Promise<DecodedText> {
     try {
       const bytes = await fsp.readFile(absPath);
       return decodeIfText(bytes);
     } catch (e) {
       return { ok: false, reason: `file is unreadable: ${message(e)}` };
     }
+  }
+
+  /** The WALK's read: one open, logged here. */
+  async function readRawText(absPath: string): Promise<DecodedText> {
+    log.push(absPath);
+    return readBytesAndDecode(absPath);
   }
 
   const walkerDeps: WalkerDeps = {
@@ -108,7 +118,11 @@ export function createNodeSourceFileSystem(deps: NodeSourceFileSystemDeps = {}):
   };
 
   async function readText(absPath: string, maxBytes: number): Promise<ReadResult> {
-    log.push(absPath);   // the lstat below is itself an open, logged even if it fails
+    // ONE entry for this path, here at the top: the lstat is itself an open and must be
+    // logged even when it fails, and the readBytesAndDecode below must NOT log a second
+    // time for the same logical read (fix wave item 10, M6 — the shared contract suite
+    // now asserts exactly one entry per readText call, against both implementations).
+    log.push(absPath);
     let st;
     try {
       st = await fsp.lstat(absPath);
@@ -118,7 +132,7 @@ export function createNodeSourceFileSystem(deps: NodeSourceFileSystemDeps = {}):
     if (st.size > maxBytes) {
       return { status: 'unavailable', reason: `file exceeds the maximum size of ${maxBytes} bytes` };
     }
-    const outcome = await readRawText(absPath);
+    const outcome = await readBytesAndDecode(absPath);
     return outcome.ok
       ? { status: 'ok', text: outcome.text, bytes: outcome.bytes }
       : { status: 'unavailable', reason: outcome.reason };

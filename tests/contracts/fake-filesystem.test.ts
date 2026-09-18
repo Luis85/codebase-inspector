@@ -1,4 +1,4 @@
-import { runContractSuite } from './source-filesystem-port.contract';
+import { runContractSuite, CONTRACT_UNICODE_CONTENT, CONTRACT_UNICODE_PATH } from './source-filesystem-port.contract';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import type { FakeTree } from '../fixtures/fake-source-filesystem';
 
@@ -9,6 +9,7 @@ function buildFixture(): FakeTree {
     'oversized.ts': { oversizedBytes: 500 },
     'binary.dat': { binary: true },
     'unreadable.ts': { unreadable: true },
+    [CONTRACT_UNICODE_PATH]: CONTRACT_UNICODE_CONTENT,
     linked: { symlinkTo: 'src' },
   };
 }

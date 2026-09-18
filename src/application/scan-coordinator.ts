@@ -279,7 +279,22 @@ export class ScanCoordinator {
     let lastEmittedAtMs: number | null = null;
     const dispatch = (n: number): void => { this.dispatch({ type: 'PROGRESS', runId, processedFiles: n }); };
     const wrappedPort: SourceFileSystemPort = {
-      ...port,
+      // M11 (fix wave item 10): explicit, never `{ ...port, walk: ... }`. The spread
+      // works only because both implementations happen to be factories returning object
+      // literals; if any future SourceFileSystemPort is a `class`, a spread copies no
+      // prototype methods and readText/stat/readLog become `undefined` -- silently, at
+      // runtime, in the host only, where nothing here would notice until the walk was
+      // already running.
+      //
+      // DELEGATING ARROWS rather than bare `readText: port.readText` references: a bare
+      // reference is the same latent bug one step further along -- for a class-based
+      // port it detaches the method from its receiver and `this` is lost at call time.
+      // @typescript-eslint/unbound-method says so, and the clean idiom is to satisfy it,
+      // never to suppress it. Calling through `port` keeps the receiver correct for any
+      // implementation shape.
+      readText: (absPath, maxBytes) => port.readText(absPath, maxBytes),
+      stat: (absPath) => port.stat(absPath),
+      readLog: () => port.readLog(),
       walk: (root, opts, token) => {
         async function* wrapped(): AsyncGenerator<WalkEntry> {
           for await (const entry of port.walk(root, opts, token)) {
