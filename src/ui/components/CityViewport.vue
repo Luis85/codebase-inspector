@@ -53,9 +53,18 @@ function winOf(el: HTMLElement): Window {
   return (el as unknown as WinBearing).win as Window;
 }
 
+// Task 9 fix round 3, item 2 (Important): this was dormant text before ruling
+// M68 (nothing constructed a renderer in production, so `unavailable` never
+// fired against a real handle) -- activated by it. Previously just null'd the
+// handle: no `dispose()`, so no `forceContextLoss()`/canvas removal (spec
+// 4.2's own designed path, "on unavailable{context-lost} the view disposes
+// and reconstructs"), the next resize tick appended a SECOND canvas beside
+// the still-live first one, and `onBeforeUnmount` only ever disposed whichever
+// renderer was newest -- every earlier one leaked.
 function handleRendererEvent(event: CityRendererEvent): void {
   if (event.type === 'unavailable') {
     unavailableReason.value = event.reason;
+    cityRendererHandle.value?.dispose();
     cityRendererHandle.value = null;
   }
 }
@@ -85,6 +94,10 @@ function applySize(): void {
   const win = winOf(el);
   if (!cityRendererHandle.value) {
     cityRendererHandle.value = createRenderer(el, win, handleRendererEvent);
+    // Task 9 fix round 3, item 2: a stale CONTEXT_LOST_NOTICE/COPY-14 must not
+    // outlive the reconstruction spec 4.2 says follows it -- cleared exactly
+    // where a new renderer actually starts existing again, never earlier.
+    unavailableReason.value = null;
   }
   const ratio = Math.min(win.devicePixelRatio || 1, MAX_PIXEL_RATIO);
   cityRendererHandle.value?.resize(rect.width, rect.height, ratio);

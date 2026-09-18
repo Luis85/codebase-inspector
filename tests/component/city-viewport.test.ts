@@ -283,6 +283,54 @@ describe('CityViewport.vue (C08)', () => {
     expect(wrapper.text()).toMatch(/rebuild|reconstruct/i);
   });
 
+  // Task 9 fix round 3, item 2 (Important): `handleRendererEvent` used to null
+  // out the handle without ever calling `dispose()` -- dormant before ruling
+  // M68 (nothing constructed a renderer in production), activated by it. Spec
+  // 4.2's own designed path ("On unavailable{context-lost} the view disposes
+  // and reconstructs") never actually disposed: no `forceContextLoss()`, no
+  // canvas removal, and every earlier renderer leaked once `onBeforeUnmount`
+  // only ever disposed the newest one.
+  it('disposes the renderer on an unavailable event, not merely drops the reference', async () => {
+    const rendererDouble = makeRendererDouble();
+    let onEventCapture: ((e: CityRendererEvent) => void) | null = null;
+    const factory: CreateCityRenderer = (_mountEl, _win, onEvent) => {
+      onEventCapture = onEvent;
+      return rendererDouble;
+    };
+    const { win } = makeFakeWin();
+    mountWithFactory(factory, win, { width: 800, height: 600 });
+    await nextTick();
+    onEventCapture!({ type: 'unavailable', reason: 'context-lost' });
+    await nextTick();
+    expect(rendererDouble.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  // The stale "will reconstruct" notice must not survive an actual
+  // reconstruction: spec 4.2's whole point of "disposes and reconstructs" is
+  // that reconstruction really happens, so the notice must describe only the
+  // GAP, never the new steady state once a renderer exists again.
+  it('clears the unavailable notice once a new renderer is actually constructed', async () => {
+    const rendererDouble1 = makeRendererDouble();
+    let onEventCapture: ((e: CityRendererEvent) => void) | null = null;
+    const factory = vi.fn((_mountEl: HTMLElement, _win: Window, onEvent: (e: CityRendererEvent) => void) => {
+      onEventCapture = onEvent;
+      return rendererDouble1;
+    }) as unknown as CreateCityRenderer;
+    const { win, triggerResize } = makeFakeWin();
+    const { wrapper, stage } = mountWithFactory(factory, win, { width: 800, height: 600 });
+    await nextTick();
+    onEventCapture!({ type: 'unavailable', reason: 'context-lost' });
+    await nextTick();
+    expect(wrapper.text()).toMatch(/rebuild|reconstruct/i);
+
+    const rendererDouble2 = makeRendererDouble();
+    vi.mocked(factory).mockReturnValueOnce(rendererDouble2);
+    setRect(stage, 800, 600);
+    triggerResize();
+    await nextTick();
+    expect(wrapper.text()).not.toMatch(/rebuild|reconstruct/i);
+  });
+
   it('is passive (mounts, exposes a bare host, never constructs anything) when no factory is injected', () => {
     // This is the state App.vue uses today, unchanged by this task: CityView
     // (unmodified) still constructs the real renderer itself against the exposed
