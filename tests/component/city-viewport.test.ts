@@ -146,10 +146,10 @@ describe('CityViewport.vue (C08)', () => {
   // >= 320) and the leaf was dragged narrower, `applySize` used to return
   // BEFORE both the pixel-ratio clamp and `resize()`, and nothing disposed the
   // renderer -- so a live WebGL context survived below the floor, against spec
-  // 5.2's "creates no WebGL context at all", with a stale canvas size.
-  // city-view.ts's own analogous transition (`applyWidth` -> `teardownRenderer`)
-  // already does this at the ItemView level; CityViewport must do it too now
-  // that it owns its own renderer lifecycle (once a factory is injected).
+  // 5.2's "creates no WebGL context at all", with a stale canvas size. Fix round
+  // 2, item 1 (ruling M68) made this the ONLY such transition left in the
+  // codebase (city-view.ts's own former, analogous `applyWidth` ->
+  // `teardownRenderer` transition is gone) -- CityViewport alone owns it.
   it('disposes an existing renderer when the box drops below the 320px floor', async () => {
     const rendererDouble = makeRendererDouble();
     const factory = vi.fn(() => rendererDouble) as unknown as CreateCityRenderer;

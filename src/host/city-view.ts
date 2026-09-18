@@ -1,23 +1,37 @@
 // ItemView owning onOpen/onClose/getState/setState (task 3), plus the scan lifecycle
 // wiring (task 8): the coordinator, the consent chain, progress/cancellation notices,
 // and handing a completed snapshot's layout to the renderer. Task 9 replaces the
-// welcome-shell UI with the real C01 shell; tasks 10-11 replace the renderer and add
-// per-leaf snapshot reconciliation. This file's own responsibilities do not change.
+// welcome-shell UI with the real C01 shell; task 11 adds per-leaf snapshot
+// reconciliation. This file's own responsibilities do not change.
+//
+// Task 9 fix round 2, item 1 (ruling M68): renderer CONSTRUCTION, teardown and
+// sizing moved OUT of this file and into `CityViewport.vue`, which is now their
+// single owner — this file used to build its own renderer directly and never
+// publish it into the Vue tree, so the shared `cityRendererHandle` was permanently
+// null in production and the WCAG 2.5.7 camera controls (round 1, item 3) commanded
+// nothing. This file now PROVIDES the real `createCityRenderer` factory into the
+// tree (before `mount()`, at the app level — a component's own `provide()` only
+// resolves for ITS descendants, never for code outside the tree) and reads the SAME
+// shared handle `CityViewport` populates for the two things only the host layer can
+// do: react to `workspace.on('css-change')`, and hand a completed snapshot's layout
+// to whichever renderer currently exists.
 //
 // Host rules this file exists to satisfy (spec 4.4):
-// - WebGL context creation happens in onOpen, never the constructor.
+// - WebGL context creation happens in onOpen, never the constructor: still true —
+//   CityViewport's own `onMounted` runs as part of the SAME `mount()` call this
+//   file's `onOpen` makes, never earlier.
 // - Vue mounts on this.contentEl (not containerEl.children[1]); each view creates its
 //   OWN Pinia instance.
 // - getState() returns identifiers and presentation state only; setState validates
 //   through the same runtime validator as settings, because workspace.json is
 //   user-editable.
-// - No bare window/document/ResizeObserver: everything goes through contentEl.win.
-// - Below the 320 CSS px hard floor, no WebGL context is created at all.
-// - pause/resume invariant (spec 4.2): visibility NEVER authorises a scan -- nothing in
-//   applyWidth/ensureRenderer below calls the coordinator at all.
+// - Below the 320 CSS px hard floor, no WebGL context is created at all — now
+//   CityViewport's own `applySize()` guard, not this file's.
+// - pause/resume invariant (spec 4.2): visibility NEVER authorises a scan -- nothing
+//   in this file (or in CityViewport's own sizing) calls the coordinator at all.
 import { ItemView, Notice } from 'obsidian';
 import type { EventRef, Plugin, ViewStateResult, WorkspaceLeaf } from 'obsidian';
-import { createApp, ref, type App as VueApp, type Ref } from 'vue';
+import { createApp, shallowRef, watch, type App as VueApp, type ShallowRef } from 'vue';
 import { createPinia, type Pinia } from 'pinia';
 import RootComponent from '../ui/App.vue';
 import { createCityRenderer } from '../visualization/city-renderer';
@@ -26,8 +40,9 @@ import { ScanCoordinator, createCancellationToken } from '../application/scan-co
 import { resolveOrCreateProfile, runInitialScan, runRefresh } from './scan-flow';
 import { useCityStore } from '../ui/stores/city-store';
 import { useRunStore } from '../ui/stores/run-store';
+import { CITY_RENDERER_KEY } from '../ui/renderer-handle';
 import { reactToLifecycleChange } from './lifecycle-notices';
-import type { CityRendererEvent, CityRendererPort } from '../visualization/renderer-port';
+import type { CityRendererPort } from '../visualization/renderer-port';
 import type { ScanLifecycleState } from '../application/run-state';
 import type { CodebaseSnapshot, CityViewState, CodebaseProfile } from '../domain/model';
 import type { ProfileStore } from '../application/ports/profile-store';
@@ -37,24 +52,9 @@ import type { Clock } from '../application/ports/clock';
 import { defaultCityViewState, decodeCityViewState } from './view-state';
 import { validationFailureText } from '../domain/validator';
 import { readPalette } from './theme-bridge';
-
-// lib.dom.d.ts declares ResizeObserver only as a bare global `var`, not as a member of
-// `Window` (a lib.dom gap) — even though at runtime it is a real property of every
-// window, including a popped-out one. This augmentation lets
-// `containerEl.win.ResizeObserver` type-check, so this file can honour the
-// cross-window rule (spec 4.4) instead of reaching for the bare global.
-declare global {
-  interface Window {
-    ResizeObserver: typeof ResizeObserver;
-  }
-}
+import { CITY_RENDER_FAILURE_NOTICE } from '../ui/copy';
 
 export const CITY_VIEW_TYPE = 'codebase-inspector-city';
-const MIN_INLINE_SIZE = 320;   // spec 5.2 hard floor, CSS px, measured on the leaf
-
-interface ExposedRoot {
-  rendererHost: HTMLElement | null;
-}
 
 /** Task 8: what a CityView needs to run a scan, beyond the plain `Plugin` reference task
  *  3 already took. All four are plugin-level singletons (main.ts constructs one of
@@ -75,9 +75,17 @@ export class CityView extends ItemView {
   private readonly coordinator: ScanCoordinator;
   private vueApp: VueApp | null = null;
   private pinia: Pinia | null = null;
-  private renderer: CityRendererPort | null = null;
-  private rendererMountEl: HTMLElement | null = null;
-  private resizeObserver: ResizeObserver | null = null;
+  // Task 9 fix round 2, item 1 (ruling M68): the SHARED renderer handle,
+  // provided into the Vue tree at the APP level (`this.vueApp.provide(...)`,
+  // below) rather than via a component's own `provide()` — a component-level
+  // provide only resolves `inject()` calls made by ITS OWN descendants, never
+  // by this file's plain-class code. `CityViewport.vue` is the only WRITER;
+  // this file only ever READS it, for the two things only the host layer can
+  // do (theme-colour refresh on `css-change`, and handing a snapshot's layout
+  // to whichever renderer currently exists) — it never constructs, disposes or
+  // sizes anything itself any more.
+  private readonly cityRendererHandle: ShallowRef<CityRendererPort | null> = shallowRef(null);
+  private unwatchRendererForColors: (() => void) | null = null;
   private cssChangeRef: EventRef | null = null;
   private unsubscribeCoordinator: (() => void) | null = null;
   private state: CityViewState = defaultCityViewState();
@@ -96,9 +104,6 @@ export class CityView extends ItemView {
   private startingScan = false;
   private layoutGeneration = 0;
   private layoutAbort: AbortController | null = null;
-  // Owned here, injected into App.vue, so a resize-driven availability change never
-  // requires remounting the welcome shell.
-  private readonly rendererAvailable: Ref<boolean> = ref(false);
 
   constructor(leaf: WorkspaceLeaf, plugin: Plugin, deps: CityViewDeps) {
     super(leaf);
@@ -207,21 +212,32 @@ export class CityView extends ItemView {
     // is unaffected; this is a lint-tooling gap, not an unsafe value.
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- see comment above: vue-tsc, not eslint's type-aware linting, is the accurate check here
     this.vueApp = createApp(RootComponent);
-    this.vueApp.provide('rendererAvailable', this.rendererAvailable);
     this.vueApp.provide('onSelectCodebase', () => { void this.selectCodebase(); });
+    // Task 9 fix round 2, item 1 (ruling M68): the shared handle AND the real
+    // factory, both provided at the APP level, BEFORE mount — `CityViewport`
+    // is the only thing that ever WRITES the handle or calls the factory;
+    // this file only ever READS the handle afterwards, directly (below, and
+    // in `publishLayout`).
+    this.vueApp.provide(CITY_RENDERER_KEY, this.cityRendererHandle);
+    this.vueApp.provide('createCityRenderer', createCityRenderer);
     this.vueApp.use(this.pinia);
-    const instance = this.vueApp.mount(this.contentEl) as unknown as ExposedRoot;
-    this.rendererMountEl = instance.rendererHost;
+    this.vueApp.mount(this.contentEl);
 
-    const win = this.contentEl.win;               // never a bare window
-    this.resizeObserver = new win.ResizeObserver(() => { this.applyWidth(); });
-    this.resizeObserver.observe(this.contentEl);
-    this.applyWidth();      // decide once synchronously; the observer covers later drags
+    // Applies the current theme the moment a renderer exists — on first
+    // construction, and again on any later reconstruction (e.g. after a
+    // context-lost dispose-and-rebuild) — without CityViewport itself needing
+    // to import theme-bridge.ts (a host-layer concern; CityViewport stays
+    // ignorant of Obsidian's theme system entirely, same as it already never
+    // imports 'obsidian'). `watch()` works outside a component's setup exactly
+    // like this — it is Vue's reactivity system, not the injection system.
+    this.unwatchRendererForColors = watch(this.cityRendererHandle, (renderer) => {
+      renderer?.setColors(readPalette(this.contentEl));
+    });
 
     this.cssChangeRef = this.plugin.app.workspace.on('css-change', () => {
       // Re-reads every cached colour. Never moves buildings, changes camera, or
       // clears state (spec 4.4).
-      this.renderer?.setColors(readPalette(this.contentEl));
+      this.cityRendererHandle.value?.setColors(readPalette(this.contentEl));
     });
 
     this.unsubscribeCoordinator = this.coordinator.subscribe((lifecycle) => { this.onLifecycleChange(lifecycle); });
@@ -243,22 +259,28 @@ export class CityView extends ItemView {
     // running, but that discarding-after-the-fact is not the same as actually STOPPING
     // the disk I/O, which real cancellation does.
     if (this.coordinator.state.status === 'running') this.coordinator.cancel(this.coordinator.state.runId);
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = null;
     if (this.cssChangeRef) {
       this.plugin.app.workspace.offref(this.cssChangeRef);
       this.cssChangeRef = null;
     }
+    this.unwatchRendererForColors?.();
+    this.unwatchRendererForColors = null;
     this.unsubscribeCoordinator?.();
     this.unsubscribeCoordinator = null;
     this.layoutAbort?.abort();
-    this.teardownRenderer();
+    // Task 9 fix round 2, item 1 (ruling M68): no more `this.teardownRenderer()`
+    // here — `CityViewport.vue`'s own `onBeforeUnmount` (its ResizeObserver
+    // disconnect, `renderer.dispose()` — which itself calls `forceContextLoss()`,
+    // spec 4.4 — and clearing the shared handle) fires as part of THIS
+    // `unmount()` call, synchronously, cascading down from this file's root
+    // component exactly like every other descendant's own cleanup. Calling
+    // `teardownRenderer()` here too would be the double-dispose ruling M68
+    // warned providing the factory without consolidating would create.
     this.vueApp?.unmount();
     this.vueApp = null;
     this.pinia = null;
     this.cityStore = null;
     this.runStore = null;
-    this.rendererMountEl = null;
   }
 
   override getState(): Record<string, unknown> {
@@ -319,11 +341,12 @@ export class CityView extends ItemView {
     try {
       layout = computeLayout(snapshot);
     } catch {
-      this.showNotice('The city could not be rendered from the latest scan.');
+      this.showNotice(CITY_RENDER_FAILURE_NOTICE);
       return;
     }
     this.cityStore?.setCity(snapshot, layout);
-    if (!this.renderer) return;
+    const renderer = this.cityRendererHandle.value;
+    if (!renderer) return;
     // Fix round 1, Minor 8: this runs from `void this.publishLayout(...)` at every call
     // site, so an uncaught throw here would be an unhandled promise rejection, not a
     // catchable error anywhere. `setLayout` itself never rejects (spec 4.2).
@@ -331,56 +354,9 @@ export class CityView extends ItemView {
       this.layoutAbort?.abort();
       this.layoutAbort = new AbortController();
       this.layoutGeneration += 1;
-      await this.renderer.setLayout(layout, { generation: this.layoutGeneration, signal: this.layoutAbort.signal });
+      await renderer.setLayout(layout, { generation: this.layoutGeneration, signal: this.layoutAbort.signal });
     } catch {
-      this.showNotice('The city could not be rendered from the latest scan.');
+      this.showNotice(CITY_RENDER_FAILURE_NOTICE);
     }
-  }
-
-  private applyWidth(): void {
-    const rect = this.contentEl.getBoundingClientRect();
-    const available = rect.width >= MIN_INLINE_SIZE;
-    this.rendererAvailable.value = available;
-    if (available) {
-      const justCreated = this.ensureRenderer();
-      const pixelRatio = this.contentEl.win.devicePixelRatio || 1;
-      this.renderer?.resize(rect.width, rect.height, pixelRatio);
-      // A renderer created by a resize (e.g. a leaf dragged wider) needs whatever was
-      // already published re-applied -- resize never implies fit and setLayout is
-      // never re-run just because visibility changed (spec 4.2: visibility never
-      // authorises a SCAN, but a renderer that did not exist yet still needs today's
-      // already-approved layout, not a new one).
-      if (justCreated && this.state.snapshotId) {
-        const existing = this.deps.snapshotStore.get(this.state.snapshotId);
-        if (existing) void this.publishLayout(existing);
-      }
-    } else {
-      this.teardownRenderer();
-    }
-  }
-
-  private ensureRenderer(): boolean {
-    if (this.renderer || !this.rendererMountEl) return false;
-    const win = this.contentEl.win;
-    this.renderer = createCityRenderer(this.rendererMountEl, win, (event) => {
-      this.onRendererEvent(event);
-    });
-    this.renderer.setColors(readPalette(this.contentEl));
-    return true;
-  }
-
-  private onRendererEvent(event: CityRendererEvent): void {
-    if (event.type === 'unavailable') {
-      // No self-healing (spec 4.2): drop the reference. A later resize/onOpen is
-      // what constructs a fresh renderer, never a restore.
-      this.rendererAvailable.value = false;
-      this.teardownRenderer();
-    }
-  }
-
-  private teardownRenderer(): void {
-    if (!this.renderer) return;
-    this.renderer.dispose();
-    this.renderer = null;
   }
 }

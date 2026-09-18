@@ -17,14 +17,29 @@ import type { CityRendererPort } from '../visualization/renderer-port';
 
 export const CITY_RENDERER_KEY: InjectionKey<ShallowRef<CityRendererPort | null>> = Symbol('city-renderer');
 
-/** Called once, by App.vue, near the root of the tree. `shallowRef`, deliberately —
- *  a plain `ref` would deep-wrap the assigned CityRendererPort in a reactive Proxy
+/** Called by App.vue, near the root of the tree. `shallowRef`, deliberately — a
+ *  plain `ref` would deep-wrap the assigned CityRendererPort in a reactive Proxy
  *  (Vue's automatic `toReactive`), so `renderer.value` would no longer be the SAME
  *  object CityViewport handed it, and `expect(handle.value).toBe(rendererDouble)`
  *  (and, in production, `resize === renderer.resize` style identity checks) would
  *  fail even though behaviour looked identical — a real defect this shallowRef
- *  avoids rather than a style preference. */
+ *  avoids rather than a style preference.
+ *
+ *  Task 9 fix round 2, item 1 (ruling M68): IDEMPOTENT — first checks whether an
+ *  ancestor already provided one (via `inject`) and reuses it instead of shadowing
+ *  it with a fresh, disconnected ref for App.vue's own descendants. `city-view.ts`
+ *  now provides the shared handle at the APP level (`this.vueApp.provide(...)`,
+ *  before `mount()`), because it needs to command the SAME renderer directly
+ *  (theme-colour refresh, `setLayout`) without going through a component's own
+ *  `provide()`/`inject()` — which only resolves against the app's own provides,
+ *  never a descendant component's. Without this idempotence, App.vue's own
+ *  unconditional `provide()` call would silently split "the one shared handle"
+ *  into two: the one `city-view.ts` writes to, and a different one CityViewport's
+ *  siblings would actually read from. Standalone component tests (no `CityView`
+ *  ancestor at all) still get a fresh one here, exactly as before. */
 export function provideCityRenderer(): ShallowRef<CityRendererPort | null> {
+  const existing = inject(CITY_RENDERER_KEY, null);
+  if (existing) return existing;
   const handle = shallowRef<CityRendererPort | null>(null);
   provide(CITY_RENDERER_KEY, handle);
   return handle;

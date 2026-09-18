@@ -95,3 +95,13 @@ export const CONTEXT_LOST_NOTICE = 'The 3D view stopped responding and will reco
 export function formatFailedRefreshNotice(message: string): string {
   return `Scan failed: ${message} The previous snapshot is unchanged and still shown.`;
 }
+
+/** Task 9 fix round 2, item 4 (Minor fold): `city-view.ts` emitted this exact
+ *  string from two separate call sites (`publishLayout`'s two catch blocks),
+ *  neither with a COPY id and neither named by round 1's item 9. Not in the
+ *  microcopy catalogue under any id — `computeLayout`/`setLayout` failing is
+ *  a genuinely unusual, hard-to-catalogue failure mode, not one of the
+ *  ordinary scan/search/inspector states the catalogue enumerates. Given one
+ *  definition here so both call sites stay identical by construction, not by
+ *  copy-paste. */
+export const CITY_RENDER_FAILURE_NOTICE = 'The city could not be rendered from the latest scan.';

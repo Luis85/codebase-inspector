@@ -3,6 +3,7 @@
 // 'jsdom' project (by exact path) instead of the 'node' project the rest of
 // tests/host/** uses, rather than moving the whole directory to jsdom.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 import { CityView, CITY_VIEW_TYPE } from '../../src/host/city-view';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
@@ -18,8 +19,7 @@ import type { ProfileStore } from '../../src/application/ports/profile-store';
 const FAKE_ROOT_SCOPE = { rootPath: '/fake-root', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false as const };
 
 /** A publishable snapshot whose scope's rootPath matches createFakeSourceFileSystem's
- *  fixed '/fake-root', so a refresh driven against it can genuinely reach 'running'
- *  rather than failing the coordinator's own root-existence check immediately. */
+ *  fixed '/fake-root', so a refresh driven against it can genuinely reach 'running'. */
 function publishedSnapshot(overrides: Partial<CodebaseSnapshot> = {}): CodebaseSnapshot {
   return {
     ...buildSnapshotFixture({ files: 1, repositoryId: 'p1' }),
@@ -30,8 +30,7 @@ function publishedSnapshot(overrides: Partial<CodebaseSnapshot> = {}): CodebaseS
 }
 
 /** Polls (via microtask ticks only -- no real timer) until the view's coordinator is
- *  actually running, so a test can reliably cancel/close mid-scan without racing a
- *  fast, effectively-synchronous fake filesystem. */
+ *  actually running, so a test can reliably cancel/close mid-scan. */
 async function waitUntilRunning(view: CityView): Promise<void> {
   for (let i = 0; i < 50 && !view.isScanRunning(); i += 1) await Promise.resolve();
 }
@@ -39,9 +38,7 @@ async function waitUntilRunning(view: CityView): Promise<void> {
 /** Polls (microtask ticks only) until a modal is open. Fix round 4: resolveOrCreateProfile
  *  now migrates an existing empty-exclusions profile via an EXTRA `ProfileStore.update()`
  *  await hop (ruling M44's migration half) before the consent chain can open anything, so
- *  a fixed tick count is no longer a safe assumption for how soon a modal appears -- this
- *  polls instead of guessing a number, and is used everywhere a test drives the real
- *  source->scope chain from a profile this file's fixtures give empty exclusions. */
+ *  a fixed tick count is no longer safe -- this polls instead of guessing a number. */
 async function waitForModal(): Promise<HTMLElement> {
   for (let i = 0; i < 50; i += 1) {
     const modal = document.querySelector('.modal-container');
@@ -101,8 +98,7 @@ function makePluginDouble(): {
         offref: vi.fn(),
       },
       // The REAL vault.configDir, never a literal '.obsidian' in production (ruling
-      // M44) -- this double still names it '.obsidian' because that IS this fake
-      // vault's real config directory name, exactly as a real Obsidian App would report.
+      // M44) -- named '.obsidian' here only because that IS this fake vault's real one.
       vault: { adapter: { read: vi.fn(), list: vi.fn() }, configDir: '.obsidian' },
     },
   };
@@ -194,33 +190,48 @@ describe('CityView', () => {
     expect(view.getState()).not.toHaveProperty('rootPath');
   });
 
-  // "creates its own Pinia instance per view" moved to
-  // tests/host/city-view-store-wiring.test.ts (task 9 fix round 1, items 1 and 8):
-  // this file was at the tests/** 450-line budget once that test's fix round 1
-  // rewrite (making it non-vacuous — see that file's own comment) was added
-  // alongside the two new store-wiring tests. Same test, same assertions, moved
-  // wholesale, not weakened.
+  // "creates its own Pinia instance per view" moved wholesale, not weakened, to
+  // tests/host/city-view-store-wiring.test.ts (fix round 1, items 1 and 8): this
+  // file was at the tests/** 450-line budget once that rewrite (non-vacuous — see
+  // that file's own comment) landed alongside the two new store-wiring tests.
 
+  // M68's own construction now goes through CityViewport's OWN stage element,
+  // measured via `tests/mocks/obsidian.ts`'s generous 1000x700 default rect.
   it('unmounts Vue and disposes the renderer in onClose', async () => {
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
     await view.onOpen();
+    await nextTick();   // CityViewport's own construction is deferred one microtask
+    expect(createRendererSpy).toHaveBeenCalledTimes(1);
     await view.onClose();
     expect(inertPort.dispose).toHaveBeenCalled();
     expect(view.contentEl.childElementCount).toBe(0);
   });
 
+  // The stage element's own measurement drives this now (M68), overridden at the
+  // PROTOTYPE level (active from CityViewport's first measurement) rather than
+  // per-element, which would race the mocks file's own 1000x700 default.
   it('creates NO WebGL context below the 320 CSS px hard floor', async () => {
-    const view = new CityView(makeLeafDouble(300) as never, makePluginDouble() as never, makeDepsDouble());
-    await view.onOpen();
-    expect(createRendererSpy).not.toHaveBeenCalled();
-    expect(view.contentEl.textContent).toContain('The 3D view is unavailable. File inspection still works.');
+    const rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 300, height: 700, top: 0, left: 0, right: 300, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+    });
+    try {
+      const view = new CityView(makeLeafDouble(300) as never, makePluginDouble() as never, makeDepsDouble());
+      await view.onOpen();
+      await nextTick();
+      await nextTick();   // `available.value = false`'s OWN render flush
+      expect(createRendererSpy).not.toHaveBeenCalled();
+      expect(view.contentEl.textContent).toContain('The 3D view is unavailable. File inspection still works.');
+    } finally {
+      rectSpy.mockRestore();
+    }
   });
 
   it('never starts a scan on open, and never on a resize/visibility change either', async () => {
     // pause/resume invariant (spec 4.2): visibility never authorises a scan. onOpen and
-    // the ResizeObserver callback (applyWidth, fired synchronously inside onOpen) are
-    // the two hooks that run without any user click; neither may consult the profile
-    // store, which every real scan path (resolveOrCreateProfile) always does first.
+    // CityViewport's own sizing/ResizeObserver (ruling M68: this file no longer owns
+    // any of that itself) are the hooks that run without a user click; neither may
+    // consult the profile store, which every real scan path (resolveOrCreateProfile)
+    // always does first.
     const deps = makeDepsDouble();
     const getFilesystem = vi.fn(deps.getFilesystem);
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, { ...deps, getFilesystem });
@@ -230,7 +241,7 @@ describe('CityView', () => {
     await view.onOpen();
     expect(deps.profileStore.list).not.toHaveBeenCalled();
     expect(deps.profileStore.get).not.toHaveBeenCalled();
-    // Still exactly the one constructor-time call -- onOpen/applyWidth never call it again.
+    // Still exactly the one constructor-time call -- onOpen never calls it again.
     expect(getFilesystem).toHaveBeenCalledTimes(1);
   });
 

@@ -396,6 +396,33 @@ function installResizeObserverStub(): void {
 }
 installResizeObserverStub();
 
+// jsdom implements no `window.matchMedia` either (same gap class as above; fix
+// round 2/M68 makes `applyMotionPreference` run on every real mount now). Fixed, silent, non-reduced.
+function installMatchMediaStub(): void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'undefined') return;
+  window.matchMedia = (query: string): MediaQueryList => ({
+    matches: false, media: query, onchange: null, addListener: () => {}, removeListener: () => {},
+    addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
+  });
+}
+installMatchMediaStub();
+
+// jsdom does no real layout: every element's `getBoundingClientRect()` returns all
+// zeros by default (a third instance of the same gap). Fix round 2/M68: CityViewport
+// measures its OWN nested stage element, not `contentEl` (stubbed per-instance
+// above, no longer reached) -- a generous 1000x700 default avoids racing a POST-HOC
+// per-element override against construction's own microtask timing (hit empirically
+// in city-view-store-wiring.test.ts). A narrow-stage test overrides this prototype
+// method with `vi.spyOn` instead.
+function installBoundingRectDefault(): void {
+  if (typeof Element === 'undefined') return;
+  const proto = Element.prototype as unknown as { ciRectStub?: boolean };
+  if (proto.ciRectStub) return;
+  proto.ciRectStub = true;
+  Element.prototype.getBoundingClientRect = () => ({ width: 1000, height: 700, top: 0, left: 0, right: 1000, bottom: 700, x: 0, y: 0, toJSON: () => ({}) });
+}
+installBoundingRectDefault();
+
 // jsdom's HTMLCanvasElement has no 2D context (the optional `canvas` npm package is
 // not installed), so getContext('2d') returns null with a noisy console warning.
 // cssColorToSrgbBytes already handles a null context gracefully, but the warning would

@@ -7,18 +7,16 @@
   region"); the canvas the renderer appends into it stays aria-hidden and untabbable
   entirely on the RENDERER's own side (city-renderer.ts, unchanged this task).
 
-  PASSIVE BY DEFAULT: with no `createCityRenderer` factory injected — today's actual
-  production wiring, since CityView (unmodified this task) still constructs the real
-  renderer itself against this component's exposed host element exactly as it did
-  before task 9 — this component does nothing beyond rendering a bare host, exactly
-  like the old welcome-shell div it replaces. Every sizing/renderer-lifecycle
-  behaviour below activates only once a factory IS injected (this task's own
-  component tests; a future task's job is to have CityView provide the real one and
-  stop constructing it itself). See task-9-report.md for why.
+  Task 9 fix round 2, item 1 (ruling M68): this component is now the SINGLE owner of
+  renderer construction, teardown and sizing — `city-view.ts` provides the real
+  `createCityRenderer` factory into the tree (before mount, at the app level) instead
+  of constructing its own renderer directly. Every sizing/renderer-lifecycle
+  behaviour below is exercised by this component's own tests injecting a double
+  factory; in a standalone mount (no factory provided at all — `inject`'s default is
+  `null`), this component stays passive: a bare host, nothing more.
 -->
 <script setup lang="ts">
 import { inject, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
-import type { Ref } from 'vue';
 import type {
   CityRendererEvent, CreateCityRenderer,
 } from '../../visualization/renderer-port';
@@ -30,12 +28,16 @@ const MAX_PIXEL_RATIO = 2;
 
 type UnavailableReason = 'unsupported' | 'context-lost' | 'initialization-failed';
 
-const rendererAvailable = inject<Ref<boolean>>('rendererAvailable', () => ref(true), true);
 const createRenderer = inject<CreateCityRenderer | null>('createCityRenderer', null);
 const cityRendererHandle = useCityRendererHandle();
 const cityStageHandle = useCityStageEl();
 
 const stageEl = ref<HTMLElement | null>(null);
+// Task 9 fix round 2, item 1: replaces the externally-injected `rendererAvailable`
+// ref (now dead, and removed from city-view.ts/App.vue) — this component now
+// determines "is the box wide enough" from its OWN measurement, the same
+// measurement `applySize` already takes for the hard floor below.
+const available = ref(true);
 const unavailableReason = ref<UnavailableReason | null>(null);
 let resizeObserver: ResizeObserver | null = null;
 
@@ -63,19 +65,22 @@ function handleRendererEvent(event: CityRendererEvent): void {
  *  merged into one early return, which left the height guard with no
  *  independent test coverage — a 0x0 box tripped both at once). Below the
  *  floor, an existing renderer is DISPOSED, not merely left un-resized: spec
- *  5.2 says the view "creates no WebGL context at all" below 320px, and a
- *  live context surviving there with a stale size is exactly what
- *  city-view.ts's own analogous `applyWidth` -> `teardownRenderer` transition
- *  already prevents at the ItemView level. */
+ *  5.2 says the view "creates no WebGL context at all" below 320px, so a live
+ *  context is never left surviving there with a stale size. Task 9 fix round
+ *  2, item 1 (ruling M68): this is now the ONLY place that transition happens
+ *  at all — city-view.ts's own former, analogous `applyWidth` ->
+ *  `teardownRenderer` transition is gone; this component owns it alone. */
 function applySize(): void {
   const el = stageEl.value;
   if (!el || !createRenderer) return;
   const rect = el.getBoundingClientRect();
   if (rect.width < MIN_INLINE_SIZE) {
+    available.value = false;
     cityRendererHandle.value?.dispose();
     cityRendererHandle.value = null;
     return;
   }
+  available.value = true;
   if (rect.height <= 0) return;   // zero-size box: no-op, independent of the floor
   const win = winOf(el);
   if (!cityRendererHandle.value) {
@@ -137,7 +142,7 @@ defineExpose({ stageEl, cityRendererHandle, unavailableReason });
       view, T switches to top view, Enter focuses the current selection.
     </p>
     <p
-      v-if="!rendererAvailable && !unavailableReason"
+      v-if="!available && !unavailableReason"
       class="ci-viewport__notice"
     >
       {{ COPY_14 }}

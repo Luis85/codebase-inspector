@@ -6,6 +6,7 @@
 // per-test-file self-containment convention (see any two component test files'
 // own `makeRendererDouble()`).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 import { CityView } from '../../src/host/city-view';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
@@ -38,10 +39,19 @@ const DUMMY_CAMERA: CameraBookmark = {
   position: [0, 0, 0], target: [0, 0, 0], up: [0, 1, 0], zoom: 1,
 };
 
+// Declared as its own const, never a live `inertPort.setSelection` member
+// expression (which `@typescript-eslint/unbound-method` flags) -- the same pattern
+// already resolved this way elsewhere (tests/component/consent-chain.test.ts's
+// makeCoordinator(), tests/unit/scan-coordinator.test.ts's spyPort(),
+// tests/unit/scan-flow.test.ts's makeProfileStoreDouble()), applied here by giving
+// `setSelection` its OWN plain-`vi.fn()` identity up front rather than accessing it
+// back off `inertPort` afterwards.
+const setSelectionSpy = vi.fn();
+
 const inertPort: CityRendererPort = {
   setLayout: vi.fn(async () => {}),
   setColors: vi.fn(),
-  setSelection: vi.fn(),
+  setSelection: setSelectionSpy,
   setFilter: vi.fn(),
   setLabels: vi.fn(),
   setCameraMode: vi.fn(),
@@ -125,6 +135,22 @@ async function viewWithSnapshot(deps: CityViewDeps): Promise<CityView> {
   return view;
 }
 
+/** jsdom does no real layout: CityViewport's own stage element (a plain nested div,
+ *  unlike `view.contentEl`/`containerEl` above, which the ItemView double DOES
+ *  stub) always measures 0x0 by default, regardless of the leaf width passed to
+ *  `makeLeafDouble`. Task 9 fix round 2, item 1 (ruling M68): before this fix,
+ *  nothing in a host-level test ever reached this element at all (CityViewport
+ *  stayed passive — the very bug M68 exists to fix), so this gap never mattered
+ *  here; `tests/component/city-viewport.test.ts`'s own tests already stub exactly
+ *  this, directly on the component. */
+function stubStageRect(view: CityView, width: number, height = 700): void {
+  const stage = view.contentEl.querySelector<HTMLElement>('[data-ci-role="stage"]');
+  if (!stage) throw new Error('test setup: no stage element found');
+  stage.getBoundingClientRect = () => ({
+    width, height, top: 0, left: 0, right: width, bottom: height, x: 0, y: 0, toJSON: () => ({}),
+  });
+}
+
 // Task 9 fix round 1, item 1 (Critical): before this fix, neither
 // `onLifecycleChange` nor `publishLayout` fed the Pinia stores at all --
 // `runStore.setLifecycle` and `cityStore.setCity` had no production caller
@@ -133,6 +159,41 @@ async function viewWithSnapshot(deps: CityViewDeps): Promise<CityView> {
 describe('CityView store wiring (task 9 fix round 1, item 1)', () => {
   beforeEach(() => {
     vi.mocked(createRendererSpy).mockClear();
+    setSelectionSpy.mockClear();
+  });
+
+  // Task 9 fix round 2, item 1 (Important, ruling M68): before this fix,
+  // `CityViewport.vue` only constructed a renderer into the shared handle when
+  // a `createCityRenderer` factory was INJECTED, and `city-view.ts` built its
+  // OWN renderer directly, never publishing it into the Vue tree — so in
+  // production `cityRendererHandle` was permanently null, the eleven WCAG
+  // 2.5.7 camera controls rendered visible but inert, and CodebaseFileList's
+  // `setSelection` call was a silent no-op. These two tests prove the
+  // PRODUCTION path end to end: a real `CityView`'s Vue tree reaches the real
+  // (here, mocked-at-the-module-boundary) port, not a component-level double.
+  // NOT the primary proof (see the next test for that) — this one only guards
+  // against ruling M68's own named risk: providing the factory WITHOUT removing
+  // `city-view.ts`'s own direct construction would mean TWO renderers get built
+  // (one dormant, one dead), each with its own dispose path. Passes trivially
+  // before this fix too (the old path alone calls it once) — the real change
+  // this fix makes is WHICH path, proven by the setSelection test below.
+  it('constructs exactly one renderer — never two owners at once', async () => {
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
+    await view.onOpen();
+    stubStageRect(view, 1000);
+    await nextTick();   // CityViewport's own construction is deferred one microtask
+    expect(createRendererSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('a row activation reaches the REAL port\'s setSelection, not a component-level stand-in', async () => {
+    const { deps } = depsWithSnapshot();
+    const view = await viewWithSnapshot(deps);
+    await nextTick();
+    const row = view.contentEl.querySelector<HTMLButtonElement>('.ci-file-list__row')!;
+    row.click();
+    const snapshot = publishedSnapshot();
+    const fileEntity = snapshot.entities.find((e) => e.kind === 'file')!;
+    expect(setSelectionSpy).toHaveBeenCalledWith(fileEntity.id);
   });
 
   it('mirrors a running scan into the run store, visible in the view', async () => {
