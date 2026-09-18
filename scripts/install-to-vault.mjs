@@ -7,6 +7,16 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const vault = process.env.CODEBASE_INSPECTOR_TEST_VAULT;
 const configDir = process.env.CODEBASE_INSPECTOR_TEST_VAULT_CONFIG_DIR || '.obsidian';
+// Task 9 fix round 3, item 3 (fold): tests/unit/install-script.test.ts's own
+// copy-and-verify test used to read the SAME repo-root dist/ that
+// tests/host/build-output.test.ts's beforeAll rebuilds (vite.config.ts's
+// emptyOutDir: true deletes then re-emits it) -- two vitest 'node'-project
+// files running in parallel workers, so a copy landing inside that
+// delete-then-write window silently omitted whatever file was not back yet.
+// This override lets a test point the copy at its OWN private snapshot
+// instead, decoupling the two entirely; production installs never set it, so
+// they always copy the real dist/.
+const distSource = process.env.CODEBASE_INSPECTOR_TEST_DIST_SOURCE || join(repoRoot, 'dist');
 const die = (msg) => { console.error(`install-to-vault: ${msg}`); process.exit(1); };
 
 if (!vault) die('CODEBASE_INSPECTOR_TEST_VAULT is unset. Copy .env.example to .env and set it.');
@@ -28,7 +38,7 @@ if (manifest.id !== 'codebase-inspector') die(`manifest id is "${manifest.id}", 
 
 const dest = join(vaultPath, configDir, 'plugins', manifest.id);
 mkdirSync(dest, { recursive: true });
-cpSync(join(repoRoot, 'dist'), dest, { recursive: true });
+cpSync(distSource, dest, { recursive: true });
 // The hot-reload plugin ignores folders lacking .git or .hotreload.
 writeFileSync(join(dest, '.hotreload'), '');
 console.log(`install-to-vault: installed to ${dest}`);
