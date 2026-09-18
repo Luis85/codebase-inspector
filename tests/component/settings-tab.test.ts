@@ -388,7 +388,7 @@ describe('settings tab', () => {
     for (let i = 0; i < 50 && (await profileStore.list()).length < 1; i += 1) await Promise.resolve();
     const profiles = await profileStore.list();
     expect(profiles).toHaveLength(1);
-    expect(profiles[0]!.exclusions).toEqual(['.git', 'node_modules', '.my-vault-config']);
+    expect(profiles[0]!.exclusions).toEqual(['.git', 'node_modules', '.env', '.my-vault-config']);
     expect(profiles[0]!.name).toBe('New profile');
   });
 

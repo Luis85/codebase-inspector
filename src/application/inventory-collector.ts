@@ -3,7 +3,7 @@
 // only produces.
 import { classify } from '../domain/classify';
 import { makeEntityId } from '../domain/entity-id';
-import { countPhysicalLines, byteSize, METRIC_PHYSICAL_LINES, METRIC_BYTE_SIZE } from '../domain/metrics';
+import { METRIC_PHYSICAL_LINES, METRIC_BYTE_SIZE } from '../domain/metrics';
 import { validateSnapshot } from '../domain/validator';
 import type {
   AnalysisScope, ApprovedInventoryRun, CodebaseSnapshot, CodeEntity, Observation,
@@ -114,10 +114,15 @@ function buildFileEntity(
   };
 }
 
-function measuredObservations(entityId: string, text: string, size: number): Observation[] {
+// Fix round 4, ruling M45 continued: takes the two already-computed MEASUREMENTS, never
+// the text or bytes themselves -- see WalkEntry's own comment (source-filesystem-port.ts)
+// for why. countPhysicalLines/byteSize (task 2) are now called inside the walk, where
+// the content is actually in hand; this function only shapes the two numbers into
+// Observations.
+function measuredObservations(entityId: string, lineCount: number, byteLength: number): Observation[] {
   return [
-    { entityId, measurement: METRIC_PHYSICAL_LINES, status: 'measured', value: countPhysicalLines(text), reason: null },
-    { entityId, measurement: METRIC_BYTE_SIZE, status: 'measured', value: size, reason: null },
+    { entityId, measurement: METRIC_PHYSICAL_LINES, status: 'measured', value: lineCount, reason: null },
+    { entityId, measurement: METRIC_BYTE_SIZE, status: 'measured', value: byteLength, reason: null },
   ];
 }
 
@@ -153,13 +158,16 @@ export async function collectInventory(
     exclusions: scope.exclusions, maxFileBytes: scope.maxFileBytes, followSymlinks: scope.followSymlinks,
   };
 
-  // Fix round 3, ruling M45: the walk already read and decoded this file's content
-  // (that is WHY it is `kind: 'file'` rather than `kind: 'skipped'` — a file the walk
-  // could not read or decode never reaches here at all) -- `text`/`bytes` are carried
-  // straight off the WalkEntry now, so the loop below never calls port.readText() a
-  // second time for the same bytes. Halves this scan's file I/O; see task-8 fix round 3
-  // report for the measured effect on a real vault.
-  const keptFiles: { path: string; absolutePath: string; text: string; bytes: Uint8Array }[] = [];
+  // Fix round 3, ruling M45 (revised fix round 4): the walk already read and decoded
+  // this file's content (that is WHY it is `kind: 'file'` rather than `kind: 'skipped'`
+  // — a file the walk could not read or decode never reaches here at all) --
+  // `lineCount`/`byteLength` (the two MEASUREMENTS, never the text or bytes themselves
+  // — round 4's peak-memory finding) are carried straight off the WalkEntry now, so the
+  // loop below never calls port.readText() a second time for the same bytes, and never
+  // pins the whole codebase's decoded content in memory either. Halves this scan's file
+  // I/O at O(1) peak; see task-8 fix rounds 3 and 4 reports for the measured effect on a
+  // real vault.
+  const keptFiles: { path: string; absolutePath: string; lineCount: number; byteLength: number }[] = [];
   // Fix-round-1 MINOR finding 7: `wasDirectory` distinguishes a skipped DIRECTORY (an
   // unreadable directory, or one sitting at the walk's maxDepth limit) from a skipped
   // FILE (symlink, oversized, binary, unreadable file). Before this fix, every 'skipped'
@@ -173,7 +181,8 @@ export async function collectInventory(
       checkCancelled(token);
       if (entry.kind === 'file') {
         keptFiles.push({
-          path: entry.relativePath, absolutePath: entry.absolutePath, text: entry.text, bytes: entry.bytes,
+          path: entry.relativePath, absolutePath: entry.absolutePath,
+          lineCount: entry.lineCount, byteLength: entry.byteLength,
         });
       } else if (entry.kind === 'skipped') {
         skipped.push({ path: entry.relativePath, reason: entry.reason, wasDirectory: entry.wasDirectory ?? false });
@@ -206,15 +215,15 @@ export async function collectInventory(
     checkCancelled(token);
     const entity = buildFileEntity(repositoryId, file.path, directories, repositoryEntity);
     entities.push(entity);
-    // byteSize(file.bytes), not the walk's own stat-reported byteSize: the byte count
-    // for a MEASURED file is derived through the domain's own metric function (task 2)
+    // file.byteLength, not the walk's own stat-reported byteSize: the byte count for a
+    // MEASURED file is derived through the domain's own metric function (task 2)
     // applied to the bytes actually read, not trusted as a number an adapter merely
     // reports (the two agree for any successful read; this is which one the domain
     // layer is authoritative for). This can never reach an `unavailable` branch: only a
     // file the walk already successfully decoded as text produces a `kind: 'file'`
     // entry at all — a file it could not read or decode is already `kind: 'skipped'`,
     // handled below.
-    observations.push(...measuredObservations(entity.id, file.text, byteSize(file.bytes)));
+    observations.push(...measuredObservations(entity.id, file.lineCount, file.byteLength));
   }
   for (const entry of skipped) {
     warningReasons.add(entry.reason);

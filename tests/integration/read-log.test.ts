@@ -39,22 +39,27 @@ async function scan(spec: TempTreeSpec, exclusions: readonly string[]): Promise<
 }
 
 describe('read-log proof', () => {
-  // Fix round 3, ruling M44 (Critical): task 5's own read-log proof (below) always
-  // passed exclusions explicitly, so it never covered what a NEW profile actually
-  // excludes with none of that spelled out by hand -- which is exactly the gap that
-  // let "0 files found" (an unbounded scan reading .git, node_modules and the vault
-  // config directory) ship. This applies the same technique to `defaultExclusionsFor`
-  // itself, not a hand-picked list, over a real temporary tree.
-  it('excludes .git, node_modules and the vault config directory by DEFAULT -- the same defaults a newly created profile actually carries', async () => {
+  // Fix round 3, ruling M44 (Critical); extended fix round 4 (Important, .env): task
+  // 5's own read-log proof (below) always passed exclusions explicitly, so it never
+  // covered what a NEW profile actually excludes with none of that spelled out by hand
+  // -- which is exactly the gap that let "0 files found" (an unbounded scan reading
+  // .git, node_modules and the vault config directory) ship. This applies the same
+  // technique to `defaultExclusionsFor` itself, not a hand-picked list, over a real
+  // temporary tree. Checkpoint #2's own safety line names `.git`, `.env` and the vault
+  // config directory explicitly -- a fixture with no `.env` would pass that line by
+  // ABSENCE, not by exclusion, so this fixture deliberately includes one.
+  it('excludes .git, node_modules, .env and the vault config directory by DEFAULT -- the same defaults a newly created profile actually carries', async () => {
     const log = await scan({
       'src/a.ts': 'export const a = 1;\n',
       '.git/config': '[core]\n',
       'node_modules/pkg/index.js': 'module.exports = {};\n',
+      '.env': 'SECRET=hunter2\n',
       '.obsidian/workspace.json': '{}',
     }, defaultExclusionsFor('.obsidian'));
 
     expect(log.some((p) => p.includes('.git'))).toBe(false);
     expect(log.some((p) => p.includes('node_modules'))).toBe(false);
+    expect(log.some((p) => p.replace(/\\/g, '/').endsWith('/.env'))).toBe(false);
     expect(log.some((p) => p.includes('.obsidian'))).toBe(false);
     // Positive control: the log is real, not vacuously empty.
     expect(log.some((p) => p.replace(/\\/g, '/').endsWith('src/a.ts'))).toBe(true);

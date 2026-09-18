@@ -15,12 +15,16 @@ import type { AnalysisScope, CodebaseProfile } from '../domain/model';
 
 const DEFAULT_MAX_FILE_BYTES = 5_000_000;
 
-/** Ruling M44 (fix round 3, Critical): a new profile is NEVER exclusion-less. Measured
- *  root cause of "0 files found" in the real host: an empty-exclusions profile scanning
- *  a vault-as-codebase reads `.git`, `node_modules`, the vault config directory and
- *  every plugin's `data.json` -- spec §6's secrets gate names the first and third of
- *  those explicitly ("When the vault is the codebase this covers vault.configDir, other
- *  plugins' data.json, and .git"). `node_modules` is the single largest source of files
+/** Ruling M44 (fix round 3, Critical; extended fix round 4, Important): a new profile
+ *  is NEVER exclusion-less. Measured root cause of "0 files found" in the real host: an
+ *  empty-exclusions profile scanning a vault-as-codebase reads `.git`, `node_modules`,
+ *  the vault config directory, every plugin's `data.json` and any `.env` in scope --
+ *  spec §6's secrets gate names `.git`, `.env` and the vault config directory
+ *  explicitly, and checkpoint #2's own safety line reads "no activity against `.git`,
+ *  `.env` or the vault config directory" verbatim. `.env` is the canonical secrets
+ *  file; a vault that happens to contain none passes that line by ABSENCE, not by
+ *  exclusion, and any codebase with one would have it opened and its contents put in
+ *  the snapshot without this. `node_modules` is the single largest source of files
  *  that are not the user's own codebase, and its omission is what made the scan
  *  effectively non-terminating (measured: ~163,854 files on the dev vault). Every
  *  exclusion here is one the scope modal shows in an editable field BEFORE the user
@@ -34,7 +38,7 @@ const DEFAULT_MAX_FILE_BYTES = 5_000_000;
  *  settings-tab.ts's "Add profile" (which uses the SAME function, so the two paths
  *  cannot drift), from ever needing to reach `app` themselves. */
 export function defaultExclusionsFor(vaultConfigDir: string): string[] {
-  return ['.git', 'node_modules', vaultConfigDir];
+  return ['.git', 'node_modules', '.env', vaultConfigDir];
 }
 
 /** The one place a default (exclusion-having) CodebaseProfile is constructed --
@@ -47,10 +51,32 @@ export function createDefaultProfile(vaultConfigDir: string): CodebaseProfile {
   };
 }
 
+/** Fix round 4, ruling M44's migration half (Critical): an EXISTING profile persisted
+ *  with `exclusions: []` before this fix existed is not a considered user choice -- it
+ *  was the bug this whole ruling exists to close, and `resolveOrCreateProfile` returning
+ *  it untouched (the shape of the round-3 fix) reproduces the original failure verbatim
+ *  on every already-installed profile. Fills it with the SAME defaults a freshly created
+ *  profile gets and PERSISTS the result via `ProfileStore.update()` -- never `get()` +
+ *  `save()`, per this store's own doc comment (task-6 Critical 1) -- so every later code
+ *  path (Settings, the scope modal's prefilled field, the next refresh) sees the safe
+ *  value from now on, not just this one call. A profile whose exclusions are non-empty
+ *  -- including one the user deliberately emptied back OUT after this migration already
+ *  ran once -- is left alone entirely; this only ever fires for EXACTLY empty. */
+async function migrateEmptyExclusions(
+  profileStore: ProfileStore, profile: CodebaseProfile, vaultConfigDir: string,
+): Promise<CodebaseProfile> {
+  if (profile.exclusions.length > 0) return profile;
+  await profileStore.update(profile.profileId, (current) => (
+    current.exclusions.length > 0 ? current : { ...current, exclusions: defaultExclusionsFor(vaultConfigDir) }
+  ));
+  return { ...profile, exclusions: defaultExclusionsFor(vaultConfigDir) };
+}
+
 /** Resolves the profile a scan/refresh from THIS view should operate on: the profile
  *  already bound to `profileId` if one exists; else the first existing profile (WP-01's
  *  model is one profile per bound codebase root -- inventory-collector.ts's own comment
- *  makes the same assumption); else a freshly minted one via `createDefaultProfile`.
+ *  makes the same assumption); else a freshly minted one via `createDefaultProfile`. An
+ *  existing profile is migrated (see `migrateEmptyExclusions`) before being returned.
  *
  *  Open decision, stated explicitly: this auto-created profile is NOT given a
  *  LocalBinding (task 6/7's concern) -- its resolved root lives only in the
@@ -62,10 +88,10 @@ export async function resolveOrCreateProfile(
 ): Promise<CodebaseProfile> {
   if (profileId) {
     const existing = await profileStore.get(profileId);
-    if (existing) return existing;
+    if (existing) return migrateEmptyExclusions(profileStore, existing, vaultConfigDir);
   }
   const [first] = await profileStore.list();
-  if (first) return first;
+  if (first) return migrateEmptyExclusions(profileStore, first, vaultConfigDir);
   const created = createDefaultProfile(vaultConfigDir);
   await profileStore.save(created);
   return created;

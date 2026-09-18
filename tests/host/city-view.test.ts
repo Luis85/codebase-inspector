@@ -36,6 +36,21 @@ async function waitUntilRunning(view: CityView): Promise<void> {
   for (let i = 0; i < 50 && !view.isScanRunning(); i += 1) await Promise.resolve();
 }
 
+/** Polls (microtask ticks only) until a modal is open. Fix round 4: resolveOrCreateProfile
+ *  now migrates an existing empty-exclusions profile via an EXTRA `ProfileStore.update()`
+ *  await hop (ruling M44's migration half) before the consent chain can open anything, so
+ *  a fixed tick count is no longer a safe assumption for how soon a modal appears -- this
+ *  polls instead of guessing a number, and is used everywhere a test drives the real
+ *  source->scope chain from a profile this file's fixtures give empty exclusions. */
+async function waitForModal(): Promise<HTMLElement> {
+  for (let i = 0; i < 50; i += 1) {
+    const modal = document.querySelector('.modal-container');
+    if (modal) return modal as HTMLElement;
+    await Promise.resolve();
+  }
+  throw new Error('test setup: no modal opened');
+}
+
 const DUMMY_CAMERA: CameraBookmark = {
   projection: 'orthographic', mode: '3d',
   position: [0, 0, 0], target: [0, 0, 0], up: [0, 1, 0], zoom: 1,
@@ -235,16 +250,12 @@ describe('CityView', () => {
     const button = view.contentEl.querySelector<HTMLButtonElement>('.ci-welcome__action')!;
     button.click();
     // selectCodebase() is async; let it reach the point of opening the first modal.
-    await Promise.resolve();
-    await Promise.resolve();
-
-    const modal = document.querySelector('.modal-container');
-    expect(modal).not.toBeNull();
-    expect(modal!.textContent).toContain('Select a codebase');
+    const modal = await waitForModal();
+    expect(modal.textContent).toContain('Select a codebase');
 
     // Clean up: cancel the modal so its pending promise settles and no DOM survives
     // into the next test.
-    modal!.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
+    modal.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
     await Promise.resolve();
     document.querySelectorAll('.modal-container').forEach((el) => { el.remove(); });
   });
@@ -280,12 +291,9 @@ describe('CityView', () => {
       // selectCodebase() directly is exactly what that future affordance's click
       // handler will do, and is what App.vue's OWN button already calls today.
       const selectPromise = view.selectCodebase();
-      await Promise.resolve(); await Promise.resolve();
-
-      const modal = document.querySelector('.modal-container');
-      expect(modal).not.toBeNull();
-      expect(modal!.textContent).toContain('Select a codebase');
-      modal!.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
+      const modal = await waitForModal();
+      expect(modal.textContent).toContain('Select a codebase');
+      modal.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
       await selectPromise;
     });
 
@@ -379,7 +387,8 @@ describe('CityView', () => {
     expect(profileStore.save).toHaveBeenCalledTimes(1);
 
     // Clean up: cancel whichever modal the surviving call opened, so both promises settle.
-    document.querySelector('.modal-container')?.querySelector<HTMLButtonElement>('[data-action="cancel"]')?.click();
+    const modal = await waitForModal();
+    modal.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
     await Promise.all([p1, p2]);
     document.querySelectorAll('.modal-container').forEach((el) => { el.remove(); });
   });

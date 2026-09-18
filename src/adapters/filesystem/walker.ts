@@ -7,6 +7,7 @@
 // shared contract suite exists to police (spec 6), reinforced here at the algorithm
 // level, not only at the test level.
 import { isContained, normalizeRelativePath } from '../../domain/path-safety';
+import { byteSize, countPhysicalLines } from '../../domain/metrics';
 import type { CancellationToken } from '../../application/ports/cancellation-token';
 import type { WalkEntry, WalkOptions } from '../../application/ports/source-filesystem-port';
 
@@ -17,9 +18,12 @@ export interface WalkerStats {
   isSymbolicLink(): boolean;
 }
 
-// `bytes` (fix round 3, ruling M45) travels alongside `text` so the walk's own
-// already-done read can be carried forward on the 'file' WalkEntry it produces, instead
-// of collectInventory calling readText() a second time for the same file.
+// `bytes` travels alongside `text` here because both are needed a moment later, inside
+// `classifyEntry`, to compute `lineCount`/`byteLength` (task 2's own metric functions,
+// fix round 4). Neither `text` nor `bytes` themselves leave this module: only the two
+// resulting numbers are carried forward onto the 'file' WalkEntry -- see that type's own
+// comment (source-filesystem-port.ts) for why round 3's original text/bytes-carrying
+// shape was replaced.
 export type ReadTextOutcome = { ok: true; text: string; bytes: Uint8Array } | { ok: false; reason: string };
 
 /** The minimal filesystem surface the walk algorithm needs. Both implementations log
@@ -236,10 +240,13 @@ async function* classifyEntry(
     yield { kind: 'skipped', relativePath: relPath, reason: read.reason };
     return;
   }
-  // Fix round 3, ruling M45: carries the read this call already did forward on the
-  // entry itself, so collectInventory never opens and re-reads the same file again.
+  // Fix round 3 (ruling M45), revised fix round 4: carries the MEASUREMENTS this
+  // call's read already makes possible forward on the entry itself -- never the text
+  // or bytes themselves (peak-memory finding, round 4) -- so collectInventory never
+  // opens and re-reads the same file again, without pinning the whole codebase's
+  // decoded content in memory for the length of the walk.
   yield {
     kind: 'file', absolutePath: absPath, relativePath: relPath, byteSize: stat.size,
-    text: read.text, bytes: read.bytes,
+    lineCount: countPhysicalLines(read.text), byteLength: byteSize(read.bytes),
   };
 }

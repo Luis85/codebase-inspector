@@ -18,15 +18,30 @@ import type { CancellationToken } from './cancellation-token';
 // and consumer of a 'skipped' entry that never sets or reads this field keeps working
 // unchanged.
 //
-// `text`/`bytes` on the 'file' variant (fix round 3, ruling M45) are ADDITIVE too, and
-// are why 'file' and 'directory' are now split into separate members instead of sharing
-// one shape: the walk already reads and decodes a kept file's content to classify it
-// (binary vs UTF-8 text) before it can even yield 'file' rather than 'skipped' — this
-// carries that already-done read forward so `collectInventory` never has to call
-// `readText()` a second time for the exact same bytes. A 'directory' entry has no
+// `lineCount`/`byteLength` on the 'file' variant (fix round 3, ruling M45; revised fix
+// round 4, ruling M45 continued) are ADDITIVE too, and are why 'file' and 'directory'
+// are now split into separate members instead of sharing one shape: the walk already
+// reads and decodes a kept file's content to classify it (binary vs UTF-8 text) before
+// it can even yield 'file' rather than 'skipped' — this carries the two MEASUREMENTS
+// that read already made forward, so `collectInventory` never has to call `readText()`
+// a second time for the exact same bytes.
+//
+// Fix round 3 shipped this carrying the full `text`/`bytes` themselves, which round 4's
+// review measured at ~580 MB peak (290 MB of V8 strings + 290 MB of Node Buffers, on the
+// dev vault's ~40k in-scope files) pinned for the ENTIRE walk, released only when
+// `collectInventory` returns — O(whole codebase) instead of O(1 file), doubled. Neither
+// the full text nor the raw bytes are actually needed past the moment they are read:
+// `countPhysicalLines`/`byteSize` (task 2) are computed HERE, where the content is
+// already in hand, and only the two resulting numbers travel forward. `byteLength` is
+// distinct from `byteSize` above: `byteSize` is the walk's own STAT-reported size
+// (never trusted as the metric value — see inventory-collector.ts), `byteLength` is
+// `byteSize(bytes)` applied to the bytes actually read. A 'directory' entry has no
 // content to carry and keeps its original three fields.
 export type WalkEntry =
-  | { kind: 'file'; absolutePath: string; relativePath: string; byteSize: number; text: string; bytes: Uint8Array }
+  | {
+    kind: 'file'; absolutePath: string; relativePath: string; byteSize: number;
+    lineCount: number; byteLength: number;
+  }
   | { kind: 'directory'; absolutePath: string; relativePath: string; byteSize: number }
   | { kind: 'skipped'; relativePath: string; reason: string; wasDirectory?: boolean };
 
