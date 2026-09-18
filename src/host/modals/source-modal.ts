@@ -30,10 +30,24 @@ const ABSOLUTE_PATH = /^(?:[A-Za-z]:[\\/]|\/)/;
 
 /** `relativeNormalized` has already passed through normalizeRelativePath (task 2),
  *  which rejects `.`/`..` segments, absolute-looking input and control characters --
- *  so this is a plain join, never a second place that could re-admit an escape. */
+ *  so this is a plain join, never a second place that could re-admit an escape.
+ *
+ *  Fix round 6 (Item 2, folded Minor): `base` carries whatever separator the host's
+ *  own `adapter.getBasePath()` returns (backslash on Windows), while
+ *  `relativeNormalized` is always POSIX-style. Joining with a literal `/` regardless
+ *  produced a persisted, user-visible `rootPath` with MIXED separators (observed in a
+ *  real `data.json`: `"C:\\Projects\\renovation-planner/src"`). Harmless today --
+ *  `isContained`/`fingerprintSource` already normalise separators before comparing --
+ *  but wrong to write into a durable record, and exactly the shape that bites a later
+ *  string comparison someone forgets to normalise. Detects `base`'s OWN separator
+ *  (never assumes Windows: this same code runs on POSIX, where `base` has no
+ *  backslash at all) and joins consistently to it, rather than loosening any
+ *  comparison. */
 function joinVaultPath(base: string, relativeNormalized: string): string {
   const trimmedBase = base.replace(/[\\/]+$/, '');
-  return `${trimmedBase}/${relativeNormalized}`;
+  const sep = trimmedBase.includes('\\') ? '\\' : '/';
+  const relativeInSep = sep === '/' ? relativeNormalized : relativeNormalized.replace(/\//g, sep);
+  return `${trimmedBase}${sep}${relativeInSep}`;
 }
 
 class SourceModal extends Modal {

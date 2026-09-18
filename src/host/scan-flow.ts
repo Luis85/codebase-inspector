@@ -101,14 +101,37 @@ export async function resolveOrCreateProfile(
  *  A no-op if the user cancels either modal -- coordinator.state stays 'idle' in that
  *  case, exactly as if nothing had been clicked (spec 7: "cancelling the scope modal
  *  leaves no approval"). CityView learns the resulting profileId/snapshotId from the
- *  coordinator's own SCAN_COMPLETED notification, not from this function's return. */
+ *  coordinator's own SCAN_COMPLETED notification, not from this function's return.
+ *
+ *  Ruling M53 (fix round 6, Important): on APPROVAL ONLY, persists the just-approved
+ *  `exclusions`/`maxFileBytes` back to the profile -- `ScopeModal` has no store
+ *  reference at all (ruling M31's own reasoning: the consent screen's dependency
+ *  surface carries nothing that could read the filesystem, and the same reasoning
+ *  says it should not own persistence either), so without this, an edit made in the
+ *  consent screen applied to that one run and was then silently discarded; the NEXT
+ *  consent chain re-prefilled from the stale, wider profile scope with nothing visible
+ *  marking the reversion. Never on cancel: `result` is only reached once `openScopeModal`
+ *  has already resolved non-null, so a cancelled modal (checked above, at `if (!result)
+ *  return`) leaves the profile untouched, exactly as "cancelling the scope modal leaves
+ *  no approval" requires. Through `ProfileStore.update()`, never `get()` + `save()`
+ *  (task-6 Critical 1) -- and deliberately NOT wrapped in a try/catch: a write failure
+ *  here must not let the scan silently proceed against a profile it just failed to
+ *  keep in sync, so it propagates and `coordinator.start` below is never reached.
+ *  `result.scope` (not a value re-read from the profile afterward) is still what gets
+ *  scanned -- persisting is a side effect on the STORE, never a rewrite of what this
+ *  run itself does. Never persists `result.scope.rootPath`: a profile carries a
+ *  `bindingId`, never a path (§4.1). */
 export async function runInitialScan(
   app: App, coordinator: ScanCoordinator, profile: CodebaseProfile, filesystem: SourceFileSystemPort,
+  profileStore: ProfileStore,
 ): Promise<void> {
   const selection = await openSourceModal(app, { profile, filesystem });
   if (!selection) return;
   const result = await openScopeModal(app, selection);
   if (!result) return;
+  await profileStore.update(profile.profileId, (current) => (
+    { ...current, exclusions: result.scope.exclusions, maxFileBytes: result.scope.maxFileBytes }
+  ));
   await coordinator.start(result.approval, result.scope);
 }
 

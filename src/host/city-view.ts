@@ -131,7 +131,7 @@ export class CityView extends ItemView {
         // The in-memory store no longer has this id (e.g. the plugin reloaded) --
         // fall through to a full consent chain rather than "refreshing" against nothing.
       }
-      await runInitialScan(this.plugin.app, this.coordinator, profile, this.deps.getFilesystem());
+      await runInitialScan(this.plugin.app, this.coordinator, profile, this.deps.getFilesystem(), this.deps.profileStore);
     });
   }
 
@@ -140,7 +140,9 @@ export class CityView extends ItemView {
    *  re-selecting a different codebase must stay reachable. See `startScan()`'s own
    *  comment for why this is a second method rather than a flag. */
   async selectCodebase(): Promise<void> {
-    await this.withScanGuard((profile) => runInitialScan(this.plugin.app, this.coordinator, profile, this.deps.getFilesystem()));
+    await this.withScanGuard((profile) => (
+      runInitialScan(this.plugin.app, this.coordinator, profile, this.deps.getFilesystem(), this.deps.profileStore)
+    ));
   }
 
   /** Shared guard for both entry points above: refuses to start while `this.coordinator`

@@ -11,6 +11,7 @@ import type { App } from 'obsidian';
 import { openSourceModal } from '../../src/host/modals/source-modal';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import type { CodebaseProfile } from '../../src/domain/model';
+import type { SourceFileSystemPort } from '../../src/application/ports/source-filesystem-port';
 
 function makeProfile(overrides: Partial<CodebaseProfile> = {}): CodebaseProfile {
   return { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 1_000_000, ...overrides };
@@ -145,6 +146,32 @@ describe('source modal (C03)', () => {
     expect(selection).not.toBeNull();
     expect(selection!.mode).toBe('vault-folder');
     expect(selection!.resolvedRoot).toBe('/fake-root/sub');
+  });
+
+  // Fix round 6 (Item 2, folded Minor): a real installed data.json showed
+  // "C:\Projects\renovation-planner/src" -- the Windows-style vault base joined with a
+  // literal '/' regardless of the base's own separator. The fake port's own internal
+  // root is hard-coded to '/fake-root', so `stat` is overridden here to report the
+  // Windows-style resolvedRoot as a real directory -- this test is about what
+  // computeResolvedRoot/joinVaultPath PRODUCE, not about exercising the fake tree.
+  it('joins a vault-relative folder using the BASE PATH\'s own separator, never mixed', async () => {
+    const { port } = createFakeSourceFileSystem({});
+    const alwaysExists: SourceFileSystemPort = {
+      ...port,
+      stat: async () => (
+        { exists: true, isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 }),
+    };
+    const promise = openSourceModal(
+      makeApp(new FileSystemAdapter('C:\\Projects\\renovation-planner')), { profile: makeProfile(), filesystem: alwaysExists });
+    selectMode('vault-folder');
+    const input = modalRoot().querySelector<HTMLInputElement>('[data-field="vault-folder-path"]')!;
+    input.value = 'src';
+    input.dispatchEvent(new Event('input'));
+    continueButton().click();
+    const selection = await promise;
+    expect(selection).not.toBeNull();
+    expect(selection!.resolvedRoot).toBe('C:\\Projects\\renovation-planner\\src');
+    expect(selection!.resolvedRoot.includes('/')).toBe(false);
   });
 
   // Fix round 1, Important 1: joinVaultPath used to trim only LEADING separators and
