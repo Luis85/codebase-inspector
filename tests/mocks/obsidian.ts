@@ -324,6 +324,17 @@ function installDomPolyfills(): void {
   // static reference to the one jsdom window/document is sufficient.
   proto.win = window;
   proto.doc = document;
+
+  // Spec 4.4's cross-window globals, which real Obsidian declares ambiently
+  // (obsidian.d.ts:262,267) and points at the popped-out window whenever one is focused.
+  // This double is still single-window, so they point at the one jsdom window -- enough
+  // for a test to substitute a stand-in and prove production code READS the cross-window
+  // global rather than a bare `document` (fix wave item 5, I4). A real cross-window
+  // harness belongs to task 11, which owns pop-out migration.
+  const globals = globalThis as unknown as Record<string, unknown>;
+  globals.activeWindow = window;
+  globals.activeDocument = document;
+
   proto.getCssPropertyValue = function (this: HTMLElement, token: string): string {
     return this.win.getComputedStyle(this).getPropertyValue(token).trim();
   };
@@ -355,6 +366,18 @@ function installDomPolyfills(): void {
   };
 }
 installDomPolyfills();
+
+/** Test-only: points the cross-window `activeDocument` global at a stand-in and returns
+ *  the undo. Lives in this file, not in the test that uses it, because this is where
+ *  Obsidian's own ambient cross-window globals are installed — and because writing
+ *  through `globalThis` belongs in the one file whose `no-global-this` scoping already
+ *  says so, rather than assigning a read-only global directly from a test. */
+export function setActiveDocument(doc: Document): () => void {
+  const globals = globalThis as unknown as Record<string, unknown>;
+  const previous = globals.activeDocument;
+  globals.activeDocument = doc;
+  return () => { globals.activeDocument = previous; };
+}
 
 // jsdom implements no ResizeObserver (a long-standing gap). CityView only needs one
 // that never throws when constructed/observed/disconnected for these tests — the

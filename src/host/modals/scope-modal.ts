@@ -189,7 +189,16 @@ class ScopeModal extends Modal {
 
 export function openScopeModal(app: App, selection: ScopeSubject): Promise<ScopeApproval | null> {
   return new Promise((resolve) => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // `activeDocument`, never a bare `document`, and `.instanceOf()`, never a plain
+    // `instanceof` (spec 4.4's cross-window rule; obsidian.d.ts:267 declares
+    // activeDocument as a global for exactly this). Fix wave item 5 (I4): `document` is
+    // always the MAIN window's document, so a modal opened from a popped-out leaf
+    // recorded whatever was last focused in the main window and, on dismissal, pulled
+    // focus OUT of the pop-out -- the opposite of spec 5.2's "a visible close returning
+    // focus to its opener". Plain `instanceof` is the same bug a second time on the same
+    // line: it returns false across windows.
+    const active = activeDocument.activeElement;
+    const opener = active?.instanceOf(HTMLElement) ? active : null;
     const modal = new ScopeModal(app, selection, resolve, opener);
     modal.open();
   });

@@ -6,7 +6,7 @@
 // checked against its real, shared readLog() -- not a bespoke spy that could drift
 // from what the contract suite considers a read.
 import { afterEach, describe, expect, it } from 'vitest';
-import { FileSystemAdapter, CapacitorAdapter } from '../mocks/obsidian';
+import { FileSystemAdapter, CapacitorAdapter, setActiveDocument } from '../mocks/obsidian';
 import type { App } from 'obsidian';
 import { openSourceModal } from '../../src/host/modals/source-modal';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
@@ -262,5 +262,25 @@ describe('source modal (C03)', () => {
     cancelButton().click();
     await promise;
     expect(document.activeElement).toBe(openerEl);
+  });
+
+  // Fix wave item 5 (I4, Important) -- see the twin test in scope-modal.test.ts for the
+  // full reasoning. `document` is always the MAIN window's document, so a modal opened
+  // from a popped-out leaf pulled focus out of the pop-out on dismissal.
+  it('captures its opener from activeDocument, never the main window document (spec 4.4)', async () => {
+    const mainWindowFocus = opener();
+    const popoutFocus = document.body.createEl('button', { text: 'Focused in the pop-out' });
+    containers.push(popoutFocus);
+    const { port } = createFakeSourceFileSystem({});
+    const restore = setActiveDocument({ activeElement: popoutFocus } as unknown as Document);
+    try {
+      const promise = openSourceModal(makeApp(), { profile: makeProfile(), filesystem: port });
+      cancelButton().click();
+      await promise;
+      expect(document.activeElement).toBe(popoutFocus);
+      expect(document.activeElement).not.toBe(mainWindowFocus);
+    } finally {
+      restore();
+    }
   });
 });

@@ -5,6 +5,7 @@
 // file even by accident.
 import { afterEach, describe, expect, it } from 'vitest';
 import type { App } from 'obsidian';
+import { setActiveDocument } from '../mocks/obsidian';
 import { openScopeModal } from '../../src/host/modals/scope-modal';
 import { fingerprintScope, fingerprintSource } from '../../src/application/approval';
 import type { SourceSelection } from '../../src/host/modals/source-modal';
@@ -286,5 +287,29 @@ describe('scope modal (C04)', () => {
     cancelButton().click();
     await promise;
     expect(document.activeElement).toBe(openerEl);
+  });
+
+  // Fix wave item 5 (I4, Important). `document` is always the MAIN window's document, so
+  // a modal opened from a popped-out leaf recorded whatever was last focused in the main
+  // window and, on dismissal, pulled focus OUT of the pop-out -- the opposite of spec
+  // 5.2's "a visible close returning focus to its opener", and against spec 4.4's
+  // cross-window rule. This is not a cross-window harness (that is task 11's, since
+  // tests/mocks/obsidian.ts is an honest single-window double): it substitutes a
+  // stand-in for the one global the fix turns on, which is exactly enough to tell
+  // `activeDocument.activeElement` from `document.activeElement`.
+  it('captures its opener from activeDocument, never the main window document (spec 4.4)', async () => {
+    const mainWindowFocus = opener();            // what a bare `document` would have found
+    const popoutFocus = document.body.createEl('button', { text: 'Focused in the pop-out' });
+    containers.push(popoutFocus);
+    const restore = setActiveDocument({ activeElement: popoutFocus } as unknown as Document);
+    try {
+      const promise = openScopeModal(app, makeSelection());
+      cancelButton().click();
+      await promise;
+      expect(document.activeElement).toBe(popoutFocus);
+      expect(document.activeElement).not.toBe(mainWindowFocus);
+    } finally {
+      restore();
+    }
   });
 });

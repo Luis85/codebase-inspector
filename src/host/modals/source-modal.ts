@@ -218,7 +218,11 @@ class SourceModal extends Modal {
 
 export function openSourceModal(app: App, opts: SourceModalOptions): Promise<SourceSelection | null> {
   return new Promise((resolve) => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // `activeDocument`, never a bare `document`, and `.instanceOf()`, never a plain
+    // `instanceof` -- see the identical comment in scope-modal.ts for the failure both
+    // halves of this line used to produce in a popped-out leaf (fix wave item 5, I4).
+    const active = activeDocument.activeElement;
+    const opener = active?.instanceOf(HTMLElement) ? active : null;
     const modal = new SourceModal(app, opts, resolve, opener);
     modal.open();
   });
