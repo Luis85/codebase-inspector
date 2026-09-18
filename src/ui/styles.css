@@ -100,26 +100,63 @@
   flex: 1 1 auto;
   min-height: 0;
 }
+/* Task 9 fix round 1, item 7: .ci-app__list-wrapper carries the drawer's own
+   open/close chrome (App.vue) around CodebaseFileList; the container-query
+   sizing that used to target .ci-app__list directly now targets this wrapper
+   instead, so the drawer button and the list scroll together as one unit. */
+:where(.codebase-inspector-root) .ci-app__list-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+:where(.codebase-inspector-root) .ci-app__list {
+  min-height: 0;
+  overflow-y: auto;
+}
+:where(.codebase-inspector-root) .ci-app__drawer-close {
+  align-self: flex-end;
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-3);
+  margin: var(--ci-space-2);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  color: var(--ci-text);
+  cursor: pointer;
+}
 /* One collapse threshold at 820 CSS px, measured on the leaf via container
    queries (spec 5.2), provisional and contested (re-check at checkpoint #3). At
-   or above it: list + canvas + inspector side by side. Below it: canvas-first,
-   list and inspector become full overlays (task-9-report.md notes what is and
-   is not independently test-covered about the overlay's own focus-return). */
+   or above it: list + canvas + inspector side by side. Below it: canvas-first;
+   list and inspector become full overlays, ONE AT A TIME (item 7 — App.vue's
+   own `filesDrawerOpen` state and the mutual-exclusivity watcher are what
+   enforce that; this stylesheet only ever shows what App.vue tells it to). */
 @container (min-width: 820px) {
   :where(.codebase-inspector-root) .ci-app__body {
     flex-direction: row;
     align-items: stretch;
   }
-  :where(.codebase-inspector-root) .ci-app__list {
+  :where(.codebase-inspector-root) .ci-app__list-wrapper {
     flex: 0 0 260px;
-    overflow-y: auto;
+  }
+  /* No drawer concept at all above the threshold. */
+  :where(.codebase-inspector-root) .ci-app__drawer-opener,
+  :where(.codebase-inspector-root) .ci-app__drawer-close {
+    display: none;
   }
   :where(.codebase-inspector-root) .ci-inspector {
     flex: 0 0 280px;
   }
 }
 @container (max-width: 819px) {
-  :where(.codebase-inspector-root) .ci-app__list,
+  :where(.codebase-inspector-root) .ci-app__list-wrapper {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: var(--ci-surface);
+    display: none;
+  }
+  :where(.codebase-inspector-root) .ci-app__list-wrapper--open {
+    display: flex;
+  }
   :where(.codebase-inspector-root) .ci-inspector {
     position: absolute;
     inset: 0;

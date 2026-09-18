@@ -1,8 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { ref } from 'vue';
 import App from '../../src/ui/App.vue';
+import { useCityStore } from '../../src/ui/stores/city-store';
+import { computeLayout } from '../../src/domain/layout/layout';
+import { buildSnapshotFixture } from '../../tests/fixtures/snapshot-builder';
 
 // Task 9 replaces the task-3 welcome-shell App.vue pins here with the real C01
 // shell (ten components, two stores). Every assertion below is retained UNCHANGED
@@ -14,6 +17,14 @@ import App from '../../src/ui/App.vue';
 describe('App.vue welcome-state shell', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+  });
+
+  // Several item-7 tests below `attachTo: document.body` (focus only genuinely
+  // moves for a connected element) — cleared after every test, not just those,
+  // so a leftover mount never leaks DOM (or a stray `document.activeElement`)
+  // into a later, unrelated test.
+  afterEach(() => {
+    document.body.innerHTML = '';
   });
 
   it('shows the first-run headline and the source action, verbatim', () => {
@@ -115,5 +126,52 @@ describe('App.vue welcome-state shell', () => {
 
     await wrapper.get('[aria-label="Return to city view"]').trigger('click');
     expect(wrapper.find('[aria-label="Fit"]').exists()).toBe(true);
+  });
+
+  // Task 9 fix round 1, item 7 (Important): the <820px layout gave both
+  // .ci-app__list and .ci-inspector the identical `position: absolute; inset: 0`
+  // treatment, but nothing enforced ONE OVERLAY AT A TIME, the Files overlay had
+  // NO close control and NO opener at all, and neither overlay returned focus to
+  // whatever opened it.
+  describe('narrow-layout drawers (item 7)', () => {
+    it('opens the Files drawer and closes it, returning focus to its opener', async () => {
+      const wrapper = mount(App, { attachTo: document.body });
+      const opener = wrapper.get('[aria-label="Files"]');
+      await opener.trigger('click');
+      expect(wrapper.find('[aria-label="Close files"]').exists()).toBe(true);
+
+      await wrapper.get('[aria-label="Close files"]').trigger('click');
+      expect(wrapper.find('[aria-label="Close files"]').exists()).toBe(false);
+      expect(document.activeElement).toBe(opener.element);
+    });
+
+    it('makes the Files and Inspector drawers mutually exclusive — activating a row closes the Files drawer', async () => {
+      const store = useCityStore();
+      const snapshot = buildSnapshotFixture({ files: 1 });
+      store.setCity(snapshot, computeLayout(snapshot));
+      const wrapper = mount(App, { attachTo: document.body });
+
+      await wrapper.get('[aria-label="Files"]').trigger('click');
+      expect(wrapper.find('[aria-label="Close files"]').exists()).toBe(true);
+
+      await wrapper.get('.ci-file-list__row').trigger('click');
+      expect(wrapper.find('[aria-label="Close files"]').exists()).toBe(false);
+      expect(wrapper.find('[aria-label="File inspector"]').exists()).toBe(true);
+    });
+
+    it('opening the inspector by activating a row returns focus to that row when it closes', async () => {
+      const store = useCityStore();
+      const snapshot = buildSnapshotFixture({ files: 1 });
+      store.setCity(snapshot, computeLayout(snapshot));
+      const wrapper = mount(App, { attachTo: document.body });
+
+      const row = wrapper.get('.ci-file-list__row');
+      await row.trigger('click');
+      expect(wrapper.find('[aria-label="File inspector"]').exists()).toBe(true);
+
+      await wrapper.get('[aria-label="Close"]').trigger('click');
+      expect(wrapper.find('[aria-label="File inspector"]').exists()).toBe(false);
+      expect(document.activeElement).toBe(row.element);
+    });
   });
 });

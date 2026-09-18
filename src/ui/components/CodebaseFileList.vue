@@ -14,11 +14,13 @@
 import { computed } from 'vue';
 import { useCityStore } from '../stores/city-store';
 import { useCityRendererHandle } from '../renderer-handle';
+import { useInspectorOpener } from '../drawer-focus';
 import { formatCopy11 } from '../copy';
 import type { EntityId } from '../../domain/entity-id';
 
 const store = useCityStore();
 const renderer = useCityRendererHandle();
+const inspectorOpener = useInspectorOpener();
 
 const fileEntities = computed(() => (store.snapshot?.entities.filter((e) => e.kind === 'file') ?? []));
 const totalFileCount = computed(() => fileEntities.value.length);
@@ -34,9 +36,16 @@ function rovingTabIndex(entityId: EntityId): number {
   return entityId === focusTarget ? 0 : -1;
 }
 
-function activate(entityId: EntityId): void {
+/** Activating a row both selects it AND opens the inspector (task 9 fix round
+ *  1, item 7 — this is the "opener" the narrow-drawer close returns focus to;
+ *  `openInspector()` had no production caller at all before this). Captures
+ *  `event.currentTarget` — the row button itself — through the shared handle
+ *  so FileInspector's own close button knows where to return focus. */
+function activate(entityId: EntityId, event: Event): void {
   store.select(entityId);
   renderer.value?.setSelection(entityId);
+  inspectorOpener.value = event.currentTarget as HTMLElement;
+  store.openInspector();
 }
 </script>
 
@@ -56,8 +65,8 @@ function activate(entityId: EntityId): void {
           }"
           :tabindex="rovingTabIndex(entity.id)"
           :aria-pressed="entity.id === store.selectedEntityId"
-          @click="activate(entity.id)"
-          @keydown.enter="activate(entity.id)"
+          @click="activate(entity.id, $event)"
+          @keydown.enter="activate(entity.id, $event)"
           @focus="store.focusRow(entity.id)"
         >
           {{ entity.path }}

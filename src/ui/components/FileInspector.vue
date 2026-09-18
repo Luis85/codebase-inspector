@@ -13,12 +13,14 @@
 import { computed, ref } from 'vue';
 import { useCityStore } from '../stores/city-store';
 import { useCityRendererHandle } from '../renderer-handle';
+import { useInspectorOpener } from '../drawer-focus';
 import { useClipboard } from '../clipboard';
 import { COPY_27, formatUnavailableReason } from '../copy';
 import type { Observation } from '../../domain/model';
 
 const store = useCityStore();
 const renderer = useCityRendererHandle();
+const inspectorOpener = useInspectorOpener();
 const clipboard = useClipboard();
 
 const liveMessage = ref('');
@@ -43,8 +45,13 @@ function focusSelection(): void {
   if (store.selectedEntityId) renderer.value?.focus(store.selectedEntityId);
 }
 
+/** Task 9 fix round 1, item 7: returns focus to whatever opened the inspector
+ *  (the row button, via drawer-focus.ts's shared handle) — the brief's own
+ *  "a visible close that returns focus to its opener". Closing still preserves
+ *  the selection — never `clearSelection()`. */
 function close(): void {
-  store.closeInspector();   // preserves selectedEntityId — never clearSelection()
+  store.closeInspector();
+  inspectorOpener.value?.focus();
 }
 
 async function copyRelativePath(): Promise<void> {

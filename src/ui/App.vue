@@ -15,10 +15,11 @@
   why CityViewport stays passive under today's unmodified CityView wiring.
 -->
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import { useCityStore } from './stores/city-store';
 import { useRunStore } from './stores/run-store';
 import { provideCityRenderer, provideCityStageEl } from './renderer-handle';
+import { provideInspectorOpener } from './drawer-focus';
 import { countPartialRead, deriveViewSurfaceState } from './view-surface';
 import { COPY_02 } from './copy';
 import FileSearch from './components/FileSearch.vue';
@@ -38,9 +39,32 @@ const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
 
 provideCityRenderer();
 provideCityStageEl();
+provideInspectorOpener();
 
 const store = useCityStore();
 const runStore = useRunStore();
+
+// Task 9 fix round 1, item 7 (Important): the <820px layout's Files overlay —
+// unlike the Inspector, which already has `store.inspectorOpen` — had no
+// state of its own at all, no opener and no close control. Purely a narrow-
+// layout UI concern (never persisted, never meaningful at >=820px, where CSS
+// ignores it entirely), so it stays local here rather than in the Pinia store.
+const filesDrawerOpen = ref(false);
+const filesDrawerOpener = ref<HTMLElement | null>(null);
+
+function openFilesDrawer(event: MouseEvent): void {
+  filesDrawerOpener.value = event.currentTarget as HTMLElement;
+  filesDrawerOpen.value = true;
+  store.closeInspector();   // ONE overlay at a time
+}
+function closeFilesDrawer(): void {
+  filesDrawerOpen.value = false;
+  filesDrawerOpener.value?.focus();
+}
+// The other half of "one overlay at a time": opening the inspector (from
+// CodebaseFileList's own row activation, or a future canvas pick) closes the
+// Files drawer too, without CodebaseFileList needing to know the drawer exists.
+watch(() => store.inspectorOpen, (open) => { if (open) filesDrawerOpen.value = false; });
 
 interface CityViewportExposed { stageEl: HTMLElement | null }
 const cityViewportRef = ref<CityViewportExposed | null>(null);
@@ -103,12 +127,39 @@ defineExpose({ rendererHost });
       >
         Return to city view
       </button>
+      <!-- Task 9 fix round 1, item 7: the Files drawer's OPENER — only meaningful
+           below 820px (styles.css hides it above that via the container query),
+           but always in the DOM so it is reachable the moment the leaf narrows. -->
+      <button
+        type="button"
+        aria-label="Files"
+        class="ci-app__mode-toggle ci-app__drawer-opener"
+        @click="openFilesDrawer"
+      >
+        Files
+      </button>
     </div>
     <div class="ci-app__body">
       <!-- Rendered per the container-query layout (styles.css's 820px threshold),
            never per viewMode: the >=820px layout is "list + canvas + inspector"
-           together, regardless of which spatial mode the camera is in. -->
-      <CodebaseFileList class="ci-app__list" />
+           together, regardless of which spatial mode the camera is in. Below
+           820px it is a drawer instead, gated by `filesDrawerOpen` (item 7) —
+           mutually exclusive with the Inspector drawer, never both at once. -->
+      <div
+        class="ci-app__list-wrapper"
+        :class="{ 'ci-app__list-wrapper--open': filesDrawerOpen }"
+      >
+        <button
+          v-if="filesDrawerOpen"
+          type="button"
+          aria-label="Close files"
+          class="ci-app__drawer-close"
+          @click="closeFilesDrawer"
+        >
+          Close
+        </button>
+        <CodebaseFileList class="ci-app__list" />
+      </div>
       <div class="ci-app__stage-column">
         <!-- CityViewport itself stays unconditionally mounted, even in list mode:
              city-view.ts (frozen this task, store-wiring only per ruling M66)
