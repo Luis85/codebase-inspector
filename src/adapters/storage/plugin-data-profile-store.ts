@@ -2,7 +2,7 @@ import type { Plugin } from 'obsidian';
 import type { ProfileStore } from '../../application/ports/profile-store';
 import type { CodebaseProfile } from '../../domain/model';
 import { validateCodebaseProfile } from '../../domain/validator';
-import { asUnknownArray, isRecordWithField, readPluginData, writePluginDataSlice } from './plugin-data-shape';
+import { asUnknownArray, isRecordWithField, readPluginData, updatePluginDataRecord, writePluginDataSlice } from './plugin-data-shape';
 
 /** plugin.loadData()/saveData()-backed ProfileStore. data.json is user-editable, so
  *  EVERY read validates (spec 4.1) -- list()/get() never cast a raw record, and save()
@@ -36,5 +36,10 @@ export class PluginDataProfileStore implements ProfileStore {
   async remove(id: string): Promise<void> {
     await writePluginDataSlice(this.plugin, 'profiles', (current) =>
       asUnknownArray(current).filter((entry) => !isRecordWithField(entry, 'profileId', id)));
+  }
+
+  async update(id: string, mutate: (current: CodebaseProfile) => CodebaseProfile): Promise<void> {
+    await updatePluginDataRecord(this.plugin, 'profiles', 'profileId', id, (current) =>
+      validateCodebaseProfile(mutate(validateCodebaseProfile(current))));
   }
 }

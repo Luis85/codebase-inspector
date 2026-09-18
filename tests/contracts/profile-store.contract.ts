@@ -77,5 +77,35 @@ export function runProfileStoreContract(name: string, make: () => Promise<Profil
       expect(await store.get('b')).toEqual(b);
       expect((await store.list()).map((p) => p.profileId)).toEqual(['b']);
     });
+
+    it('update() applies mutate to the stored profile and persists the result', async () => {
+      const { store } = await make();
+      await store.save(makeProfile({ profileId: 'p1', name: 'Original' }));
+      await store.update('p1', (p) => ({ ...p, name: 'Renamed' }));
+      expect((await store.get('p1'))!.name).toBe('Renamed');
+    });
+
+    it('update() does nothing for an unknown id', async () => {
+      const { store } = await make();
+      await store.update('does-not-exist', (p) => ({ ...p, name: 'x' }));
+      expect(await store.get('does-not-exist')).toBeNull();
+    });
+
+    // Fix round 1, Critical 1's second reproduction: settings-tab.ts's old
+    // updateProfile() did get() -> mutate -> save() from OUTSIDE any lock, so firing
+    // two of them without an await between them (exactly what two near-simultaneous
+    // settings-tab events produce) let the second call's save() silently discard the
+    // first call's edit, because it saved a full profile object built from a stale
+    // read. update() must not have this hole: both edits below must survive.
+    it('does not lose either edit when two update() calls race on the SAME profile', async () => {
+      const { store } = await make();
+      await store.save(makeProfile({ profileId: 'p1', name: 'Original', exclusions: [] }));
+      const rename = store.update('p1', (p) => ({ ...p, name: 'Renamed' }));
+      const editExclusions = store.update('p1', (p) => ({ ...p, exclusions: ['dist'] }));
+      await Promise.all([rename, editExclusions]);
+      const profile = (await store.get('p1'))!;
+      expect(profile.name).toBe('Renamed');
+      expect(profile.exclusions).toEqual(['dist']);
+    });
   });
 }

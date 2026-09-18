@@ -34,6 +34,22 @@ class FakeProfileStore implements ProfileStore {
     this.backing.profiles = this.backing.profiles.filter((entry) => !isRecordWithField(entry, 'profileId', id));
     return Promise.resolve();
   }
+
+  // No `await` before the write below: this body runs to completion in one
+  // synchronous stretch once invoked, exactly like the real store's lock makes ITS
+  // read-mutate-write indivisible -- so two concurrent update() calls on this fake
+  // cannot interleave with each other either, for the same reason two synchronous
+  // statements never interleave in single-threaded JS.
+  async update(id: string, mutate: (current: CodebaseProfile) => CodebaseProfile): Promise<void> {
+    const index = this.backing.profiles.findIndex((entry) => isRecordWithField(entry, 'profileId', id));
+    if (index === -1) return Promise.resolve();
+    const current = validateCodebaseProfile(this.backing.profiles[index]);
+    const updated = validateCodebaseProfile(mutate(current));
+    const next = [...this.backing.profiles];
+    next[index] = updated;
+    this.backing.profiles = next;
+    return Promise.resolve();
+  }
 }
 
 export function createFakeProfileStoreHarness(): ProfileStoreHarness {

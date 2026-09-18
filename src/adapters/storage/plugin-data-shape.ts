@@ -2,16 +2,52 @@ import type { Plugin } from 'obsidian';
 
 /** Obsidian gives a plugin exactly one JSON document (plugin.loadData()/saveData()),
  *  but spec 4.5 lists ProfileStore and LocalBindingStore as two separate application
- *  ports. Every read/write from either store goes through here so neither ever clobbers
- *  the other's slice of data.json with a stale read-modify-write. */
+ *  ports. Every read/write from either store goes through here. */
 export interface PluginDataShape {
   profiles?: unknown;
   bindings?: unknown;
 }
 
+// Fix round 1, Critical 1: one promise chain per Plugin instance. There is exactly one
+// CodebaseInspectorPlugin instance per running plugin, and src/main.ts constructs every
+// store this module backs with that SAME instance, so keying on `plugin` here correctly
+// serialises BOTH stores against each other, not just each store against itself.
+const dataLocks = new WeakMap<Plugin, Promise<void>>();
+
+/** Runs `fn` (a full read-modify-write cycle against plugin.loadData()/saveData())
+ *  exclusively with respect to every other call made through this function for the SAME
+ *  plugin instance.
+ *
+ *  Without this, two calls that each do their own loadData -> mutate -> saveData can
+ *  interleave whenever there is no `await` between the *callers* issuing them (which is
+ *  exactly what two near-simultaneous settings-tab events produce): both read the same
+ *  starting document, each computes its own result from that now-stale snapshot, and
+ *  whichever saveData() call lands second silently discards everything the first one
+ *  wrote. This was reproduced against the previous version of this file (fix round 1,
+ *  Critical 1) -- two unawaited store.save() calls made one profile vanish outright, and
+ *  two overlapping get-then-save calls on the SAME profile (settings-tab.ts's old
+ *  updateProfile() pattern) silently discarded one edit. Real loadData()/saveData() do
+ *  disk I/O with real latency, so this window is wide open in practice, not a
+ *  theoretical race.
+ *
+ *  Every exported function below acquires this SAME lock for the WHOLE read-mutate-
+ *  write cycle (not just the write), so a second operation can only ever start once the
+ *  first one's save has completed and it can read the up-to-date document. */
+function withDataLock<T>(plugin: Plugin, fn: () => Promise<T>): Promise<T> {
+  const previous = dataLocks.get(plugin) ?? Promise.resolve();
+  const result = previous.then(fn, fn);
+  // Swallow the outcome for the NEXT waiter's sake only -- one failed operation must
+  // never permanently jam the queue for unrelated later operations. The caller of
+  // THIS specific call still receives fn's real result or rejection via `result`.
+  dataLocks.set(plugin, result.then(() => undefined, () => undefined));
+  return result;
+}
+
 export async function readPluginData(plugin: Plugin): Promise<PluginDataShape> {
-  const data = (await plugin.loadData()) as PluginDataShape | null | undefined;
-  return data ?? {};
+  return withDataLock(plugin, async () => {
+    const data = (await plugin.loadData()) as PluginDataShape | null | undefined;
+    return data ?? {};
+  });
 }
 
 export async function writePluginDataSlice(
@@ -19,9 +55,41 @@ export async function writePluginDataSlice(
   key: keyof PluginDataShape,
   mutate: (current: unknown) => unknown,
 ): Promise<void> {
-  const data = await readPluginData(plugin);
-  data[key] = mutate(data[key]);
-  await plugin.saveData(data);
+  await withDataLock(plugin, async () => {
+    const data = (await plugin.loadData()) as PluginDataShape | null | undefined;
+    const shape = data ?? {};
+    shape[key] = mutate(shape[key]);
+    await plugin.saveData(shape);
+  });
+}
+
+/** Atomically reads the CURRENT record matching `id` in `field` under `key`, applies
+ *  `mutate` to it, and writes the result back -- as ONE indivisible operation under the
+ *  SAME lock the two functions above use. This is what makes a caller's own
+ *  "read, then later write a full object" pattern safe: `mutate` receives the record AS
+ *  IT EXISTS AT WRITE TIME (after waiting for the lock), never a snapshot taken before
+ *  the lock was acquired, so a second update() landing in between cannot be silently
+ *  overwritten by a first one that started earlier but read a now-stale value (Critical
+ *  1's second reproduction). Returns false, and does nothing, if no record matches. */
+export async function updatePluginDataRecord(
+  plugin: Plugin,
+  key: keyof PluginDataShape,
+  field: string,
+  id: string,
+  mutate: (current: unknown) => unknown,
+): Promise<boolean> {
+  return withDataLock(plugin, async () => {
+    const data = (await plugin.loadData()) as PluginDataShape | null | undefined;
+    const shape = data ?? {};
+    const list = asUnknownArray(shape[key]);
+    const index = list.findIndex((entry) => isRecordWithField(entry, field, id));
+    if (index === -1) return false;
+    const updated = [...list];
+    updated[index] = mutate(list[index]);
+    shape[key] = updated;
+    await plugin.saveData(shape);
+    return true;
+  });
 }
 
 /** Shared list-lookup used by both stores: their records are plain JSON objects at

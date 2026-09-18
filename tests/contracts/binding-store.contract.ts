@@ -3,7 +3,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LocalBindingStore } from '../../src/application/ports/local-binding-store';
 import type { LocalBinding } from '../../src/domain/model';
-import { validateCityViewState } from '../../src/domain/validator';
 
 export interface BindingStoreHarness {
   store: LocalBindingStore;
@@ -71,20 +70,15 @@ export function runBindingStoreContract(name: string, make: () => Promise<Bindin
       expect(await store.get('foreign-1')).toBeNull();
     });
 
-    it('never persists a resolved absolute path into anything getState() touches', async () => {
-      // A binding legitimately carries rootPath -- that is its whole job. What must
-      // NEVER happen is this value leaking into CityViewState, which getState()
-      // persists to workspace.json (spec 4.4). Simulate the exact temptation: build a
-      // view-state-shaped object smuggling the binding's own rootPath, and confirm the
-      // domain's own getState() boundary rejects it outright. Not vacuous: removing
-      // cityViewStateSchema's .strict() (task 2) would make this test fail.
-      const { store } = await make();
-      await store.save(makeBinding({ bindingId: 'b3' }));
-      const binding = await store.get('b3');
-      const smuggled = { profileId: 'p', snapshotId: null, selectedEntityId: null, query: '',
-        viewMode: '3d', camera: null, previous3dCamera: null, inspectorOpen: false,
-        rootPath: binding!.rootPath };
-      expect(() => validateCityViewState(smuggled)).toThrow();
-    });
+    // Fix round 1, Minor 5: a prior version of this suite had a test named "never
+    // persists a resolved absolute path into anything getState() touches" that only
+    // re-exercised validateCityViewState's existing .strict() rejection of a smuggled
+    // rootPath -- coverage task 2 already has (tests/unit/validator.test.ts). No code
+    // path in this store threads LocalBinding.rootPath into CityViewState, so no change
+    // to THIS code could ever have made that test fail; it was deleted rather than kept
+    // under a name promising a guarantee it did not check. LocalBindingStore's actual
+    // job -- never smuggling more than bindingId/label/rootPath/machineId through its
+    // own interface -- is covered structurally by every other test in this suite
+    // round-tripping through the real, `.strict()`-validated LocalBinding shape.
   });
 }
