@@ -294,7 +294,7 @@ export class Notice {
 // instead of document.createElement, so any DOM-building code under test needs a real
 // implementation here, not a stub — task 6 is the first task with DOM-building
 // settings-tab/modal code, hence the first to need it. Module-scoped (not a closure
-// inside installDomPolyfills): it captures nothing from that function.
+// inside installObsidianDomExtensions): it captures nothing from that function.
 interface DomInfo {
   cls?: string | string[];
   text?: string;
@@ -320,38 +320,79 @@ function applyDomInfo(el: HTMLElement, info?: DomInfo | string): void {
 // file imports real 'obsidian' — which src/main.ts and src/host/city-view.ts do). Only
 // the members our code actually reads are provided here; guarded so importing this
 // module under a DOM-less (`environment: 'node'`) test file is a safe no-op.
-function installDomPolyfills(): void {
-  if (typeof HTMLElement === 'undefined') return;
-  const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
+// Task 11: backs the real per-element `onWindowMigrated` registry below. Exported so
+// tests/mocks/window-harness.ts can fire registered callbacks after a genuine
+// cross-realm adoptNode (see that file). A WeakMap, not an element property --
+// `onWindowMigrated` is Obsidian's own ambient extension, not a field a real
+// HTMLElement has.
+export const migrationCallbacks = new WeakMap<HTMLElement, Set<() => void>>();
+// Per-element `win`/`doc` overrides (the setters below) -- existing tests assign
+// `el.win = fakeWin` directly; this keeps that working alongside the getters' new,
+// ownerDocument-based default.
+const winOverrides = new WeakMap<HTMLElement, Window>();
+const docOverrides = new WeakMap<HTMLElement, Document>();
+
+/** Task 11: parameterised over `win` so a separate realm (window-harness.ts's
+ *  `createPopoutWindow`, a second real `jsdom` instance) can install the SAME
+ *  extensions onto its OWN, otherwise-untouched `HTMLElement.prototype`. */
+export function installObsidianDomExtensions(win: Window): void {
+  const htmlElementCtor = (win as unknown as { HTMLElement?: typeof HTMLElement }).HTMLElement;
+  if (!htmlElementCtor) return;
+  const proto = htmlElementCtor.prototype as unknown as Record<string, unknown>;
   if (proto.getCssPropertyValue) return;
 
-  // Single-window tests only (task 3 does not exercise pop-out migration): a plain
-  // static reference to the one jsdom window/document is sufficient.
-  proto.win = window;
-  proto.doc = document;
+  // Task 11 (task-11-context.md section 5): real Obsidian's `win`/`doc` are resolved
+  // PER ELEMENT from its current `ownerDocument`, not a fixed value captured once --
+  // exactly what makes them correct after a cross-window migration for free (the
+  // element's `ownerDocument` changes; nothing needs to update these by hand). The
+  // fixed static assignment this replaced could never distinguish "the main window"
+  // from "a popped-out one" -- the untestable gap section 5 names. An explicit
+  // per-element override (many existing tests do `el.win = fakeWin` directly) still
+  // wins, via the setter below -- this is additive, not a breaking change to that
+  // long-standing pattern.
+  Object.defineProperty(proto, 'win', {
+    configurable: true,
+    get(this: HTMLElement): Window { return winOverrides.get(this) ?? (this.ownerDocument?.defaultView ?? win); },
+    set(this: HTMLElement, value: Window) { winOverrides.set(this, value); },
+  });
+  Object.defineProperty(proto, 'doc', {
+    configurable: true,
+    get(this: HTMLElement): Document { return docOverrides.get(this) ?? (this.ownerDocument ?? win.document); },
+    set(this: HTMLElement, value: Document) { docOverrides.set(this, value); },
+  });
 
-  // Spec 4.4's cross-window globals, which real Obsidian declares ambiently
-  // (obsidian.d.ts:262,267) and points at the popped-out window whenever one is focused.
-  // This double is still single-window, so they point at the one jsdom window -- enough
-  // for a test to substitute a stand-in and prove production code READS the cross-window
-  // global rather than a bare `document` (fix wave item 5, I4). A real cross-window
-  // harness belongs to task 11, which owns pop-out migration.
-  const globals = globalThis as unknown as Record<string, unknown>;
-  globals.activeWindow = window;
-  globals.activeDocument = document;
+  // Spec 4.4's cross-window globals (obsidian.d.ts:262,267) -- only the OUTER
+  // installation owns these; a popout is never "active" by default.
+  if (win === window) {
+    const globals = globalThis as unknown as Record<string, unknown>;
+    globals.activeWindow = window;
+    globals.activeDocument = document;
+  }
 
   proto.getCssPropertyValue = function (this: HTMLElement, token: string): string {
     return this.win.getComputedStyle(this).getPropertyValue(token).trim();
   };
-  proto.instanceOf = function (this: unknown, ctor: new () => unknown): boolean {
-    return this instanceof ctor;
+  // Task 11: a real cross-realm fallback, not a bare `instanceof` (spec 4.4's own
+  // bug) -- checked first for same-window, falling back to `this`'s own window's
+  // equivalent constructor only for a genuinely different realm.
+  proto.instanceOf = function (this: unknown, ctor: new (...args: never[]) => unknown): boolean {
+    if (this instanceof ctor) return true;
+    const owner = (this as { ownerDocument?: Document }).ownerDocument;
+    const localCtor = (owner?.defaultView as unknown as Record<string, unknown> | undefined)?.[ctor.name];
+    return typeof localCtor === 'function' && this instanceof (localCtor as new (...args: never[]) => unknown);
   };
-  proto.onWindowMigrated = (): (() => void) => () => {};
+  proto.onWindowMigrated = function (this: HTMLElement, cb: () => void): () => void {
+    let set = migrationCallbacks.get(this);
+    if (!set) { set = new Set(); migrationCallbacks.set(this, set); }
+    const registered = set;
+    registered.add(cb);
+    return () => { registered.delete(cb); };
+  };
 
   proto.createEl = function (
     this: HTMLElement, tag: string, info?: DomInfo | string, callback?: (el: HTMLElement) => void,
   ): HTMLElement {
-    const el = document.createElement(tag);
+    const el = (this.ownerDocument ?? win.document).createElement(tag);
     applyDomInfo(el, info);
     this.appendChild(el);
     callback?.(el);
@@ -377,7 +418,7 @@ function installDomPolyfills(): void {
     for (const [k, v] of Object.entries(p)) this.style.setProperty(k, v);
   };
 }
-installDomPolyfills();
+if (typeof window !== 'undefined') installObsidianDomExtensions(window);
 
 // jsdom implements no ResizeObserver (a long-standing gap). CityView only needs one
 // that never throws when constructed/observed/disconnected for these tests — the

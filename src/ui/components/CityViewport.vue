@@ -56,6 +56,9 @@ const available = ref(true);
 const unavailableReason = ref<UnavailableReason | null>(null);
 let resizeObserver: ResizeObserver | null = null;
 let layoutAbort: AbortController | null = null;
+let unwireStageMigration: (() => void) | null = null;
+let motionQuery: MediaQueryList | null = null;
+let onMotionChange: (() => void) | null = null;
 
 interface WinBearing { win?: Window }
 
@@ -129,9 +132,18 @@ function applyStoreState(handle: CityRendererPort | null): void {
   // this is a re-send of what is already known, never a rescan.
   if (!store.layout) return;
   layoutAbort?.abort();
-  layoutAbort = new AbortController();
-  void handle.setLayout(store.layout, {
-    generation: nextLayoutGeneration(), signal: layoutAbort.signal,
+  const abort = new AbortController();
+  layoutAbort = abort;
+  // Task 11 (task-11-context.md section 1): no persisted CameraBookmark was ever
+  // pushed INTO the renderer before this — `setCamera` existed only to mirror the
+  // renderer's OWN camera-changed event back OUT to the store, so every
+  // reconstruction (a context loss, a cross-window migration, a 320px floor round
+  // trip) landed wherever `setLayout`'s own auto-fit put it, never where the camera
+  // actually was. Applied only AFTER setLayout settles, never before: the FIRST
+  // setLayout a fresh renderer receives fits itself (city-renderer.ts's own
+  // `hasFitted` guard), and a setCamera issued earlier would just be overwritten.
+  void handle.setLayout(store.layout, { generation: nextLayoutGeneration(), signal: abort.signal }).then(() => {
+    if (!abort.signal.aborted && store.camera) handle.setCamera(store.camera);
   });
 }
 
@@ -153,6 +165,18 @@ function applySize(): void {
   const el = stageEl.value;
   if (!el || !createRenderer) return;
   const rect = el.getBoundingClientRect();
+  // Task 11 (task-11-context.md section 1): a leaf hidden behind a sibling tab
+  // collapses BOTH dimensions to exactly zero (Obsidian hides an inactive leaf's
+  // pane via `display:none`, which a real ResizeObserver reports as a zero content
+  // box) -- distinct from the 320px floor below, which only ever narrows WIDTH
+  // while the leaf stays visible. Spec 4.2's pause/resume invariant is explicit:
+  // hidden leaves SUSPEND drawing and input, they are never disposed -- before this,
+  // `pause()`/`resume()` had no production caller anywhere in `src/`, and this same
+  // width check alone tore the whole scene down and rebuilt it on every tab switch.
+  if (rect.width === 0 && rect.height === 0) {
+    cityRendererHandle.value?.pause();
+    return;
+  }
   if (rect.width < MIN_INLINE_SIZE) {
     available.value = false;
     cityRendererHandle.value?.dispose();
@@ -174,14 +198,29 @@ function applySize(): void {
     // failure looked like a silent, normal, empty viewport.
     unavailableReason.value = null;
     cityRendererHandle.value = createRenderer(el, win, handleRendererEvent);
+    // Re-read on every (re)construction, not only the first mount -- a rebuild
+    // after a floor round trip, a context loss or a cross-window migration must
+    // see the CURRENT window's preference, never the one captured at mount.
+    applyMotionPreference(win);
   }
   const ratio = Math.min(win.devicePixelRatio || 1, MAX_PIXEL_RATIO);
   cityRendererHandle.value?.resize(rect.width, rect.height, ratio);
+  cityRendererHandle.value?.resume();   // undoes a previous pause() -- always safe, idempotent
 }
 
+/** Task 11: also tracks LIVE OS-level changes, not just the value at construction
+ *  time -- `setMotion` had a real re-read on every reconstruction already, but
+ *  nothing reacted to the SAME window's preference changing while a renderer
+ *  keeps running. Detaches any previous query's listener first, so a rebuild never
+ *  accumulates one per reconstruction; `onBeforeUnmount` detaches the last one. */
 function applyMotionPreference(win: Window): void {
-  const query = win.matchMedia('(prefers-reduced-motion: reduce)');
-  cityRendererHandle.value?.setMotion(query.matches ? 'reduced' : 'standard');
+  if (motionQuery && onMotionChange) motionQuery.removeEventListener('change', onMotionChange);
+  motionQuery = win.matchMedia('(prefers-reduced-motion: reduce)');
+  onMotionChange = () => {
+    cityRendererHandle.value?.setMotion(motionQuery!.matches ? 'reduced' : 'standard');
+  };
+  motionQuery.addEventListener('change', onMotionChange);
+  onMotionChange();
 }
 
 onMounted(() => {
@@ -197,14 +236,35 @@ onMounted(() => {
       applySize();
     });
     resizeObserver.observe(el);
+    // applySize() itself reads the reduced-motion preference on every construction
+    // it performs (including this first one) -- see its own comment; no separate
+    // call here avoids reading it twice on the very first mount.
     applySize();
-    applyMotionPreference(win);
+    // Task 11: THIS component's own migration recovery -- distinct from, and in
+    // addition to, `city-view.ts`'s `containerEl`-level registration (which exists to
+    // retain/destroy the registration itself, spec 4.4). A canvas moved into a
+    // different window's document loses its WebGL context in every browser this
+    // plugin ships to (the same "no rebind" transition context loss produces), so
+    // this disposes and calls `applySize()` again -- by then `winOf(el)` already
+    // resolves to the NEW window (Obsidian updates the element's own `.win`/`.doc`
+    // before firing this), so the reconstruction, and the palette/motion re-reads it
+    // triggers, land there.
+    unwireStageMigration = el.onWindowMigrated(() => {
+      cityRendererHandle.value?.dispose();
+      cityRendererHandle.value = null;
+      applySize();
+    });
   });
 });
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
   resizeObserver = null;
+  unwireStageMigration?.();
+  unwireStageMigration = null;
+  if (motionQuery && onMotionChange) motionQuery.removeEventListener('change', onMotionChange);
+  motionQuery = null;
+  onMotionChange = null;
   layoutAbort?.abort();
   layoutAbort = null;
   cityRendererHandle.value?.dispose();

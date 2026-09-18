@@ -11,6 +11,19 @@ import { fileURLToPath } from 'node:url';
 // against the real, types-only package regardless of this alias.
 const obsidianMock = fileURLToPath(new URL('./tests/mocks/obsidian.ts', import.meta.url));
 
+// tests/host/** files that need a real DOM (mounting Vue, measuring contentEl, a
+// real ItemView/CityView subtree) rather than the 'node' project's plain Node
+// environment. city-view.test.ts and city-view-store-wiring.test.ts (task 9 fix
+// round 1) started this list; task 11 adds three more for exactly the same reason —
+// multi-leaf, window-migration and lifecycle-leaks all construct real CityView
+// instances and measure/observe their DOM.
+const JSDOM_HOST_TESTS = [
+  'tests/host/city-view*.test.ts',
+  'tests/host/multi-leaf.test.ts',
+  'tests/host/window-migration.test.ts',
+  'tests/host/lifecycle-leaks.test.ts',
+];
+
 export default defineConfig({
   test: {
     // See tests/global-setup.ts: it builds dist/ once before any test file runs,
@@ -26,15 +39,11 @@ export default defineConfig({
         plugins: [vue()],
         test: { name: 'node', environment: 'node',
                 include: ['tests/{unit,contracts,integration,host,acceptance,benchmarks}/**/*.test.ts'],
-                // city-view.test.ts and city-view-store-wiring.test.ts (task 9 fix
-                // round 1, split out of the former for the tests/** line budget)
-                // both need a real DOM (mount Vue, measure contentEl); the 'jsdom'
-                // project below picks up both by this same prefix.
-                exclude: ['tests/host/city-view*.test.ts'] } },
+                exclude: JSDOM_HOST_TESTS } },
       { resolve: { alias: { obsidian: obsidianMock } },
         plugins: [vue()],
         test: { name: 'jsdom', environment: 'jsdom',
-                include: ['tests/component/**/*.test.ts', 'tests/host/city-view*.test.ts'] } },
+                include: ['tests/component/**/*.test.ts', ...JSDOM_HOST_TESTS] } },
     ],
   },
 });

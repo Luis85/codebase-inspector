@@ -13,6 +13,7 @@ import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
+import { installControllableResizeObserver } from '../mocks/window-harness';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
@@ -105,25 +106,6 @@ function makePluginDouble(): {
 
 function makeLeafDouble(width = 1000): { width: number } {
   return { width };
-}
-
-/** jsdom has no real ResizeObserver and tests/mocks/obsidian.ts installs a no-op stub,
- *  so the 320 px floor round trip — the second of the two writers' triggers — is
- *  unreachable without one that a test can fire. Installed per test and restored. */
-function installControllableResizeObserver(): { trigger: () => void; restore: () => void } {
-  const callbacks: (() => void)[] = [];
-  const holder = window as unknown as { ResizeObserver: unknown };
-  const previous = holder.ResizeObserver;
-  holder.ResizeObserver = class {
-    constructor(cb: () => void) { callbacks.push(cb); }
-    observe(): void {}
-    unobserve(): void {}
-    disconnect(): void {}
-  };
-  return {
-    trigger: () => { callbacks.forEach((cb) => { cb(); }); },
-    restore: () => { holder.ResizeObserver = previous; },
-  };
 }
 
 function makeProfileStoreDouble(initial: CodebaseProfile[] = []): ProfileStore {

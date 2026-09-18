@@ -45,8 +45,12 @@ export default class CodebaseInspectorPlugin extends Plugin {
     void settingTab.refresh();
 
     this.app.workspace.onLayoutReady(() => {
-      // Startup work belongs here, not in onload. Nothing in WP-01 needs it yet;
-      // task 11 attaches per-leaf snapshot reconciliation.
+      // Startup work belongs here, not in onload. Task 11's per-leaf snapshot
+      // reconciliation is triggered by a SCAN completing (city-view.ts's own
+      // onLifecycleChange, via leaf-registry.ts's reconcileEveryView) rather than by
+      // workspace layout becoming ready — a freshly restored view's snapshotStore is
+      // always empty (spec 4.5: in-memory only), so there is nothing to reconcile yet
+      // at this point. Nothing else in WP-01 needs startup work.
     });
   }
 

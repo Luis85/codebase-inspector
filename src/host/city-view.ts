@@ -42,6 +42,9 @@ import { useCityStore } from '../ui/stores/city-store';
 import { useRunStore } from '../ui/stores/run-store';
 import { CITY_RENDERER_KEY, LAYOUT_GENERATION_KEY, createLayoutGenerationSource } from '../ui/renderer-handle';
 import { reactToLifecycleChange } from './lifecycle-notices';
+import { wireWindowMigration } from './window-migration';
+import { reconcileEveryView } from './leaf-registry';
+import { reconcileSelection } from '../application/snapshot-reconciliation';
 import type { CityRendererPort } from '../visualization/renderer-port';
 import type { ScanLifecycleState } from '../application/run-state';
 import type { CodebaseSnapshot, CityViewState, CodebaseProfile } from '../domain/model';
@@ -110,6 +113,8 @@ export class CityView extends ItemView {
   // snapshot the store no longer held. See renderer-handle.ts for the full reasoning.
   private readonly nextLayoutGeneration = createLayoutGenerationSource();
   private layoutAbort: AbortController | null = null;
+  // Task 11: retained so onClose can call it -- never re-derived, never dropped.
+  private unwireWindowMigration: (() => void) | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: Plugin, deps: CityViewDeps) {
     super(leaf);
@@ -230,6 +235,9 @@ export class CityView extends ItemView {
     this.vueApp.use(this.pinia);
     this.vueApp.mount(this.contentEl);
 
+    // Task 11: containerEl, per spec 4.4's cross-window rule -- see window-migration.ts.
+    this.unwireWindowMigration = wireWindowMigration(this.containerEl, { cityRendererHandle: this.cityRendererHandle });
+
     // Applies the current theme the moment a renderer exists — on first
     // construction, and again on any later reconstruction (e.g. after a
     // context-lost dispose-and-rebuild) — without CityViewport itself needing
@@ -274,6 +282,8 @@ export class CityView extends ItemView {
     this.unwatchRendererForColors = null;
     this.unsubscribeCoordinator?.();
     this.unsubscribeCoordinator = null;
+    this.unwireWindowMigration?.();
+    this.unwireWindowMigration = null;
     this.layoutAbort?.abort();
     // Task 9 fix round 2, item 1 (ruling M68): no more `this.teardownRenderer()`
     // here — `CityViewport.vue`'s own `onBeforeUnmount` (its ResizeObserver
@@ -317,6 +327,25 @@ export class CityView extends ItemView {
       { publishLayout: (snapshot) => { void this.publishLayout(snapshot); }, showNotice: (m) => { this.showNotice(m); } },
     );
     if (updated) this.state = { ...this.state, ...updated };
+    // Task 11: a sibling leaf on the same profile knows nothing about THIS
+    // coordinator's completion (leaf-registry.ts: ScanCoordinator is one per view).
+    if (lifecycle.run.status === 'complete' && lifecycle.publishedSnapshotId) {
+      const snapshot = this.deps.snapshotStore.get(lifecycle.publishedSnapshotId);
+      if (snapshot) reconcileEveryView(this.plugin.app, snapshot);
+    }
+  }
+
+  /** Called by `reconcileEveryView` for EVERY open CityView, including this one.
+   *  Reconciles only the LIVE selection this view's own store holds against
+   *  `snapshot`; a different profile is a no-op, and this never touches this
+   *  view's own snapshot/layout (multiple leaves stay independent, ruling M9). */
+  applyReconciliation(snapshot: CodebaseSnapshot): void {
+    if (!this.cityStore || this.state.profileId !== snapshot.repositoryId) return;
+    const live: CityViewState = { ...this.state, selectedEntityId: this.cityStore.selectedEntityId };
+    const { notice } = reconcileSelection(live, snapshot);
+    if (!notice) return;
+    this.cityStore.clearSelection();
+    this.showNotice(notice);
   }
 
   /** A one-shot Notice for a terminal (cancelled/failed) transition or a scan-start
@@ -327,22 +356,23 @@ export class CityView extends ItemView {
   }
 
   /** Obligation 7 (task-8 brief step 4): recomputes layout from the published snapshot
-   *  and hands it to setLayout with {generation, signal}. `layoutGeneration` is a
-   *  CityView-LOCAL monotonic counter, deliberately distinct from the scan run's own
-   *  `generation` (ScanLifecycleState/RunIdentity) — spec 4.2 only requires SOME
-   *  strictly-increasing per-call token so the renderer can discard a stale or
-   *  superseded setLayout call; nothing requires it to be numerically the same value as
-   *  the run that produced the snapshot, and a run generation is not even defined any
-   *  more once a run reaches 'complete' (spec 4.1's frozen union drops it there).
+   *  and hands it to setLayout with {generation, signal}. `this.nextLayoutGeneration`
+   *  (D30: fixes a stale "CityView-local counter" comment — it is ruling M78's SHARED
+   *  dispenser; `CityViewport` draws from the SAME one on every renderer construction,
+   *  since both writers send `setLayout` to one live port, renderer-handle.ts) is
+   *  deliberately distinct from the scan run's own `generation` — spec 4.2 only
+   *  requires SOME strictly-increasing per-call token, and a run generation is not
+   *  even defined once a run reaches 'complete' (spec 4.1's frozen union drops it).
    *
    *  Task 9 fix round 1, item 1 (ruling M66): `cityStore.setCity(snapshot, layout)`
-   *  runs UNCONDITIONALLY, before the `this.renderer` guard — the HTML list,
-   *  inspector and legend must hold real data below the 320 px floor and before the
-   *  first size measurement too, where no renderer exists at all (spec 5.2:
+   *  runs UNCONDITIONALLY, before checking whether a renderer currently exists (D30:
+   *  fixes a stale "`this.renderer` guard" comment — that field is gone since ruling
+   *  M68; this file only ever reads the shared `cityRendererHandle` below) — the HTML
+   *  list, inspector and legend must hold real data below the 320 px floor and before
+   *  the first size measurement too, where no renderer exists at all (spec 5.2:
    *  "list-first" is the fallback, not a degraded, dataless mode). `computeLayout`
-   *  gets its own try/catch for exactly the reason Minor 8's comment below states —
-   *  it has no never-throws contract, and this now runs even when there is no
-   *  renderer to catch a later throw for it. */
+   *  gets its own try/catch — it has no never-throws contract, and this now runs even
+   *  when there is no renderer to catch a later throw for it. */
   private async publishLayout(snapshot: CodebaseSnapshot): Promise<void> {
     let layout;
     try {
