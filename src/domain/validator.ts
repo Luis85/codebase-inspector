@@ -253,12 +253,12 @@ export function validateCityViewState(input: unknown): CityViewState {
  *  the rejection reached no visible surface at all. Returns EVERY reason, never just the
  *  first, matching ValidationError's own contract. */
 export function scopeValidationReasons(exclusions: readonly string[], maxFileBytes: number): string[] {
-  const reasons: string[] = [];
-  if (!Number.isSafeInteger(maxFileBytes) || maxFileBytes <= 0) {
-    reasons.push('maxFileBytes must be a positive integer');
-  }
-  reasons.push(...exclusionInputReasons(exclusions));
-  return reasons;
+  return [...maxFileBytesReasons(maxFileBytes), ...exclusionInputReasons(exclusions)];
+}
+
+function maxFileBytesReasons(maxFileBytes: number): string[] {
+  return Number.isSafeInteger(maxFileBytes) && maxFileBytes > 0
+    ? [] : ['maxFileBytes must be a positive integer'];
 }
 
 /** Every reason an exclusion LINE is refused, for a surface where a user TYPES one:
@@ -314,13 +314,12 @@ const codebaseProfileSchema = z.object({
   exclusions: z.array(z.string()),
   maxFileBytes: z.number(),
 }).strict().superRefine((val, ctx) => {
-  // The limit check is shared verbatim with the scope modal (scopeValidationReasons
-  // above); the exclusion check is deliberately the RECORD one, not the input one --
-  // see exclusionRecordReasons's comment for ruling M62.
-  if (!Number.isSafeInteger(val.maxFileBytes) || val.maxFileBytes <= 0) {
-    ctx.addIssue({ code: 'custom', message: 'maxFileBytes must be a positive integer' });
-  }
-  for (const reason of exclusionRecordReasons(val.exclusions)) {
+  // The limit rule is still the ONE the scope modal shares (maxFileBytesReasons, which
+  // scopeValidationReasons also calls), so the consent screen and the store can never
+  // disagree about it. The exclusion rule is deliberately the RECORD one, not the input
+  // one -- see exclusionRecordReasons's comment for ruling M62.
+  const reasons = [...maxFileBytesReasons(val.maxFileBytes), ...exclusionRecordReasons(val.exclusions)];
+  for (const reason of reasons) {
     ctx.addIssue({ code: 'custom', message: reason });
   }
 });
