@@ -58,11 +58,25 @@ function handleRendererEvent(event: CityRendererEvent): void {
   }
 }
 
+/** Task 9 fix round 1, item 6 (Important): the hard floor and the zero-box
+ *  no-op are two DIFFERENT guards, kept separate on purpose (they used to be
+ *  merged into one early return, which left the height guard with no
+ *  independent test coverage — a 0x0 box tripped both at once). Below the
+ *  floor, an existing renderer is DISPOSED, not merely left un-resized: spec
+ *  5.2 says the view "creates no WebGL context at all" below 320px, and a
+ *  live context surviving there with a stale size is exactly what
+ *  city-view.ts's own analogous `applyWidth` -> `teardownRenderer` transition
+ *  already prevents at the ItemView level. */
 function applySize(): void {
   const el = stageEl.value;
   if (!el || !createRenderer) return;
   const rect = el.getBoundingClientRect();
-  if (rect.width < MIN_INLINE_SIZE || rect.height <= 0) return;   // hard floor, never a zero box
+  if (rect.width < MIN_INLINE_SIZE) {
+    cityRendererHandle.value?.dispose();
+    cityRendererHandle.value = null;
+    return;
+  }
+  if (rect.height <= 0) return;   // zero-size box: no-op, independent of the floor
   const win = winOf(el);
   if (!cityRendererHandle.value) {
     cityRendererHandle.value = createRenderer(el, win, handleRendererEvent);

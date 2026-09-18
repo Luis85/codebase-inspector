@@ -125,6 +125,57 @@ describe('CityViewport.vue (C08)', () => {
     expect(factory).not.toHaveBeenCalled();
   });
 
+  // Task 9 fix round 1, item 6 (Important): the old code merged the zero-box
+  // no-op and the 320px hard floor into ONE early return
+  // (`rect.width < 320 || rect.height <= 0`), so a genuine zero-HEIGHT box at a
+  // width >= the floor was indistinguishable from the floor case, and the
+  // original "no-ops resize on a zero-size box" test above (0x0, which also
+  // trips the width clause) gave the height guard no independent coverage at
+  // all. This mounts at width 400 (comfortably above 320) with height 0.
+  it('no-ops resize on a zero-HEIGHT box at a width >= the 320px floor, independently of the floor', async () => {
+    const rendererDouble = makeRendererDouble();
+    const factory = vi.fn(() => rendererDouble) as unknown as CreateCityRenderer;
+    const { win } = makeFakeWin();
+    mountWithFactory(factory, win, { width: 400, height: 0 });
+    await nextTick();
+    expect(rendererDouble.resize).not.toHaveBeenCalled();
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  // Task 9 fix round 1, item 6 (Important): once a renderer existed (created at
+  // >= 320) and the leaf was dragged narrower, `applySize` used to return
+  // BEFORE both the pixel-ratio clamp and `resize()`, and nothing disposed the
+  // renderer -- so a live WebGL context survived below the floor, against spec
+  // 5.2's "creates no WebGL context at all", with a stale canvas size.
+  // city-view.ts's own analogous transition (`applyWidth` -> `teardownRenderer`)
+  // already does this at the ItemView level; CityViewport must do it too now
+  // that it owns its own renderer lifecycle (once a factory is injected).
+  it('disposes an existing renderer when the box drops below the 320px floor', async () => {
+    const rendererDouble = makeRendererDouble();
+    const factory = vi.fn(() => rendererDouble) as unknown as CreateCityRenderer;
+    const { win, triggerResize } = makeFakeWin();
+    const { wrapper, stage } = mountWithFactory(factory, win, { width: 800, height: 600 });
+    await nextTick();
+    expect(factory).toHaveBeenCalledTimes(1);
+
+    setRect(stage, 200, 600);
+    triggerResize();
+    await nextTick();
+    expect(rendererDouble.dispose).toHaveBeenCalledTimes(1);
+    const exposed = wrapper.vm as unknown as { cityRendererHandle: unknown };
+    expect(exposed.cityRendererHandle).toBeNull();
+
+    // And a later resize back above the floor creates a genuinely NEW renderer,
+    // not a reuse of the disposed one.
+    const rendererDouble2 = makeRendererDouble();
+    vi.mocked(factory).mockReturnValueOnce(rendererDouble2);
+    setRect(stage, 800, 600);
+    triggerResize();
+    await nextTick();
+    expect(factory).toHaveBeenCalledTimes(2);
+    expect(rendererDouble2.resize).toHaveBeenCalledWith(800, 600, expect.any(Number));
+  });
+
   it('never calls fit() as a side effect of resize', async () => {
     const rendererDouble = makeRendererDouble();
     const factory = vi.fn(() => rendererDouble) as unknown as CreateCityRenderer;
