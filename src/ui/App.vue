@@ -1,26 +1,26 @@
 <!--
   C01 — the real shell task 3's welcome stub stood in for. Composes every component
-  task 9 ships. Exposes `rendererHost` UNCHANGED (an HTMLElement, not a ref-wrapped
-  one) because `city-view.ts` (unmodified this task — its own header comment says
-  "this file's own responsibilities do not change") reads
-  `instance.rendererHost` exactly once, right after `vueApp.mount(...)` returns, and
-  passes it straight into `createCityRenderer`. That element is now
-  CityViewport's own internal stage div, forwarded up through its exposed `stageEl`.
+  task 9 ships. Still exposes `rendererHost` (CityViewport's own internal stage div,
+  forwarded up through its exposed `stageEl`) for tests that mount `App` directly,
+  but task 9 fix round 2, item 1 (ruling M68) ended `city-view.ts`'s own read of it:
+  CityViewport is now the SINGLE owner of renderer construction, teardown and
+  sizing, reached by `city-view.ts` PROVIDING the real `createCityRenderer` factory
+  into this tree instead of calling it directly and reading the result back out.
 
   Owns the ONE shared renderer-command handle and the ONE shared stage-element
   handle (renderer-handle.ts) at the root of the tree, and the ONE derivation of
   "which view-level state currently applies" (view-surface.ts) driving
   StatusBanner/EmptyState. See task-9-report.md for the two states
-  (invalid-directory, read-not-approved) this derivation cannot yet reach, and for
-  why CityViewport stays passive under today's unmodified CityView wiring.
+  (invalid-directory, read-not-approved) this derivation cannot yet reach.
 -->
 <script setup lang="ts">
-import { computed, inject, ref, watch } from 'vue';
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useCityStore } from './stores/city-store';
 import { useRunStore } from './stores/run-store';
 import { provideCityRenderer, provideCityStageEl } from './renderer-handle';
 import { provideInspectorOpener } from './drawer-focus';
 import { countPartialRead, deriveViewSurfaceState } from './view-surface';
+import { escapeIntent } from './interaction/escape-intent';
 import { COPY_02 } from './copy';
 import FileSearch from './components/FileSearch.vue';
 import CodebaseFileList from './components/CodebaseFileList.vue';
@@ -33,13 +33,11 @@ import StatusBanner from './components/StatusBanner.vue';
 import EmptyState from './components/EmptyState.vue';
 import AnnouncementRegion from './components/AnnouncementRegion.vue';
 
-// `rendererAvailable` is no longer read here (item 4) — CityViewport injects it
-// directly itself; App.vue's own derivation must never see it (see below).
 const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
 
 provideCityRenderer();
 provideCityStageEl();
-provideInspectorOpener();
+const inspectorOpenerHandle = provideInspectorOpener();
 
 const store = useCityStore();
 const runStore = useRunStore();
@@ -66,6 +64,89 @@ function closeFilesDrawer(): void {
 // Files drawer too, without CodebaseFileList needing to know the drawer exists.
 watch(() => store.inspectorOpen, (open) => { if (open) filesDrawerOpen.value = false; });
 
+// Task 9 fix round 2, item 2 (Fold): escapeIntent's chain (modal -> help ->
+// nonmodal drawer -> query -> selection, ruling M61) was previously reachable
+// end to end ONLY through FileSearch.vue's own local `clear-query` handling.
+// This shell-level listener reaches the drawer and selection branches too, with
+// REAL state — no `modal`/`help` state exists at this level yet (nothing to
+// wire), so those two never fire; the rest do.
+const rootEl = ref<HTMLElement | null>(null);
+const narrowDrawer = ref(false);
+
+interface WinBearing { win?: Window }
+interface DocBearing { doc?: Document }
+
+// The SAME 820 CSS px container-query threshold styles.css uses (spec 5.2):
+// measured on the `.codebase-inspector-root` ancestor when one exists (the real
+// host), falling back to this component's own root otherwise (a standalone
+// mount, same fallback FileSearch.vue's own focus-containment check already
+// uses) — never a bare `window`/viewport measurement, which a CONTAINER query
+// does not track.
+function narrowContainer(el: HTMLElement): Element {
+  return el.closest('.codebase-inspector-root') ?? el;
+}
+function updateNarrowDrawer(): void {
+  const el = rootEl.value;
+  if (!el) return;
+  narrowDrawer.value = narrowContainer(el).getBoundingClientRect().width < 820;
+}
+
+let resizeObserver: ResizeObserver | null = null;
+let listenerDoc: Document | null = null;
+
+/** `event.isComposing` (native, spec-provided) rather than a locally tracked
+ *  flag — this listens on `document`, never a specific input, so there is no
+ *  single element whose own compositionstart/end this could track instead. */
+function onGlobalKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape' || event.defaultPrevented) return;
+  const active = listenerDoc?.activeElement ?? null;
+  const intent = escapeIntent({
+    composing: event.isComposing,
+    inInspector: store.inspectorOpen,
+    narrowDrawer: narrowDrawer.value,
+    inSearch: Boolean(active?.closest('.ci-search')),
+    query: store.query,
+    // "canvas/list focus": the spatial selection surfaces a selection can be
+    // MADE from (spec 5.2) — the 3D viewport and the HTML list both select the
+    // same `store.selectedEntityId`, so Escape clearing it applies to either.
+    inCanvas: Boolean(active?.closest('.ci-viewport, .ci-file-list')),
+    selected: store.selectedEntityId !== null,
+  });
+  if (intent === 'close-inspector') {
+    store.closeInspector();
+    inspectorOpenerHandle.value?.focus();
+  } else if (intent === 'clear-selection') {
+    store.clearSelection();
+  } else if (intent === 'clear-query') {
+    // Reachable only when a leftover query exists while focus is on NEITHER the
+    // search field (FileSearch.vue's own local handler already claims that case
+    // via `event.defaultPrevented`, above) nor anywhere else this chain checks
+    // first — tests/unit/escape-intent.test.ts's own "reachability note" already
+    // documents this combination as not reachable from real focus alone.
+    store.setQuery('');
+  }
+}
+
+onMounted(() => {
+  const el = rootEl.value;
+  listenerDoc = (el as unknown as DocBearing | null)?.doc ?? null;
+  listenerDoc?.addEventListener('keydown', onGlobalKeydown);
+  if (!el) return;
+  updateNarrowDrawer();
+  const win = (el as unknown as WinBearing).win;
+  if (!win) return;
+  resizeObserver = new (win as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver(() => {
+    updateNarrowDrawer();
+  });
+  resizeObserver.observe(narrowContainer(el));
+});
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+  listenerDoc?.removeEventListener('keydown', onGlobalKeydown);
+  listenerDoc = null;
+});
+
 interface CityViewportExposed { stageEl: HTMLElement | null }
 const cityViewportRef = ref<CityViewportExposed | null>(null);
 
@@ -74,15 +155,12 @@ const cityViewportRef = ref<CityViewportExposed | null>(null);
 // 'renderer-unavailable'/'context-lost' as states (StatusBanner/EmptyState's own
 // component tests exercise them directly), but feeding the real signal in here
 // made it the head of a single-winner priority chain — masking "no source
-// selected", scanning, cancelled and every other state behind it. Since
-// `rendererAvailable` starts `false` in city-view.ts and only flips true after
-// the first size measurement (and stays false forever below the 320px floor),
-// that meant the welcome action was hidden before the first measurement and
-// permanently on any narrow leaf — a regression against task 3, whose welcome
-// button was unconditional. CityViewport already renders its OWN, genuinely
-// non-exclusive notice for exactly this signal (COPY-14 / the reconstruct
-// notice), inside the viewport pane, alongside whatever else is on screen —
-// picking IT as the one owner of that copy is what fixes the double-print too.
+// selected", scanning, cancelled and every other state behind it, permanently on
+// any narrow leaf — a regression against task 3, whose welcome button was
+// unconditional. CityViewport already renders its OWN, genuinely non-exclusive
+// notice for exactly this signal (COPY-14 / the reconstruct notice), inside the
+// viewport pane, alongside whatever else is on screen — picking IT as the one
+// owner of that copy is what fixes the double-print too.
 const viewSurfaceState = computed(() => deriveViewSurfaceState({
   hasSnapshot: store.snapshot !== null,
   runStatus: runStore.run.status,
@@ -101,7 +179,10 @@ defineExpose({ rendererHost });
 </script>
 
 <template>
-  <div class="ci-app">
+  <div
+    ref="rootEl"
+    class="ci-app"
+  >
     <div class="ci-app__toolbar">
       <FileSearch />
       <!-- Task 9 fix round 1, item 3 (Important): list mode is the FALLBACK, not

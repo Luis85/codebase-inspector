@@ -1,11 +1,60 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { ref } from 'vue';
+import { nextTick } from 'vue';
+// Side-effect import: installs the win/doc prototype extensions real Obsidian
+// patches onto HTMLElement (tests/mocks/obsidian.ts) — task 9 fix round 2, item 2's
+// own shell-level Escape listener (App.vue) reads `rootEl.value.doc`/`.win`, same
+// as FileSearch.vue's own global listener already does (file-search.test.ts's own
+// identical import).
+import '../mocks/obsidian';
 import App from '../../src/ui/App.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../../tests/fixtures/snapshot-builder';
+import type { CityRendererEvent, CityRendererPort, CreateCityRenderer } from '../../src/visualization/renderer-port';
+
+function makeRendererDouble(): CityRendererPort {
+  return {
+    setLayout: vi.fn(async () => {}),
+    setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setLabels: vi.fn(),
+    setCameraMode: vi.fn(), setMotion: vi.fn(),
+    getCamera: vi.fn(() => ({ projection: 'orthographic' as const, mode: '3d' as const, position: [0, 0, 0] as [number, number, number], target: [0, 0, 0] as [number, number, number], up: [0, 1, 0] as [number, number, number], zoom: 1 })),
+    setCamera: vi.fn(), nudgeCamera: vi.fn(), focus: vi.fn(), fit: vi.fn(), resize: vi.fn(),
+    pause: vi.fn(), resume: vi.fn(), dispose: vi.fn(),
+    getDiagnostics: vi.fn(() => ({ geometries: 0, textures: 0, programs: 0, drawCalls: 0, instanceCount: 0, lastFrameMs: 0, contextLost: false })),
+    debugLoseContext: vi.fn(),
+  };
+}
+
+class FakeResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+function makeFakeWin(): Window {
+  return {
+    ResizeObserver: FakeResizeObserver,
+    matchMedia: vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    devicePixelRatio: 1,
+  } as unknown as Window;
+}
+
+/** Mounts `App` with a `createCityRenderer` factory provided and the exposed
+ *  `rendererHost` (CityViewport's own stage element — unchanged contract,
+ *  task 9 fix round 2, item 1) wired with a fake window and a >=320px rect, so
+ *  construction actually proceeds far enough to call the factory. */
+function mountAppWithFactory(factory: CreateCityRenderer) {
+  const wrapper = mount(App, { global: { provide: { createCityRenderer: factory } } });
+  const exposed = wrapper.vm as unknown as { rendererHost: HTMLElement | null };
+  const stage = exposed.rendererHost!;
+  (stage as unknown as { win: Window }).win = makeFakeWin();
+  stage.getBoundingClientRect = () => ({
+    width: 800, height: 600, top: 0, left: 0, right: 800, bottom: 600, x: 0, y: 0, toJSON: () => ({}),
+  });
+  return { wrapper, stage };
+}
 
 // Task 9 replaces the task-3 welcome-shell App.vue pins here with the real C01
 // shell (ten components, two stores). Every assertion below is retained UNCHANGED
@@ -39,42 +88,67 @@ describe('App.vue welcome-state shell', () => {
     expect(wrapper.text()).not.toContain('Analysis reports can be added later');
   });
 
-  it('renders no renderer-unavailable notice when the injected default is available', () => {
-    // App.vue's own inject() default is `true` when nothing provides a value, which
-    // only happens outside CityView (e.g. this standalone mount) — CityView always
-    // provides a real ref.
+  it('renders no renderer-unavailable notice when nothing has reported unavailable', () => {
+    // No `createCityRenderer` factory is provided at all here (CityViewport's
+    // own inject default is `null`), so it stays passive and shows nothing.
     const wrapper = mount(App);
     expect(wrapper.text()).not.toContain('The 3D view is unavailable');
   });
 
-  it('shows the renderer-unavailable notice (COPY-14) when provided false', () => {
-    const wrapper = mount(App, {
-      global: { provide: { rendererAvailable: ref(false) } },
-    });
+  // Task 9 fix round 2, item 1 (ruling M68): `rendererAvailable` is now dead and
+  // removed — CityViewport owns sizing entirely itself (its own `available` ref,
+  // driven by its own measurement) and no longer injects an externally-fed
+  // signal. These three tests (item 4's own regression guards, round 1) are
+  // redone against the REAL post-consolidation mechanism: a provided factory
+  // that reports `unavailable` through its `onEvent` callback, exactly as
+  // `city-viewport.test.ts`'s own dedicated tests already exercise.
+  it('shows the renderer-unavailable notice (COPY-14) when the renderer reports unavailable', async () => {
+    let onEventCapture: ((e: CityRendererEvent) => void) | null = null;
+    const factory: CreateCityRenderer = (_el, _win, onEvent) => {
+      onEventCapture = onEvent;
+      return makeRendererDouble();
+    };
+    const { wrapper } = mountAppWithFactory(factory);
+    await nextTick();
+    onEventCapture!({ type: 'unavailable', reason: 'unsupported' });
+    await nextTick();
     expect(wrapper.text()).toContain('The 3D view is unavailable. File inspection still works.');
   });
 
   // Task 9 fix round 1, item 4 (Important): view-surface.ts's derivation used to
   // check renderer/root unavailability BEFORE no-source/scanning/cancelled/
   // empty-scope/no-search-matches/partial-read, as the head of a single-winner
-  // priority chain — and city-view.ts initialises `rendererAvailable` to
-  // `ref(false)` (only flipped true once a measurement runs), so this was worse
+  // priority chain — and city-view.ts initialised `rendererAvailable` to
+  // `ref(false)` (only flipped true once a measurement ran), so this was worse
   // than a narrow-leaf edge case: the welcome action was hidden before the FIRST
   // size measurement, and permanently on any leaf under the 320px floor, which is
   // exactly where spec 5.2 says the view must render list-first and KEEP WORKING.
-  // A regression against task 3, whose welcome button was unconditional.
-  it('does not let renderer unavailability mask "no source selected"', () => {
-    const wrapper = mount(App, {
-      global: { provide: { rendererAvailable: ref(false) } },
-    });
+  // A regression against task 3, whose welcome button was unconditional. Still
+  // pinned here (round 2) against the new mechanism.
+  it('does not let renderer unavailability mask "no source selected"', async () => {
+    let onEventCapture: ((e: CityRendererEvent) => void) | null = null;
+    const factory: CreateCityRenderer = (_el, _win, onEvent) => {
+      onEventCapture = onEvent;
+      return makeRendererDouble();
+    };
+    const { wrapper } = mountAppWithFactory(factory);
+    await nextTick();
+    onEventCapture!({ type: 'unavailable', reason: 'unsupported' });
+    await nextTick();
     expect(wrapper.text()).toContain('Understand your codebase. Start with its structure.');
     expect(wrapper.text()).toContain('Select a codebase');
   });
 
-  it('prints COPY-14 exactly once, not twice, when the renderer is unavailable', () => {
-    const wrapper = mount(App, {
-      global: { provide: { rendererAvailable: ref(false) } },
-    });
+  it('prints COPY-14 exactly once, not twice, when the renderer is unavailable', async () => {
+    let onEventCapture: ((e: CityRendererEvent) => void) | null = null;
+    const factory: CreateCityRenderer = (_el, _win, onEvent) => {
+      onEventCapture = onEvent;
+      return makeRendererDouble();
+    };
+    const { wrapper } = mountAppWithFactory(factory);
+    await nextTick();
+    onEventCapture!({ type: 'unavailable', reason: 'unsupported' });
+    await nextTick();
     const copy14 = 'The 3D view is unavailable. File inspection still works.';
     const occurrences = wrapper.text().split(copy14).length - 1;
     expect(occurrences).toBe(1);
@@ -172,6 +246,57 @@ describe('App.vue welcome-state shell', () => {
       await wrapper.get('[aria-label="Close"]').trigger('click');
       expect(wrapper.find('[aria-label="File inspector"]').exists()).toBe(false);
       expect(document.activeElement).toBe(row.element);
+    });
+  });
+
+  // Task 9 fix round 2, item 2 (Fold): before this fix, escapeIntent's only
+  // production consumer was FileSearch.vue (always `inSearch: true`), so only the
+  // `clear-query` branch was reachable end to end -- acceptance criterion 3
+  // ("Escape resolves exactly one layer, in order") was unmet. This wires the
+  // shell's OWN Escape handling through the SAME `escapeIntent` chain, using real
+  // state (`store.inspectorOpen`, a real container-width measurement for
+  // `narrowDrawer`, and `document.activeElement` for focus), so the drawer and
+  // selection branches are reachable too, in M61's spec order.
+  describe('shell-level Escape handling (fix round 2, item 2)', () => {
+    it('resolves exactly one layer per press, and two presses resolve two, in order', async () => {
+      // A narrow (<820px) container: `escapeIntent`'s `narrowDrawer` gate is real,
+      // not hardcoded, so the drawer branch below only fires because this IS narrow.
+      const rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+        width: 400, height: 700, top: 0, left: 0, right: 400, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+      });
+      try {
+        const store = useCityStore();
+        const snapshot = buildSnapshotFixture({ files: 1 });
+        store.setCity(snapshot, computeLayout(snapshot));
+        const wrapper = mount(App, { attachTo: document.body });
+
+        const row = wrapper.get('.ci-file-list__row');
+        await row.trigger('click');
+        expect(wrapper.find('[aria-label="File inspector"]').exists()).toBe(true);
+        expect(store.selectedEntityId).not.toBeNull();
+
+        // First press: the narrow inspector drawer is open, so it closes FIRST
+        // (M61's order), preserving the selection -- not `clear-selection` yet.
+        // Dispatched on `document` directly (not `wrapper.trigger`), matching
+        // file-search.test.ts's own established pattern for this shell-level,
+        // document-bound listener.
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await nextTick();
+        expect(wrapper.find('[aria-label="File inspector"]').exists()).toBe(false);
+        expect(store.selectedEntityId).not.toBeNull();
+        // Closing the drawer returns focus to its opener (the row), exactly like
+        // its own Close button already does -- so the second press below
+        // genuinely finds focus on the list, not by the test forcing it there.
+        expect(document.activeElement).toBe(row.element);
+
+        // Second press: no drawer is open now, so the NEXT layer resolves --
+        // the selection, because focus is on the list/canvas surface.
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await nextTick();
+        expect(store.selectedEntityId).toBeNull();
+      } finally {
+        rectSpy.mockRestore();
+      }
     });
   });
 });
