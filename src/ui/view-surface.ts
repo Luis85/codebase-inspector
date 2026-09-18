@@ -18,7 +18,7 @@
 //    the full accounting.
 import { CANCELLED_BANNER } from '../application/run-state';
 import {
-  COPY_01, COPY_04, COPY_12, COPY_14, COPY_28, CONTEXT_LOST_NOTICE,
+  COPY_01, COPY_12, COPY_14, COPY_28, COPY_READ_NOT_APPROVED, CONTEXT_LOST_NOTICE,
   formatCopy08, formatCopy11, formatCopy13, formatFailedRefreshNotice,
 } from './copy';
 import type { CodebaseSnapshot } from '../domain/model';
@@ -116,8 +116,14 @@ export function surfaceCopy(state: ViewSurfaceState): string | null {
   switch (state.kind) {
     case 'none': return null;
     case 'no-source': return COPY_01;
+    // Task 9 fix round 1, item 9: no COPY id covers an invalid-directory STATE
+    // (COPY-03/04/05/06 are all the permission modal's own copy, task 7's
+    // territory, not a surface for the view itself). Authored fresh, factual
+    // and action-oriented per the catalogue's own style guide, naming what
+    // went wrong (`state.detail`, supplied by the modal layer) without
+    // repeating any of that modal's own strings.
     case 'invalid-directory': return `The selected directory could not be used for this scan. ${state.detail}`;
-    case 'read-not-approved': return COPY_04;
+    case 'read-not-approved': return COPY_READ_NOT_APPROVED;
     case 'empty-scope': return COPY_12;
     case 'scanning-unknown-total': return formatCopy08(state.processedFiles);
     case 'cancelled': return CANCELLED_BANNER;

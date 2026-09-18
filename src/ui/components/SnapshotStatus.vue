@@ -33,6 +33,11 @@ const ageText = computed(() => {
 </script>
 
 <template>
+  <!-- Task 9 fix round 1, item 9: not in the microcopy catalogue under any
+       COPY id — COPY-16 ("Showing evidence from {absoluteDate}...") is about
+       STALE PROVIDER evidence (a WP-02+ concept), not this snapshot's own
+       retained age. Authored fresh, factual and brief, matching the
+       catalogue's own tone. -->
   <p
     v-if="ageText"
     class="ci-snapshot-status"

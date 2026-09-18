@@ -14,7 +14,7 @@
 import { inject, ref, watch } from 'vue';
 import { useRunStore } from '../stores/run-store';
 import { useCityStore } from '../stores/city-store';
-import { formatCopy08 } from '../copy';
+import { ANNOUNCE_SCAN_COMPLETE, formatAnnounceSelected, formatCopy08 } from '../copy';
 
 const THROTTLE_MS = 100;
 
@@ -43,7 +43,7 @@ function announceProgress(processedFiles: number): void {
 // action has finished — a real timing defect this avoided, not a style choice.
 watch(() => runStore.run, (run) => {
   if (run.status === 'running') announceProgress(run.processedFiles);
-  else if (run.status === 'complete') announcePolite('Scan complete.');
+  else if (run.status === 'complete') announcePolite(ANNOUNCE_SCAN_COMPLETE);
   else if (run.status === 'cancelled') announcePolite(runStore.banner ?? 'Scan cancelled.');
   else if (run.status === 'failed') announceAssertive(runStore.banner ?? 'Scan failed.');
 }, { deep: true });
@@ -51,7 +51,7 @@ watch(() => runStore.run, (run) => {
 watch(() => cityStore.selectedEntityId, (entityId) => {
   if (!entityId) return;
   const entity = cityStore.snapshot?.entities.find((e) => e.id === entityId);
-  if (entity) announcePolite(`Selected ${entity.name}.`);
+  if (entity) announcePolite(formatAnnounceSelected(entity.name));
 });
 
 defineExpose({ announceProgress, announcePolite, announceAssertive, politeMessage, assertiveMessage });

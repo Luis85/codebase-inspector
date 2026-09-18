@@ -56,6 +56,33 @@ export function formatUnavailableReason(reason: string): string {
   return `Not measured. ${reason}`;
 }
 
+/** Task 9 fix round 1, item 9: NOT COPY-04. COPY-04 ("Review scope and read
+ *  access") is the PERMISSION MODAL's own heading/button label (source-modal.ts /
+ *  scope-modal.ts, task 7) — a call to action for a control that is currently on
+ *  screen, not a description of a STATE where that control is not. Reusing it as
+ *  a state-surface banner was wrong: "a button label is not a state description"
+ *  (task-9-fix-1.md, item 9). This names the state and points at the same next
+ *  action COPY-04 itself is the label for, without claiming to BE it. Not in the
+ *  microcopy catalogue under any COPY id — authored fresh, in the catalogue's own
+ *  factual, action-oriented voice. */
+export const COPY_READ_NOT_APPROVED = 'Read access has not been approved for this scan yet. Review scope and read access to continue.';
+
+/** Task 9 fix round 1, item 9: not in the microcopy catalogue under any COPY id.
+ *  A bare scan-completion announcement has no catalogue entry — COPY-08 covers
+ *  only the IN-PROGRESS count, and every other scan-outcome id (COPY-10, the
+ *  failure banner) is about a non-success outcome. Authored fresh, factual and
+ *  brief, matching the catalogue's own tone; listed here (not left inline) so
+ *  every invented string in this task lives in one place. */
+export const ANNOUNCE_SCAN_COMPLETE = 'Scan complete.';
+
+/** Task 9 fix round 1, item 9: not in the microcopy catalogue. Selection itself
+ *  (as opposed to what a selected file's measurements ARE, which IS catalogued)
+ *  has no COPY id — this is the polite, control-initiated-selection announcement
+ *  spec 5.2 asks for, naming the file so a screen-reader user hears what changed. */
+export function formatAnnounceSelected(name: string): string {
+  return `Selected ${name}.`;
+}
+
 /** Not in the microcopy catalogue: WebGL context loss (spec §4.2's "no self-healing —
  *  the VIEW disposes and reconstructs") has no COPY id. Authored fresh, in the
  *  catalogue's own factual, action-oriented voice, naming the mechanism spec §4.2
