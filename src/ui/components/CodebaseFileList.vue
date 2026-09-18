@@ -1,10 +1,11 @@
 <!--
-  C07 — the HTML inventory list, and the one place this task's acceptance criterion 1
-  ("HTML selection drives the canvas through setSelection") is actually satisfied:
-  activating a row calls BOTH `cityStore.select()` (the store of record) and the live
-  renderer's `setSelection()` directly, through the shared handle in
-  renderer-handle.ts. The canvas-to-HTML direction (a pick in the 3D view driving this
-  list) is task 10's — nothing here reads a renderer EVENT, only issues commands.
+  C07 — the HTML inventory list. Activating a row writes `cityStore.select()`, the store
+  of record, and nothing else: task 10 fix round 1, item 2 removed the direct
+  `renderer.setSelection()` call that used to sit beside it, because a canvas pick had
+  no equivalent and so the two surfaces disagreed. CityViewport now watches
+  `store.selectedEntityId` and is the SINGLE path to the port, for both surfaces — this
+  component neither imports the renderer handle nor issues a command to it. Its own test
+  guards against the second path being reintroduced here.
 
   Rows are native <button>s (never role="tree" — that is future, richer-than-WP-01
   tree semantics this component does not implement) with a roving tabindex: moving
@@ -13,13 +14,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useCityStore } from '../stores/city-store';
-import { useCityRendererHandle } from '../renderer-handle';
 import { useInspectorOpener } from '../drawer-focus';
 import { formatCopy11 } from '../copy';
 import type { EntityId } from '../../domain/entity-id';
 
 const store = useCityStore();
-const renderer = useCityRendererHandle();
 const inspectorOpener = useInspectorOpener();
 
 const fileEntities = computed(() => (store.snapshot?.entities.filter((e) => e.kind === 'file') ?? []));
@@ -43,7 +42,6 @@ function rovingTabIndex(entityId: EntityId): number {
  *  so FileInspector's own close button knows where to return focus. */
 function activate(entityId: EntityId, event: Event): void {
   store.select(entityId);
-  renderer.value?.setSelection(entityId);
   inspectorOpener.value = event.currentTarget as HTMLElement;
   store.openInspector();
 }

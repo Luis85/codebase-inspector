@@ -254,16 +254,25 @@ defineExpose({ rendererHost });
         <CodebaseFileList class="ci-app__list" />
       </div>
       <div class="ci-app__stage-column">
-        <!-- CityViewport itself stays unconditionally mounted, even in list mode:
-             city-view.ts (frozen this task, store-wiring only per ruling M66)
-             captures `instance.rendererHost` ONCE, at initial mount, and keeps
-             using that exact element for the lifetime of the view — v-if'ing this
-             element's owner would detach it from the DOM the next time viewMode
-             changed, leaving city-view.ts's own renderer pointed at a node no
-             longer on screen. CameraControls has no camera to command once
-             `viewMode === 'list'` (spec 4.2: "no renderer exists"), so IT is what
-             list mode actually hides. -->
-        <CityViewport ref="cityViewportRef" />
+        <!-- Task 10 fix round 1 (ruling M75): NOT mounted in list mode. Spec 5.2
+             says the list-first fallback "creates no WebGL context at all", spec
+             4.2 says "in 'list' mode no renderer exists", and browsers cap live
+             contexts at roughly 8-16 — so leaving a live context behind in the
+             one mode defined as not having one is a real cost, not a formality.
+             The comment that used to stand here justified the opposite from
+             city-view.ts capturing `instance.rendererHost` once and keeping it
+             for the view's lifetime; ruling M68 moved renderer ownership into
+             CityViewport itself, so nothing outside this component holds the
+             stage element any more and `rendererHost` appears nowhere in
+             src/host/. Unmounting disposes the renderer through CityViewport's
+             own onBeforeUnmount, exactly as the 320 px floor already does.
+             `useClipboard` gained a cross-window fallback first: FileInspector is
+             gated on `inspectorOpen`, independent of viewMode, and used to take
+             its Window from the stage handle this unmount nulls. -->
+        <CityViewport
+          v-if="store.viewMode !== 'list'"
+          ref="cityViewportRef"
+        />
         <CameraControls v-if="store.viewMode !== 'list'" />
         <MetricLegend />
       </div>

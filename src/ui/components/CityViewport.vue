@@ -16,16 +16,23 @@
   `null`), this component stays passive: a bare host, nothing more.
 -->
 <script setup lang="ts">
-import { inject, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type {
-  CityRendererEvent, CreateCityRenderer,
+  CityRendererEvent, CityRendererPort, CreateCityRenderer,
 } from '../../visualization/renderer-port';
 import { useCityRendererHandle, useCityStageEl } from '../renderer-handle';
 import { useCityStore } from '../stores/city-store';
+import { useInspectorOpener } from '../drawer-focus';
 import { COPY_14, CONTEXT_LOST_NOTICE } from '../copy';
 
 const MIN_INLINE_SIZE = 320;     // spec 5.2 hard floor, CSS px
 const MAX_PIXEL_RATIO = 2;
+// WP-01 ships no label toggle: no control, no microcopy and no spec line defines one,
+// and inventing a hide rule would be a design decision the spec does not authorise. The
+// call is still made — and re-made on every reconstruct — so the port is DRIVEN rather
+// than merely implemented, which is the defect this replaces (setLabels had zero
+// production callers). When a toggle arrives it replaces this constant and nothing else.
+const LABELS_VISIBLE = true;
 
 type UnavailableReason = 'unsupported' | 'context-lost' | 'initialization-failed';
 
@@ -33,6 +40,7 @@ const createRenderer = inject<CreateCityRenderer | null>('createCityRenderer', n
 const cityRendererHandle = useCityRendererHandle();
 const cityStageHandle = useCityStageEl();
 const store = useCityStore();
+const inspectorOpener = useInspectorOpener();
 
 const stageEl = ref<HTMLElement | null>(null);
 // Task 9 fix round 2, item 1: replaces the externally-injected `rendererAvailable`
@@ -42,6 +50,12 @@ const stageEl = ref<HTMLElement | null>(null);
 const available = ref(true);
 const unavailableReason = ref<UnavailableReason | null>(null);
 let resizeObserver: ResizeObserver | null = null;
+// This component's OWN monotonic token, deliberately separate from city-view.ts's
+// (spec 4.2 asks only for SOME strictly-increasing per-call token). The two never race
+// on the same port: each targets whichever handle existed when it was called, and a
+// replaced port is already disposed, so its own setLayout bails on `disposed`.
+let layoutGeneration = 0;
+let layoutAbort: AbortController | null = null;
 
 interface WinBearing { win?: Window }
 
@@ -79,8 +93,50 @@ function handleRendererEvent(event: CityRendererEvent): void {
     return;
   }
   if (event.type === 'camera-changed') store.setCamera(event.camera);
-  if (event.type === 'entity-picked') store.select(event.entityId);
+  if (event.type === 'entity-picked') selectFromCanvas(event.entityId);
 }
+
+/** Fix round 1, item 2. Spec 5.2 says "a click selects and opens the inspector" and says
+ *  nothing about the two surfaces differing, so a canvas pick does exactly what a list
+ *  row activation does — including recording an opener, because the narrow (<820 px)
+ *  drawer returns focus to it on close (drawer-focus.ts). The opener is the STAGE: it is
+ *  where the user was, it is the focusable named region, and it is where F/T/+/- and the
+ *  arrow keys work once focus lands back. The selection outline itself is not commanded
+ *  here — the store watcher below is the single path for that, for both surfaces. */
+function selectFromCanvas(entityId: string): void {
+  store.select(entityId);
+  inspectorOpener.value = stageEl.value;
+  store.openInspector();
+}
+
+/** THE single store-to-port mirror (fix round 1, items 2 and 3). Before this, the only
+ *  caller of setSelection anywhere was an ad-hoc one in CodebaseFileList (now removed,
+ *  so there is one path and not two), and setFilter/setLabels had none at all — so a
+ *  canvas pick highlighted nothing and spec 5.2's "dims non-matches in place" was absent
+ *  from the product even though the port implements it. Re-applied whenever the handle
+ *  changes, so the reconstruct spec 4.2 mandates after a context loss does not silently
+ *  come back with no selection and an undimmed city. */
+function applyStoreState(handle: CityRendererPort | null): void {
+  if (!handle) return;
+  handle.setSelection(store.selectedEntityId);
+  handle.setFilter(store.matchingIds ?? null);   // null = unfiltered, empty = no matches
+  handle.setLabels(LABELS_VISIBLE);
+  // …including the LAYOUT. `city-view.ts` hands a layout to whichever renderer exists
+  // when a snapshot is PUBLISHED, and nothing re-sends it, so any renderer built after
+  // that — by the dispose-and-reconstruct spec 4.2 mandates after a context loss, or by
+  // leaving and re-entering list mode — came back with an empty scene. The store already
+  // holds the current layout unconditionally (it must, for the list-first fallback), so
+  // this is a re-send of what is already known, never a rescan.
+  if (!store.layout) return;
+  layoutAbort?.abort();
+  layoutAbort = new AbortController();
+  layoutGeneration += 1;
+  void handle.setLayout(store.layout, { generation: layoutGeneration, signal: layoutAbort.signal });
+}
+
+watch(() => store.selectedEntityId, (id) => { cityRendererHandle.value?.setSelection(id); });
+watch(() => store.matchingIds, (ids) => { cityRendererHandle.value?.setFilter(ids ?? null); });
+watch(cityRendererHandle, (handle) => { applyStoreState(handle); });
 
 /** Task 9 fix round 1, item 6 (Important): the hard floor and the zero-box
  *  no-op are two DIFFERENT guards, kept separate on purpose (they used to be
@@ -148,6 +204,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
   resizeObserver = null;
+  layoutAbort?.abort();
+  layoutAbort = null;
   cityRendererHandle.value?.dispose();
   cityRendererHandle.value = null;
   cityStageHandle.value = null;

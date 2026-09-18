@@ -229,6 +229,11 @@ describe('CityView wiring: stores, renderer port and theme colors', () => {
     await nextTick();
     const row = view.contentEl.querySelector<HTMLButtonElement>('.ci-file-list__row')!;
     row.click();
+    // Task 10 fix round 1, item 2: the path is now row -> cityStore.selectedEntityId ->
+    // CityViewport's watcher -> the port, instead of the component commanding the port
+    // directly, so the assertion below is one watcher flush away rather than synchronous.
+    // Same assertion, same product, redirected to the single path.
+    await nextTick();
     const snapshot = publishedSnapshot();
     const fileEntity = snapshot.entities.find((e) => e.kind === 'file')!;
     expect(setSelectionSpy).toHaveBeenCalledWith(fileEntity.id);

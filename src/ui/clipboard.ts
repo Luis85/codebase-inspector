@@ -28,11 +28,28 @@ export interface ClipboardLike {
 
 interface WinBearing { win?: Window }
 
+/** The stage's own window first — that is the cross-window-correct answer after a
+ *  pop-out migration (spec 4.4), and it is the window the view is actually showing in.
+ *
+ *  Task 10 fix round 1, fold: with `CityViewport` no longer mounted in list mode (spec
+ *  5.2's "no renderer exists"), the stage handle is NULL there, while `FileInspector` is
+ *  gated on `inspectorOpen` and is entirely independent of `viewMode`. Without this
+ *  fallback, "Copy relative path" would throw in exactly the mode the spec calls the
+ *  fallback. `activeWindow` is Obsidian's own ambient cross-window global, kept pointed
+ *  at the window holding the focused leaf — the sanctioned answer, and still never a bare
+ *  `window`. Outside a real host (and in `clipboard.test.ts`, which deliberately does not
+ *  install it) it is undefined, and the throw below still fires. */
+function resolveWindow(stage: HTMLElement | null): Window | null {
+  const fromStage = (stage as unknown as WinBearing | null)?.win;
+  if (fromStage) return fromStage;
+  return typeof activeWindow === 'undefined' ? null : activeWindow;
+}
+
 export function useClipboard(): ClipboardLike {
   const stageHandle = useCityStageEl();
   return inject<ClipboardLike>('clipboard', () => ({
     async writeText(text: string): Promise<void> {
-      const win = (stageHandle.value as unknown as WinBearing | null)?.win;
+      const win = resolveWindow(stageHandle.value);
       if (!win) throw new Error('clipboard unavailable: no stage window');
       await win.navigator.clipboard.writeText(text);
     },

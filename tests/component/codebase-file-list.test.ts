@@ -50,7 +50,16 @@ describe('CodebaseFileList.vue (C07)', () => {
     expect(wrapper.find('[role="tree"]').exists()).toBe(false);
   });
 
-  it('drives the canvas through setSelection when a row is activated', async () => {
+  // Task 10 fix round 1, item 2: REDIRECTED, not deleted. This used to assert that
+  // activating a row called the renderer's setSelection directly from this component.
+  // That ad-hoc call was the SECOND path to the port — a canvas pick had no equivalent,
+  // so the two surfaces disagreed — and it is gone. What a row activation owes is
+  // unchanged: it writes the store of record. The canvas half of the guarantee moved to
+  // tests/component/city-viewport-wiring.test.ts ("mirrors the store selection onto the
+  // renderer, whichever surface set it") and is still proved end to end through a real
+  // CityView in tests/host/city-view-store-wiring.test.ts. The renderer assertion stays,
+  // inverted, so reintroducing a direct command here fails this test.
+  it('drives the canvas through the store, the single selection path', async () => {
     const store = useCityStore();
     const snapshot = buildSnapshotFixture({ files: 2 });
     store.setCity(snapshot, computeLayout(snapshot));
@@ -59,8 +68,8 @@ describe('CodebaseFileList.vue (C07)', () => {
     const row = wrapper.get('.ci-file-list__row');
     await row.trigger('click');
     const fileEntity = snapshot.entities.find((e) => e.kind === 'file')!;
-    expect(rendererDouble.setSelection).toHaveBeenCalledWith(fileEntity.id);
     expect(store.selectedEntityId).toBe(fileEntity.id);
+    expect(rendererDouble.setSelection).not.toHaveBeenCalled();
   });
 
   it('does not select on mere focus movement', async () => {
@@ -71,8 +80,11 @@ describe('CodebaseFileList.vue (C07)', () => {
     const wrapper = mountWithRenderer(rendererDouble);
     const row = wrapper.get('.ci-file-list__row');
     await row.trigger('focus');
-    expect(rendererDouble.setSelection).not.toHaveBeenCalled();
     expect(store.selectedEntityId).toBeNull();
+    // Vacuous against this component since item 2 (it commands no renderer at all now),
+    // but kept deliberately as the structural guard the test above names: focus must
+    // never select, by EITHER path.
+    expect(rendererDouble.setSelection).not.toHaveBeenCalled();
   });
 
   it('shows COPY-11 when nothing matches', () => {

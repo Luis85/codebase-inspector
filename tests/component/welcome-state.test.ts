@@ -189,6 +189,23 @@ describe('App.vue welcome-state shell', () => {
     expect(wrapper.find('.ci-app__list').exists()).toBe(true);
   });
 
+  // Task 10 fix round 1, fold (the implementer's own finding 5): spec 5.2 says list mode
+  // creates no WebGL context at all, and browsers cap live contexts at roughly 8-16. The
+  // comment that used to justify mounting it unconditionally — that city-view.ts captures
+  // `rendererHost` once and keeps it for the view's lifetime — went stale with ruling
+  // M68, which moved renderer ownership into CityViewport itself; `rendererHost` now
+  // appears nowhere in src/host/ at all.
+  it('mounts NO viewport in list mode, so no WebGL context exists there', async () => {
+    const wrapper = mount(App);
+    expect(wrapper.find('[data-ci-role="stage"]').exists()).toBe(true);
+
+    await wrapper.get('[aria-label="List view"]').trigger('click');
+    expect(wrapper.find('[data-ci-role="stage"]').exists()).toBe(false);
+
+    await wrapper.get('[aria-label="Return to city view"]').trigger('click');
+    expect(wrapper.find('[data-ci-role="stage"]').exists()).toBe(true);
+  });
+
   it('makes list mode reachable, both to enter it and to return from it', async () => {
     const wrapper = mount(App);
     expect(wrapper.find('[aria-label="Fit"]').exists()).toBe(true);
