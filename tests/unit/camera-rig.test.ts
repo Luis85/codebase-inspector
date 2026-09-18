@@ -1,0 +1,259 @@
+// Task 10 step 5. The rig owns the live camera; the BOOKMARK is the persisted form and
+// the source of truth for what getCamera() reports (spec 4.2). Everything here is pure
+// maths over a Three OrthographicCamera — no canvas, no WebGL, no DOM.
+//
+// Spec 11's open question — "whether a renderer reconstructed from a CameraBookmark and
+// a LayoutResult lands where it left off" — is answered by the two round-trip tests
+// below. Both prototypes agree on dispose-and-reconstruct and NEITHER demonstrates it.
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+import { createCameraRig, type CameraRig } from '../../src/visualization/camera-rig';
+import type { CameraBookmark } from '../../src/domain/model';
+
+type Bounds = { min: [number, number, number]; max: [number, number, number] };
+
+const SMALL: Bounds = { min: [-10, 0, -10], max: [10, 6, 10] };
+const LARGER: Bounds = { min: [-400, 0, -250], max: [400, 40, 250] };
+
+let changed: Mock<() => void>;
+
+function makeRig(bounds: Bounds): CameraRig {
+  const rig = createCameraRig({ bounds, onChanged: changed });
+  rig.setViewportSize(800, 600);
+  return rig;
+}
+
+function distance(a: readonly number[], b: readonly number[]): number {
+  return Math.hypot(a[0]! - b[0]!, a[1]! - b[1]!, a[2]! - b[2]!);
+}
+
+/** The azimuth of the eye about the target — the angle an orbit step moves. */
+function azimuth(b: CameraBookmark): number {
+  return Math.atan2(b.position[2] - b.target[2], b.position[0] - b.target[0]);
+}
+
+/** The unit view direction, which fit() and focusOn() must both leave untouched. */
+function direction(b: CameraBookmark): number[] {
+  const d = [0, 1, 2].map((i) => b.position[i]! - b.target[i]!);
+  const length = Math.hypot(...d);
+  return d.map((v) => v / length);
+}
+
+describe('camera rig', () => {
+  let rig: CameraRig;
+
+  beforeEach(() => {
+    changed = vi.fn<() => void>();
+    rig = makeRig(SMALL);
+  });
+
+  it('is ORTHOGRAPHIC in both 3D and top view, with an oblique 3D default', () => {
+    expect(rig.camera.isOrthographicCamera).toBe(true);
+    const threeD = rig.getCamera();
+    expect(threeD.projection).toBe('orthographic');
+    expect(threeD.mode).toBe('3d');
+    // Oblique: displaced from the target on all three axes, and above it — never a
+    // plan or an elevation, which is what 'top' is for.
+    const [dx, dy, dz] = [0, 1, 2].map((i) => threeD.position[i]! - threeD.target[i]!);
+    expect(Math.abs(dx!)).toBeGreaterThan(0.01);
+    expect(Math.abs(dz!)).toBeGreaterThan(0.01);
+    expect(dy!).toBeGreaterThan(0);
+
+    rig.setCameraMode('top');
+    const top = rig.getCamera();
+    expect(rig.camera.isOrthographicCamera).toBe(true);
+    expect(top.projection).toBe('orthographic');
+    expect(top.position[0]).toBeCloseTo(top.target[0], 6);
+    expect(top.position[2]).toBeCloseTo(top.target[2], 6);
+    expect(top.position[1]).toBeGreaterThan(top.target[1]);
+    expect(top.up).toEqual([0, 0, -1]);       // 'up' is +Z-back looking straight down
+  });
+
+  it('persists ABSOLUTE position/target/up, deriving spherical angles internally', () => {
+    const b = rig.getCamera();
+    expect(b.projection).toBe('orthographic');
+    expect(b.mode).toBe('3d');
+    expect(Array.isArray(b.position)).toBe(true);
+    expect(Array.isArray(b.target)).toBe(true);
+    expect(Array.isArray(b.up)).toBe(true);
+    expect(typeof b.zoom).toBe('number');
+    expect(b).not.toHaveProperty('theta');
+    expect(b).not.toHaveProperty('phi');
+    expect(b).not.toHaveProperty('radius');
+    // Orbiting is still available — the angles simply are not the persisted form.
+    const before = rig.getCamera();
+    rig.nudge({ orbit: [0.12, 0] });
+    expect(rig.getCamera().position).not.toEqual(before.position);
+  });
+
+  it('round-trips a bookmark through dispose and RECONSTRUCT', () => {
+    rig.nudge({ orbit: [0.4, 0.15] });
+    rig.nudge({ zoomFactor: 1.15 });
+    const b = rig.getCamera();
+    rig.dispose();
+
+    const rebuilt = makeRig(SMALL);
+    rebuilt.setCamera(b);
+    expect(rebuilt.getCamera()).toEqual(b);
+  });
+
+  it('round-trips a bookmark against a DIFFERENT layout extent', () => {
+    // Absolute coordinates are the persisted form precisely so this holds: the
+    // prototype recomputes radius from layout extent, so a restored bookmark would
+    // only be exact if the layout were byte-identical.
+    rig.nudge({ orbit: [0.3, -0.1] });
+    const b = rig.getCamera();
+
+    const rebuilt = makeRig(LARGER);
+    rebuilt.setCamera(b);
+    expect(rebuilt.getCamera()).toEqual(b);
+    expect(rebuilt.camera.zoom).toBe(b.zoom);
+    expect([rebuilt.camera.position.x, rebuilt.camera.position.y, rebuilt.camera.position.z])
+      .toEqual(b.position);
+  });
+
+  it('returns a COPY of the bookmark, so a caller cannot mutate the rig through it', () => {
+    const b = rig.getCamera();
+    b.position[0] = 9999;
+    b.zoom = 1234;
+    expect(rig.getCamera().position[0]).not.toBe(9999);
+    expect(rig.getCamera().zoom).not.toBe(1234);
+  });
+
+  it('lets the BOOKMARK WIN when its mode differs from the current mode', () => {
+    rig.setCameraMode('3d');
+    const bookmark = rig.getCamera();
+    rig.setCamera({ ...bookmark, mode: 'top' });
+    expect(rig.getCamera().mode).toBe('top');
+  });
+
+  it('restores the saved 3D bookmark IN FULL on top -> 3D', () => {
+    rig.nudge({ orbit: [0.5, 0.2] });
+    rig.nudge({ zoomFactor: 1.2 });
+    const saved = rig.getCamera();
+
+    rig.setCameraMode('top');
+    expect(rig.getCamera().mode).toBe('top');
+    rig.setCameraMode('3d');
+    expect(rig.getCamera()).toEqual(saved);
+  });
+
+  it('never mutates the saved 3D bookmark from a top-view operation', () => {
+    const saved = rig.getCamera();
+    rig.setCameraMode('top');
+    rig.nudge({ orbit: [0.9, 0.3] });
+    rig.nudge({ zoomFactor: 2 });
+    rig.nudge({ pan: [120, 90] });
+    rig.setCameraMode('3d');
+    expect(rig.getCamera()).toEqual(saved);
+  });
+
+  it('applies the spec step increments', () => {
+    const before = rig.getCamera();
+    const radiusBefore = distance(before.position, before.target);
+
+    rig.nudge({ orbit: [0.12, 0] });               // keyboard/button orbit step, radians
+    const orbited = rig.getCamera();
+    expect(distance(orbited.position, orbited.target)).toBeCloseTo(radiusBefore, 6);
+    expect(orbited.target).toEqual(before.target);   // orbit never moves the target
+    expect(Math.abs(azimuth(orbited) - azimuth(before))).toBeCloseTo(0.12, 6);
+
+    rig.nudge({ pan: [30, 0] });                   // 30 CSS px of apparent movement
+    const panned = rig.getCamera();
+    const moved = distance(panned.target, orbited.target);
+    // 30 px at this zoom, in world units: the visible world height is 2/zoom over 600
+    // CSS px of viewport.
+    expect(moved).toBeCloseTo(30 * (2 / orbited.zoom) / 600, 6);
+    // Pan translates the whole rig: position and target move by the identical vector,
+    // so the view direction is unchanged.
+    expect(distance(panned.position, orbited.position)).toBeCloseTo(moved, 6);
+
+    rig.nudge({ zoomFactor: 1.15 });
+    expect(rig.getCamera().zoom).toBeCloseTo(panned.zoom * 1.15, 6);
+  });
+
+  it('fit() frames the whole layout and never changes the view direction', () => {
+    rig.nudge({ orbit: [0.35, 0.1] });
+    const before = rig.getCamera();
+    rig.fit();
+    const after = rig.getCamera();
+    direction(after).forEach((v, i) => { expect(v).toBeCloseTo(direction(before)[i]!, 6); });
+    expect(after.target).toEqual([0, 3, 0]);      // the layout's own centre
+    expect(after.zoom).toBeGreaterThan(0);
+  });
+
+  it('has NO INERTIAL DRIFT: it settles on the frame after the last input', () => {
+    rig.setMotion('standard');
+    rig.nudge({ orbit: [0.2, 0] });
+    // One long frame past the tween duration is enough; nothing keeps scheduling.
+    rig.advance(10_000);
+    expect(rig.isAnimating()).toBe(false);
+    rig.advance(10_000);
+    expect(rig.isAnimating()).toBe(false);
+  });
+
+  it('JUMPS instead of tweening under setMotion("reduced")', () => {
+    rig.setMotion('reduced');
+    rig.nudge({ orbit: [0.4, 0] });
+    const b = rig.getCamera();
+    expect(rig.isAnimating()).toBe(false);
+    expect(rig.camera.position.x).toBeCloseTo(b.position[0], 6);
+    expect(rig.camera.position.z).toBeCloseTo(b.position[2], 6);
+    expect(rig.camera.zoom).toBeCloseTo(b.zoom, 6);
+  });
+
+  it('tweens under setMotion("standard")', () => {
+    rig.setMotion('standard');
+    const from = rig.camera.position.clone();
+    rig.nudge({ orbit: [0.4, 0] });
+    const b = rig.getCamera();
+    // The logical bookmark is already at the destination; the LIVE camera is not.
+    expect(rig.isAnimating()).toBe(true);
+    expect(rig.camera.position.x).toBeCloseTo(from.x, 6);
+    rig.advance(16);
+    expect(rig.camera.position.x).not.toBeCloseTo(from.x, 6);
+    expect(rig.advance(10_000)).toBe(false);
+    expect(rig.camera.position.x).toBeCloseTo(b.position[0], 6);
+  });
+
+  it('emits camera-changed as an EVENT, separate from the setCamera COMMAND', () => {
+    // So host synchronisation does not loop (spec 4.2).
+    const bookmark = rig.getCamera();
+    rig.setCamera(bookmark);
+    expect(changed).not.toHaveBeenCalled();
+
+    rig.nudge({ zoomFactor: 1.15 });
+    expect(changed).toHaveBeenCalled();           // a rig-initiated move DOES report
+  });
+
+  it('reports a rig-initiated move for fit, focus and mode switches too', () => {
+    rig.fit();
+    rig.focusOn([1, 2, 3], 4);
+    rig.setCameraMode('top');
+    expect(changed).toHaveBeenCalledTimes(3);
+  });
+
+  it('focusOn centres the target on the requested point without changing direction', () => {
+    const before = rig.getCamera();
+    rig.focusOn([5, 1, -4], 2);
+    const after = rig.getCamera();
+    expect(after.target).toEqual([5, 1, -4]);
+    direction(after).forEach((v, i) => { expect(v).toBeCloseTo(direction(before)[i]!, 6); });
+  });
+
+  it('clamps the orbit above the ground plane, so the city is never viewed from below', () => {
+    for (let i = 0; i < 40; i++) rig.nudge({ orbit: [0, 0.3] });
+    const down = rig.getCamera();
+    expect(down.position[1]).toBeGreaterThan(down.target[1]);
+    for (let i = 0; i < 40; i++) rig.nudge({ orbit: [0, -0.3] });
+    const up = rig.getCamera();
+    expect(up.position[1]).toBeGreaterThan(up.target[1]);
+  });
+
+  it('keeps zoom positive and finite under repeated zoom-out', () => {
+    for (let i = 0; i < 200; i++) rig.nudge({ zoomFactor: 1 / 1.15 });
+    const z = rig.getCamera().zoom;
+    expect(z).toBeGreaterThan(0);
+    expect(Number.isFinite(z)).toBe(true);
+  });
+});

@@ -1,62 +1,81 @@
-// Minimal CityRendererPort implementation (task 3). Task 10 replaces the guts; the
-// interface does not change (spec 4.2, frozen). Every method exists, even where the
-// body is a deliberate no-op — see task-3-report.md for which is which.
+// The full CityRendererPort (task 10). The interface does not change — it was frozen
+// in task 2 (spec 4.2). This file is the composition root: it owns the WebGL surface,
+// the scene and the lights, and wires together render-scheduler.ts (when a frame
+// happens), camera-rig.ts (where the camera is), instanced-city.ts (what is drawn and
+// which instance is which entity), picking.ts (what a pointer means), label-overlay.ts
+// (district names as real DOM text) and disposal.ts (giving the GPU everything back).
 //
-// THE PORT NEVER THROWS. WebGL2 unavailability and context-creation failure are
-// reported through onEvent as `unavailable`, never thrown, and setLayout resolves
-// without applying rather than rejecting when aborted or superseded.
+// THE PORT NEVER THROWS. WebGL2 unavailability, context-creation failure and
+// initialization failure are reported through onEvent as `unavailable`, and an aborted
+// or superseded setLayout RESOLVES without applying rather than rejecting. The view
+// always mounts and always has a surface.
 //
-// NO restored event and NO self-healing context restore (spec 4.2): on a lost context
-// this file only reports `unavailable{context-lost}` — CityView is what disposes and
-// reconstructs. debugLoseContext exists for instrumentation; there is no restore
-// partner to go with it.
+// NO restored event and NO self-healing (spec 4.2): on a lost context this file only
+// reports `unavailable{context-lost}` — the VIEW disposes and reconstructs.
+// debugLoseContext() exists for instrumentation; there is no restore partner.
 //
-// Named imports only, never `import * as THREE` (spec 3.2).
+// Named imports only, never `import * as THREE` (spec 3.2). No bare `window`,
+// `document`, `requestAnimationFrame`, `setInterval`, `ResizeObserver`,
+// `IntersectionObserver` or DOM `instanceof` anywhere in src/visualization/.
 import {
-  AmbientLight, BoxGeometry, Color, DirectionalLight, InstancedMesh, Matrix4,
-  MeshStandardMaterial, OrthographicCamera, Quaternion, Scene, Vector3, WebGLRenderer,
+  AmbientLight, Color, DirectionalLight, Raycaster, Scene, Timer, Vector2, WebGLRenderer,
 } from 'three';
+import type { Object3D } from 'three';
 import type { CameraBookmark } from '../domain/model';
+import type { LayoutResult } from '../domain/layout/types';
 import type {
-  CityPalette, CityRendererPort, CreateCityRenderer, RendererDiagnostics,
+  CityPalette, CityRendererPort, CreateCityRenderer, EntityId, RendererDiagnostics,
 } from './renderer-port';
+import { createScheduler } from './render-scheduler';
+import { createCameraRig } from './camera-rig';
+import { buildCity, lotRadius, type CityMeshes } from './instanced-city';
+import { createPicking, type CanvasPoint } from './picking';
+import { createLabelOverlay } from './label-overlay';
+import { disposeObject3D, disposeRenderer } from './disposal';
+
+// LIGHTING. r155/r165 removed useLegacyLights and physicallyCorrectLights, so
+// intensities are physically correct now and any value authored before r155 is wrong by
+// exactly a factor of pi. Each is therefore written literally as `<value> * Math.PI`.
+//
+// The BASE numbers are chosen, not inherited. MeshStandardMaterial's diffuse response
+// is irradiance * albedo / pi, so an AmbientLight of `a * pi` contributes `a * albedo`
+// and a DirectionalLight of `d * pi` contributes `dotNL * d * albedo`. The plan's
+// 0.6/1.2 and the brief's 0.55/1.1 both put a fully lit white face at 1.65-1.8, i.e.
+// clipped — which is exactly the blown-out white the task-S spike photographed, and the
+// brief's values do not actually fix it. These do: with the sun at SUN_DIRECTION the
+// largest dot product any axis-aligned box face can have is 2/sqrt(6) ~ 0.8165, so the
+// brightest a face can be is AMBIENT_BASE + DIRECTIONAL_BASE * 0.8165 ~ 0.95 — under 1
+// for the brightest albedo a theme can hand us, with the shaded sides landing at ~0.63
+// and ~0.30 so a building still reads as a solid. tests/component/renderer-contract
+// asserts that budget arithmetically, because nothing else catches a wrong intensity.
+export const AMBIENT_BASE = 0.3;
+export const DIRECTIONAL_BASE = 0.8;
+export const SUN_DIRECTION: readonly [number, number, number] = [1, 2, 1];
+const AMBIENT_INTENSITY = AMBIENT_BASE * Math.PI;
+const DIRECTIONAL_INTENSITY = DIRECTIONAL_BASE * Math.PI;
+
+const MAX_PIXEL_RATIO = 2;
+const KEYBOARD_ORBIT_PER_PX = 0.007;    // pointer drag -> radians
+const FOCUS_CONTEXT = 3;                // how much room a focused lot keeps around it
 
 const DEFAULT_CAMERA: CameraBookmark = {
-  projection: 'orthographic',
-  mode: '3d',
-  position: [20, 20, 20],
-  target: [0, 0, 0],
-  up: [0, 1, 0],
-  zoom: 1,
+  projection: 'orthographic', mode: '3d',
+  position: [20, 20, 20], target: [0, 0, 0], up: [0, 1, 0], zoom: 1,
 };
 
-// r155/r165 removed useLegacyLights/physicallyCorrectLights. Any pre-r155 light
-// intensity must be multiplied by pi (spec 3.2). These are the plan's own pre-r155
-// base values (ambient 0.6, directional 1.2) — task 10 owns whether they are the
-// right values; task 3 only carries the correct r155+ conversion (see task-3-report.md
-// for what this looked like against the default MeshStandardMaterial).
-const AMBIENT_INTENSITY = 0.6 * Math.PI;
-const DIRECTIONAL_INTENSITY = 1.2 * Math.PI;
-
+/** Returned whenever no WebGL surface could be obtained, so the view always has a
+ *  port to hold and never has to branch on null (spec 4.2). Every method is a no-op;
+ *  getCamera/setCamera still round-trip so a persisted bookmark survives. */
 function makeInertPort(): CityRendererPort {
   let camera = DEFAULT_CAMERA;
   return {
     setLayout: async () => {},
-    setColors: () => {},
-    setSelection: () => {},
-    setFilter: () => {},
-    setLabels: () => {},
-    setCameraMode: () => {},
-    setMotion: () => {},
+    setColors: () => {}, setSelection: () => {}, setFilter: () => {}, setLabels: () => {},
+    setCameraMode: () => {}, setMotion: () => {},
     getCamera: () => camera,
     setCamera: (next) => { camera = next; },
-    nudgeCamera: () => {},
-    focus: () => {},
-    fit: () => {},
-    resize: () => {},
-    pause: () => {},
-    resume: () => {},
-    dispose: () => {},
+    nudgeCamera: () => {}, focus: () => {}, fit: () => {}, resize: () => {},
+    pause: () => {}, resume: () => {}, dispose: () => {},
     getDiagnostics: () => ({
       geometries: 0, textures: 0, programs: 0, drawCalls: 0, instanceCount: 0,
       lastFrameMs: 0, contextLost: false,
@@ -67,161 +86,244 @@ function makeInertPort(): CityRendererPort {
 
 export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) => {
   let canvas: HTMLCanvasElement;
-  let threeRenderer: WebGLRenderer;
+  let context: RenderingContext | null;
   try {
     canvas = win.document.createElement('canvas');   // injected window, never bare document
-    canvas.setAttribute('aria-hidden', 'true');       // never tabbable — the view owns focus
-    threeRenderer = new WebGLRenderer({ canvas, antialias: true });
+    canvas.setAttribute('aria-hidden', 'true');      // never tabbable — the view owns focus
+    // Block, not the default inline: an inline canvas sits on a text baseline and
+    // leaves a descender gap inside a stage sized to it exactly, which shows up as a
+    // scrollbar the view never asked for.
+    canvas.setCssStyles({ display: 'block' });
+    context = canvas.getContext('webgl2');
   } catch {
+    // getContext itself refused: the platform cannot give us a WebGL2 surface at all.
+    onEvent({ type: 'unavailable', reason: 'unsupported' });
+    return makeInertPort();
+  }
+  if (!context) {
+    onEvent({ type: 'unavailable', reason: 'unsupported' });
+    return makeInertPort();
+  }
+
+  let threeRenderer: WebGLRenderer;
+  try {
+    threeRenderer = new WebGLRenderer({ canvas, context, antialias: true });
+  } catch {
+    // A context exists but Three could not initialise against it — a different failure
+    // from "this platform has no WebGL2", and the view distinguishes them.
     onEvent({ type: 'unavailable', reason: 'initialization-failed' });
-    return makeInertPort();          // the view always mounts and always has a surface
+    return makeInertPort();
   }
   mountEl.appendChild(canvas);
 
   const scene = new Scene();
-  const camera = new OrthographicCamera(-10, 10, 10, -10, 0.1, 1000);
-  let cameraBookmark = DEFAULT_CAMERA;
-  applyBookmarkToCamera(cameraBookmark);
-
+  // Ambient light is neutral white and carries no category colour: CityPalette has no
+  // ambient member — it is the seven fields of spec 4.2 and nothing more. Category
+  // colour arrives per instance through setColorAt (instanced-city.ts).
   const ambient = new AmbientLight(0xffffff, AMBIENT_INTENSITY);
-  const directional = new DirectionalLight(0xffffff, DIRECTIONAL_INTENSITY);
-  directional.position.set(1, 2, 1);
-  scene.add(ambient, directional);
+  const sun = new DirectionalLight(0xffffff, DIRECTIONAL_INTENSITY);
+  sun.position.set(SUN_DIRECTION[0], SUN_DIRECTION[1], SUN_DIRECTION[2]);
+  scene.add(ambient, sun);
 
-  let mesh: InstancedMesh | null = null;
+  let city: CityMeshes | null = null;
+  let layout: LayoutResult | null = null;
   let palette: CityPalette | null = null;
-  let generation = -1;
+  let selection: EntityId | null = null;
+  let filter: ReadonlySet<EntityId> | null = null;
+  let labelsVisible = true;
+  let cssWidth = 0;
+  let cssHeight = 0;
   let paused = false;
   let contextLost = false;
+  let disposed = false;
+  let hasFitted = false;
   let lastFrameMs = 0;
-  let instanceCount = 0;
+  let latestGeneration = 0;
 
-  canvas.addEventListener('webglcontextlost', (event) => {
-    event.preventDefault();     // suppress the default browser recovery UI; we do not restore in place
-    contextLost = true;
-    onEvent({ type: 'unavailable', reason: 'context-lost' });
+  const rig = createCameraRig({
+    bounds: { min: [-1, 0, -1], max: [1, 1, 1] },
+    onChanged: () => {
+      // The EVENT, kept separate from the setCamera COMMAND so host synchronisation
+      // does not loop (spec 4.2).
+      onEvent({ type: 'camera-changed', camera: rig.getCamera() });
+      scheduler.invalidate();
+    },
   });
 
-  function applyBookmarkToCamera(bookmark: CameraBookmark): void {
-    camera.position.set(...bookmark.position);
-    camera.up.set(...bookmark.up);
-    camera.lookAt(...bookmark.target);
-    camera.zoom = bookmark.zoom;
-    camera.updateProjectionMatrix();
+  const overlay = createLabelOverlay(mountEl);
+  const timer = new Timer();          // r183 deprecated Clock; Timer is core since r179
+  const raycaster = new Raycaster();
+  const ndc = new Vector2();
+
+  function draw(): void {
+    if (disposed || contextLost || paused || cssWidth <= 0 || cssHeight <= 0) return;
+    timer.update();
+    const stillMoving = rig.advance(timer.getDelta() * 1000);
+    overlay.update(rig.camera, cssWidth, cssHeight);
+    const started = Date.now();
+    threeRenderer.render(scene, rig.camera);
+    lastFrameMs = Date.now() - started;
+    // The ONLY thing that keeps frames coming, and it stops the frame the tween ends:
+    // there is no inertia and no idle animation (acceptance criterion 2).
+    if (stillMoving) scheduler.invalidate();
   }
 
-  function render(): void {
-    if (paused || contextLost) return;
-    const start = Date.now();
-    threeRenderer.render(scene, camera);
-    lastFrameMs = Date.now() - start;
+  const scheduler = createScheduler(win, draw);
+
+  function isActive(): boolean { return !disposed && !paused && !contextLost; }
+
+  function hitTest(point: CanvasPoint): EntityId | null {
+    if (!city || cssWidth <= 0 || cssHeight <= 0) return null;
+    // Raycasting reads matrixWorld, which only the render pass would otherwise
+    // refresh — and a pick can happen before any frame has drawn.
+    scene.updateMatrixWorld();
+    ndc.set((point.x / cssWidth) * 2 - 1, -(point.y / cssHeight) * 2 + 1);
+    raycaster.setFromCamera(ndc, rig.camera);
+    // FILE LOTS ONLY: never labels, ground planes, district borders or overlays.
+    const hits = raycaster.intersectObjects(city.pickTargets as Object3D[], false);
+    for (const hit of hits) {
+      if (hit.instanceId === undefined) continue;
+      const entity = city.entityAt(hit.object, hit.instanceId);
+      if (entity !== null) return entity;      // the batch-and-instance to entity map
+    }
+    return null;
   }
 
-  function disposeMesh(): void {
-    if (!mesh) return;
-    scene.remove(mesh);
-    mesh.geometry.dispose();
-    (mesh.material as MeshStandardMaterial).dispose();
-    mesh.dispose();     // r186: Object3D.dispose() — subclasses overriding it must call super.dispose()
-    mesh = null;
+  const picking = createPicking({
+    win, canvas, hitTest, isActive,
+    onPick: (entityId) => {
+      if (layout) onEvent({ type: 'entity-picked', entityId, snapshotId: layout.snapshotId });
+    },
+    onHover: (entityId, position) => {
+      if (layout) onEvent({ type: 'hover-changed', entityId, snapshotId: layout.snapshotId, position });
+    },
+    onOrbit: (dx, dy) => { rig.nudge({ orbit: [-dx * KEYBOARD_ORBIT_PER_PX, -dy * KEYBOARD_ORBIT_PER_PX] }); },
+    onPan: (dx, dy) => { rig.nudge({ pan: [dx, dy] }); },
+    onZoom: (factor) => { rig.nudge({ zoomFactor: factor }); },
+  });
+
+  function handleContextLost(): void {
+    // Reported once, and never after dispose(): the view reacts to `unavailable` by
+    // disposing and nulling its handle, so a late event re-enters that path against a
+    // renderer that is already gone. There is no restore partner either way.
+    if (contextLost || disposed) return;
+    contextLost = true;
+    scheduler.setContextLost(true);
+    onEvent({ type: 'unavailable', reason: 'context-lost' });
+  }
+
+  const onContextLost = (event: Event): void => {
+    event.preventDefault();             // suppress the browser's own recovery UI
+    handleContextLost();
+  };
+  canvas.addEventListener('webglcontextlost', onContextLost);
+
+  function swapCity(next: CityMeshes | null, source: LayoutResult): void {
+    city?.dispose();
+    scene.remove(...scene.children.filter((child) => child.name === 'city-root'));
+    city = next;
+    layout = source;
+    if (!next) return;
+    next.root.name = 'city-root';
+    scene.add(next.root);
+    if (palette) next.setColors(palette);
+    next.setFilter(filter);
+    next.setSelection(selection);
+    overlay.setDistricts(source.districts);
+    if (palette) overlay.setColors(palette);
+    rig.setBounds(source.bounds);
+    if (!hasFitted) { hasFitted = true; rig.fit(); }    // the FIRST layout frames itself
+    scheduler.invalidate();
   }
 
   const port: CityRendererPort = {
-    async setLayout(layout, opts) {
-      if (opts.signal.aborted) return;      // resolves without applying, never rejects
-      generation = opts.generation;
-      const lots = layout.lots;
-
-      disposeMesh();
-      if (lots.length === 0) { render(); return; }
-
-      const geometry = new BoxGeometry(1, 1, 1);
-      const material = new MeshStandardMaterial({ color: 0xffffff });
-      const next = new InstancedMesh(geometry, material, lots.length);
-      const m = new Matrix4();
-      const noRotation = new Quaternion();
-      lots.forEach((lot, i) => {
-        m.compose(new Vector3(...lot.center), noRotation, new Vector3(...lot.dimensions));
-        next.setMatrixAt(i, m);
-        const hex = palette?.categories[lot.colorKey] ?? palette?.unavailable ?? '#808080';
-        next.setColorAt(i, new Color(hex));
-      });
-      next.instanceMatrix.needsUpdate = true;
-      if (next.instanceColor) next.instanceColor.needsUpdate = true;
-
-      if (opts.signal.aborted || opts.generation !== generation) {
-        // Superseded while building: resolve without applying, never reject.
-        next.geometry.dispose();
-        next.material.dispose();
-        return;
-      }
-      mesh = next;
-      instanceCount = lots.length;
-      scene.add(mesh);
-      render();
+    async setLayout(next, opts): Promise<void> {
+      if (opts.signal.aborted || disposed) return;     // resolves without applying
+      latestGeneration = Math.max(latestGeneration, opts.generation);
+      const superseded = (): boolean =>
+        disposed || opts.signal.aborted || opts.generation < latestGeneration;
+      // buildCity yields to the host between chunks — the task-S spike measured a
+      // 160 ms click-handler violation from building a city synchronously. The
+      // supersession check therefore sits AFTER a real await point, inside that loop
+      // and again here, which is the only place it can do anything at all.
+      const built = await buildCity(next, { win, superseded });
+      if (!built) return;
+      if (superseded()) { built.dispose(); return; }
+      swapCity(built, next);
     },
 
-    setColors(next) {
+    setColors(next: CityPalette): void {
+      // Re-supplies EVERY colour the scene draws. Never moves a building, changes the
+      // camera or clears selection/filter state (spec 4.4).
       palette = next;
       threeRenderer.setClearColor(new Color(next.background));
-      render();
+      city?.setColors(next);
+      overlay.setColors(next);
+      scheduler.invalidate();
     },
 
-    // Selection state only; task 10 adds the visual highlight (raycast + material swap).
-    setSelection() {},
-    // Filter state only; task 10 hides/dims non-matching instances.
-    setFilter() {},
-    // Label overlay does not exist yet (task 10's label-overlay.ts).
-    setLabels() {},
-
-    setCameraMode(mode) {
-      cameraBookmark = mode === 'top'
-        ? { ...cameraBookmark, mode, position: [0, 30, 0], up: [0, 0, -1] }
-        : { ...cameraBookmark, mode, position: DEFAULT_CAMERA.position, up: DEFAULT_CAMERA.up };
-      applyBookmarkToCamera(cameraBookmark);
-      render();
+    setSelection(entityId: EntityId | null): void {
+      selection = entityId;
+      city?.setSelection(entityId);
+      scheduler.invalidate();
     },
 
-    // Tweening belongs to task 10's camera-rig.ts; the minimal renderer has no motion.
-    setMotion() {},
-
-    getCamera: () => cameraBookmark,
-
-    setCamera(bookmark) {
-      cameraBookmark = bookmark;      // the bookmark wins, including a mode switch
-      applyBookmarkToCamera(bookmark);
-      render();
+    setFilter(matching: ReadonlySet<EntityId> | null): void {
+      filter = matching;               // null = unfiltered, empty = no matches
+      city?.setFilter(matching);
+      scheduler.invalidate();
     },
 
-    // Orbit/pan/zoom interaction math is task 10's picking.ts/camera-rig.ts.
-    nudgeCamera() {},
-    // Needs raycast-by-id lookup into the instanced mesh (task 10).
-    focus() {},
-    fit() {},
-
-    resize(cssWidth, cssHeight, pixelRatio) {
-      if (cssWidth <= 0 || cssHeight <= 0) return;   // no-ops on a zero-size box
-      threeRenderer.setPixelRatio(Math.min(pixelRatio, 2));   // re-applied on EVERY call, max 2
-      threeRenderer.setSize(cssWidth, cssHeight, false);
-      const aspect = cssWidth / cssHeight;
-      const frustum = 10;
-      camera.left = -frustum * aspect;
-      camera.right = frustum * aspect;
-      camera.top = frustum;
-      camera.bottom = -frustum;
-      camera.updateProjectionMatrix();
-      render();
+    setLabels(visible: boolean): void {
+      labelsVisible = visible;
+      overlay.setVisible(visible);
+      scheduler.invalidate();
     },
 
-    pause() { paused = true; },
-    resume() { paused = false; render(); },
+    setCameraMode(mode: '3d' | 'top'): void { rig.setCameraMode(mode); },
+    setMotion(mode: 'standard' | 'reduced'): void { rig.setMotion(mode); scheduler.invalidate(); },
+    getCamera: () => rig.getCamera(),
+    setCamera(bookmark: CameraBookmark): void { rig.setCamera(bookmark); scheduler.invalidate(); },
+    nudgeCamera(delta): void { rig.nudge(delta); },
 
-    dispose() {
-      disposeMesh();
-      ambient.dispose();
-      directional.dispose();
-      threeRenderer.dispose();
-      threeRenderer.forceContextLoss();
+    focus(entityId: EntityId): void {
+      const lot = city?.lotOf(entityId);
+      if (!lot) return;
+      rig.focusOn(lot.center, lotRadius(lot) * FOCUS_CONTEXT);
+    },
+
+    fit(): void { hasFitted = true; rig.fit(); },
+
+    resize(width: number, height: number, pixelRatio: number): void {
+      if (width <= 0 || height <= 0) return;        // hidden leaves cost nothing
+      cssWidth = width;
+      cssHeight = height;
+      threeRenderer.setPixelRatio(Math.min(pixelRatio, MAX_PIXEL_RATIO));  // EVERY call
+      // updateStyle TRUE, unlike task 3's minimal renderer: setSize(w, h, false)
+      // resizes only the drawing buffer, leaving the canvas's CSS size at its
+      // intrinsic attribute size — which at devicePixelRatio 2 is twice the box the
+      // view measured. The VIEW owns deciding the size; applying it to our own canvas
+      // is ours.
+      threeRenderer.setSize(width, height, true);
+      rig.setViewportSize(width, height);           // resize NEVER implies fit
+      scheduler.invalidate();
+    },
+
+    pause(): void { paused = true; scheduler.setSuspended(true); },
+    resume(): void { paused = false; scheduler.setSuspended(false); scheduler.invalidate(); },
+
+    dispose(): void {
+      if (disposed) return;                          // idempotent
+      disposed = true;
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      scheduler.dispose();
+      picking.dispose();
+      overlay.dispose();
+      city?.dispose();
+      city = null;
+      disposeObject3D(scene);        // the lights, and anything else left in the graph
+      rig.dispose();
+      disposeRenderer(threeRenderer);
       canvas.remove();
     },
 
@@ -232,38 +334,41 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
         textures: info.memory.textures,
         programs: info.programs?.length ?? 0,
         drawCalls: info.render.calls,
-        instanceCount,
+        instanceCount: city?.instanceCount ?? 0,
         lastFrameMs,
         contextLost,
       };
     },
 
-    debugLoseContext() {
-      // The port never throws (spec 4.2) — no carve-out for instrumentation. Called
+    debugLoseContext(): void {
+      // Instrumentation, and the port never throws (spec 4.2) — no carve-out. Called
       // after dispose() or against an already-degraded context, getContext()/
       // getExtension() can throw; a no-op is the correct outcome, not a crash.
       try {
-        const ext = threeRenderer.getContext().getExtension('WEBGL_lose_context');
-        ext?.loseContext();
+        threeRenderer.getContext().getExtension('WEBGL_lose_context')?.loseContext();
       } catch {
         // Already gone or unavailable — nothing to lose.
       }
+      // Reported directly as well as through the extension: loseContext() delivers its
+      // event asynchronously (and not at all where the extension is missing), and this
+      // path is instrumentation whose whole purpose is to be observable. handleContextLost
+      // reports once, so the real event arriving afterwards is a no-op.
+      handleContextLost();
     },
   };
 
-  // Dev-only fixture path (never shipped — see ./dev-fixture.ts's own
-  // comment for the dead-code-elimination mechanism: import.meta.env.DEV is a
-  // Vite-injected compile-time constant, `false` in every production build, so this
-  // whole branch is stripped from dist/main.js). Lets an implementer see the
-  // instanced-box pipeline actually draw something while working on this file; it is
-  // not a rendered control and nothing in the UI toggles it.
+  overlay.setVisible(labelsVisible);
+
+  // Dev-only fixture path (never shipped — see ./dev-fixture.ts's own comment for the
+  // dead-code-elimination mechanism: import.meta.env.DEV is a Vite-injected
+  // compile-time constant, `false` in every production build, so this whole branch is
+  // stripped from dist/main.js). Not a rendered control; nothing in the UI toggles it.
   if (import.meta.env.DEV && win.localStorage.getItem('codebase-inspector:dev-fixture') === '1') {
     void import('./dev-fixture').then(({ devFixtureLayout }) => {
       const controller = new AbortController();
-      void port.setLayout(devFixtureLayout(), { generation: 0, signal: controller.signal });
+      return port.setLayout(devFixtureLayout(), { generation: 0, signal: controller.signal });
     });
   }
 
-  render();
   return port;
 };

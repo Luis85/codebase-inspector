@@ -11,6 +11,11 @@
 // real Obsidian app installs at startup (getCssPropertyValue, win, doc, instanceOf),
 // for host tests to construct real CodebaseInspectorPlugin/CityView instances and
 // exercise real behaviour.
+//
+// The jsdom GAPS real Obsidian does not have (matchMedia, getBoundingClientRect,
+// canvas contexts) live in ./jsdom-gaps.ts, imported here for its
+// side effects — split out purely for the tests/** 450-line budget.
+import './jsdom-gaps';
 
 // Ruling M17 (task-5-context.md section 5): node-access.ts reads `Platform.isDesktopApp`
 // at MODULE LOAD to decide whether to touch `window.require` at all. Under Vitest's
@@ -364,20 +369,15 @@ function installDomPolyfills(): void {
   proto.addClass = function (this: HTMLElement, ...classes: string[]): void {
     this.classList.add(...classes);
   };
+  // Obsidian's sanctioned alternative to assigning element.style directly (its own
+  // no-static-styles-assignment rule points every caller here); task 10's label overlay
+  // positions real DOM text over the canvas through it.
+  proto.setCssStyles = function (this: HTMLElement, s: Partial<CSSStyleDeclaration>): void { Object.assign(this.style, s); };
+  proto.setCssProps = function (this: HTMLElement, p: Record<string, string>): void {
+    for (const [k, v] of Object.entries(p)) this.style.setProperty(k, v);
+  };
 }
 installDomPolyfills();
-
-/** Test-only: points the cross-window `activeDocument` global at a stand-in and returns
- *  the undo. Lives in this file, not in the test that uses it, because this is where
- *  Obsidian's own ambient cross-window globals are installed — and because writing
- *  through `globalThis` belongs in the one file whose `no-global-this` scoping already
- *  says so, rather than assigning a read-only global directly from a test. */
-export function setActiveDocument(doc: Document): () => void {
-  const globals = globalThis as unknown as Record<string, unknown>;
-  const previous = globals.activeDocument;
-  globals.activeDocument = doc;
-  return () => { globals.activeDocument = previous; };
-}
 
 // jsdom implements no ResizeObserver (a long-standing gap). CityView only needs one
 // that never throws when constructed/observed/disconnected for these tests — the
@@ -396,55 +396,14 @@ function installResizeObserverStub(): void {
 }
 installResizeObserverStub();
 
-// jsdom implements no `window.matchMedia` either (same gap class as above; fix
-// round 2/M68 makes `applyMotionPreference` run on every real mount now). Fixed, silent, non-reduced.
-function installMatchMediaStub(): void {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'undefined') return;
-  window.matchMedia = (query: string): MediaQueryList => ({
-    matches: false, media: query, onchange: null, addListener: () => {}, removeListener: () => {},
-    addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
-  });
+/** Test-only: points the cross-window `activeDocument` global at a stand-in and returns
+ *  the undo. Lives in this file, not in the test that uses it, because this is where
+ *  Obsidian's own ambient cross-window globals are installed — and because writing
+ *  through `globalThis` belongs in the one file whose `no-global-this` scoping already
+ *  says so, rather than assigning a read-only global directly from a test. */
+export function setActiveDocument(doc: Document): () => void {
+  const globals = globalThis as unknown as Record<string, unknown>;
+  const previous = globals.activeDocument;
+  globals.activeDocument = doc;
+  return () => { globals.activeDocument = previous; };
 }
-installMatchMediaStub();
-
-// jsdom does no real layout: every element's `getBoundingClientRect()` returns all
-// zeros by default (a third instance of the same gap). Fix round 2/M68: CityViewport
-// measures its OWN nested stage element, not `contentEl` (stubbed per-instance
-// above, no longer reached) -- a generous 1000x700 default avoids racing a POST-HOC
-// per-element override against construction's own microtask timing (hit empirically
-// in city-view-store-wiring.test.ts). A narrow-stage test uses `vi.spyOn` instead.
-function installBoundingRectDefault(): void {
-  if (typeof Element === 'undefined') return;
-  const proto = Element.prototype as unknown as { ciRectStub?: boolean };
-  if (proto.ciRectStub) return;
-  // Fix round 3, item 4 (fold): non-enumerable, unlike a plain assignment --
-  // this guard flag must not show up in a `for...in` over any element.
-  Object.defineProperty(proto, 'ciRectStub', { value: true, enumerable: false });
-  Element.prototype.getBoundingClientRect = () => ({ width: 1000, height: 700, top: 0, left: 0, right: 1000, bottom: 700, x: 0, y: 0, toJSON: () => ({}) });
-}
-installBoundingRectDefault();
-
-// jsdom's HTMLCanvasElement has no 2D context (the optional `canvas` npm package is
-// not installed), so getContext('2d') returns null with a noisy console warning.
-// cssColorToSrgbBytes already handles a null context gracefully, but the warning would
-// make `npm run verify`'s output non-pristine on every host test. This stub replaces
-// getContext entirely with a trivial fake that always resolves to a fixed neutral
-// colour — city-view.test.ts never asserts on resolved palette VALUES (that is
-// tests/unit/color.test.ts's job, which supplies its own fakeWin and never touches a
-// real HTMLCanvasElement), so a fixed, silent stand-in is sufficient here.
-function installCanvasStub(): void {
-  if (typeof HTMLCanvasElement === 'undefined') return;
-  const proto = HTMLCanvasElement.prototype as unknown as Record<string, unknown>;
-  if (proto.ciCanvasStub) return;
-  proto.ciCanvasStub = true;
-  proto.getContext = function (kind: string): unknown {
-    if (kind !== '2d') return null;
-    return {
-      fillStyle: '#000000',
-      clearRect(): void {},
-      fillRect(): void {},
-      getImageData: () => ({ data: new Uint8ClampedArray([128, 128, 128, 255]) }),
-    };
-  };
-}
-installCanvasStub();
