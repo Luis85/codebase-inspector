@@ -93,11 +93,17 @@ function applySize(): void {
   if (rect.height <= 0) return;   // zero-size box: no-op, independent of the floor
   const win = winOf(el);
   if (!cityRendererHandle.value) {
-    cityRendererHandle.value = createRenderer(el, win, handleRendererEvent);
     // Task 9 fix round 3, item 2: a stale CONTEXT_LOST_NOTICE/COPY-14 must not
     // outlive the reconstruction spec 4.2 says follows it -- cleared exactly
-    // where a new renderer actually starts existing again, never earlier.
+    // where a new renderer is about to exist again, never earlier.
+    // Task 9 fix round 4, item 1 (Important): and never LATER, either. The real
+    // `createCityRenderer` emits `unavailable{initialization-failed}`
+    // SYNCHRONOUSLY from inside itself, before it returns (city-renderer.ts's
+    // WebGL-construction `catch`), so clearing below the call wiped the notice
+    // the factory had just raised -- COPY-14 never rendered and a WebGL init
+    // failure looked like a silent, normal, empty viewport.
     unavailableReason.value = null;
+    cityRendererHandle.value = createRenderer(el, win, handleRendererEvent);
   }
   const ratio = Math.min(win.devicePixelRatio || 1, MAX_PIXEL_RATIO);
   cityRendererHandle.value?.resize(rect.width, rect.height, ratio);

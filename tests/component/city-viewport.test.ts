@@ -269,6 +269,28 @@ describe('CityViewport.vue (C08)', () => {
     expect(wrapper.text()).toContain('The 3D view is unavailable. File inspection still works.');
   });
 
+  // Task 9 fix round 4, item 1 (Important): every OTHER `unavailable` test in
+  // this suite fires through a callback CAPTURED during construction and
+  // invoked afterwards -- the `context-lost` shape. The only production
+  // `initialization-failed` emitter (city-renderer.ts's WebGL-construction
+  // `catch`) calls `onEvent` SYNCHRONOUSLY, from inside the factory, before the
+  // factory returns. With the notice cleared AFTER the factory call, that
+  // notice was set and then wiped one line later, so a real WebGL init failure
+  // showed the user a silent, normal-looking empty viewport and COPY-14 never
+  // rendered at all.
+  it('renders COPY-14 when the factory reports unavailable synchronously, before it returns', async () => {
+    const inertPort = makeRendererDouble();
+    const factory: CreateCityRenderer = (_mountEl, _win, onEvent) => {
+      onEvent({ type: 'unavailable', reason: 'initialization-failed' });
+      return inertPort;                  // exactly what createCityRenderer does: emit, then return an inert port
+    };
+    const { win } = makeFakeWin();
+    const { wrapper } = mountWithFactory(factory, win, { width: 800, height: 600 });
+    await nextTick();                    // onMounted's deferred measurement -> applySize -> the factory call
+    await nextTick();                    // the render that measurement's state change schedules
+    expect(wrapper.text()).toContain('The 3D view is unavailable. File inspection still works.');
+  });
+
   it('renders a reconstruct notice, distinct from COPY-14, on context loss', async () => {
     let onEventCapture: ((e: CityRendererEvent) => void) | null = null;
     const factory: CreateCityRenderer = (_mountEl, _win, onEvent) => {
