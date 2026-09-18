@@ -24,19 +24,25 @@ function makeRendererDouble() {
 
 /** A fake window whose ResizeObserver fires synchronously (once, on `observe`) and
  *  whose matchMedia is a spy-able double distinct from jsdom's real global — proving
- *  production code reads THIS one, never a bare `window`. */
+ *  production code reads THIS one, never a bare `window`. `observerConstructed` and
+ *  `observeSpy` (task 9 fix round 1, item 2) let a test assert the observer was
+ *  actually built and actually `observe`d the stage element — `triggerResize()`
+ *  alone proves nothing if nothing ever installed it in the first place. */
 function makeFakeWin(overrides: { matches?: boolean } = {}): {
   win: Window; triggerResize: () => void; matchMediaSpy: ReturnType<typeof vi.fn>;
+  observerConstructed: ReturnType<typeof vi.fn>; observeSpy: ReturnType<typeof vi.fn>;
 } {
   let observedCallback: (() => void) | null = null;
+  const observerConstructed = vi.fn();
+  const observeSpy = vi.fn();
   const matchMediaSpy = vi.fn(() => ({
     matches: overrides.matches ?? false,
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   }));
   class FakeResizeObserver {
-    constructor(cb: () => void) { observedCallback = cb; }
-    observe(): void {}
+    constructor(cb: () => void) { observedCallback = cb; observerConstructed(cb); }
+    observe(el: Element): void { observeSpy(el); }
     unobserve(): void {}
     disconnect(): void {}
   }
@@ -45,7 +51,13 @@ function makeFakeWin(overrides: { matches?: boolean } = {}): {
     matchMedia: matchMediaSpy,
     devicePixelRatio: 1,
   } as unknown as Window;
-  return { win, triggerResize: () => observedCallback?.(), matchMediaSpy };
+  return { win, triggerResize: () => observedCallback?.(), matchMediaSpy, observerConstructed, observeSpy };
+}
+
+function setRect(stage: HTMLElement, width: number, height: number): void {
+  stage.getBoundingClientRect = () => ({
+    width, height, top: 0, left: 0, right: width, bottom: height, x: 0, y: 0, toJSON: () => ({}),
+  });
 }
 
 function mountWithFactory(factory: CreateCityRenderer, win: Window, rect: { width: number; height: number }) {
@@ -54,10 +66,7 @@ function mountWithFactory(factory: CreateCityRenderer, win: Window, rect: { widt
   });
   const stage = wrapper.get('[data-ci-role="stage"]').element as HTMLElement;
   (stage as unknown as { win: Window }).win = win;
-  stage.getBoundingClientRect = () => ({
-    width: rect.width, height: rect.height, top: 0, left: 0,
-    right: rect.width, bottom: rect.height, x: 0, y: 0, toJSON: () => ({}),
-  });
+  setRect(stage, rect.width, rect.height);
   return { wrapper, stage };
 }
 
@@ -66,15 +75,29 @@ describe('CityViewport.vue (C08)', () => {
     setActivePinia(createPinia());
   });
 
+  // Task 9 fix round 1, item 2 (Critical): `applySize()` used to be called
+  // directly, right after `resizeObserver.observe(el)`, in the SAME onMounted
+  // callback — every assertion here was satisfied by that direct call alone, and
+  // `triggerResize()` was decorative (it re-ran `applySize()` against the SAME,
+  // unchanged rect, so a second `resize` call with IDENTICAL arguments proved
+  // nothing an already-passing first call did not). Fixed two ways: assert the
+  // observer was actually CONSTRUCTED and actually `observe`d the stage element,
+  // and change the rect BETWEEN calls so the second `resize` call is genuinely
+  // distinguishable from the first.
   it('OWNS SIZING: it installs the ResizeObserver, not the renderer', async () => {
     const rendererDouble = makeRendererDouble();
     const factory = vi.fn(() => rendererDouble) as unknown as CreateCityRenderer;
-    const { win, triggerResize } = makeFakeWin();
-    mountWithFactory(factory, win, { width: 800, height: 600 });
+    const { win, triggerResize, observerConstructed, observeSpy } = makeFakeWin();
+    const { stage } = mountWithFactory(factory, win, { width: 800, height: 600 });
     await nextTick();
+    expect(observerConstructed).toHaveBeenCalledTimes(1);
+    expect(observeSpy).toHaveBeenCalledWith(stage);
+    expect(rendererDouble.resize).toHaveBeenCalledWith(800, 600, expect.any(Number));
+
+    setRect(stage, 640, 480);
     triggerResize();
     await nextTick();
-    expect(rendererDouble.resize).toHaveBeenCalledWith(800, 600, expect.any(Number));
+    expect(rendererDouble.resize).toHaveBeenCalledWith(640, 480, expect.any(Number));
   });
 
   it('clamps the pixel ratio to 2 on EVERY resize', async () => {
@@ -82,11 +105,14 @@ describe('CityViewport.vue (C08)', () => {
     const factory = vi.fn(() => rendererDouble) as unknown as CreateCityRenderer;
     const { win, triggerResize } = makeFakeWin();
     (win as unknown as { devicePixelRatio: number }).devicePixelRatio = 4;
-    mountWithFactory(factory, win, { width: 800, height: 600 });
-    await nextTick();
-    triggerResize();
+    const { stage } = mountWithFactory(factory, win, { width: 800, height: 600 });
     await nextTick();
     expect(rendererDouble.resize).toHaveBeenCalledWith(800, 600, 2);
+
+    setRect(stage, 640, 480);
+    triggerResize();
+    await nextTick();
+    expect(rendererDouble.resize).toHaveBeenCalledWith(640, 480, 2);
   });
 
   it('no-ops resize on a zero-size box', async () => {
@@ -103,8 +129,9 @@ describe('CityViewport.vue (C08)', () => {
     const rendererDouble = makeRendererDouble();
     const factory = vi.fn(() => rendererDouble) as unknown as CreateCityRenderer;
     const { win, triggerResize } = makeFakeWin();
-    mountWithFactory(factory, win, { width: 800, height: 600 });
+    const { stage } = mountWithFactory(factory, win, { width: 800, height: 600 });
     await nextTick();
+    setRect(stage, 640, 480);
     triggerResize();
     await nextTick();
     expect(rendererDouble.fit).not.toHaveBeenCalled();
