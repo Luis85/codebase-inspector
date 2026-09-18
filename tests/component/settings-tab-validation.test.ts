@@ -78,3 +78,57 @@ describe('the exclusions field describes only what the walker can actually honou
     expect(setting.settingEl.textContent).not.toContain('pattern');
   });
 });
+
+// Fix wave item 6 (I5, Important): settings-tab.ts wrapped profileStore.update in
+// `try { ... } catch {}` with an EMPTY body, so a user who typed `./dist` into Excluded
+// paths -- accepted by the UI, rejected by the validator -- watched the field silently
+// revert with no explanation at all. Spec 7: "Validation failures surface as visible
+// warnings carrying their reason. Never dropped silently." The comment there was right
+// that the value is never silently COERCED; it was silently DISCARDED, which the spec
+// names separately.
+// Hoisted to module scope (oxlint's consistent-function-scoping): captures nothing from
+// the describe block.
+function noticeTexts(): string[] {
+  return [...document.querySelectorAll('.notice')].map((n) => n.textContent ?? '');
+}
+
+describe('a rejected settings edit surfaces its reason (I5)', () => {
+  async function typeExclusions(tab: CodebaseInspectorSettingTab, value: string): Promise<void> {
+    const textarea = renderExclusionsRow(tab).controlEl.querySelector<HTMLTextAreaElement>('textarea')!;
+    textarea.value = value;
+    textarea.dispatchEvent(new Event('change'));
+    await tab.waitForPendingUpdates();
+  }
+
+  it('shows the validator\u2019s reason in a Notice instead of reverting in silence', async () => {
+    const { tab, profileStore } = await makeTab([makeProfile()]);
+    await typeExclusions(tab, './dist');
+
+    const notices = noticeTexts();
+    expect(notices.length).toBeGreaterThan(0);
+    expect(notices.join(' ')).toMatch(/no empty segments and no \. or \.\. segments/);
+    expect(notices.join(' ')).toContain('./dist');
+    // Still never silently coerced: the unedited value is what remains persisted.
+    expect((await profileStore.get('p1'))!.exclusions).toEqual(['dist']);
+  });
+
+  it('surfaces EVERY reason, not just the first', async () => {
+    const { tab } = await makeTab([makeProfile()]);
+    await typeExclusions(tab, './dist\n*.log\n/etc/passwd');
+
+    const text = noticeTexts().join(' ');
+    // ValidationError already collects all of them; that design work was being thrown
+    // away here.
+    expect(text).toContain('./dist');
+    expect(text).toContain('*.log');
+    expect(text).toContain('/etc/passwd');
+  });
+
+  it('stays silent when the edit is valid', async () => {
+    const { tab, profileStore } = await makeTab([makeProfile()]);
+    await typeExclusions(tab, 'dist\nnode_modules');
+
+    expect(noticeTexts()).toEqual([]);
+    expect((await profileStore.get('p1'))!.exclusions).toEqual(['dist', 'node_modules']);
+  });
+});

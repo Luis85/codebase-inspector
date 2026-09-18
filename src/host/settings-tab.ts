@@ -5,7 +5,7 @@
 // obsidianmd/prefer-setting-definitions disable is used anywhere in this file: a real,
 // non-trivial getSettingDefinitions() already satisfies the rule (see the verification
 // document's answer to question C).
-import { PluginSettingTab } from 'obsidian';
+import { Notice, PluginSettingTab } from 'obsidian';
 import type { App, Plugin, SettingDefinitionItem } from 'obsidian';
 import type { ProfileStore } from '../application/ports/profile-store';
 import type { LocalBindingStore } from '../application/ports/local-binding-store';
@@ -16,6 +16,7 @@ import type { ProfileEntry } from './setting-definitions';
 import { ClearBindingModal } from './modals/clear-binding-modal';
 import { openSourceModal } from './modals/source-modal';
 import { createDefaultProfile } from './scan-flow';
+import { validationFailureText } from '../domain/validator';
 
 function parseExclusions(rawLines: string): string[] {
   return rawLines.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
@@ -114,10 +115,20 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     // indivisible operation, so `mutate` is always applied to the current value.
     try {
       await this.profileStore.update(id, mutate);
-    } catch {
-      // An invalid edit (e.g. maxFileBytes not a positive integer) is rejected by the
-      // store's own validation and simply not persisted -- never silently coerced
-      // (spec 4.1). The unedited value is re-read back into entries on the next line.
+    } catch (e) {
+      // An invalid edit (e.g. maxFileBytes not a positive integer, or `./dist` in
+      // Excluded paths) is rejected by the store's own validation and not persisted --
+      // never silently coerced (spec 4.1). The unedited value is re-read back into
+      // entries below.
+      //
+      // Fix wave item 6 (I5): this catch USED TO BE EMPTY, so the user watched the field
+      // revert with no explanation whatsoever. Spec 7 names that case separately from
+      // coercion: "Validation failures surface as visible warnings carrying their
+      // reason. Never dropped silently." validationFailureText joins EVERY reason
+      // ValidationError collected, not just the first -- that design work already
+      // existed and was being thrown away here.
+      const notice = new Notice(validationFailureText(e), 8000);
+      void notice;
     }
     await this.refresh();
     this.update();
