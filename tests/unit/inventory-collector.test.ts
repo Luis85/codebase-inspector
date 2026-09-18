@@ -137,6 +137,81 @@ describe('collectInventory', () => {
     // second entry, not after reading all four kept files (which is what the
     // uncancelled path would have done).
     expect(filesYielded).toBe(1);
+    // Fix wave item 7 (I6 part 1). `filesYielded` alone counts what this test's own
+    // wrapper saw; this counts what the PORT actually opened, which is the assertion
+    // that distinguishes "the walk HALTED early" from "the walk ran to completion and
+    // the result was discarded". Both produce a CancellationError, so the rejection
+    // above cannot tell them apart -- ruling M41 deferred exactly this distinction to a
+    // manual checkpoint line because no test then made it.
+    expect(port.readLog().length).toBeLessThan(4);
+    expect(port.readLog().some((p) => p.endsWith('d.ts'))).toBe(false);
+  });
+
+  // Fix wave item 7 (I6 part 2): the gap the checks either side of the observation phase
+  // exist for. The walk is over, nothing threw, and a full, publishable snapshot is about
+  // to be assembled -- a cancellation landing here must still REJECT with
+  // CancellationError, never resolve with that snapshot (ruling M21).
+  it('rejects when cancelled AFTER the walk finished, before the snapshot is assembled', async () => {
+    const { port, clock } = setUp({ 'a.ts': 'a\n', 'b.ts': 'b\n' });
+    const { token, cancel } = createCancellationToken();
+    const cancelAfterWalk: SourceFileSystemPort = {
+      ...port,
+      walk: (root, opts, walkToken) => ({
+        async *[Symbol.asyncIterator]() {
+          for await (const entry of port.walk(root, opts, walkToken)) yield entry;
+          cancel();   // the walk has completed normally; nothing is left to throw
+        },
+      }),
+    };
+
+    await expect(collectInventory(cancelAfterWalk, SCOPE, APPROVAL, token, clock))
+      .rejects.toBeInstanceOf(CancellationError);
+  });
+
+  // Fix wave item 7 (I6): `collectInventory`'s OWN cooperative cancellation, which
+  // ruling M21 exists to guarantee and which the reviewer proved was pinned by nothing
+  // -- deleting both of the collector's checkCancelled calls left the full suite green,
+  // because every existing cancellation test was satisfied by walker.ts's own per-entry
+  // throwIfCancelled.
+  //
+  // The producer here deliberately ignores the token. That is a contract violation for
+  // the shipped ports (the shared suite's "stops promptly when the cancellation token is
+  // cancelled" pins both of them), and deliberately so: it is the only way to hold the
+  // COLLECTOR answerable for its own half. M21 makes collectInventory responsible for
+  // noticing a cancellation whoever is producing entries, and a rationale is not
+  // coverage.
+  it('stops consuming a walk that does not itself honour the token (ruling M21)', async () => {
+    const { clock } = setUp({});
+    const { token, cancel } = createCancellationToken();
+    const ENTRIES = 50;
+    let yielded = 0;
+    const deafPort: SourceFileSystemPort = {
+      walk: () => ({
+        async *[Symbol.asyncIterator]() {
+          for (let i = 0; i < ENTRIES; i += 1) {
+            yielded += 1;
+            if (yielded === 1) cancel();
+            // A real await point, so the collector's own check genuinely gets a turn.
+            await Promise.resolve();
+            yield {
+              kind: 'file' as const, absolutePath: `/fake-root/f${i}.ts`, relativePath: `f${i}.ts`,
+              byteSize: 2, lineCount: 1, byteLength: 2,
+            };
+          }
+        },
+      }),
+      readText: () => Promise.resolve({ status: 'unavailable' as const, reason: 'not used' }),
+      stat: () => Promise.resolve(
+        { exists: true, isDirectory: false, isFile: true, isSymbolicLink: false, size: 0, mtimeMs: 0 }),
+      readLog: () => [],
+    };
+
+    await expect(collectInventory(deafPort, SCOPE, APPROVAL, token, clock))
+      .rejects.toBeInstanceOf(CancellationError);
+    // The load-bearing half: WITHOUT the collector's own per-entry check the whole
+    // 50-entry walk is consumed first and only the post-walk check rejects, which the
+    // assertion above cannot tell apart.
+    expect(yielded).toBeLessThan(ENTRIES);
   });
 
   // Fix-round-1 MINOR finding 8: a genuine walk failure (spec 7's "a failed run") must
