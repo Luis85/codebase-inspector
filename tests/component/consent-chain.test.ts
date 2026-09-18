@@ -336,14 +336,22 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
     expect(update).not.toHaveBeenCalled();
   });
 
+  // Breakage round, item 3: this test's profile and snapshot scope were BOTH ['.git'] --
+  // an identical single-element list, which cannot re-order and so could not fail for
+  // the reason its name gives. It is now a genuine permutation: same SET, different
+  // ORDER, in a list long enough for order to exist. Mutating fingerprintScope to drop
+  // its sort turns this red (verified: the scope modal opens and start is never called).
   it('re-orders exclusions without prompting: fingerprintScope sorts, so that is not divergence', async () => {
     const { app, profile, store, coordinator, start } = setUp(
-      { exclusions: ['.git'], maxFileBytes: 1_000_000 });
-    const reordered: AnalysisScope = { ...SNAPSHOT_SCOPE, exclusions: ['.git'] };
+      { exclusions: ['.git', 'node_modules'], maxFileBytes: 1_000_000 });
+    const reordered: AnalysisScope = { ...SNAPSHOT_SCOPE, exclusions: ['node_modules', '.git'] };
 
     await runRefresh(app, coordinator, profile, reordered, createFixedClock(), store);
     expect(document.querySelector('.modal-container')).toBeNull();
     expect(start).toHaveBeenCalledTimes(1);
+    // Not divergence, so the SNAPSHOT's own scope object is what gets scanned -- never a
+    // copy rebuilt from the profile, and never the profile's ordering.
+    expect(start.mock.calls[0]![1]).toBe(reordered);
   });
 
   it('opens the SCOPE modal prefilled from the profile, carrying the snapshot root, when they diverge', async () => {
