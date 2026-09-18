@@ -54,10 +54,13 @@ function onKeydown(event: KeyboardEvent): void {
   applyCommand(command);
 }
 
+// No bare-global fallback (task 9 fix round 1, item 5, spec 4.4's cross-window
+// rule): if the stage never mounted, this never attaches a listener, rather
+// than reaching for the wrong window's `document`.
 let listenerDoc: Document | null = null;
 onMounted(() => {
-  listenerDoc = stage.value?.ownerDocument ?? document;
-  listenerDoc.addEventListener('keydown', onKeydown);
+  listenerDoc = stage.value?.doc ?? null;
+  listenerDoc?.addEventListener('keydown', onKeydown);
 });
 onBeforeUnmount(() => {
   listenerDoc?.removeEventListener('keydown', onKeydown);

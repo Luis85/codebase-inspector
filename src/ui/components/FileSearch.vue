@@ -50,8 +50,15 @@ function onKeydown(event: KeyboardEvent): void {
 function onCompositionStart(): void { composing = true; }
 function onCompositionEnd(): void { composing = false; }
 
-function isEditable(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
+// Task 9 fix round 1, item 5 (Important, spec 4.4's cross-window rule): a bare
+// `target instanceof HTMLElement` checks against THIS window's HTMLElement
+// constructor — after a pop-out, the active element in that OTHER window is an
+// instance of ITS OWN HTMLElement, so this always returned false there, "/"
+// stole focus while the user was typing a slash into another field, and
+// isEditable's whole reason to exist quietly stopped working. `node.instanceOf`
+// (Obsidian's cross-window-capable replacement, spec 4.4) fixes it structurally.
+function isEditable(target: Element | null): boolean {
+  if (!target?.instanceOf(HTMLElement)) return false;
   return EDITABLE_TAGS.has(target.tagName) || target.isContentEditable;
 }
 
@@ -61,9 +68,11 @@ function isEditable(target: EventTarget | null): boolean {
  *  the same `.codebase-inspector-root` ancestor this field lives under" — the one
  *  DOM landmark every view (and every standalone component-test root) already has. */
 function onGlobalKeydown(event: KeyboardEvent): void {
-  const doc = rootEl.value?.ownerDocument ?? document;
-  const viewRoot = rootEl.value?.closest('.codebase-inspector-root') ?? rootEl.value;
-  const owns = Boolean(viewRoot && viewRoot.contains(doc.activeElement));
+  const root = rootEl.value;
+  if (!root) return;
+  const doc = root.doc;
+  const viewRoot = root.closest('.codebase-inspector-root') ?? root;
+  const owns = Boolean(viewRoot.contains(doc.activeElement));
   const fires = shouldFocusSearchShortcut(
     { key: event.key, ctrlKey: event.ctrlKey, metaKey: event.metaKey, altKey: event.altKey },
     { viewOwnsFocus: owns, targetIsEditable: isEditable(doc.activeElement) },
@@ -73,10 +82,13 @@ function onGlobalKeydown(event: KeyboardEvent): void {
   inputEl.value?.focus();
 }
 
+// No bare-global fallback (item 5): if `rootEl` never mounted, this simply
+// never attaches a listener, rather than reaching for the wrong window's
+// `document`.
 let listenerDoc: Document | null = null;
 onMounted(() => {
-  listenerDoc = rootEl.value?.ownerDocument ?? document;
-  listenerDoc.addEventListener('keydown', onGlobalKeydown);
+  listenerDoc = rootEl.value?.doc ?? null;
+  listenerDoc?.addEventListener('keydown', onGlobalKeydown);
 });
 onBeforeUnmount(() => {
   if (debounceHandle) clearTimeout(debounceHandle);

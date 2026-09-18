@@ -41,8 +41,14 @@ let resizeObserver: ResizeObserver | null = null;
 
 interface WinBearing { win?: Window }
 
-function ownWindow(): Window {
-  return (stageEl.value as unknown as WinBearing | null)?.win ?? window;
+// Task 9 fix round 1, item 5 (Important, spec 4.4's cross-window rule): takes
+// the element explicitly and returns ITS window, with NO bare-`window`
+// fallback — every call site below already has a non-null `el` in scope by the
+// time it calls this, so there is nothing for a fallback to paper over except a
+// real bug (this element's own `.win` extension not having installed, which
+// only ever happens outside a real Obsidian host).
+function winOf(el: HTMLElement): Window {
+  return (el as unknown as WinBearing).win as Window;
 }
 
 function handleRendererEvent(event: CityRendererEvent): void {
@@ -57,15 +63,15 @@ function applySize(): void {
   if (!el || !createRenderer) return;
   const rect = el.getBoundingClientRect();
   if (rect.width < MIN_INLINE_SIZE || rect.height <= 0) return;   // hard floor, never a zero box
+  const win = winOf(el);
   if (!cityRendererHandle.value) {
-    cityRendererHandle.value = createRenderer(el, ownWindow(), handleRendererEvent);
+    cityRendererHandle.value = createRenderer(el, win, handleRendererEvent);
   }
-  const ratio = Math.min(ownWindow().devicePixelRatio || 1, MAX_PIXEL_RATIO);
+  const ratio = Math.min(win.devicePixelRatio || 1, MAX_PIXEL_RATIO);
   cityRendererHandle.value?.resize(rect.width, rect.height, ratio);
 }
 
-function applyMotionPreference(): void {
-  const win = ownWindow();
+function applyMotionPreference(win: Window): void {
   const query = win.matchMedia('(prefers-reduced-motion: reduce)');
   cityRendererHandle.value?.setMotion(query.matches ? 'reduced' : 'standard');
 }
@@ -78,13 +84,13 @@ onMounted(() => {
   void nextTick(() => {
     const el = stageEl.value;
     if (!el || !createRenderer) return;
-    const win = ownWindow();
+    const win = winOf(el);
     resizeObserver = new (win as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver(() => {
       applySize();
     });
     resizeObserver.observe(el);
     applySize();
-    applyMotionPreference();
+    applyMotionPreference(win);
   });
 });
 
