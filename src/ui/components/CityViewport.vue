@@ -21,6 +21,7 @@ import type {
   CityRendererEvent, CreateCityRenderer,
 } from '../../visualization/renderer-port';
 import { useCityRendererHandle, useCityStageEl } from '../renderer-handle';
+import { useCityStore } from '../stores/city-store';
 import { COPY_14, CONTEXT_LOST_NOTICE } from '../copy';
 
 const MIN_INLINE_SIZE = 320;     // spec 5.2 hard floor, CSS px
@@ -31,6 +32,7 @@ type UnavailableReason = 'unsupported' | 'context-lost' | 'initialization-failed
 const createRenderer = inject<CreateCityRenderer | null>('createCityRenderer', null);
 const cityRendererHandle = useCityRendererHandle();
 const cityStageHandle = useCityStageEl();
+const store = useCityStore();
 
 const stageEl = ref<HTMLElement | null>(null);
 // Task 9 fix round 2, item 1: replaces the externally-injected `rendererAvailable`
@@ -61,12 +63,23 @@ function winOf(el: HTMLElement): Window {
 // and reconstructs"), the next resize tick appended a SECOND canvas beside
 // the still-live first one, and `onBeforeUnmount` only ever disposed whichever
 // renderer was newest -- every earlier one leaked.
+//
+// Task 10, finding 6: this is the CANVAS-TO-HTML direction, and this component is the
+// only thing that receives renderer events at all. Without these two lines
+// `city-store.setCamera()` had no production caller (so a camera moved on the canvas
+// never reached CityViewState, and nothing persisted it) and a pick in the 3D view
+// selected nothing in the list or the inspector — the HTML-to-canvas direction
+// (CodebaseFileList -> setSelection) was already wired in task 9, this is its partner.
+// `hover-changed` has no store field and is deliberately not mirrored here.
 function handleRendererEvent(event: CityRendererEvent): void {
   if (event.type === 'unavailable') {
     unavailableReason.value = event.reason;
     cityRendererHandle.value?.dispose();
     cityRendererHandle.value = null;
+    return;
   }
+  if (event.type === 'camera-changed') store.setCamera(event.camera);
+  if (event.type === 'entity-picked') store.select(event.entityId);
 }
 
 /** Task 9 fix round 1, item 6 (Important): the hard floor and the zero-box

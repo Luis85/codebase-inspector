@@ -7,6 +7,7 @@ import { nextTick } from 'vue';
 // the same way the real, unmodified createCityRenderer does.
 import '../mocks/obsidian';
 import CityViewport from '../../src/ui/components/CityViewport.vue';
+import { useCityStore } from '../../src/ui/stores/city-store';
 import type { CityRendererEvent, CreateCityRenderer } from '../../src/visualization/renderer-port';
 
 function makeRendererDouble() {
@@ -378,5 +379,31 @@ describe('CityViewport.vue (C08)', () => {
     await nextTick();
     const exposed = wrapper.vm as unknown as { cityRendererHandle: unknown };
     expect(exposed.cityRendererHandle).toBe(rendererDouble);
+  });
+
+  // Task 10, finding 6: `city-store.setCamera()` had no production caller, and neither
+  // did the canvas-to-HTML selection direction. Both are fed by renderer EVENTS, and
+  // this component is the only thing that receives them.
+  it('mirrors renderer events into the city store, closing the canvas-to-HTML loop', async () => {
+    const rendererDouble = makeRendererDouble();
+    let emit: ((e: CityRendererEvent) => void) | null = null;
+    const factory = vi.fn((_m: HTMLElement, _w: Window, onEvent: (e: CityRendererEvent) => void) => {
+      emit = onEvent;
+      return rendererDouble;
+    }) as unknown as CreateCityRenderer;
+    const { win } = makeFakeWin();
+    mountWithFactory(factory, win, { width: 800, height: 600 });
+    await nextTick();
+    const store = useCityStore();
+
+    const camera = { projection: 'orthographic' as const, mode: '3d' as const,
+      position: [1, 2, 3] as [number, number, number], target: [0, 1, 0] as [number, number, number],
+      up: [0, 1, 0] as [number, number, number], zoom: 0.5 };
+    emit!({ type: 'camera-changed', camera });
+    expect(store.camera).toEqual(camera);
+    expect(store.previous3dCamera).toEqual(camera);
+
+    emit!({ type: 'entity-picked', entityId: 'repo file src/a.ts', snapshotId: 's1' });
+    expect(store.selectedEntityId).toBe('repo file src/a.ts');
   });
 });
