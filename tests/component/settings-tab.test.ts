@@ -293,6 +293,44 @@ describe('settings tab', () => {
     expect(await bindingStore.get('b1')).toBeNull();
   });
 
+  // Fix round 1, Minor 3 (folded): reconnect() is the FIRST call site anywhere that
+  // calls bindingStore.save() (task-7-context.md section 9's trap), and it also calls
+  // profileStore.update() when the profile was never bound -- the same primitive a
+  // concurrent rename uses on the SAME profile id. Fired with NO await between the two
+  // dispatches, matching what a user clicking Connect and then immediately renaming
+  // produces in real use. A test that awaits between the two proves nothing, because
+  // the bug this guards against (task 6's Critical 1) only manifests without the await.
+  it('survives a reconnect racing a profile rename, fired without an await between them', async () => {
+    const { port } = createFakeSourceFileSystem({});
+    const { tab, profileStore, bindingStore } = await makeTab(
+      [makeProfile({ profileId: 'p1', name: 'Original', bindingId: null })], [], port);
+    const page = findProfilePage(tab.getSettingDefinitions(), 'Original');
+
+    const nameSetting = new Setting(newContainer());
+    invokeRender(findRenderDef(page.items, 'Name'), nameSetting);
+    const nameInput = nameSetting.controlEl.querySelector<HTMLInputElement>('input[type="text"]')!;
+
+    const sourceSetting = new Setting(newContainer());
+    invokeRender(findRenderDef(page.items, 'Source folder'), sourceSetting);
+    const connectButton = sourceSetting.settingEl.querySelector<HTMLButtonElement>('[data-action="connect"]')!;
+
+    nameInput.value = 'Renamed';
+    // No await between these two -- both a profileStore.update() (rename) and a
+    // reconnect (bindingStore.save() + profileStore.update() for the new bindingId)
+    // are now in flight concurrently against the SAME profile id.
+    nameInput.dispatchEvent(new Event('change'));
+    connectButton.click();
+    completeExternalSelection('/fake-root');
+
+    await tab.waitForPendingUpdates();
+
+    const profile = (await profileStore.get('p1'))!;
+    expect(profile.name).toBe('Renamed');        // the rename survives
+    expect(profile.bindingId).not.toBeNull();    // the reconnect survives too
+    const binding = await bindingStore.get(profile.bindingId!);
+    expect(binding?.rootPath).toBe('/fake-root');
+  });
+
   // Fix round 1, Important 4: renderNameRow/renderExclusionsRow/renderMaxFileBytesRow
   // and their onRenameProfile/onExclusionsChange/onMaxFileBytesChange wiring had no
   // coverage at any level. Driven end to end through the real settings-tab wiring below

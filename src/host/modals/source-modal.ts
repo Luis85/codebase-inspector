@@ -6,6 +6,7 @@ import { FileSystemAdapter, Modal } from 'obsidian';
 import type { App } from 'obsidian';
 import type { CodebaseProfile } from '../../domain/model';
 import type { SourceFileSystemPort } from '../../application/ports/source-filesystem-port';
+import { isContained, normalizeRelativePath } from '../../domain/path-safety';
 
 export type SourceMode = 'vault' | 'vault-folder' | 'external';
 
@@ -27,10 +28,12 @@ export interface SourceModalOptions {
 const COPY_03 = 'Read a local codebase outside this vault.';
 const ABSOLUTE_PATH = /^(?:[A-Za-z]:[\\/]|\/)/;
 
-function joinVaultPath(base: string, relative: string): string {
+/** `relativeNormalized` has already passed through normalizeRelativePath (task 2),
+ *  which rejects `.`/`..` segments, absolute-looking input and control characters --
+ *  so this is a plain join, never a second place that could re-admit an escape. */
+function joinVaultPath(base: string, relativeNormalized: string): string {
   const trimmedBase = base.replace(/[\\/]+$/, '');
-  const trimmedRelative = relative.replace(/^[\\/]+/, '');
-  return `${trimmedBase}/${trimmedRelative}`;
+  return `${trimmedBase}/${relativeNormalized}`;
 }
 
 class SourceModal extends Modal {
@@ -136,12 +139,33 @@ class SourceModal extends Modal {
         return null;
       }
       if (this.mode === 'vault') return base;
-      const relative = this.detailEl.querySelector<HTMLInputElement>('[data-field="vault-folder-path"]')!.value.trim();
-      if (relative.length === 0) {
+      const raw = this.detailEl.querySelector<HTMLInputElement>('[data-field="vault-folder-path"]')!.value.trim();
+      if (raw.length === 0) {
         this.setError('Enter a folder path inside this vault.');
         return null;
       }
-      return joinVaultPath(base, relative);
+      // Fix round 1, Important 1: a `..`-carrying relative segment (e.g.
+      // "..\..\Users\Public") used to be string-concatenated onto the base with no
+      // validation, escaping the vault entirely while this mode's own label says
+      // "inside this vault" -- exactly the mislabelling a consent screen must never
+      // produce. normalizeRelativePath (task 2) rejects `.`/`..` segments and
+      // absolute-looking input outright; isContained (task 2, also named in this
+      // task's brief) is a second, independent check on the JOINED result, so even a
+      // future bug in this function's own join logic cannot silently re-admit an
+      // escape without also breaking that check.
+      let relativeNormalized: string;
+      try {
+        relativeNormalized = normalizeRelativePath(raw);
+      } catch (e) {
+        this.setError(e instanceof Error ? e.message : 'That folder path is not valid.');
+        return null;
+      }
+      const resolvedRoot = joinVaultPath(base, relativeNormalized);
+      if (!isContained(base, resolvedRoot)) {
+        this.setError('That folder is not inside this vault.');
+        return null;
+      }
+      return resolvedRoot;
     }
     const external = this.detailEl.querySelector<HTMLInputElement>('[data-field="external-path"]')!.value.trim();
     if (!ABSOLUTE_PATH.test(external)) {

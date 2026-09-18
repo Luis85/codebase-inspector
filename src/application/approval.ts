@@ -69,10 +69,25 @@ export function approve(
 
 /** A changed root or scope invalidates prior approval (spec 4.1, acceptance criterion
  *  2) -- mechanically, by recomputing both fingerprints and comparing, never by
- *  inspecting `approval` for anything beyond its own two fingerprint fields. */
+ *  inspecting `approval` for anything beyond its own two fingerprint fields.
+ *
+ *  Ruling M32 (fix round 1, Important 2): `AnalysisScope.rootPath` is documented as
+ *  "resolved, absolute" (domain/model.ts), but `fingerprintScope` never covers it, so
+ *  nothing otherwise enforces that the `resolvedRoot` a caller validates against and
+ *  the `rootPath` inside the `scope` that would actually drive a scan agree. At this
+ *  module's own call site they always match, but a future caller (a scan coordinator
+ *  re-deriving a scope from a stored profile, say) could pass a `resolvedRoot` used
+ *  only for this check while `scope` itself carries a DIFFERENT root -- validating
+ *  successfully while consent and scan target silently diverge. That is the same
+ *  "opening a view is not authorisation" failure this module exists to prevent, moved
+ *  one layer down. The fail-safe direction for a consent gate is to invalidate and
+ *  re-ask (the same reasoning that makes fingerprintSource case-sensitive, ruling
+ *  M29) -- do not remove this check as "redundant with the call site," because the
+ *  call site is exactly what could stop agreeing. */
 export function isApprovalValid(
   approval: ApprovedInventoryRun, resolvedRoot: string, scope: AnalysisScope,
 ): boolean {
+  if (fingerprintSource(resolvedRoot) !== fingerprintSource(scope.rootPath)) return false;
   return approval.sourceFingerprint === fingerprintSource(resolvedRoot)
     && approval.scopeFingerprint === fingerprintScope(scope);
 }

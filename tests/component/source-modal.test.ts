@@ -147,6 +147,46 @@ describe('source modal (C03)', () => {
     expect(selection!.resolvedRoot).toBe('/fake-root/sub');
   });
 
+  // Fix round 1, Important 1: joinVaultPath used to trim only LEADING separators and
+  // string-concatenate, never validating the relative segment through
+  // normalizeRelativePath (task 2) or checking the joined result with isContained
+  // (task 2) -- both named in this task's own brief as interfaces it consumes. A `..`
+  // segment escaped the vault entirely while the UI's own label still said "inside
+  // this vault", and stat() would happily report the escaped directory as valid.
+  it('rejects a ".." traversal in the vault-folder path (Windows-style), never reaching the filesystem', async () => {
+    const { port } = createFakeSourceFileSystem({ 'sub/a.ts': 'x' });
+    const promise = openSourceModal(
+      makeApp(new FileSystemAdapter('/fake-root')), { profile: makeProfile(), filesystem: port });
+    selectMode('vault-folder');
+    const input = modalRoot().querySelector<HTMLInputElement>('[data-field="vault-folder-path"]')!;
+    input.value = '..\\..\\Users\\Public';
+    input.dispatchEvent(new Event('input'));
+    continueButton().click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(modalRoot().querySelector('[role="alert"]')?.textContent).toBeTruthy();
+    expect(port.readLog()).toEqual([]);
+    cancelButton().click();
+    expect(await promise).toBeNull();
+  });
+
+  it('rejects a ".." traversal in the vault-folder path (POSIX-style), never reaching the filesystem', async () => {
+    const { port } = createFakeSourceFileSystem({ 'sub/a.ts': 'x' });
+    const promise = openSourceModal(
+      makeApp(new FileSystemAdapter('/fake-root')), { profile: makeProfile(), filesystem: port });
+    selectMode('vault-folder');
+    const input = modalRoot().querySelector<HTMLInputElement>('[data-field="vault-folder-path"]')!;
+    input.value = '../../etc';
+    input.dispatchEvent(new Event('input'));
+    continueButton().click();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(modalRoot().querySelector('[role="alert"]')?.textContent).toBeTruthy();
+    expect(port.readLog()).toEqual([]);
+    cancelButton().click();
+    expect(await promise).toBeNull();
+  });
+
   it('shows a visible error for the vault modes on a platform with no FileSystemAdapter, never a cast', async () => {
     // CapacitorAdapter is NOT an instanceof FileSystemAdapter -- this proves the
     // instanceof branch is a real branch, not one a permissive double always takes.

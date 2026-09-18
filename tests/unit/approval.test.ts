@@ -54,6 +54,26 @@ describe('approval', () => {
     expect(isApprovalValid(a, 'C:\\Projects\\App', scope)).toBe(false);
   });
 
+  // Ruling M32 (fix round 1, Important 2): AnalysisScope.rootPath is documented as
+  // "resolved, absolute" (domain/model.ts), but fingerprintScope never covers it, so
+  // nothing previously enforced that the `resolvedRoot` argument and `scope.rootPath`
+  // actually agree. This reproduces the exact hole: an approval granted for
+  // 'C:\Projects\app' is still checked with resolvedRoot='C:\Projects\app' (so
+  // sourceFingerprint matches) but a SCOPE whose own rootPath has drifted to
+  // 'C:\Projects\other' -- since scopeFingerprint ignores rootPath entirely, the old
+  // code would have returned true here, approving a mismatch between the validated
+  // root and the root that would actually drive a scan.
+  it('is INVALIDATED when resolvedRoot and scope.rootPath disagree, even though scopeFingerprint never covers rootPath', () => {
+    const a = approve('p1', scope.rootPath, scope, clock);
+    const driftedScope: AnalysisScope = { ...scope, rootPath: 'C:\\Projects\\other' };
+    expect(isApprovalValid(a, scope.rootPath, driftedScope)).toBe(false);
+  });
+
+  it('stays valid when resolvedRoot and scope.rootPath agree (the normal case)', () => {
+    const a = approve('p1', scope.rootPath, scope, clock);
+    expect(isApprovalValid(a, scope.rootPath, scope)).toBe(true);
+  });
+
   it('is exclusion-order insensitive, so re-sorting does not spuriously invalidate', () => {
     expect(fingerprintScope(scope)).toBe(fingerprintScope({ ...scope, exclusions: ['node_modules', '.git'] }));
   });
