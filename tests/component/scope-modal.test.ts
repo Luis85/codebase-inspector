@@ -105,17 +105,40 @@ describe('scope modal (C04)', () => {
     const promise = openScopeModal(app, selection);
     check(checkbox());
     scanButton().click();
-    const approval = await promise;
-    expect(approval).not.toBeNull();
-    expect(approval!.sourceFingerprint).toBe(fingerprintSource(selection.resolvedRoot));
-    expect(approval!.scopeFingerprint).toBe(fingerprintScope({
+    const result = await promise;
+    expect(result).not.toBeNull();
+    const { approval, scope } = result!;
+    expect(approval.sourceFingerprint).toBe(fingerprintSource(selection.resolvedRoot));
+    expect(approval.scopeFingerprint).toBe(fingerprintScope({
       rootPath: selection.resolvedRoot,
       exclusions: selection.profile.exclusions,
       maxFileBytes: selection.profile.maxFileBytes,
       followSymlinks: false,
     }));
-    expect(approval!.profileId).toBe(selection.profile.profileId);
-    expect(approval!.operation).toBe('read-only-inventory');
+    expect(approval.profileId).toBe(selection.profile.profileId);
+    expect(approval.operation).toBe('read-only-inventory');
+    // Task 8 extension: the actual AnalysisScope that was fingerprinted travels WITH
+    // the approval, because ApprovedInventoryRun (frozen §4.1) carries only opaque
+    // fingerprints -- a caller driving a real scan needs the real scope values too.
+    expect(scope).toEqual({
+      rootPath: selection.resolvedRoot,
+      exclusions: selection.profile.exclusions,
+      maxFileBytes: selection.profile.maxFileBytes,
+      followSymlinks: false,
+    });
+  });
+
+  it('returns the EDITED scope, not the profile default, when exclusions were changed before Scan', async () => {
+    const selection = makeSelection({ resolvedRoot: 'C:\\Projects\\alpha' });
+    const promise = openScopeModal(app, selection);
+    const exclusions = modalRoot().querySelector<HTMLTextAreaElement>('[data-field="exclusions"]')!;
+    exclusions.value = '.git\nnode_modules\ndist';
+    exclusions.dispatchEvent(new Event('input'));
+    check(checkbox());
+    scanButton().click();
+    const result = await promise;
+    expect(result!.scope.exclusions).toEqual(['.git', 'node_modules', 'dist']);
+    expect(result!.approval.scopeFingerprint).toBe(fingerprintScope(result!.scope));
   });
 
   it('re-disables Scan and clears the acknowledgement when an exclusion is edited', () => {

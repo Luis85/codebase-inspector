@@ -10,6 +10,18 @@ import type { Clock } from '../../application/ports/clock';
 import type { AnalysisScope, ApprovedInventoryRun } from '../../domain/model';
 import type { SourceSelection } from './source-modal';
 
+/** Task 8 extension: the modal's own editable AnalysisScope (exclusions/max bytes can be
+ *  edited live -- see updateScope below) is never persisted anywhere, so the resolved
+ *  ApprovedInventoryRun alone is not enough for a caller to actually DRIVE a scan --
+ *  ApprovedInventoryRun (a frozen §4.1 contract) carries only opaque fingerprints, not
+ *  the scope values themselves. Bundling the exact AnalysisScope that was fingerprinted
+ *  alongside the approval is the smallest change that closes this gap without touching
+ *  ApprovedInventoryRun's own frozen shape. */
+export interface ScopeApproval {
+  approval: ApprovedInventoryRun;
+  scope: AnalysisScope;
+}
+
 // COPY-04..07, docs/concept/design/interactions/04-microcopy.md, character for
 // character (task-7-context.md section 3; adopted by spec 5.2).
 const COPY_04 = 'Review scope and read access';
@@ -39,7 +51,7 @@ class ScopeModal extends Modal {
   constructor(
     app: App,
     private readonly selection: SourceSelection,
-    private readonly settle: (result: ApprovedInventoryRun | null) => void,
+    private readonly settle: (result: ScopeApproval | null) => void,
     private readonly opener: HTMLElement | null,
   ) {
     super(app);
@@ -88,7 +100,7 @@ class ScopeModal extends Modal {
     this.scanBtn.disabled = true;
     this.scanBtn.addEventListener('click', () => {
       const approval = approve(this.selection.profile.profileId, this.analysisScope.rootPath, this.analysisScope, SYSTEM_CLOCK);
-      this.finish(approval);
+      this.finish({ approval, scope: this.analysisScope });
       this.close();
     });
 
@@ -104,7 +116,7 @@ class ScopeModal extends Modal {
     this.opener?.focus();
   }
 
-  private finish(result: ApprovedInventoryRun | null): void {
+  private finish(result: ScopeApproval | null): void {
     if (this.settled) return;
     this.settled = true;
     this.settle(result);
@@ -120,7 +132,7 @@ class ScopeModal extends Modal {
   }
 }
 
-export function openScopeModal(app: App, selection: SourceSelection): Promise<ApprovedInventoryRun | null> {
+export function openScopeModal(app: App, selection: SourceSelection): Promise<ScopeApproval | null> {
   return new Promise((resolve) => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const modal = new ScopeModal(app, selection, resolve, opener);

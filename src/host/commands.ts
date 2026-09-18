@@ -2,13 +2,17 @@
 // open-city, scan-codebase, cancel-scan. No fourth command, and none for an
 // unimplemented capability (spec 1).
 //
-// scan-codebase and cancel-scan are REGISTERED here — visible in the command palette,
-// per checkpoint #1 — but no approval flow exists until task 8 wires their bodies.
-// checkCallback returns true unconditionally for `checking` so the palette keeps
-// listing them (Obsidian hides a command from the palette when checkCallback(true)
-// returns false); invoking them today does nothing observable and never throws.
+// Task 8 wires real bodies for scan-codebase and cancel-scan, operating on the ACTIVE
+// CityView (`getActiveViewOfType`, never the deprecated `workspace.activeLeaf` — spec
+// 4.4). scan-codebase's own checkCallback still returns true unconditionally
+// (task 3's original behaviour, reaffirmed by ruling M36): it stays visible even with
+// no active city view, and simply does nothing observable in that case, exactly as it
+// did before this task's body existed. cancel-scan's checkCallback does NOT: ruling
+// M36 supersedes M6 for cancel-scan only, because once cancelling genuinely does
+// something, showing it when there is nothing to cancel is exactly what
+// checkCallback is for.
 import type { Plugin } from 'obsidian';
-import { CITY_VIEW_TYPE } from './city-view';
+import { CITY_VIEW_TYPE, CityView } from './city-view';
 
 /** Always opens a NEW city tab (ruling M9, review round 2). Multiple leaves are a
  *  first-class WP-01 capability, not an edge case: spec 4.4 says "the factory may run
@@ -38,8 +42,10 @@ export function registerCommands(plugin: Plugin): void {
     name: 'Scan codebase',
     checkCallback: (checking: boolean): boolean => {
       if (checking) return true;
-      // No profile and no approval flow exist yet (task 8 wires this). Must never
-      // throw; doing nothing is the correct WP-01 behaviour.
+      const view = plugin.app.workspace.getActiveViewOfType(CityView);
+      // No active city view: doing nothing observable is the correct WP-01 behaviour,
+      // exactly as it was before this task's body existed. Must never throw.
+      if (view) void view.startScan();
       return true;
     },
   });
@@ -47,8 +53,15 @@ export function registerCommands(plugin: Plugin): void {
   plugin.addCommand({
     id: 'cancel-scan',
     name: 'Cancel scan',
+    // Ruling M36: hidden from the palette unless the active view actually has a run
+    // to cancel -- superseding M6 for THIS command only (spec §5 requires the three
+    // commands to be registered, not permanently visible; scan-codebase stays
+    // unconditionally visible above).
     checkCallback: (checking: boolean): boolean => {
+      const view = plugin.app.workspace.getActiveViewOfType(CityView);
+      if (!view || !view.isScanRunning()) return false;
       if (checking) return true;
+      view.cancelScan();
       return true;
     },
   });

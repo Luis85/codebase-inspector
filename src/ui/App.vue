@@ -17,6 +17,12 @@ const rendererAvailable = inject<Ref<boolean>>('rendererAvailable', ref(true));
 const rendererHost = ref<HTMLElement | null>(null);
 defineExpose({ rendererHost });
 
+// Task 8: CityView provides this so "Select a codebase" runs the SAME startScan()
+// method the scan-codebase command does -- there is no second, independent trigger for
+// the consent chain. Defaults to a no-op so this component still renders standalone
+// (e.g. under a future component test) without a CityView above it.
+const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
+
 // Spec 5.2 microcopy, verbatim. COPY-20 ("Unused candidate") and the dropped S01
 // "Analysis reports can be added later" string must never appear here.
 const COPY_01 = 'Understand your codebase. Start with its structure.';
@@ -43,6 +49,7 @@ const COPY_14 = 'The 3D view is unavailable. File inspection still works.';
     <button
       type="button"
       class="ci-welcome__action"
+      @click="onSelectCodebase"
     >
       {{ COPY_02 }}
     </button>

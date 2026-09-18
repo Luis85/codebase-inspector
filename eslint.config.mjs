@@ -93,7 +93,12 @@ export default tseslint.config(
   // on `this` binding; @typescript-eslint/unbound-method only flags it here because
   // the double's type intersects with the real Obsidian Plugin class, whose same-named
   // members ARE real methods.
-  { files: ['tests/host/plugin-onload.test.ts', 'tests/host/city-view.test.ts'], rules: {
+  // tests/unit/scan-coordinator.test.ts's spyPort() is the identical pattern: a
+  // hand-rolled SourceFileSystemPort double whose methods are plain vi.fn()
+  // properties, flagged only because the double's type is the real port interface.
+  { files: [
+    'tests/host/plugin-onload.test.ts', 'tests/host/city-view.test.ts', 'tests/unit/scan-coordinator.test.ts',
+  ], rules: {
     '@typescript-eslint/unbound-method': 'off',
   } },
 
