@@ -65,9 +65,6 @@ export interface ScanCoordinatorDeps {
   store: SnapshotStore;
   clock: Clock;
   createCancellationToken: () => { token: CancellationToken; cancel: () => void };
-  /** Defaults to the real collectInventory. Overridable only so a test can substitute a
-   *  faster or differently-shaped collection step; production never sets this. */
-  collect?: typeof collectInventory;
 }
 
 export class ScanCoordinator {
@@ -80,7 +77,10 @@ export class ScanCoordinator {
    *  coordinator an already-built (possibly invalid) CodebaseSnapshot without waiting on
    *  real I/O -- this is what exercises the COORDINATOR's own validate-before-publish
    *  step (obligation 4) in isolation from collectInventory's own internal validation.
-   *  Never set in production. */
+   *  Never set in production. Fix round 1, Minor 4: this is deliberately the ONLY
+   *  test-only override this class exposes -- a separate `ScanCoordinatorDeps.collect`
+   *  existed alongside this in the original round, unused by any caller in `src/` or
+   *  `tests/`, and was removed rather than kept as a second, redundant seam. */
   onProduce: (() => Promise<CodebaseSnapshot> | CodebaseSnapshot) | undefined;
 
   constructor(private readonly deps: ScanCoordinatorDeps) {}
@@ -152,8 +152,9 @@ export class ScanCoordinator {
       // Obligation 3: drives collectInventory with a CancellationToken, through a port
       // wrapper that turns each file read into a plain-count PROGRESS notification.
       const trackedPort = this.progressTrackingPort(runId);
-      const collect = this.deps.collect ?? collectInventory;
-      const raw = this.onProduce ? await this.onProduce() : await collect(trackedPort, scope, approval, token, this.deps.clock);
+      const raw = this.onProduce
+        ? await this.onProduce()
+        : await collectInventory(trackedPort, scope, approval, token, this.deps.clock);
 
       if (this.wasCancelled(runId)) { this.finishCancelled(runId); return; }
 
@@ -167,6 +168,22 @@ export class ScanCoordinator {
         scopeFingerprint: approval.scopeFingerprint, runId, generation,
       };
       const currentIdentity = identityOf(this.lifecycle);
+      // Fix round 1, Minor 7: within ONE ScanCoordinator instance this check cannot
+      // actually fail today. SCAN_STARTED no-ops while running/cancelling (run-state.ts),
+      // and COLLECTOR_STOPPED/SCAN_COMPLETED/SCAN_FAILED are dispatched only by the
+      // `start()` call that owns `runId` -- so by the time execution reaches this line,
+      // `this.lifecycle.run` is always this exact run, with this exact identity. The
+      // full five-component tuple IS genuinely enforced (spec 7) -- but at the REDUCER
+      // level (see run-state.test.ts's "never lets an OLD run overwrite a NEWER run"),
+      // not because this particular call site is reachable with a mismatch. A future
+      // design where more than one coordinator (or one shared per-plugin coordinator
+      // across several leaves, task 11's territory) can race for the SAME profile is
+      // exactly where this stops being redundant -- do not read its current
+      // unreachability as evidence the check is unnecessary. The same applies to
+      // `identityOf`'s own throw (run-state.ts): unreachable today for the identical
+      // reason, and if it ever DID throw here, the outer catch maps it to SCAN_FAILED,
+      // which the reducer no-ops for a run no longer 'running' -- leaving that run stuck
+      // rather than recovering. Worth revisiting the moment either becomes reachable.
       if (!mayPublish(resultIdentity, currentIdentity, this.lifecycle.run)) {
         // Refused by identity -- a newer run superseded this one, or the profile/scope
         // changed underneath it. Discard silently; the state machine already reflects

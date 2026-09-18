@@ -79,6 +79,12 @@ export class CityView extends ItemView {
   private unsubscribeCoordinator: (() => void) | null = null;
   private state: CityViewState = defaultCityViewState();
   private progressNotice: Notice | null = null;
+  // Fix round 1, Minor 6: `coordinator.state.status` alone does not guard the WHOLE of
+  // startScan() -- it stays 'idle' until AFTER both consent modals resolve, so two fast
+  // clicks (or two scan-codebase invocations) both pass that check, both resolve/create
+  // a profile, and both open a modal. This flag closes the gap for the async method
+  // itself, independent of the coordinator's own state.
+  private startingScan = false;
   private layoutGeneration = 0;
   private layoutAbort: AbortController | null = null;
   // Owned here, injected into App.vue, so a resize-driven availability change never
@@ -103,18 +109,24 @@ export class CityView extends ItemView {
    *  welcome shell's "Select a codebase" button both call this one method. A no-op
    *  while a run is already in flight, never throws. */
   async startScan(): Promise<void> {
+    if (this.startingScan) return;
     if (this.coordinator.state.status === 'running' || this.coordinator.state.status === 'cancelling') return;
-    const profile = await resolveOrCreateProfile(this.deps.profileStore, this.state.profileId);
-    if (this.state.snapshotId) {
-      const existing = this.deps.snapshotStore.get(this.state.snapshotId);
-      if (existing) {
-        await runRefresh(this.coordinator, profile, existing.scope, this.deps.clock);
-        return;
+    this.startingScan = true;
+    try {
+      const profile = await resolveOrCreateProfile(this.deps.profileStore, this.state.profileId);
+      if (this.state.snapshotId) {
+        const existing = this.deps.snapshotStore.get(this.state.snapshotId);
+        if (existing) {
+          await runRefresh(this.coordinator, profile, existing.scope, this.deps.clock);
+          return;
+        }
+        // The in-memory store no longer has this id (e.g. the plugin reloaded) --
+        // fall through to a full consent chain rather than "refreshing" against nothing.
       }
-      // The in-memory store no longer has this id (e.g. the plugin reloaded) --
-      // fall through to a full consent chain rather than "refreshing" against nothing.
+      await runInitialScan(this.plugin.app, this.coordinator, profile, this.deps.getFilesystem());
+    } finally {
+      this.startingScan = false;
     }
-    await runInitialScan(this.plugin.app, this.coordinator, profile, this.deps.getFilesystem());
   }
 
   /** `cancel-scan`'s callback body. Its checkCallback (commands.ts) already refuses to
@@ -168,6 +180,13 @@ export class CityView extends ItemView {
   }
 
   override async onClose(): Promise<void> {
+    // Fix round 1, Important 2: closing the tab mid-scan must not leave an unstoppable
+    // walk running with no UI and no way to reach it (cancel-scan's checkCallback needs
+    // an active CityView, which is gone the instant this runs). The result is discarded
+    // either way once mayPublish sees a run this coordinator no longer tracks as
+    // running, but that discarding-after-the-fact is not the same as actually STOPPING
+    // the disk I/O, which real cancellation does.
+    if (this.coordinator.state.status === 'running') this.coordinator.cancel(this.coordinator.state.runId);
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     if (this.cssChangeRef) {
@@ -227,11 +246,12 @@ export class CityView extends ItemView {
       return;
     }
     if (run.status === 'cancelled') {
-      this.showNotice(this.cancelledNoticeText(lifecycle));
+      this.showNotice(`${CANCELLED_BANNER}${this.retainedSnapshotSuffix(lifecycle)}`);
       return;
     }
     if (run.status === 'failed') {
-      this.showNotice(lifecycle.banner ?? 'Scan failed.');
+      const base = lifecycle.banner ?? 'Scan failed.';
+      this.showNotice(`${base}${this.retainedSnapshotSuffix(lifecycle)}`);
     }
   }
 
@@ -243,13 +263,25 @@ export class CityView extends ItemView {
     void notice;
   }
 
-  /** COPY-10, verbatim, when a previous snapshot is retained; the base sentence alone
-   *  when there is none (a cancelled FIRST scan has no "your complete snapshot" to name). */
-  private cancelledNoticeText(lifecycle: ScanLifecycleState): string {
-    const previous = lifecycle.publishedSnapshotId ? this.deps.snapshotStore.get(lifecycle.publishedSnapshotId) : null;
-    if (!previous) return CANCELLED_BANNER;
+  /** The "Your complete snapshot from {time} is unchanged" half of COPY-10, or '' when
+   *  there is no retained snapshot to name (a cancelled/failed FIRST scan).
+   *
+   *  Fix round 1, Important 1: `lifecycle.publishedSnapshotId` is the COORDINATOR's own
+   *  record, set only by a SCAN_COMPLETED this exact coordinator instance dispatched.
+   *  `ScanCoordinator` is per-CityView (Fact F), so after a view is closed and
+   *  re-created (or popped out) with a snapshot already restored via setState, a fresh
+   *  coordinator's `publishedSnapshotId` is null even though the shared, in-memory
+   *  SnapshotStore still holds — and this view is still SHOWING — a complete snapshot.
+   *  Falling back to `this.state.snapshotId` (this view's own persisted identifier,
+   *  restored by setState/onOpen regardless of which coordinator instance produced it)
+   *  is what keeps this sentence appearing after that re-creation, which is exactly the
+   *  checkpoint #2 line this covers. */
+  private retainedSnapshotSuffix(lifecycle: ScanLifecycleState): string {
+    const snapshotId = lifecycle.publishedSnapshotId ?? this.state.snapshotId;
+    const previous = snapshotId ? this.deps.snapshotStore.get(snapshotId) : null;
+    if (!previous) return '';
     const time = new Date(previous.providerRun.capturedAt).toLocaleTimeString();
-    return `${CANCELLED_BANNER} Your complete snapshot from ${time} is unchanged.`;
+    return ` Your complete snapshot from ${time} is unchanged.`;
   }
 
   /** Obligation 7 (task-8 brief step 4): recomputes layout from the published snapshot
@@ -262,11 +294,20 @@ export class CityView extends ItemView {
    *  more once a run reaches 'complete' (spec 4.1's frozen union drops it there). */
   private async publishLayout(snapshot: CodebaseSnapshot): Promise<void> {
     if (!this.renderer) return;
-    const layout = computeLayout(snapshot);
-    this.layoutAbort?.abort();
-    this.layoutAbort = new AbortController();
-    this.layoutGeneration += 1;
-    await this.renderer.setLayout(layout, { generation: this.layoutGeneration, signal: this.layoutAbort.signal });
+    // Fix round 1, Minor 8: this runs from `void this.publishLayout(...)` at every call
+    // site, so an uncaught throw here would be an unhandled promise rejection, not a
+    // catchable error anywhere. `setLayout` itself never rejects (spec 4.2), but
+    // `computeLayout` is a plain function with no such contract -- catch it here, once,
+    // rather than requiring every current and future call site to remember `.catch()`.
+    try {
+      const layout = computeLayout(snapshot);
+      this.layoutAbort?.abort();
+      this.layoutAbort = new AbortController();
+      this.layoutGeneration += 1;
+      await this.renderer.setLayout(layout, { generation: this.layoutGeneration, signal: this.layoutAbort.signal });
+    } catch {
+      this.showNotice('The city could not be rendered from the latest scan.');
+    }
   }
 
   private applyWidth(): void {

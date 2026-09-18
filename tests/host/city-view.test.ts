@@ -7,11 +7,34 @@ import { CityView, CITY_VIEW_TYPE } from '../../src/host/city-view';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
-import type { CameraBookmark } from '../../src/domain/model';
+import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { defaultCityViewState } from '../../src/host/view-state';
+import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
 import type { CodebaseProfile } from '../../src/domain/model';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
+
+const FAKE_ROOT_SCOPE = { rootPath: '/fake-root', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false as const };
+
+/** A publishable snapshot whose scope's rootPath matches createFakeSourceFileSystem's
+ *  fixed '/fake-root', so a refresh driven against it can genuinely reach 'running'
+ *  rather than failing the coordinator's own root-existence check immediately. */
+function publishedSnapshot(overrides: Partial<CodebaseSnapshot> = {}): CodebaseSnapshot {
+  return {
+    ...buildSnapshotFixture({ files: 1, repositoryId: 'p1' }),
+    snapshotId: 's1',
+    scope: FAKE_ROOT_SCOPE,
+    ...overrides,
+  };
+}
+
+/** Polls (via microtask ticks only -- no real timer) until the view's coordinator is
+ *  actually running, so a test can reliably cancel/close mid-scan without racing a
+ *  fast, effectively-synchronous fake filesystem. */
+async function waitUntilRunning(view: CityView): Promise<void> {
+  for (let i = 0; i < 50 && !view.isScanRunning(); i += 1) await Promise.resolve();
+}
 
 const DUMMY_CAMERA: CameraBookmark = {
   projection: 'orthographic', mode: '3d',
@@ -226,5 +249,80 @@ describe('CityView', () => {
     expect(view.isScanRunning()).toBe(false);
     // cancelScan() on an idle view is a documented no-op, never a throw.
     expect(() => { view.cancelScan(); }).not.toThrow();
+  });
+
+  it('shows the FULL COPY-10 retention sentence after a cancelled refresh, even on a ' +
+     'FRESH coordinator restored via setState (fix round 1, Important 1)', async () => {
+    // The scenario the finding names exactly: a snapshot was published by SOME
+    // coordinator (possibly a now-gone one, e.g. a closed/re-created/popped-out view),
+    // the shared SnapshotStore still holds it, and THIS view only knows about it
+    // because setState restored the id. This view's OWN coordinator has never
+    // completed anything -- lifecycle.publishedSnapshotId is null on it from the start.
+    const snapshotStore = new InMemorySnapshotStore(createFixedClock());
+    snapshotStore.put(publishedSnapshot());
+    const { port } = createFakeSourceFileSystem({ 'a.ts': 'x', 'b.ts': 'y', 'c.ts': 'z' });
+    const profileStore = makeProfileStoreDouble([
+      { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 },
+    ]);
+    const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock() };
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
+    await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1' }, {} as never);
+    await view.onOpen();
+
+    const runPromise = view.startScan();   // refresh path: state.snapshotId is already 's1'
+    await waitUntilRunning(view);
+    expect(view.isScanRunning()).toBe(true);
+    view.cancelScan();
+    await runPromise;
+
+    const notices = [...document.querySelectorAll('.notice')].map((n) => n.textContent ?? '');
+    const cancelNotice = notices.find((t) => t.includes('Scan cancelled. The incomplete result was discarded.'));
+    expect(cancelNotice).toBeDefined();
+    expect(cancelNotice).toContain('Your complete snapshot from');
+    expect(cancelNotice).toContain('is unchanged.');
+  });
+
+  it('cancels an in-flight scan when the view is closed (fix round 1, Important 2)', async () => {
+    const snapshotStore = new InMemorySnapshotStore(createFixedClock());
+    snapshotStore.put(publishedSnapshot());
+    const { port } = createFakeSourceFileSystem({ 'a.ts': 'x', 'b.ts': 'y', 'c.ts': 'z' });
+    const profileStore = makeProfileStoreDouble([
+      { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 },
+    ]);
+    const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock() };
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
+    await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1' }, {} as never);
+    await view.onOpen();
+
+    const runPromise = view.startScan();
+    await waitUntilRunning(view);
+    expect(view.isScanRunning()).toBe(true);
+
+    await view.onClose();
+    await runPromise;
+
+    // If onClose had not cancelled it, this fast in-memory "walk" would simply run to
+    // completion unobserved and publish a NEW snapshot id -- the retained id changing
+    // is exactly what a genuinely-stopped (rather than merely ignored) scan prevents.
+    expect(snapshotStore.latestFor('p1')?.snapshotId).toBe('s1');
+  });
+
+  it('does not create two profiles from two overlapping startScan() calls (fix round 1, Minor 6)', async () => {
+    const profileStore = makeProfileStoreDouble();   // empty: forces resolveOrCreateProfile to CREATE one
+    const deps = makeDepsDouble({ profileStore });
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
+    await view.onOpen();
+
+    const p1 = view.startScan();
+    const p2 = view.startScan();
+    // Let both calls run far enough to reach (or be turned away from)
+    // resolveOrCreateProfile, well before either modal could resolve on its own.
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(profileStore.save).toHaveBeenCalledTimes(1);
+
+    // Clean up: cancel whichever modal the surviving call opened, so both promises settle.
+    document.querySelector('.modal-container')?.querySelector<HTMLButtonElement>('[data-action="cancel"]')?.click();
+    await Promise.all([p1, p2]);
+    document.querySelectorAll('.modal-container').forEach((el) => { el.remove(); });
   });
 });

@@ -14,14 +14,20 @@ import type { AnalysisScope, ApprovedInventoryRun, CodebaseSnapshot } from '../.
 import type { SourceFileSystemPort } from '../../src/application/ports/source-filesystem-port';
 import type { ScanLifecycleState } from '../../src/application/run-state';
 
-function spyPort(): SourceFileSystemPort {
-  return {
-    walk: vi.fn(async function* () { /* never reached when a pre-flight guard refuses first */ }),
-    readText: vi.fn(async () => ({ status: 'ok' as const, text: '', bytes: new Uint8Array() })),
-    stat: vi.fn(async () => (
-      { exists: true, isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 })),
-    readLog: vi.fn(() => []),
-  };
+/** Fix round 1, Minor 5: the spies are hoisted to plain consts and assigned into the
+ *  port via shorthand properties, so a caller asserts against the CONST
+ *  (`expect(walk)...`), never a member expression (`expect(port.walk)...`) off a value
+ *  typed as the real `SourceFileSystemPort` interface -- the exact pattern that used to
+ *  need `@typescript-eslint/unbound-method` turned off for this file. No behaviour
+ *  change from the previous version. */
+function spyPort() {
+  const walk = vi.fn(async function* () { /* never reached when a pre-flight guard refuses first */ });
+  const readText = vi.fn(async () => ({ status: 'ok' as const, text: '', bytes: new Uint8Array() }));
+  const stat = vi.fn(async () => (
+    { exists: true, isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 }));
+  const readLog = vi.fn((): string[] => []);
+  const port: SourceFileSystemPort = { walk, readText, stat, readLog };
+  return { port, walk, stat, readLog };
 }
 
 const clock = createFixedClock();
@@ -36,25 +42,25 @@ describe('ScanCoordinator', () => {
   });
 
   it('VALIDATES APPROVAL BEFORE ANY FILESYSTEM ACCESS', async () => {
-    const port = spyPort();
+    const { port, walk, stat, readLog } = spyPort();
     const store = new InMemorySnapshotStore(clock);
     const coordinator = new ScanCoordinator({ port, store, clock, createCancellationToken });
     const staleApproval = approve('p', '/fake-root', scope, clock);
     const changedScope: AnalysisScope = { ...scope, rootPath: '/a-completely-different-root' };
 
     await expect(coordinator.start(staleApproval, changedScope)).rejects.toThrow(/approval/i);
-    expect(port.walk).not.toHaveBeenCalled();
-    expect(port.stat).not.toHaveBeenCalled();
-    expect(port.readLog()).toEqual([]);
+    expect(walk).not.toHaveBeenCalled();
+    expect(stat).not.toHaveBeenCalled();
+    expect(readLog()).toEqual([]);
   });
 
   it('refuses to start with no approval at all', async () => {
-    const port = spyPort();
+    const { port, walk } = spyPort();
     const store = new InMemorySnapshotStore(clock);
     const coordinator = new ScanCoordinator({ port, store, clock, createCancellationToken });
 
     await expect(coordinator.start(null, scope)).rejects.toThrow(/approval/i);
-    expect(port.walk).not.toHaveBeenCalled();
+    expect(walk).not.toHaveBeenCalled();
   });
 
   it('validates the produced snapshot BEFORE publishing it', async () => {
@@ -152,8 +158,41 @@ describe('ScanCoordinator', () => {
     expect(coordinator.state.status).toBe('cancelled');
   });
 
+  it('cancels through the REAL production token while files are being read, not via ' +
+     'onProduce and not synchronously at SCAN_STARTED', async () => {
+    // Fix round 1, Important 3: the only two cancellation tests before this one either
+    // cancelled synchronously inside the SCAN_STARTED notification (before the token
+    // even exists -- the re-entrancy catch-up path) or stubbed collectInventory away
+    // entirely via onProduce (so the token was never consulted at all). This is the
+    // "user presses Cancel while files are being read" path: real collectInventory,
+    // real createCancellationToken, cancelled from a PROGRESS tick well after the first
+    // file was read.
+    const { port } = createFakeSourceFileSystem({
+      'a.ts': 'one\n', 'b.ts': 'two\n', 'c.ts': 'three\n', 'd.ts': 'four\n', 'e.ts': 'five\n',
+    });
+    const store = new InMemorySnapshotStore(clock);
+    const previous: CodebaseSnapshot = { ...buildSnapshotFixture({ files: 1, repositoryId: 'p' }), snapshotId: 'previous' };
+    store.put(previous);
+    const coordinator = new ScanCoordinator({ port, store, clock, createCancellationToken });
+
+    let cancelled = false;
+    coordinator.subscribe((s) => {
+      if (!cancelled && s.run.status === 'running' && s.run.processedFiles >= 2) {
+        cancelled = true;
+        coordinator.cancel(s.run.runId);
+      }
+    });
+
+    await coordinator.start(approval, scope);
+
+    expect(coordinator.state.status).toBe('cancelled');
+    const retained = store.latestFor('p');
+    expect(retained?.snapshotId).toBe('previous');
+    expect(retained?.providerRun.capturedAt).toBe(previous.providerRun.capturedAt);
+  });
+
   it('never starts a scan because a view became visible', () => {
-    const port = spyPort();
+    const { port, walk } = spyPort();
     const store = new InMemorySnapshotStore(clock);
     const coordinator = new ScanCoordinator({ port, store, clock, createCancellationToken });
     // pause/resume invariant (spec 4.2): visibility never authorises a scan. A
@@ -163,6 +202,6 @@ describe('ScanCoordinator', () => {
     const view = { onResume: (): void => { /* a real resume hook touches the renderer only */ } };
     view.onResume();
     expect(coordinator.state.status).toBe('idle');
-    expect(port.walk).not.toHaveBeenCalled();
+    expect(walk).not.toHaveBeenCalled();
   });
 });
