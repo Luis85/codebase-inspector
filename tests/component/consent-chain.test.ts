@@ -10,6 +10,7 @@ import { FileSystemAdapter } from '../mocks/obsidian';
 import type { App } from 'obsidian';
 import { openSourceModal } from '../../src/host/modals/source-modal';
 import { openScopeModal } from '../../src/host/modals/scope-modal';
+import type { ScopeApproval, ScopeSubject } from '../../src/host/modals/scope-modal';
 import { runInitialScan, runRefresh } from '../../src/host/scan-flow';
 import { ScanCoordinator, createCancellationToken } from '../../src/application/scan-coordinator';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
@@ -17,6 +18,27 @@ import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
 import type { AnalysisScope, CodebaseProfile } from '../../src/domain/model';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
+
+/** Fix wave item 8 (I7): an OBSERVER, not a substitute. It delegates to the real
+ *  `openScopeModal` -- the real modal still opens, renders and settles, so every test in
+ *  this file drives the genuine consent chain -- and only records what that function
+ *  returned. It exists because the "scans with EXACTLY the approved scope" test below
+ *  needs the identity of the AnalysisScope object the modal minted, and nothing else in
+ *  the chain hands that object back: `runInitialScan` returns void by design (CityView
+ *  learns the result from the coordinator's own notification, not from a return value). */
+const observed = vi.hoisted(() => ({ lastScopeApproval: null as ScopeApproval | null }));
+
+vi.mock('../../src/host/modals/scope-modal', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/host/modals/scope-modal')>();
+  return {
+    ...actual,
+    openScopeModal: async (app: App, subject: ScopeSubject): Promise<ScopeApproval | null> => {
+      const result = await actual.openScopeModal(app, subject);
+      observed.lastScopeApproval = result;
+      return result;
+    },
+  };
+});
 
 function makeProfile(overrides: Partial<CodebaseProfile> = {}): CodebaseProfile {
   return { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: ['.git'], maxFileBytes: 1_000_000, ...overrides };
@@ -200,6 +222,20 @@ describe('runInitialScan persists the approved scope to the profile (ruling M53)
 
     expect(start).toHaveBeenCalledTimes(1);
     const [, scannedScope] = start.mock.calls[0]!;
+    // Fix wave item 8 (I7, Important). This assertion used to read
+    // `expect(scannedScope.exclusions).toEqual(['.git', 'node_modules'])`, which CANNOT
+    // FAIL: the store was written with those same values one line earlier and `toEqual`
+    // is deep equality, so a `coordinator.start` fed from a re-read of the profile is
+    // indistinguishable from one fed the approved scope. The reviewer proved it by
+    // rewriting scan-flow.ts to do exactly what this test's NAME forbids, and both
+    // suites stayed green.
+    //
+    // Object identity is what the name actually claims. It is the SAME AnalysisScope
+    // object the scope modal minted its approval over, not a copy carrying the same
+    // values -- and any re-derivation, whether from the store or from `profile`, has to
+    // build a new object to do it. The value check stays as well, so a failure says
+    // which property broke.
+    expect(scannedScope).toBe(observed.lastScopeApproval!.scope);
     expect(scannedScope.exclusions).toEqual(['.git', 'node_modules']);
   });
 
@@ -346,6 +382,11 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
 
     expect(start).toHaveBeenCalledTimes(1);
     const [, scanned] = start.mock.calls[0]!;
+    // Item 8's property, on the path item 4 added: the M57 branch scans EXACTLY the
+    // object the user just approved, never a copy rebuilt from the profile it was
+    // prefilled from. Both branches go through one persistThenScan, so this and the
+    // first-scan identity assertion cannot drift apart.
+    expect(scanned).toBe(observed.lastScopeApproval!.scope);
     expect(scanned.rootPath).toBe('/fake-root');
     expect(scanned.exclusions).toEqual(['.git', 'node_modules']);
     expect(scanned.maxFileBytes).toBe(2_000_000);
