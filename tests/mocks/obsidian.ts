@@ -412,13 +412,14 @@ installMatchMediaStub();
 // measures its OWN nested stage element, not `contentEl` (stubbed per-instance
 // above, no longer reached) -- a generous 1000x700 default avoids racing a POST-HOC
 // per-element override against construction's own microtask timing (hit empirically
-// in city-view-store-wiring.test.ts). A narrow-stage test overrides this prototype
-// method with `vi.spyOn` instead.
+// in city-view-store-wiring.test.ts). A narrow-stage test uses `vi.spyOn` instead.
 function installBoundingRectDefault(): void {
   if (typeof Element === 'undefined') return;
   const proto = Element.prototype as unknown as { ciRectStub?: boolean };
   if (proto.ciRectStub) return;
-  proto.ciRectStub = true;
+  // Fix round 3, item 4 (fold): non-enumerable, unlike a plain assignment --
+  // this guard flag must not show up in a `for...in` over any element.
+  Object.defineProperty(proto, 'ciRectStub', { value: true, enumerable: false });
   Element.prototype.getBoundingClientRect = () => ({ width: 1000, height: 700, top: 0, left: 0, right: 1000, bottom: 700, x: 0, y: 0, toJSON: () => ({}) });
 }
 installBoundingRectDefault();

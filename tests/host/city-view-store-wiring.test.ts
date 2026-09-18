@@ -47,10 +47,12 @@ const DUMMY_CAMERA: CameraBookmark = {
 // `setSelection` its OWN plain-`vi.fn()` identity up front rather than accessing it
 // back off `inertPort` afterwards.
 const setSelectionSpy = vi.fn();
+// Same reason, same pattern -- see setSelectionSpy's own comment.
+const setColorsSpy = vi.fn();
 
 const inertPort: CityRendererPort = {
   setLayout: vi.fn(async () => {}),
-  setColors: vi.fn(),
+  setColors: setColorsSpy,
   setSelection: setSelectionSpy,
   setFilter: vi.fn(),
   setLabels: vi.fn(),
@@ -160,6 +162,7 @@ describe('CityView store wiring (task 9 fix round 1, item 1)', () => {
   beforeEach(() => {
     vi.mocked(createRendererSpy).mockClear();
     setSelectionSpy.mockClear();
+    setColorsSpy.mockClear();
   });
 
   // Task 9 fix round 2, item 1 (Important, ruling M68): before this fix,
@@ -183,6 +186,41 @@ describe('CityView store wiring (task 9 fix round 1, item 1)', () => {
     stubStageRect(view, 1000);
     await nextTick();   // CityViewport's own construction is deferred one microtask
     expect(createRendererSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // Task 9 fix round 3, item 4 (fold): round 2 replaced ensureRenderer's direct
+  // setColors(readPalette(...)) call with a watch() installed after mount() --
+  // only correct because CityViewport defers construction by a microtask, and
+  // nothing in the suite asserted setColors was ever called on any path at all,
+  // so this load-bearing ordering was completely unguarded.
+  it('calls setColors on first renderer construction', async () => {
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
+    await view.onOpen();
+    stubStageRect(view, 1000);
+    await nextTick();
+    await nextTick();   // the watch() callback's own flush, one tick after construction
+    expect(setColorsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // Spec 4.4 requires re-reading every cached colour on workspace.on('css-change');
+  // spec 4.2 requires setColors to supply "every colour the scene draws; re-supplied
+  // on css-change" -- also previously unguarded.
+  it('calls setColors again on a css-change event', async () => {
+    const plugin = makePluginDouble();
+    const view = new CityView(makeLeafDouble() as never, plugin as never, makeDepsDouble());
+    await view.onOpen();
+    stubStageRect(view, 1000);
+    await nextTick();
+    await nextTick();   // the watch() callback's own flush, one tick after construction
+    expect(setColorsSpy).toHaveBeenCalledTimes(1);
+    // Reads the callback back off the double's own recorded call, rather than
+    // intercepting it via a custom mockImplementation -- `workspace.on`'s
+    // generic double type (shared with every other event this file registers)
+    // otherwise fights TypeScript's inference for no real benefit here.
+    const call = vi.mocked(plugin.app.workspace.on!).mock.calls.find(([event]) => event === 'css-change');
+    const cssChangeCb = call![1]! as () => void;
+    cssChangeCb();
+    expect(setColorsSpy).toHaveBeenCalledTimes(2);
   });
 
   it('a row activation reaches the REAL port\'s setSelection, not a component-level stand-in', async () => {
