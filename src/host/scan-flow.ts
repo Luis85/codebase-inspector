@@ -66,10 +66,22 @@ async function migrateEmptyExclusions(
   profileStore: ProfileStore, profile: CodebaseProfile, vaultConfigDir: string,
 ): Promise<CodebaseProfile> {
   if (profile.exclusions.length > 0) return profile;
-  await profileStore.update(profile.profileId, (current) => (
-    current.exclusions.length > 0 ? current : { ...current, exclusions: defaultExclusionsFor(vaultConfigDir) }
-  ));
-  return { ...profile, exclusions: defaultExclusionsFor(vaultConfigDir) };
+  // M10 (fix wave item 1): this used to return
+  // `{ ...profile, exclusions: defaultExclusionsFor(...) }` UNCONDITIONALLY -- but
+  // `ProfileStore.update` "does nothing if `id` does not exist", so the value the caller
+  // went on to scan with, and to prefill the consent screen from, could claim a
+  // migration that was never persisted. Ruling M44's whole point is that the PERSISTED
+  // value is the one that matters, so the value `mutate` actually wrote is captured and
+  // returned; if `mutate` never ran, nothing was persisted and the caller sees the
+  // unchanged profile rather than a fiction.
+  let persisted: CodebaseProfile | null = null;
+  await profileStore.update(profile.profileId, (current) => {
+    const next = current.exclusions.length > 0
+      ? current : { ...current, exclusions: defaultExclusionsFor(vaultConfigDir) };
+    persisted = next;
+    return next;
+  });
+  return persisted ?? profile;
 }
 
 /** Resolves the profile a scan/refresh from THIS view should operate on: the profile

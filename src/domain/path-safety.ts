@@ -24,6 +24,23 @@ export function normalizeRelativePath(value: string): string {
   return path;
 }
 
+/** One EXCLUSION line, which is a relative path and nothing more (fix wave item 1, M1).
+ *
+ *  Deliberately stricter than `normalizeRelativePath` alone, and deliberately NOT folded
+ *  into it: an entity path in a snapshot legitimately describes a real file, and a real
+ *  file may be named `a*.ts` on a POSIX filesystem. An EXCLUSION, by contrast, is matched
+ *  by `walker.ts`'s `isExcluded`, which does exact segment/prefix comparison and has no
+ *  glob support whatsoever — so a `*` or `?` here is silently inert: accepted, persisted,
+ *  redisplayed on the consent screen as an approved exclusion, and excluding nothing.
+ *  Spec §1 forbids a rendered control for unimplemented behaviour; refusing the input is
+ *  the honest answer until a walker exists that can honour it. */
+export function normalizeExclusion(value: string): string {
+  if (typeof value === 'string' && /[*?]/.test(value)) {
+    throw new Error('An exclusion is a plain relative path: * and ? are not supported.');
+  }
+  return normalizeRelativePath(value);
+}
+
 /** Resolves a Windows or POSIX path string into its normalised segments, dropping
  *  empty and `.` segments and flagging a `..` that would escape above the root. */
 function segments(p: string): string[] {

@@ -310,6 +310,22 @@ describe('CityView', () => {
     });
   });
 
+  // Fix wave item 1 (C1, Critical), layer 2: withScanGuard had try/finally with NO
+  // catch, and both entry points are `void view.startScan()` -- so ANY rejection from
+  // the consent chain or from resolveOrCreateProfile (PluginDataProfileStore.list()
+  // validates every record and throws on the first bad one) vanished into an unhandled
+  // promise rejection. Spec 7: never dropped silently.
+  it('surfaces a scan-start failure as a Notice instead of an unhandled rejection', async () => {
+    const profileStore = makeProfileStoreDouble();
+    profileStore.list = vi.fn(() => Promise.reject(new Error('one hand-edited profile is invalid')));
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble({ profileStore }));
+    await view.onOpen();
+
+    await expect(view.startScan()).resolves.toBeUndefined();
+    const notices = [...document.querySelectorAll('.notice')].map((n) => n.textContent ?? '');
+    expect(notices.some((t) => t.includes('one hand-edited profile is invalid'))).toBe(true);
+  });
+
   it('isScanRunning() reflects the coordinator, not a separate flag', () => {
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
     expect(view.isScanRunning()).toBe(false);

@@ -202,6 +202,83 @@ describe('scope modal (C04)', () => {
     cancelButton().click();
   });
 
+  // --- Fix wave item 1 (C1, Critical) ------------------------------------------------
+  // `./dist` and `dist/` are the two most natural ways to type a directory exclusion and
+  // BOTH are rejected by validateCodebaseProfile. Before this fix the modal accepted
+  // them, the approval carried them, and runInitialScan's profileStore.update threw into
+  // a seam with no catch anywhere: the user ticked approve, clicked Scan codebase, and
+  // nothing happened at all. Spec 7: "Validation failures surface as visible warnings
+  // carrying their reason. Never dropped silently."
+  function errorText(): string {
+    return modalRoot().querySelector('[role="alert"]')?.textContent ?? '';
+  }
+
+  it('shows the validator’s own reason for an invalid exclusion, and keeps Scan disabled', () => {
+    void openScopeModal(app, makeSelection());
+    const exclusions = modalRoot().querySelector<HTMLTextAreaElement>('[data-field="exclusions"]')!;
+    exclusions.value = './dist';
+    exclusions.dispatchEvent(new Event('input'));
+
+    expect(errorText()).toMatch(/no empty segments and no \. or \.\. segments/);
+    expect(errorText()).toContain('./dist');
+    // Ticking the acknowledgement must NOT re-enable Scan while the scope is invalid.
+    check(checkbox());
+    expect(scanButton().disabled).toBe(true);
+    cancelButton().click();
+  });
+
+  it('rejects a trailing-slash exclusion too, the other natural spelling', () => {
+    void openScopeModal(app, makeSelection());
+    const exclusions = modalRoot().querySelector<HTMLTextAreaElement>('[data-field="exclusions"]')!;
+    exclusions.value = 'dist/';
+    exclusions.dispatchEvent(new Event('input'));
+    expect(errorText().length).toBeGreaterThan(0);
+    check(checkbox());
+    expect(scanButton().disabled).toBe(true);
+    cancelButton().click();
+  });
+
+  // M1: a glob is accepted by nothing that can honour it (walker.ts:66-79 does exact
+  // segment/prefix matching), so it must be refused with a visible reason here too.
+  it('rejects a glob exclusion with a visible reason (M1)', () => {
+    void openScopeModal(app, makeSelection());
+    const exclusions = modalRoot().querySelector<HTMLTextAreaElement>('[data-field="exclusions"]')!;
+    exclusions.value = '*.log';
+    exclusions.dispatchEvent(new Event('input'));
+    expect(errorText()).toMatch(/\* and \? are not supported/);
+    check(checkbox());
+    expect(scanButton().disabled).toBe(true);
+    cancelButton().click();
+  });
+
+  it('rejects a cleared or non-numeric size limit with a visible reason', () => {
+    for (const typed of ['', '0', 'abc', '-1']) {
+      void openScopeModal(app, makeSelection());
+      const maxBytes = modalRoot().querySelector<HTMLInputElement>('[data-field="max-file-bytes"]')!;
+      maxBytes.value = typed;
+      maxBytes.dispatchEvent(new Event('input'));
+      expect(errorText(), typed).toMatch(/maxFileBytes must be a positive integer/);
+      check(checkbox());
+      expect(scanButton().disabled, typed).toBe(true);
+      cancelButton().click();
+    }
+  });
+
+  it('clears the reason and re-allows Scan once the scope is valid again', () => {
+    void openScopeModal(app, makeSelection());
+    const exclusions = modalRoot().querySelector<HTMLTextAreaElement>('[data-field="exclusions"]')!;
+    exclusions.value = './dist';
+    exclusions.dispatchEvent(new Event('input'));
+    expect(errorText().length).toBeGreaterThan(0);
+
+    exclusions.value = 'dist';
+    exclusions.dispatchEvent(new Event('input'));
+    expect(errorText()).toBe('');
+    check(checkbox());
+    expect(scanButton().disabled).toBe(false);
+    cancelButton().click();
+  });
+
   it('returns focus to the control that opened it when dismissed', async () => {
     const openerEl = opener();
     const promise = openScopeModal(app, makeSelection());

@@ -33,6 +33,7 @@ import type { SourceFileSystemPort } from '../application/ports/source-filesyste
 import type { SnapshotStore } from '../application/ports/snapshot-store';
 import type { Clock } from '../application/ports/clock';
 import { defaultCityViewState, decodeCityViewState } from './view-state';
+import { validationFailureText } from '../domain/validator';
 import { readPalette } from './theme-bridge';
 
 // lib.dom.d.ts declares ResizeObserver only as a bare global `var`, not as a member of
@@ -160,6 +161,12 @@ export class CityView extends ItemView {
         this.deps.profileStore, this.state.profileId, this.plugin.app.vault.configDir,
       );
       await body(profile);
+    } catch (e) {
+      // Fix wave item 1 (C1): the destination ruling M53's deliberate propagation never
+      // had. Both entry points are `void view.startScan()`, so without this a rejection
+      // -- a scope the store refuses, or PluginDataProfileStore.list() throwing on one
+      // hand-edited record -- was an unhandled rejection in a console nobody opens.
+      this.showNotice(validationFailureText(e));
     } finally {
       this.startingScan = false;
     }
@@ -291,12 +298,10 @@ export class CityView extends ItemView {
     }
   }
 
-  /** A one-shot Notice with Obsidian's own default auto-dismiss timer -- nothing here
-   *  needs to retain the instance afterwards, unlike `progressNotice`, which is updated
-   *  in place across several PROGRESS ticks. */
+  /** A one-shot Notice: nothing here retains the instance afterwards, unlike
+   *  `progressNotice`, which is updated in place across several PROGRESS ticks. */
   private showNotice(message: string): void {
-    const notice = new Notice(message, 6000);
-    void notice;
+    void new Notice(message, 6000);
   }
 
   /** The "Your complete snapshot from {time} is unchanged" half of COPY-10, or '' when

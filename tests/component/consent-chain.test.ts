@@ -203,6 +203,44 @@ describe('runInitialScan persists the approved scope to the profile (ruling M53)
     expect(scannedScope.exclusions).toEqual(['.git', 'node_modules']);
   });
 
+  // --- Fix wave item 1 (C1, Critical) ------------------------------------------------
+  // The whole chain, driven exactly as CityView drives it, with the single most natural
+  // invalid input a user can type. Before this fix: the modal accepted `./dist`, the
+  // approval carried it, profileStore.update threw, and nothing caught it -- no Notice,
+  // no banner, only an unhandled rejection in a console the user never opens.
+  it('refuses to approve an invalid exclusion: a visible reason, and NO scan started', async () => {
+    const app = makeApp();
+    const { port } = createFakeSourceFileSystem({});
+    const profile = makeProfile({ profileId: 'p1', exclusions: ['.git'], maxFileBytes: 1_000_000 });
+    const { store, update } = makeProfileStoreDouble(profile);
+    const { coordinator, start } = makeCoordinator(port);
+
+    const runPromise = runInitialScan(app, coordinator, profile, port, store);
+    await driveToScopeModal();
+
+    const exclusions = modalRoot().querySelector<HTMLTextAreaElement>('[data-field="exclusions"]')!;
+    exclusions.value = './dist';
+    exclusions.dispatchEvent(new Event('input'));
+    const ack = modalRoot().querySelector<HTMLInputElement>('[data-field="acknowledge"]')!;
+    ack.checked = true;
+    ack.dispatchEvent(new Event('change'));
+
+    // A visible reason, carrying the validator's own message (spec 7).
+    const alert = modalRoot().querySelector('[role="alert"]')!;
+    expect(alert.textContent).toMatch(/no empty segments/);
+    // And Scan codebase stays unusable: clicking it does nothing at all.
+    const scanBtn = modalRoot().querySelector<HTMLButtonElement>('[data-action="confirm-scan"]')!;
+    expect(scanBtn.disabled).toBe(true);
+    scanBtn.click();
+    await Promise.resolve();
+    expect(start).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+
+    modalRoot().querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
+    await runPromise;
+    expect(start).not.toHaveBeenCalled();
+  });
+
   it('does NOT silently proceed with a stale profile when the persist itself fails', async () => {
     const app = makeApp();
     const { port } = createFakeSourceFileSystem({});

@@ -6,6 +6,7 @@
 import { Modal } from 'obsidian';
 import type { App } from 'obsidian';
 import { approve } from '../../application/approval';
+import { scopeValidationReasons } from '../../domain/validator';
 import type { Clock } from '../../application/ports/clock';
 import type { AnalysisScope, ApprovedInventoryRun } from '../../domain/model';
 import type { SourceSelection } from './source-modal';
@@ -46,6 +47,16 @@ class ScopeModal extends Modal {
   private analysisScope: AnalysisScope;
   private ackEl!: HTMLInputElement;
   private scanBtn!: HTMLButtonElement;
+  // Fix wave item 1 (C1, Critical). `./dist` and `dist/` -- the two most natural ways to
+  // type a directory exclusion -- are both REJECTED by validateCodebaseProfile, as are a
+  // cleared or non-numeric size limit and (M1) any glob, which walker.ts's exact
+  // segment/prefix matching cannot honour. Before this field existed the modal accepted
+  // all of them, runInitialScan's profileStore.update threw, and the rejection reached
+  // NOTHING: the user ticked approve, clicked Scan codebase, and nothing happened at all.
+  // Held as state (rather than recomputed in the ack handler) so both inputs that can
+  // invalidate the scope and the acknowledgement that enables Scan read one answer.
+  private errorEl!: HTMLElement;
+  private scopeReasons: string[] = [];
   private settled = false;
   // Fix round 2, Item 1 (Critical): NOT a field named `selection`, and not merely
   // renamed either -- this is the confirm-scan CLICK HANDLER ITSELF, created here in
@@ -108,11 +119,17 @@ class ScopeModal extends Modal {
       this.updateScope({ maxFileBytes: Number(maxBytes.value) });
     });
 
+    // The sibling SourceModal's own errorEl / role="alert" pattern, reused rather than a
+    // second one invented: one visible, announced place where a reason appears (spec 7).
+    this.errorEl = this.contentEl.createDiv({ cls: 'scope-modal-error', attr: { role: 'alert' } });
+
     const ackLabel = this.contentEl.createEl('label', { cls: 'scope-modal-ack' });
     this.ackEl = ackLabel.createEl('input', { attr: { type: 'checkbox', 'data-field': 'acknowledge' } });
     ackLabel.createSpan({ text: COPY_06 });
     this.ackEl.addEventListener('change', () => {
-      this.scanBtn.disabled = !this.ackEl.checked;
+      // Acknowledging an INVALID scope must not enable Scan: approval of a scope the
+      // store will refuse is not approval of anything that can be scanned.
+      this.scanBtn.disabled = !this.ackEl.checked || this.scopeReasons.length > 0;
     });
 
     const buttons = this.contentEl.createDiv({ cls: 'modal-button-container' });
@@ -149,6 +166,13 @@ class ScopeModal extends Modal {
     this.analysisScope = { ...this.analysisScope, ...patch };
     this.ackEl.checked = false;
     this.scanBtn.disabled = true;
+    // The SAME function ProfileStore.update's own validator runs (validator.ts), not a
+    // second, parallel set of rules -- so what this screen says is acceptable and what
+    // the store will actually accept cannot drift apart. Its messages are already
+    // specific ("...no empty segments and no . or .. segments (exclusion "./dist")");
+    // they are surfaced verbatim rather than rewritten.
+    this.scopeReasons = scopeValidationReasons(this.analysisScope.exclusions, this.analysisScope.maxFileBytes);
+    this.errorEl.textContent = this.scopeReasons.join(' ');
   }
 }
 

@@ -47,7 +47,13 @@ function renderNameRow(setting: Setting, profile: CodebaseProfile, onChange: (na
 }
 
 function renderExclusionsRow(setting: Setting, profile: CodebaseProfile, onChange: (rawLines: string) => void): void {
-  setting.setName('Excluded paths').setDesc('One relative path or pattern per line.');
+  // Fix wave item 1 (M1): NOT "or pattern" -- walker.ts's isExcluded does exact
+  // segment/prefix matching with no glob support at all, so a pattern typed here was
+  // accepted by the validator, persisted, redisplayed on the consent screen as an
+  // approved exclusion, and excluded nothing. Spec 1 forbids a rendered control for
+  // unimplemented behaviour; the label now describes only what the walk can honour, and
+  // normalizeExclusion (path-safety.ts) refuses a * or ? with a visible reason.
+  setting.setName('Excluded paths').setDesc('One relative path per line.');
   const textarea = setting.controlEl.createEl('textarea', { text: profile.exclusions.join('\n') });
   textarea.addEventListener('change', () => { onChange(textarea.value); });
 }

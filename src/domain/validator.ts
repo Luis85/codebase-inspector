@@ -14,14 +14,27 @@
 // reasons".
 import { z } from 'zod';
 import { CATEGORY_IDS } from './classify';
-import { normalizeRelativePath } from './path-safety';
+import { normalizeExclusion, normalizeRelativePath } from './path-safety';
 import type { CityViewState, CodebaseProfile, CodebaseSnapshot, LocalBinding } from './model';
 
 export class ValidationError extends Error {
-  constructor(readonly reasons: readonly string[]) {
-    super(`Snapshot validation failed:\n- ${reasons.join('\n- ')}`);
+  /** `subject` names the thing actually being validated. Fix wave item 1 (folded): this
+   *  message read "Snapshot validation failed:" for a PROFILE and for a BINDING too,
+   *  which is the wrong noun in the one place a user ever reads it — both the settings
+   *  tab and the scope modal surface this text now (spec 7), so the noun has to be true.
+   *  Defaulted rather than required, so no caller can be left naming nothing at all. */
+  constructor(readonly reasons: readonly string[], subject = 'Snapshot') {
+    super(`${subject} validation failed:\n- ${reasons.join('\n- ')}`);
     this.name = 'ValidationError';
   }
+}
+
+/** Every reason a ValidationError carries, on one line, for a host-surface Notice —
+ *  never just the first. ValidationError already collects all of them, and that design
+ *  work was being thrown away at both surfaces that catch one (fix wave items 1 and 6). */
+export function validationFailureText(e: unknown): string {
+  if (e instanceof ValidationError) return e.reasons.join(' ');
+  return e instanceof Error ? e.message : String(e);
 }
 
 const PAYLOAD_LIMIT = 200_000;
@@ -221,7 +234,7 @@ const cityViewStateSchema = z.object({
 export function validateCityViewState(input: unknown): CityViewState {
   const result = cityViewStateSchema.safeParse(input);
   if (!result.success) {
-    throw new ValidationError(result.error.issues.map(formatIssue));
+    throw new ValidationError(result.error.issues.map(formatIssue), 'View state');
   }
   return result.data;
 }
@@ -233,6 +246,27 @@ export function validateCityViewState(input: unknown): CityViewState {
 // exactly like a snapshot or a restored view state (spec 4.1). `.strict()` rejects a
 // smuggled key; every field is checked, never cast.
 
+/** The exclusion/limit rules a stored CodebaseProfile and a just-edited AnalysisScope
+ *  share, in ONE place (fix wave item 1, C1). The scope modal calls this directly, so
+ *  the answer it gives the user is the same answer `ProfileStore.update` gives a moment
+ *  later — before this existed, the modal accepted `./dist`, the store rejected it, and
+ *  the rejection reached no visible surface at all. Returns EVERY reason, never just the
+ *  first, matching ValidationError's own contract. */
+export function scopeValidationReasons(exclusions: readonly string[], maxFileBytes: number): string[] {
+  const reasons: string[] = [];
+  if (!Number.isSafeInteger(maxFileBytes) || maxFileBytes <= 0) {
+    reasons.push('maxFileBytes must be a positive integer');
+  }
+  for (const exclusion of exclusions) {
+    try {
+      normalizeExclusion(exclusion);
+    } catch (e) {
+      reasons.push(`${(e as Error).message} (exclusion ${JSON.stringify(exclusion)})`);
+    }
+  }
+  return reasons;
+}
+
 // A profile never carries a resolved path of its own — that lives on LocalBinding,
 // reached only through `bindingId` — so there is no path-safety check on the profile
 // object itself beyond its `exclusions` list, which is a set of relative path patterns.
@@ -243,16 +277,10 @@ const codebaseProfileSchema = z.object({
   exclusions: z.array(z.string()),
   maxFileBytes: z.number(),
 }).strict().superRefine((val, ctx) => {
-  if (!Number.isSafeInteger(val.maxFileBytes) || val.maxFileBytes <= 0) {
-    ctx.addIssue({ code: 'custom', message: 'maxFileBytes must be a positive integer' });
-  }
-  for (const exclusion of val.exclusions) {
-    try {
-      normalizeRelativePath(exclusion);
-    } catch (e) {
-      ctx.addIssue({ code: 'custom',
-        message: `${(e as Error).message} (exclusion ${JSON.stringify(exclusion)})` });
-    }
+  // Shared with the scope modal (scopeValidationReasons above), so the consent screen
+  // and the store can never disagree about what is acceptable.
+  for (const reason of scopeValidationReasons(val.exclusions, val.maxFileBytes)) {
+    ctx.addIssue({ code: 'custom', message: reason });
   }
 });
 
@@ -261,7 +289,7 @@ const codebaseProfileSchema = z.object({
 export function validateCodebaseProfile(input: unknown): CodebaseProfile {
   const result = codebaseProfileSchema.safeParse(input);
   if (!result.success) {
-    throw new ValidationError(result.error.issues.map(formatIssue));
+    throw new ValidationError(result.error.issues.map(formatIssue), 'Codebase profile');
   }
   return result.data;
 }
@@ -284,7 +312,7 @@ const localBindingSchema = z.object({
 export function validateLocalBinding(input: unknown): LocalBinding {
   const result = localBindingSchema.safeParse(input);
   if (!result.success) {
-    throw new ValidationError(result.error.issues.map(formatIssue));
+    throw new ValidationError(result.error.issues.map(formatIssue), 'Local binding');
   }
   return result.data;
 }

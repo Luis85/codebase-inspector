@@ -97,6 +97,26 @@ describe('resolveOrCreateProfile', () => {
     expect((await store.get('p1'))!.exclusions).toEqual(['.git', 'node_modules', '.env', '.obsidian']);
   });
 
+  // M10 (fix wave item 1, folded): migrateEmptyExclusions returned
+  // `{ ...profile, exclusions: defaultExclusionsFor(...) }` UNCONDITIONALLY, even
+  // though ProfileStore.update "does nothing if `id` does not exist" -- so the value
+  // the caller went on to use (and prefill the consent screen from) could claim a
+  // migration that was never persisted. Ruling M44's whole point is that the PERSISTED
+  // value is the one that matters.
+  it('returns what was actually PERSISTED, never a migration the store refused (M10)', async () => {
+    const orphan: CodebaseProfile = {
+      profileId: 'gone', name: 'Orphan', bindingId: null, exclusions: [], maxFileBytes: 5_000_000,
+    };
+    // A store whose `update` is a genuine no-op for an unknown id -- exactly what the
+    // port's own contract promises -- while `get`/`list` still hand the record back.
+    const { store, update } = makeProfileStoreDouble();
+    const storeWithOrphan: ProfileStore = { ...store, get: vi.fn(async () => orphan), list: vi.fn(async () => [orphan]) };
+
+    const profile = await resolveOrCreateProfile(storeWithOrphan, 'gone', '.obsidian');
+    expect(update).toHaveBeenCalledWith('gone', expect.any(Function));
+    expect(profile.exclusions).toEqual([]);
+  });
+
   it('migrates the FIRST profile too, when none is bound to this view yet', async () => {
     const existing: CodebaseProfile = {
       profileId: 'p1', name: 'New profile', bindingId: null, exclusions: [], maxFileBytes: 5_000_000,

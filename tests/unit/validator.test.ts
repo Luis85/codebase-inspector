@@ -193,6 +193,30 @@ describe('validateCodebaseProfile', () => {
   it('rejects a wrong-typed field rather than casting it', () => {
     expect(() => validateCodebaseProfile({ ...valid, name: 42 })).toThrow();
   });
+
+  // Fix wave item 1 (M1): setting-definitions.ts used to label this field "One relative
+  // path or PATTERN per line" and the validator accepted `*.log` / `src/**` -- but
+  // walker.ts's isExcluded does exact segment/prefix matching with no glob support at
+  // all, so an accepted glob was persisted, redisplayed on the consent screen as an
+  // approved exclusion, and excluded nothing. Spec 1 forbids a rendered control for
+  // unimplemented behaviour; an ENABLED one is worse. Rejected here, at the same
+  // validator the modal now shares, so the two answers cannot diverge.
+  it('rejects a glob exclusion, which walker.ts cannot honour (M1)', () => {
+    for (const pattern of ['*.log', 'src/**', 'a?.ts']) {
+      expect(() => validateCodebaseProfile({ ...valid, exclusions: [pattern] }), pattern)
+        .toThrow(/\* and \? are not supported/);
+    }
+  });
+
+  // Fix wave item 1 (folded): both this function and validateLocalBinding reported
+  // "Snapshot validation failed:" -- the wrong noun for the thing being validated.
+  it('names the PROFILE in its error message, not a snapshot', () => {
+    try { validateCodebaseProfile({ ...valid, maxFileBytes: 0 }); expect.unreachable(); }
+    catch (e) {
+      expect((e as Error).message).toMatch(/profile/i);
+      expect((e as Error).message).not.toMatch(/snapshot/i);
+    }
+  });
 });
 
 describe('validateLocalBinding', () => {
@@ -212,5 +236,13 @@ describe('validateLocalBinding', () => {
 
   it('rejects a wrong-typed bindingId', () => {
     expect(() => validateLocalBinding({ ...valid, bindingId: 42 })).toThrow();
+  });
+
+  it('names the BINDING in its error message, not a snapshot', () => {
+    try { validateLocalBinding({ ...valid, rootPath: '' }); expect.unreachable(); }
+    catch (e) {
+      expect((e as Error).message).toMatch(/binding/i);
+      expect((e as Error).message).not.toMatch(/snapshot/i);
+    }
   });
 });
