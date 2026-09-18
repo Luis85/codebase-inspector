@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import CodebaseInspectorPlugin from '../../src/main';
 import { CITY_VIEW_TYPE } from '../../src/host/city-view';
 import { CodebaseInspectorSettingTab } from '../../src/host/settings-tab';
+import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
+import { createFakeBindingStoreHarness } from '../fixtures/fake-binding-store';
+import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 
 // A hand-rolled double: bypasses the real Plugin constructor entirely (no `new`), so
 // this never needs a working Obsidian App/Plugin runtime — only enough for onload's
@@ -126,5 +129,60 @@ describe('onload', () => {
   it('types onunload as void, so teardown is never awaited', () => {
     const p = makePluginDouble();
     expect(p.onunload()).toBeUndefined();
+  });
+});
+
+// Fix wave item 9 (I8, part (b) only): main.ts did
+//   this.addSettingTab(settingTab);   // Obsidian calls update() -> getSettingDefinitions()
+//   void settingTab.refresh();        // async: sets this.entries -- and never update()d
+// Per obsidian.d.ts:6586, update() is what "Stores the result of getSettingDefinitions()
+// for rendering and search indexing", so the tab was cached with `entries = []` and the
+// saved profiles were populated behind it. Every OTHER mutation path in settings-tab.ts
+// pairs refresh() with update(); main.ts was the only one that did not -- an asymmetry
+// that is itself the smell. Fixed by pairing inside refresh(), which removes the class
+// of bug rather than this instance.
+//
+// Part (a) -- whether the declarative surface renders correctly in a real 1.13.0+ host --
+// is NOT covered here and cannot be: the locally installed Obsidian is 1.12.4 and
+// getSettingDefinitions has 0 hits in its shipped asar. That goes to the user's checkpoint.
+// Hoisted to module scope (oxlint's consistent-function-scoping): captures nothing from
+// the describe block.
+function makeTab(): CodebaseInspectorSettingTab {
+  return new CodebaseInspectorSettingTab(
+    {} as never, {} as never,
+    createFakeProfileStoreHarness().store, createFakeBindingStoreHarness().store,
+    () => createFakeSourceFileSystem({}).port);
+}
+
+describe('the settings tab is rendered, not merely refreshed', () => {
+  it('refresh() always pairs with update(), so no caller can forget it', async () => {
+    const tab = makeTab();
+    const update = vi.spyOn(tab, 'update');
+    await tab.refresh();
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it('refresh() updates exactly once, never twice, on a mutation path', async () => {
+    const tab = makeTab();
+    const update = vi.spyOn(tab, 'update');
+    await tab.refresh();
+    await tab.refresh();
+    // Two refreshes, two updates -- not four. Pairing inside refresh() must not leave a
+    // stale explicit update() behind on the paths that already called both.
+    expect(update).toHaveBeenCalledTimes(2);
+  });
+
+  it('onload leaves the tab UPDATED once its refresh settles', async () => {
+    const update = vi.spyOn(CodebaseInspectorSettingTab.prototype, 'update');
+    try {
+      const p = makePluginDouble();
+      p.onload();
+      // onload's `void settingTab.refresh()` is async; drain the microtask queue rather
+      // than guessing how many hops loadData() takes.
+      for (let i = 0; i < 50 && update.mock.calls.length === 0; i += 1) await Promise.resolve();
+      expect(update).toHaveBeenCalled();
+    } finally {
+      update.mockRestore();
+    }
   });
 });

@@ -27,8 +27,8 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
   // Fix round 1, Important 4: test-only convenience so a test that fires two
   // overlapping edits (e.g. a rename and an exclusions change on the same profile)
   // has a deterministic way to know both have settled, without depending on timing.
-  // Production code never reads this -- refresh()/update() already run at the end of
-  // every mutation below.
+  // Production code never reads this -- refresh() (which now updates() too, fix wave
+  // item 9) already runs at the end of every mutation below.
   private pendingUpdates: Promise<void>[] = [];
 
   constructor(
@@ -45,9 +45,19 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     super(app, plugin);
   }
 
-  /** Loads every saved profile and resolves each one's binding. Public so a test can
-   *  await it directly instead of guessing when async loading has settled; production
-   *  callers (every mutation below) await the same method before re-rendering. */
+  /** Loads every saved profile, resolves each one's binding, and re-renders. Public so a
+   *  test can await it directly instead of guessing when async loading has settled.
+   *
+   *  Fix wave item 9 (I8, part (b)): `update()` is called HERE, at the end, rather than
+   *  by each caller. Per obsidian.d.ts:6586 it is what "Stores the result of
+   *  getSettingDefinitions() for rendering and search indexing", so a refresh that does
+   *  not update leaves the tab rendered from whatever `entries` held when Obsidian last
+   *  asked -- for main.ts's `addSettingTab(tab); void tab.refresh();` that is the empty
+   *  list, with every saved profile populated silently behind it. Every mutation path in
+   *  this file already paired the two; main.ts was the only one that did not, which is
+   *  itself the smell. Pairing it here removes the class of bug rather than this
+   *  instance, and the four mutation paths below no longer call `update()` themselves --
+   *  a second call would re-render twice for one change. */
   async refresh(): Promise<void> {
     const profiles = await this.profileStore.list();
     const entries: ProfileEntry[] = [];
@@ -56,6 +66,7 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       entries.push({ profile, binding });
     }
     this.entries = entries;
+    this.update();
   }
 
   override getSettingDefinitions(): SettingDefinitionItem[] {
@@ -98,13 +109,11 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     const profile = createDefaultProfile(this.app.vault.configDir);
     await this.profileStore.save(profile);
     await this.refresh();
-    this.update();
   }
 
   private async deleteProfile(id: string): Promise<void> {
     await this.profileStore.remove(id);
     await this.refresh();
-    this.update();
   }
 
   private async updateProfile(id: string, mutate: (profile: CodebaseProfile) => CodebaseProfile): Promise<void> {
@@ -131,7 +140,6 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       void notice;
     }
     await this.refresh();
-    this.update();
   }
 
   // Ruling M30: task 7 owns wiring Connect/Reconnect to the real source-selection
@@ -170,7 +178,6 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       await this.profileStore.update(profileId, (p) => ({ ...p, bindingId }));
     }
     await this.refresh();
-    this.update();
   }
 
   private confirmClearBinding(profileId: string): void {
@@ -182,7 +189,6 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       void (async () => {
         await this.bindingStore.clear(bindingId);
         await this.refresh();
-        this.update();
       })();
     }).open();
   }
