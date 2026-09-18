@@ -105,13 +105,16 @@ export default tseslint.config(
     '@typescript-eslint/unbound-method': 'off',
   } },
 
-  // tests/mocks/obsidian.ts emulates what the real Obsidian app does to the DOM
-  // BEFORE any plugin loads (patching Element/HTMLElement/HTMLCanvasElement
-  // prototypes with createDiv/createEl/win/doc/etc.) — it cannot call the very
-  // helpers it is in the middle of defining, so plain createElement is correct here,
-  // not a style lapse. Likewise globalThis is the right target for a Node-or-jsdom
-  // guard shared across both vitest environments, not a popout-window concern.
-  { files: ['tests/mocks/obsidian.ts'], rules: {
+  // tests/mocks/obsidian.ts (and, since task 11 fix round 1's item 0 split,
+  // tests/mocks/dom-extensions.ts — the SAME code, relocated for the tests/**
+  // 450-line cap, not a new file earning a new exemption) emulates what the real
+  // Obsidian app does to the DOM BEFORE any plugin loads (patching Element/
+  // HTMLElement/HTMLCanvasElement prototypes with createDiv/createEl/win/doc/etc.)
+  // — it cannot call the very helpers it is in the middle of defining, so plain
+  // createElement is correct here, not a style lapse. Likewise globalThis is the
+  // right target for a Node-or-jsdom guard shared across both vitest environments,
+  // not a popout-window concern.
+  { files: ['tests/mocks/obsidian.ts', 'tests/mocks/dom-extensions.ts'], rules: {
     'obsidianmd/prefer-create-el': 'off',
     'obsidianmd/no-global-this': 'off',
   } },

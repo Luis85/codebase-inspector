@@ -264,3 +264,43 @@ describe('multiple leaves', () => {
     expect(createRendererSpy).not.toHaveBeenCalled();
   });
 });
+
+// Task 11 fix round 1, item 4 (Important): `city-view.ts`'s `reconcileEveryView`
+// call and `applyReconciliation` were referenced by NOTHING in tests/ -- every
+// other host suite's plugin double returns `getLeavesOfType: () => []`, so no
+// test could reach the sibling-broadcast path even incidentally. This is the one
+// host-level test the fix brief asks for, driven through a REAL completed scan
+// (never a manually-constructed CodebaseSnapshot handed straight to a callback).
+describe('sibling-broadcast reconciliation reaches the production path (task 11 fix round 1, item 4)', () => {
+  it('clears a SIBLING leaf\'s selection and raises a Notice when its file is dropped by ANOTHER leaf\'s scan', async () => {
+    const h = makeHarness();
+    await h.deps.profileStore.save({ profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 });
+    const scope = { rootPath: '/fake-root', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false as const };
+    h.deps.snapshotStore.put({ ...buildSnapshotFixture({ files: 1, repositoryId: 'p1' }), snapshotId: 'snap-p1', scope });
+
+    const view1 = new CityView({ width: 1000, height: 700 } as never, h.plugin as never, h.deps);
+    await view1.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 'snap-p1' }, {} as never);
+    await view1.onOpen();
+    h.addLeafWithView(view1);
+
+    const view2 = new CityView({ width: 1000, height: 700 } as never, h.plugin as never, h.deps);
+    await view2.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 'snap-p1' }, {} as never);
+    await view2.onOpen();
+    h.addLeafWithView(view2);
+
+    // Selected on the SIBLING (view2), never the one about to scan.
+    firstRow(view2).click();
+    await nextTick();
+    expect(view2.contentEl.querySelector('.ci-file-list__row--selected')).not.toBeNull();
+
+    // view1's own silent refresh (its state.snapshotId already matches a stored
+    // snapshot, and the profile's exclusions match the stored scope's, so no modal
+    // opens): createFakeSourceFileSystem({}) has ZERO files, so the NEW snapshot
+    // drops the only file entirely.
+    await view1.startScan();
+
+    expect(view2.contentEl.querySelector('.ci-file-list__row--selected')).toBeNull();
+    const notices = [...document.querySelectorAll('.notice')].map((n) => n.textContent ?? '');
+    expect(notices.some((t) => t.includes('newer scan of this codebase'))).toBe(true);
+  });
+});

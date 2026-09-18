@@ -1,34 +1,23 @@
-// ItemView owning onOpen/onClose/getState/setState (task 3), plus the scan lifecycle
-// wiring (task 8): the coordinator, the consent chain, progress/cancellation notices,
-// and handing a completed snapshot's layout to the renderer. Task 9 replaces the
-// welcome-shell UI with the real C01 shell; task 11 adds per-leaf snapshot
-// reconciliation. This file's own responsibilities do not change.
+// ItemView owning onOpen/onClose/getState/setState (task 3), the scan lifecycle
+// wiring (task 8: coordinator, consent chain, progress/cancellation notices, handing
+// a completed snapshot's layout to the renderer), and task 11's per-leaf snapshot
+// reconciliation plus CityViewState<->store sync (view-reconciliation.ts,
+// view-state-sync.ts).
 //
-// Task 9 fix round 2, item 1 (ruling M68): renderer CONSTRUCTION, teardown and
-// sizing moved OUT of this file and into `CityViewport.vue`, which is now their
-// single owner — this file used to build its own renderer directly and never
-// publish it into the Vue tree, so the shared `cityRendererHandle` was permanently
-// null in production and the WCAG 2.5.7 camera controls (round 1, item 3) commanded
-// nothing. This file now PROVIDES the real `createCityRenderer` factory into the
-// tree (before `mount()`, at the app level — a component's own `provide()` only
-// resolves for ITS descendants, never for code outside the tree) and reads the SAME
-// shared handle `CityViewport` populates for the two things only the host layer can
-// do: react to `workspace.on('css-change')`, and hand a completed snapshot's layout
-// to whichever renderer currently exists.
+// Ruling M68 (task 9): renderer CONSTRUCTION, teardown and sizing live in
+// `CityViewport.vue`, the single owner — this file only PROVIDES the real
+// `createCityRenderer` factory into the tree (before `mount()`, at the app level,
+// since a component's own `provide()` only resolves for ITS descendants) and reads
+// the SAME shared handle for the two things only the host layer can do: react to
+// `workspace.on('css-change')`, and hand a completed snapshot's layout to whichever
+// renderer currently exists.
 //
-// Host rules this file exists to satisfy (spec 4.4):
-// - WebGL context creation happens in onOpen, never the constructor: still true —
-//   CityViewport's own `onMounted` runs as part of the SAME `mount()` call this
-//   file's `onOpen` makes, never earlier.
-// - Vue mounts on this.contentEl (not containerEl.children[1]); each view creates its
-//   OWN Pinia instance.
-// - getState() returns identifiers and presentation state only; setState validates
-//   through the same runtime validator as settings, because workspace.json is
-//   user-editable.
-// - Below the 320 CSS px hard floor, no WebGL context is created at all — now
-//   CityViewport's own `applySize()` guard, not this file's.
-// - pause/resume invariant (spec 4.2): visibility NEVER authorises a scan -- nothing
-//   in this file (or in CityViewport's own sizing) calls the coordinator at all.
+// Host rules this file exists to satisfy (spec 4.4): WebGL context creation happens
+// in onOpen, never the constructor; Vue mounts on this.contentEl, never
+// containerEl.children[1]; each view gets its OWN Pinia instance; getState() returns
+// identifiers and presentation state only; setState validates through the same
+// runtime validator as settings; below the 320 CSS px floor no WebGL context exists
+// at all (CityViewport's own guard); visibility NEVER authorises a scan.
 import { ItemView, Notice } from 'obsidian';
 import type { EventRef, Plugin, ViewStateResult, WorkspaceLeaf } from 'obsidian';
 import { createApp, shallowRef, watch, type App as VueApp, type ShallowRef } from 'vue';
@@ -44,7 +33,8 @@ import { CITY_RENDERER_KEY, LAYOUT_GENERATION_KEY, createLayoutGenerationSource 
 import { reactToLifecycleChange } from './lifecycle-notices';
 import { wireWindowMigration } from './window-migration';
 import { reconcileEveryView } from './leaf-registry';
-import { reconcileSelection } from '../application/snapshot-reconciliation';
+import { applyReconciliationTo } from './view-reconciliation';
+import { pickUiState, seedStoreFromState } from './view-state-sync';
 import type { CityRendererPort } from '../visualization/renderer-port';
 import type { ScanLifecycleState } from '../application/run-state';
 import type { CodebaseSnapshot, CityViewState, CodebaseProfile } from '../domain/model';
@@ -115,6 +105,13 @@ export class CityView extends ItemView {
   private layoutAbort: AbortController | null = null;
   // Task 11: retained so onClose can call it -- never re-derived, never dropped.
   private unwireWindowMigration: (() => void) | null = null;
+  // Task 11 fix round 1, item 1: true once a REAL (validated) setState payload has
+  // arrived, whenever that happens relative to onOpen (spec 11's open question).
+  // Guards seeding the store from `this.state` -- a fresh view's own constructor
+  // default must never be mistaken for a genuine restore (view-state.ts's own
+  // `DecodedCityViewState.ok` comment).
+  private stateWasRestored = false;
+  private unwatchStateSync: (() => void) | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: Plugin, deps: CityViewDeps) {
     super(leaf);
@@ -132,19 +129,10 @@ export class CityView extends ItemView {
   /** `scan-codebase`'s own behaviour (spec 5: "scan-codebase doubles as refresh") --
    *  refreshes silently against the stored scope when a snapshot already exists, else
    *  runs the full consent chain. A no-op while a run is already in flight, never
-   *  throws.
-   *
-   *  Ruling M46 (fix round 3, Important): this is now DELIBERATELY distinct from
-   *  `selectCodebase()` below, which the welcome shell's "Select a codebase" button
-   *  calls. Before this fix both were the same method, so once a snapshot existed the
-   *  button silently re-ran the SAME scope with no modal — indistinguishable from doing
-   *  nothing, and re-selecting a different codebase became unreachable. Spec §5's
-   *  "doubles as refresh" attaches to the `scan-codebase` COMMAND specifically, not to
-   *  COPY-02's source-selection action — they are two different user intentions task 8
-   *  originally collapsed into one. Chose two separate methods over a boolean
-   *  parameter: a `forceFullChain` flag would let a caller silently pick the wrong one
-   *  by accident, where two names make the intention explicit at every call site
-   *  (commands.ts vs. App.vue's injected callback). */
+   *  throws. Ruling M46: deliberately distinct from `selectCodebase()` below (which
+   *  the welcome shell's button calls and ALWAYS opens the modal) -- two names make
+   *  the intention explicit at every call site rather than a boolean a caller could
+   *  silently pick wrong. */
   async startScan(): Promise<void> {
     await this.withScanGuard(async (profile) => {
       if (this.state.snapshotId) {
@@ -236,7 +224,7 @@ export class CityView extends ItemView {
     this.vueApp.mount(this.contentEl);
 
     // Task 11: containerEl, per spec 4.4's cross-window rule -- see window-migration.ts.
-    this.unwireWindowMigration = wireWindowMigration(this.containerEl, { cityRendererHandle: this.cityRendererHandle });
+    this.unwireWindowMigration = wireWindowMigration(this.containerEl);
 
     // Applies the current theme the moment a renderer exists — on first
     // construction, and again on any later reconstruction (e.g. after a
@@ -264,6 +252,19 @@ export class CityView extends ItemView {
       const existing = this.deps.snapshotStore.get(this.state.snapshotId);
       if (existing) void this.publishLayout(existing);
     }
+
+    // Task 11 fix round 1, item 1: seeds the store AFTER the block above, so a
+    // restored query's own match set is computed against a real `store.snapshot`
+    // rather than the empty one `setQuery` falls back to. Covers "setState arrived
+    // BEFORE onOpen"; `setState` itself covers the other ordering.
+    if (this.stateWasRestored) seedStoreFromState(this.cityStore, this.state);
+    // The one real source of truth for "did the live UI change" from here on --
+    // mirrored back into `this.state` so `getState()`/workspace.json reflect a
+    // selection, query, camera or view-mode change made with no rescan at all
+    // (spec 4.2: "the view mirrors [camera-changed] into CityViewState").
+    this.unwatchStateSync = watch(() => pickUiState(this.cityStore!), (live) => {
+      this.state = { ...this.state, ...live };
+    });
   }
 
   override async onClose(): Promise<void> {
@@ -284,6 +285,8 @@ export class CityView extends ItemView {
     this.unsubscribeCoordinator = null;
     this.unwireWindowMigration?.();
     this.unwireWindowMigration = null;
+    this.unwatchStateSync?.();
+    this.unwatchStateSync = null;
     this.layoutAbort?.abort();
     // Task 9 fix round 2, item 1 (ruling M68): no more `this.teardownRenderer()`
     // here — `CityViewport.vue`'s own `onBeforeUnmount` (its ResizeObserver
@@ -309,11 +312,15 @@ export class CityView extends ItemView {
   override async setState(state: unknown, _result: ViewStateResult): Promise<void> {
     // workspace.json is user-editable: validated through the same runtime validator
     // as settings. An invalid payload keeps whatever state this view already had,
-    // never partially applying it. Independent of setState/onOpen ordering on
-    // workspace restore (spec 11, open question) — this only ever touches `this.state`
-    // and never reads anything onOpen sets up, so either order produces the same
-    // result.
-    this.state = decodeCityViewState(state, this.state);
+    // never partially applying it.
+    const decoded = decodeCityViewState(state, this.state);
+    this.state = decoded.state;
+    if (!decoded.ok) return;
+    this.stateWasRestored = true;
+    // Spec 11's open question: ordering between setState and onOpen on workspace
+    // restore is not guaranteed. `onOpen` seeds the store when IT runs after this;
+    // this covers setState arriving AFTER onOpen already ran (the store exists).
+    if (this.cityStore) seedStoreFromState(this.cityStore, this.state);
   }
 
   /** Reacts to every run-lifecycle transition (spec 7) — the actual decision logic
@@ -335,17 +342,13 @@ export class CityView extends ItemView {
     }
   }
 
-  /** Called by `reconcileEveryView` for EVERY open CityView, including this one.
-   *  Reconciles only the LIVE selection this view's own store holds against
-   *  `snapshot`; a different profile is a no-op, and this never touches this
-   *  view's own snapshot/layout (multiple leaves stay independent, ruling M9). */
+  /** Called by `reconcileEveryView` for EVERY open CityView, including this one --
+   *  see view-reconciliation.ts for the guard, the identity match, and Minor 5's
+   *  sibling-vs-own notice wording. */
   applyReconciliation(snapshot: CodebaseSnapshot): void {
-    if (!this.cityStore || this.state.profileId !== snapshot.repositoryId) return;
-    const live: CityViewState = { ...this.state, selectedEntityId: this.cityStore.selectedEntityId };
-    const { notice } = reconcileSelection(live, snapshot);
-    if (!notice) return;
-    this.cityStore.clearSelection();
-    this.showNotice(notice);
+    if (!this.cityStore) return;
+    const { notice } = applyReconciliationTo(this.cityStore, this.state, snapshot);
+    if (notice) this.showNotice(notice);
   }
 
   /** A one-shot Notice for a terminal (cancelled/failed) transition or a scan-start
@@ -357,22 +360,15 @@ export class CityView extends ItemView {
 
   /** Obligation 7 (task-8 brief step 4): recomputes layout from the published snapshot
    *  and hands it to setLayout with {generation, signal}. `this.nextLayoutGeneration`
-   *  (D30: fixes a stale "CityView-local counter" comment — it is ruling M78's SHARED
-   *  dispenser; `CityViewport` draws from the SAME one on every renderer construction,
-   *  since both writers send `setLayout` to one live port, renderer-handle.ts) is
-   *  deliberately distinct from the scan run's own `generation` — spec 4.2 only
-   *  requires SOME strictly-increasing per-call token, and a run generation is not
-   *  even defined once a run reaches 'complete' (spec 4.1's frozen union drops it).
-   *
-   *  Task 9 fix round 1, item 1 (ruling M66): `cityStore.setCity(snapshot, layout)`
-   *  runs UNCONDITIONALLY, before checking whether a renderer currently exists (D30:
-   *  fixes a stale "`this.renderer` guard" comment — that field is gone since ruling
-   *  M68; this file only ever reads the shared `cityRendererHandle` below) — the HTML
-   *  list, inspector and legend must hold real data below the 320 px floor and before
-   *  the first size measurement too, where no renderer exists at all (spec 5.2:
-   *  "list-first" is the fallback, not a degraded, dataless mode). `computeLayout`
-   *  gets its own try/catch — it has no never-throws contract, and this now runs even
-   *  when there is no renderer to catch a later throw for it. */
+   *  is ruling M78's SHARED dispenser -- `CityViewport` draws from the SAME one on
+   *  every renderer construction, since both writers send `setLayout` to one live
+   *  port (renderer-handle.ts) -- deliberately distinct from the scan run's own
+   *  `generation`. `cityStore.setCity(snapshot, layout)` runs UNCONDITIONALLY, before
+   *  checking whether a renderer exists: the HTML list, inspector and legend must
+   *  hold real data below the 320 px floor too, where none does (spec 5.2's
+   *  list-first fallback). `computeLayout` gets its own try/catch -- no
+   *  never-throws contract, and this now runs even with no renderer to catch a
+   *  later throw for it. */
   private async publishLayout(snapshot: CodebaseSnapshot): Promise<void> {
     let layout;
     try {

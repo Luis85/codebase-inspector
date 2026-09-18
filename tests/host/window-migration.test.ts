@@ -8,7 +8,7 @@
 // observed through the SHARED renderer handle (each renderer construction's own
 // captured double) and the view's rendered DOM, never a `view.renderer` field —
 // this file does not add one back.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { CityView } from '../../src/host/city-view';
 import { ScanCoordinator } from '../../src/application/scan-coordinator';
@@ -17,7 +17,8 @@ import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
-import { createPopoutWindow, installControllableResizeObserver, migrateElement } from '../mocks/window-harness';
+import { createPopoutWindow, destroyAllPopoutWindows, installControllableResizeObserver, migrateElement } from '../mocks/window-harness';
+import { migrationCallbacks } from '../mocks/obsidian';
 import type { CameraBookmark, CodebaseProfile, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityPalette, CityRendererEvent, CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
@@ -132,6 +133,13 @@ describe('pop-out migration', () => {
     coordinatorStartSpy = vi.spyOn(ScanCoordinator.prototype, 'start');
   });
 
+  // Fix round 1, Minor 9: every `createPopoutWindow()` in this file is a real rAF
+  // loop (`pretendToBeVisual: true`); this closes every one this file created,
+  // regardless of whether the test itself called `destroy()`.
+  afterEach(() => {
+    destroyAllPopoutWindows();
+  });
+
   it('is signalled by HTMLElement.onWindowMigrated on containerEl', async () => {
     const view = new CityView({ width: 1000, height: 700 } as never, makePluginDouble() as never, {
       profileStore: makeProfileStoreDouble(), getFilesystem: () => createFakeSourceFileSystem({}).port,
@@ -199,10 +207,22 @@ describe('pop-out migration', () => {
   });
 
   it('creates every DOM node in the NEW window, never the old one', async () => {
+    // Fix round 1, Minor 7: `adoptNode` moves every EXISTING node and
+    // `createCityRenderer` is mocked, so nothing is actually CREATED after
+    // migration -- the loop below was tautological (every one of these nodes was
+    // going to report the popout's document regardless of whether anything this
+    // task built was correct). The renderer double's own captured `win` argument
+    // -- the window `CityViewport` actually constructed the SECOND renderer with
+    // -- is the real, non-tautological assertion: it is the one call this task
+    // adds that genuinely creates something, and only a correct reconstruction
+    // passes the NEW window to the factory at all.
     const { view } = await openViewWithSnapshot();
     const popout = createPopoutWindow();
     migrateElement(view.containerEl, popout);
     await nextTick();
+    expect(rendererCalls).toHaveLength(2);
+    expect(rendererCalls[1]!.win).toBe(popout.win);
+
     const nodes = view.contentEl.querySelectorAll('*');
     expect(nodes.length).toBeGreaterThan(0);
     for (const el of Array.from(nodes)) expect(el.ownerDocument).toBe(popout.doc);
@@ -244,12 +264,17 @@ describe('pop-out migration', () => {
       await openViewWithSnapshot();
       rendererCalls[0]!.onEvent({ type: 'unavailable', reason: 'context-lost' });
       expect(rendererCalls[0]!.dispose).toHaveBeenCalledTimes(1);
-      // Context loss alone does not implicitly reconstruct (tests/component/
-      // city-viewport.test.ts's own protected contract: reconstruction is
-      // `applySize()`, re-run by whatever next causes a measurement — a resize in
-      // the real host, exactly as a MIGRATION's own resize/relayout would also
-      // trigger). Both paths converge on the SAME reconstruction mechanism and
-      // NEITHER ever authorises a scan — that convergence is "one recovery path".
+      // Ruling M80 (task 11 fix round 1, item 2): context loss now reconstructs on
+      // its OWN, with no external trigger at all -- two ticks (the notice's own
+      // flush, then applySize()'s own `unavailableReason.value = null` flush), no
+      // resize. Migration (window-migration.ts's own dispose) still funnels through
+      // the SAME `applySize()`-on-null-handle mechanism; that shared mechanism, and
+      // neither ever touching the coordinator, is what "one recovery path" means.
+      await nextTick();
+      await nextTick();
+      expect(createRendererSpy).toHaveBeenCalledTimes(2);
+      // A genuinely external resize afterward is a harmless no-op here -- proves
+      // self-reconstruction did not leave anything needing a THIRD build.
       observer.trigger();
       await nextTick();
       expect(createRendererSpy).toHaveBeenCalledTimes(2);
@@ -257,5 +282,89 @@ describe('pop-out migration', () => {
     } finally {
       observer.restore();
     }
+  });
+
+  // Task 11 fix round 1, item 3 (Important): this task's own "Ends with" clause is
+  // "no wrong-window DOM" -- unmet before this fix. CityViewport's own migration
+  // handler disposed and reconstructed the RENDERER but left its ResizeObserver
+  // instance built off the OLD window's constructor, which has no defined
+  // behaviour once the observed element has moved to another document.
+  it('rebuilds the ResizeObserver in the new window after migration', async () => {
+    const { view } = await openViewWithSnapshot();
+    const popout = createPopoutWindow();
+    migrateElement(view.containerEl, popout);
+    await nextTick();
+    expect(rendererCalls).toHaveLength(2);   // migration's own reconstruction
+
+    // A resize reported through the POPOUT's own controllable ResizeObserver --
+    // never the outer window's -- must still reach the (new) renderer.
+    const stage = view.contentEl.querySelector<HTMLElement>('[data-ci-role="stage"]')!;
+    stage.getBoundingClientRect = () => ({
+      width: 200, height: 700, top: 0, left: 0, right: 200, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+    });
+    popout.triggerResize();
+    expect(rendererCalls[1]!.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  // Same clause, App.vue's half: the 820px drawer threshold and the Escape
+  // shortcut were never re-attached to the new window/document at all before this
+  // fix -- resizing across 820px in the pop-out did not re-evaluate the drawer
+  // layout, and Escape read the OLD document's `activeElement` forever (dead), so
+  // neither the drawer nor the inspector could be closed by keyboard there.
+  it('moves the Escape shortcut to the new document after migration', async () => {
+    const { view } = await openViewWithSnapshot();
+    const popout = createPopoutWindow();
+
+    const row = view.contentEl.querySelector<HTMLButtonElement>('.ci-file-list__row')!;
+    row.click();
+    await nextTick();
+    expect(view.contentEl.querySelector('.ci-file-list__row--selected')).not.toBeNull();
+
+    migrateElement(view.containerEl, popout);
+    await nextTick();
+    // The row (and its selection) survived the move untouched -- migration never
+    // authorises a scan or resets state.
+    expect(view.contentEl.querySelector('.ci-file-list__row--selected')).not.toBeNull();
+    // Focus itself does not survive a real cross-window move (a browser drops it
+    // on reparent) -- re-focus the row in the NEW document, exactly as a user
+    // clicking back into the pop-out would, before pressing Escape there.
+    row.focus();
+    expect(popout.doc.activeElement).toBe(row);
+
+    // Dispatched on the NEW document, exactly where a real pop-out keypress
+    // lands -- the OLD (outer) document's own listener, if this were still
+    // attached there, would never see this event at all.
+    popout.doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await nextTick();
+    expect(view.contentEl.querySelector('.ci-file-list__row--selected')).toBeNull();
+  });
+
+  // Task 11 fix round 1, Minor 6: two `onWindowMigrated` handlers used to race --
+  // `window-migration.ts`'s own (containerEl, the PARENT) and `CityViewport.vue`'s
+  // own (the stage element, a DESCENDANT) both disposed the shared handle. Real
+  // Obsidian's own firing order between a node and its ancestor is not a
+  // documented guarantee, and the OLD "a second renderer was constructed" test
+  // could not tell child-first from parent-first: it stayed true even if the
+  // child's freshly-built renderer was immediately disposed by the parent's own
+  // handler running second. `wireWindowMigration` is now a no-op for the renderer
+  // (CityViewport is the SOLE disposer), so firing the descendant FIRST and the
+  // ancestor SECOND -- the adversarial order -- must leave the reconstructed
+  // renderer standing.
+  it('is safe regardless of firing order between containerEl and the stage element', async () => {
+    const { view } = await openViewWithSnapshot();
+    const stage = view.contentEl.querySelector<HTMLElement>('[data-ci-role="stage"]')!;
+    const popout = createPopoutWindow();
+    const adopted = popout.doc.adoptNode(view.containerEl);
+    popout.doc.body.appendChild(adopted);
+
+    // Child (CityViewport's own stage-level handler) first, THEN the parent
+    // (containerEl's, city-view.ts's) -- reversed from `migrateElement`'s own
+    // root-first tree walk, deliberately, to prove order no longer matters.
+    migrationCallbacks.get(stage)?.forEach((cb) => { cb(); });
+    migrationCallbacks.get(view.containerEl)?.forEach((cb) => { cb(); });
+    await nextTick();
+
+    expect(rendererCalls).toHaveLength(2);            // migration's own reconstruction
+    expect(rendererCalls[1]!.dispose).not.toHaveBeenCalled();   // NOT torn down by firing second
   });
 });

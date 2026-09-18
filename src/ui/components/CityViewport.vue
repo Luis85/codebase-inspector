@@ -88,11 +88,24 @@ function winOf(el: HTMLElement): Window {
 // selected nothing in the list or the inspector — the HTML-to-canvas direction
 // (CodebaseFileList -> setSelection) was already wired in task 9, this is its partner.
 // `hover-changed` has no store field and is deliberately not mirrored here.
+// Ruling M80 (task 11 fix round 1, item 2): context loss DISPOSES AND RECONSTRUCTS
+// -- spec 4.2, line 589, verbatim -- self-triggered, not left for whatever next
+// happens to cause a resize (which, before this, could be never: the notice below
+// is `position: absolute`, so showing it relayouts nothing and generates no
+// ResizeObserver callback at all — the view sat on "will rebuild" indefinitely).
+// 'unsupported'/'initialization-failed' do NOT self-trigger: they are permanent for
+// this platform/session, and an immediate retry would either fail identically or,
+// against a test double, misleadingly "succeed" — silently clearing the very
+// notice this line just raised. `applySize()` is the SAME reconstruction mechanism
+// a real subsequent resize already used (no second code path); `nextTick` defers it
+// past the CURRENT reactive flush, so the notice's own DOM update (already queued
+// by the `unavailableReason.value` assignment above) commits first.
 function handleRendererEvent(event: CityRendererEvent): void {
   if (event.type === 'unavailable') {
     unavailableReason.value = event.reason;
     cityRendererHandle.value?.dispose();
     cityRendererHandle.value = null;
+    if (event.reason === 'context-lost') void nextTick(() => { applySize(); });
     return;
   }
   if (event.type === 'camera-changed') store.setCamera(event.camera);
@@ -223,6 +236,20 @@ function applyMotionPreference(win: Window): void {
   onMotionChange();
 }
 
+/** Builds (or rebuilds) the ResizeObserver watching `el`, off `win`'s OWN
+ *  constructor. Task 11 fix round 1, item 3 (Important): migration used to
+ *  dispose and reconstruct the RENDERER but leave this observer instance
+ *  pointing at the OLD window's `ResizeObserver` constructor — spec 4.4 requires
+ *  everything to go through the injected `Window`, and an observer built from
+ *  one window has no defined behaviour once its target has moved to another. */
+function installResizeObserver(el: HTMLElement, win: Window): void {
+  resizeObserver?.disconnect();
+  resizeObserver = new (win as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver(() => {
+    applySize();
+  });
+  resizeObserver.observe(el);
+}
+
 onMounted(() => {
   cityStageHandle.value = stageEl.value;
   // Deferred one microtask so a test (or a future caller) can finish wiring this
@@ -231,11 +258,7 @@ onMounted(() => {
   void nextTick(() => {
     const el = stageEl.value;
     if (!el || !createRenderer) return;
-    const win = winOf(el);
-    resizeObserver = new (win as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver(() => {
-      applySize();
-    });
-    resizeObserver.observe(el);
+    installResizeObserver(el, winOf(el));
     // applySize() itself reads the reduced-motion preference on every construction
     // it performs (including this first one) -- see its own comment; no separate
     // call here avoids reading it twice on the very first mount.
@@ -248,10 +271,13 @@ onMounted(() => {
     // this disposes and calls `applySize()` again -- by then `winOf(el)` already
     // resolves to the NEW window (Obsidian updates the element's own `.win`/`.doc`
     // before firing this), so the reconstruction, and the palette/motion re-reads it
-    // triggers, land there.
+    // triggers, land there. Fix round 1, item 3: the ResizeObserver itself is
+    // rebuilt from the NEW window too — the OLD instance, built off the OLD
+    // window's constructor, has no defined behaviour once `el` has moved.
     unwireStageMigration = el.onWindowMigrated(() => {
       cityRendererHandle.value?.dispose();
       cityRendererHandle.value = null;
+      installResizeObserver(el, winOf(el));
       applySize();
     });
   });

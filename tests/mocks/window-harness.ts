@@ -22,6 +22,19 @@ export interface PopoutWindow {
   destroy(): void;
 }
 
+// Fix round 1, Minor 9: `pretendToBeVisual: true` starts a real rAF loop in EVERY
+// realm this creates, and before this only one call site in the whole suite ever
+// called `destroy()` -- mildly ironic in a leak suite. Tracked here so a test file
+// can close every popout it created in one `afterEach`, without each one having to
+// remember its own handle.
+const liveWindows = new Set<PopoutWindow>();
+
+/** Closes every `PopoutWindow` created (via this module) and not yet destroyed.
+ *  Call from an `afterEach` in any file using `createPopoutWindow`. */
+export function destroyAllPopoutWindows(): void {
+  for (const popout of liveWindows) popout.destroy();
+}
+
 /** A real, separate DOM realm standing in for a popped-out Obsidian window. Host
  *  tests mock out `createCityRenderer` (as every city-view*.test.ts already does),
  *  so this needs no WebGL/canvas polyfill -- only what `CityViewport`'s OWN real Vue
@@ -48,12 +61,14 @@ export function createPopoutWindow(): PopoutWindow {
   // own (fresh, unrelated) HTMLElement.prototype -- see installObsidianDomExtensions'
   // own comment for why a second `jsdom` package instance is what makes this matter.
   installObsidianDomExtensions(win);
-  return {
+  const popout: PopoutWindow = {
     win,
     doc: win.document,
     triggerResize: () => { callbacks.forEach((cb) => { cb(); }); },
-    destroy: () => { dom.window.close(); },
+    destroy: () => { liveWindows.delete(popout); dom.window.close(); },
   };
+  liveWindows.add(popout);
+  return popout;
 }
 
 function fireOne(el: HTMLElement): void {

@@ -1,35 +1,20 @@
 // Task 11. Spec 4.2: "Pop-out migration is dispose() plus constructing a new
-// renderer. There is no rebind." — and, ruling M79 (task-11-context.md section 3):
-// that behaviour is observed through the SHARED renderer handle and
-// `CityViewport`'s own lifecycle now, never a `view.renderer` field (ruling M68
-// removed it in task 9).
+// renderer. There is no rebind." — ruling M79 (task-11-context.md section 3): that
+// behaviour is observed through the SHARED renderer handle and `CityViewport`'s own
+// lifecycle, never a `view.renderer` field (ruling M68 removed it in task 9).
 //
-// A canvas moved to a different window's document is, in every browser this plugin
-// ships to, exactly as unusable as one whose context was lost by the platform:
-// Chromium does not keep a WebGLRenderingContext alive across a cross-window
-// `adoptNode`. This module does not wait to find out empirically — it disposes and
-// NULLS the shared handle the instant Obsidian reports the migration, which is the
-// SAME transition `CityViewport`'s own `unavailable{context-lost}` branch already
-// produces (city-viewport's own `watch(cityRendererHandle, ...)` reconstructs
-// whenever the handle becomes null while still mounted, regardless of which of the
-// two produced it — ONE recovery path, not two). This file never constructs a
-// renderer itself (only `CityViewport` does, ruling M68) and never touches the
-// coordinator: visibility and migration never authorise a scan (spec 4.2).
-import type { ShallowRef } from 'vue';
-import type { CityRendererPort } from '../visualization/renderer-port';
-
-export interface WindowMigrationDeps {
-  cityRendererHandle: ShallowRef<CityRendererPort | null>;
-}
-
-/** Registers `containerEl`'s real, ambient Obsidian extension
- *  (`HTMLElement.prototype.onWindowMigrated`) and returns the SAME destroy function
- *  it hands back — the caller (`city-view.ts`) retains it and calls it in
- *  `onClose()`, never re-derives or drops it: an un-retained registration is a
- *  leaked closure over this view for the life of the window. */
-export function wireWindowMigration(containerEl: HTMLElement, deps: WindowMigrationDeps): () => void {
-  return containerEl.onWindowMigrated(() => {
-    deps.cityRendererHandle.value?.dispose();
-    deps.cityRendererHandle.value = null;
-  });
+// Task 11 fix round 1, Minor 6: this file USED to dispose the shared handle itself,
+// duplicating `CityViewport.vue`'s OWN `onWindowMigrated` registration (on the stage
+// element, a DESCENDANT of `containerEl`) — which already disposes AND reconstructs
+// completely and correctly on its own. Two independent disposers racing on ONE
+// migration event is order-dependent: if this one's dispose ran AFTER
+// CityViewport's own reconstruction, it would tear down the FRESHLY built renderer
+// and leave the pop-out blank until the next resize — and no test could tell the
+// difference, since "a second renderer was constructed" stays true even if it is
+// then disposed. `CityViewport` is now the SOLE disposer; this registration exists
+// only to satisfy this task's own host-level contract (`containerEl` is signalled,
+// and `city-view.ts` retains and calls the destroy function on close) — never to
+// touch the renderer itself, so there is nothing left here to race.
+export function wireWindowMigration(containerEl: HTMLElement): () => void {
+  return containerEl.onWindowMigrated(() => {});
 }

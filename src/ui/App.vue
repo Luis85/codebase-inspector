@@ -93,6 +93,7 @@ function updateNarrowDrawer(): void {
 
 let resizeObserver: ResizeObserver | null = null;
 let listenerDoc: Document | null = null;
+let unwireRootMigration: (() => void) | null = null;
 
 /** `event.isComposing` (native, spec-provided) rather than a locally tracked
  *  flag — this listens on `document`, never a specific input, so there is no
@@ -139,24 +140,54 @@ function onGlobalKeydown(event: KeyboardEvent): void {
   }
 }
 
-onMounted(() => {
-  const el = rootEl.value;
-  listenerDoc = (el as unknown as DocBearing | null)?.doc ?? null;
+/** Re-resolves the document the Escape listener is attached to, off `el`'s CURRENT
+ *  `.doc` (spec 4.4: the injected Window/Document, never a bare global). Task 11
+ *  fix round 1, item 3 (Important): before this, a pop-out's Escape key stayed
+ *  bound to the PRE-migration document forever, so `listenerDoc?.activeElement`
+ *  read the wrong window and the drawer/inspector could never be closed by
+ *  keyboard there. Detaches the previous document's listener first, so migrating
+ *  more than once never accumulates one. */
+function attachKeydownListener(el: HTMLElement): void {
+  listenerDoc?.removeEventListener('keydown', onGlobalKeydown);
+  listenerDoc = (el as unknown as DocBearing).doc ?? null;
   listenerDoc?.addEventListener('keydown', onGlobalKeydown);
-  if (!el) return;
-  updateNarrowDrawer();
+}
+
+/** Same fix, for the 820px drawer-threshold observer: rebuilt off `el`'s CURRENT
+ *  `.win`, never left pointing at the pre-migration window's `ResizeObserver`
+ *  constructor (which has no defined behaviour once `el` has moved). */
+function attachResizeObserver(el: HTMLElement): void {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
   const win = (el as unknown as WinBearing).win;
   if (!win) return;
   resizeObserver = new (win as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver(() => {
     updateNarrowDrawer();
   });
   resizeObserver.observe(narrowContainer(el));
+}
+
+onMounted(() => {
+  const el = rootEl.value;
+  if (!el) return;
+  attachKeydownListener(el);
+  updateNarrowDrawer();
+  attachResizeObserver(el);
+  // Task 11 fix round 1, item 3: re-attaches BOTH on migration -- this is the
+  // "no wrong-window DOM" clause task 11 itself named as unmet.
+  unwireRootMigration = el.onWindowMigrated(() => {
+    attachKeydownListener(el);
+    updateNarrowDrawer();
+    attachResizeObserver(el);
+  });
 });
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
   resizeObserver = null;
   listenerDoc?.removeEventListener('keydown', onGlobalKeydown);
   listenerDoc = null;
+  unwireRootMigration?.();
+  unwireRootMigration = null;
 });
 
 interface CityViewportExposed { stageEl: HTMLElement | null }

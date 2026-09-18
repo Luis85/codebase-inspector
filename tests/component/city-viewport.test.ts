@@ -292,18 +292,33 @@ describe('CityViewport.vue (C08)', () => {
     expect(wrapper.text()).toContain('The 3D view is unavailable. File inspection still works.');
   });
 
-  it('renders a reconstruct notice, distinct from COPY-14, on context loss', async () => {
+  // Ruling M80 (task 11 fix round 1, item 2): context loss DISPOSES AND
+  // RECONSTRUCTS on its own -- spec 4.2, line 589, verbatim -- rather than sitting
+  // on "will rebuild" until whatever next happens to cause a resize (which could be
+  // NEVER: the notice this test used to assert PERSISTED is `position: absolute`,
+  // so showing it relayouts nothing and generates no ResizeObserver callback at
+  // all). This is STRICTER than the old assertion (notice persists indefinitely):
+  // it now pins that a rebuild actually happens, with no external trigger, and
+  // that the notice does not outlive it.
+  it('reconstructs on context loss with no external trigger, and the notice does not persist', async () => {
     let onEventCapture: ((e: CityRendererEvent) => void) | null = null;
-    const factory: CreateCityRenderer = (_mountEl, _win, onEvent) => {
+    const factory = vi.fn((_mountEl: HTMLElement, _win: Window, onEvent: (e: CityRendererEvent) => void) => {
       onEventCapture = onEvent;
       return makeRendererDouble();
-    };
+    }) as unknown as CreateCityRenderer;
     const { win } = makeFakeWin();
     const { wrapper } = mountWithFactory(factory, win, { width: 800, height: 600 });
     await nextTick();
+    expect(vi.mocked(factory)).toHaveBeenCalledTimes(1);
     onEventCapture!({ type: 'unavailable', reason: 'context-lost' });
+    // No triggerResize(), no external event of any kind -- the ONLY thing that
+    // happens between firing the event and these awaits is Vue's own reactive
+    // flush, TWICE: once for the notice `nextTick(applySize)` was scheduled
+    // against, once for applySize()'s own `unavailableReason.value = null`.
     await nextTick();
-    expect(wrapper.text()).toMatch(/rebuild|reconstruct/i);
+    await nextTick();
+    expect(vi.mocked(factory)).toHaveBeenCalledTimes(2);
+    expect(wrapper.text()).not.toMatch(/rebuild|reconstruct/i);
   });
 
   // Task 9 fix round 3, item 2 (Important): `handleRendererEvent` used to null
@@ -328,12 +343,16 @@ describe('CityViewport.vue (C08)', () => {
     expect(rendererDouble.dispose).toHaveBeenCalledTimes(1);
   });
 
-  // The stale "will reconstruct" notice must not survive an actual
-  // reconstruction: spec 4.2's whole point of "disposes and reconstructs" is
-  // that reconstruction really happens, so the notice must describe only the
-  // GAP, never the new steady state once a renderer exists again.
-  it('clears the unavailable notice once a new renderer is actually constructed', async () => {
+  // Ruling M80 (task 11 fix round 1, item 2): self-reconstruction must not leave
+  // the component's own sizing machinery stale -- a LATER, genuinely external
+  // resize (here, the pre-existing 320px floor round trip) must still reach the
+  // NEWLY self-reconstructed renderer, not some half-wired leftover state. This is
+  // the distinct half of what the old (pre-M80) "clears the unavailable notice
+  // once a new renderer is actually constructed" test covered by manually driving
+  // the reconstruction the view now performs on its own.
+  it('the self-reconstructed renderer keeps responding to further real resizes', async () => {
     const rendererDouble1 = makeRendererDouble();
+    const rendererDouble2 = makeRendererDouble();
     let onEventCapture: ((e: CityRendererEvent) => void) | null = null;
     const factory = vi.fn((_mountEl: HTMLElement, _win: Window, onEvent: (e: CityRendererEvent) => void) => {
       onEventCapture = onEvent;
@@ -342,16 +361,19 @@ describe('CityViewport.vue (C08)', () => {
     const { win, triggerResize } = makeFakeWin();
     const { wrapper, stage } = mountWithFactory(factory, win, { width: 800, height: 600 });
     await nextTick();
-    onEventCapture!({ type: 'unavailable', reason: 'context-lost' });
-    await nextTick();
-    expect(wrapper.text()).toMatch(/rebuild|reconstruct/i);
 
-    const rendererDouble2 = makeRendererDouble();
     vi.mocked(factory).mockReturnValueOnce(rendererDouble2);
-    setRect(stage, 800, 600);
+    onEventCapture!({ type: 'unavailable', reason: 'context-lost' });
+    await nextTick();   // self-reconstructs to rendererDouble2, no external trigger
+    await nextTick();   // the notice's OWN clearing flush, one tick after that
+    expect(wrapper.text()).not.toMatch(/rebuild|reconstruct/i);
+
+    // A real, later resize below the floor still reaches the NEW renderer.
+    setRect(stage, 300, 600);
     triggerResize();
     await nextTick();
-    expect(wrapper.text()).not.toMatch(/rebuild|reconstruct/i);
+    expect(rendererDouble2.dispose).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toContain('The 3D view is unavailable. File inspection still works.');
   });
 
   it('is passive (mounts, exposes a bare host, never constructs anything) when no factory is injected', () => {
@@ -403,7 +425,7 @@ describe('CityViewport.vue (C08)', () => {
     expect(store.camera).toEqual(camera);
     expect(store.previous3dCamera).toEqual(camera);
 
-    emit!({ type: 'entity-picked', entityId: 'repo file src/a.ts', snapshotId: 's1' });
-    expect(store.selectedEntityId).toBe('repo file src/a.ts');
+    emit!({ type: 'entity-picked', entityId: 'repo\0file\0src/a.ts', snapshotId: 's1' });
+    expect(store.selectedEntityId).toBe('repo\0file\0src/a.ts');
   });
 });

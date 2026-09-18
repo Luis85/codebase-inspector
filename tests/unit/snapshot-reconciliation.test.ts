@@ -1,10 +1,13 @@
-// Task 11, step 3. Pure logic — no DOM, no Obsidian, no ScanCoordinator — so this
-// lives under the 'node' vitest project like every other tests/unit/** file. The
-// single most likely silent-wrongness bug in task 11 (task-11-context.md section 6):
-// a removed selected file must be REPORTED, never replaced by whatever now sits at
-// its old array index.
-import { describe, expect, it } from 'vitest';
+// Task 11, step 3. Pure logic — no DOM, no Obsidian — so this lives under the
+// 'node' vitest project like every other tests/unit/** file. The single most
+// likely silent-wrongness bug in task 11 (task-11-context.md section 6): a
+// removed selected file must be REPORTED, never replaced by whatever now sits at
+// its old array index. `ScanCoordinator` is imported ONLY to spy on its real
+// `start` method (fix round 1, Minor 7's "does not authorise a scan" test) --
+// never constructed or driven, so this file still touches no port, no filesystem.
+import { describe, expect, it, vi } from 'vitest';
 import { reconcileSelection, SELECTION_REMOVED_NOTICE } from '../../src/application/snapshot-reconciliation';
+import { ScanCoordinator } from '../../src/application/scan-coordinator';
 import { makeEntityId } from '../../src/domain/entity-id';
 import type { CameraBookmark, CityViewState, CodeEntity, CodebaseSnapshot } from '../../src/domain/model';
 
@@ -119,16 +122,21 @@ describe('per-leaf snapshot reconciliation', () => {
   });
 
   it('does not authorise a scan when reconciling', () => {
-    // Structural, not behavioural: the function's own signature takes only a
-    // CityViewState and a CodebaseSnapshot — there is no coordinator, no port and no
-    // callback anywhere in scope for it to invoke, so "no scan" is not merely
-    // untested, it is unreachable by construction. Confirmed synchronous (a Promise
-    // would itself be a smell for something documented as pure and immediate).
-    const state = baseState({ selectedEntityId: id('src/gone.ts') });
-    const next = snapshotOf(['src/a.ts']);
-    const result = reconcileSelection(state, next);
+    // Fix round 1, Minor 7: a signature/arity check alone would still pass a
+    // future regression that added a real side effect without changing the
+    // function's shape. This spies on the REAL ScanCoordinator's own `start` --
+    // the one and only thing that ever begins a walk (scan-coordinator.ts's own
+    // file comment) -- across several reconciliations, including one that
+    // reports a removed selection (the one call site with anything to react to).
+    const startSpy = vi.spyOn(ScanCoordinator.prototype, 'start');
+    reconcileSelection(baseState({ selectedEntityId: id('src/gone.ts') }), snapshotOf(['src/a.ts']));
+    reconcileSelection(baseState({ selectedEntityId: id('src/a.ts') }), snapshotOf(['src/a.ts']));
+    reconcileSelection(baseState({ selectedEntityId: null }), snapshotOf([]));
+    expect(startSpy).not.toHaveBeenCalled();
+    // Confirmed synchronous, not merely "did not await anything" -- a Promise
+    // would itself be a smell for something documented as pure and immediate.
+    const result = reconcileSelection(baseState(), snapshotOf(['src/a.ts']));
     expect(result).not.toBeInstanceOf(Promise);
-    expect(reconcileSelection.length).toBe(2);
   });
 
   it('is a no-op when there is no selection at all', () => {

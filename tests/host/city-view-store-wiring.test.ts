@@ -14,8 +14,9 @@ import { createFixedClock } from '../fixtures/clock';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
 import { installControllableResizeObserver } from '../mocks/window-harness';
+import { makeEntityId } from '../../src/domain/entity-id';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
-import type { CityRendererPort } from '../../src/visualization/renderer-port';
+import type { CityRendererEvent, CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
 import type { CodebaseProfile } from '../../src/domain/model';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
@@ -84,8 +85,16 @@ const inertPort: CityRendererPort = {
   debugLoseContext: vi.fn(),
 };
 
+// Task 11 fix round 1, item 1: captures the real onEvent callback so the mirror
+// direction (a live camera-changed report reaching getState()) can be exercised
+// against the SAME production port every other test here already uses — this is
+// purely additive, every existing call site here ignored the arguments before.
+let capturedOnEvent: ((e: CityRendererEvent) => void) | null = null;
 vi.mock('../../src/visualization/city-renderer', () => ({
-  createCityRenderer: vi.fn(() => inertPort),
+  createCityRenderer: vi.fn((_el: HTMLElement, _win: Window, onEvent: (e: CityRendererEvent) => void) => {
+    capturedOnEvent = onEvent;
+    return inertPort;
+  }),
 }));
 
 const { createCityRenderer: createRendererSpy } = await import('../../src/visualization/city-renderer');
@@ -344,5 +353,94 @@ describe('CityView wiring: stores, renderer port and theme colors', () => {
     } finally {
       observer.restore();
     }
+  });
+});
+
+// Task 11 fix round 1, item 1 (Important): CityViewState was never synchronised
+// with the live UI store in EITHER direction. `tests/unit/view-state-sync.test.ts`
+// proves the pure logic; these prove the PRODUCTION wiring reaches the real Pinia
+// store and back, through a real CityView.
+describe('CityViewState <-> live store synchronisation (task 11 fix round 1, item 1)', () => {
+  beforeEach(() => {
+    capturedOnEvent = null;
+  });
+
+  it('seeds the store from a restored CityViewState -- selection and query', async () => {
+    // Two files, so a restored query can genuinely dim one of them in place --
+    // FileSearch.vue's own search BOX shows a locally-drafted value (its own,
+    // pre-existing, deliberate debounce design: `const draft = ref(store.query)`
+    // captures the store's value once at setup and is never re-synced from a LATER
+    // external change), so the input's displayed text is not this seeding's own
+    // observable effect; the store's `matchingIds` -- what actually drives
+    // dimming -- is.
+    const snapshotStore = new InMemorySnapshotStore(createFixedClock());
+    snapshotStore.put({ ...buildSnapshotFixture({ files: 2, repositoryId: 'p1' }), snapshotId: 's1', scope: { rootPath: '/fake-root', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false } });
+    const deps = makeDepsDouble({ snapshotStore });
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
+    const fileId = makeEntityId('p1', 'file', 'file-0.ts');
+    await view.setState({
+      ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1',
+      selectedEntityId: fileId, query: 'file-0',
+    }, {} as never);
+    await view.onOpen();
+    await nextTick();
+
+    // Selection reached the real list (a row genuinely marked selected), not just
+    // an inert field -- the seeding call this task adds is a store ACTION, not a
+    // silent field assignment.
+    expect(view.contentEl.querySelector('.ci-file-list__row--selected')).not.toBeNull();
+    const rows = [...view.contentEl.querySelectorAll('.ci-file-list__row')];
+    const dimmed = rows.filter((r) => r.classList.contains('ci-file-list__row--dimmed'));
+    expect(dimmed).toHaveLength(1);   // 'file-1.ts' does not match 'file-0'
+  });
+
+  it('does NOT seed the store for a fresh view with no genuine restore', async () => {
+    // Regression guard for the exact defect this task's own fix round introduced
+    // and then had to correct: `defaultCityViewState()`'s viewMode must match
+    // city-store.ts's own spatial default, or seeding a FRESH (never-restored)
+    // view would silently force list mode and hide CityViewport entirely.
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
+    await view.onOpen();
+    stubStageRect(view, 1000);
+    await nextTick();
+    expect(view.contentEl.querySelector('.ci-viewport')).not.toBeNull();
+  });
+
+  it('mirrors a live selection change back into getState()', async () => {
+    const { deps } = depsWithSnapshot();
+    const view = await viewWithSnapshot(deps);
+    await nextTick();
+    expect(view.getState().selectedEntityId).toBeNull();
+    view.contentEl.querySelector<HTMLButtonElement>('.ci-file-list__row')!.click();
+    await nextTick();
+    expect(view.getState().selectedEntityId).toBe(makeEntityId('p1', 'file', 'file-0.ts'));
+  });
+
+  it('mirrors a live camera-changed report back into getState() (spec 4.2)', async () => {
+    const { deps } = depsWithSnapshot();
+    const view = await viewWithSnapshot(deps);
+    stubStageRect(view, 1000);
+    await nextTick();
+    expect(capturedOnEvent).not.toBeNull();
+    const movedCamera: CameraBookmark = { ...DUMMY_CAMERA, zoom: 4.5 };
+    capturedOnEvent!({ type: 'camera-changed', camera: movedCamera });
+    await nextTick();
+    expect(view.getState().camera).toEqual(movedCamera);
+  });
+
+  it('restores BOTH camera and previous3dCamera across a reload, so the top<->3D round trip is not lost (spec 4.1)', async () => {
+    const { deps } = depsWithSnapshot();
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
+    const retained3d: CameraBookmark = { ...DUMMY_CAMERA, zoom: 7 };
+    await view.setState({
+      ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1',
+      viewMode: 'top', camera: { ...DUMMY_CAMERA, mode: 'top', zoom: 2 }, previous3dCamera: retained3d,
+    }, {} as never);
+    await view.onOpen();
+    await nextTick();
+    // Switching to '3d' from a restored 'top' state must restore the RETAINED
+    // bookmark, not whatever the (still-inert) port's own getCamera() reports.
+    expect(view.getState().viewMode).toBe('top');
+    expect(view.getState().previous3dCamera).toEqual(retained3d);
   });
 });
