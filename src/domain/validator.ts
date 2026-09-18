@@ -15,7 +15,7 @@
 import { z } from 'zod';
 import { CATEGORY_IDS } from './classify';
 import { normalizeRelativePath } from './path-safety';
-import type { CityViewState, CodebaseSnapshot } from './model';
+import type { CityViewState, CodebaseProfile, CodebaseSnapshot, LocalBinding } from './model';
 
 export class ValidationError extends Error {
   constructor(readonly reasons: readonly string[]) {
@@ -220,6 +220,69 @@ const cityViewStateSchema = z.object({
 
 export function validateCityViewState(input: unknown): CityViewState {
   const result = cityViewStateSchema.safeParse(input);
+  if (!result.success) {
+    throw new ValidationError(result.error.issues.map(formatIssue));
+  }
+  return result.data;
+}
+
+// --- CodebaseProfile and LocalBinding ------------------------------------------------
+// Ruling M23 (task-6-context.md section 5): task 6 owns these two additions to task 2's
+// validator module. A profile and a binding are both persisted through
+// plugin.loadData()/saveData() (data.json), which is user-editable — untrusted input,
+// exactly like a snapshot or a restored view state (spec 4.1). `.strict()` rejects a
+// smuggled key; every field is checked, never cast.
+
+// A profile never carries a resolved path of its own — that lives on LocalBinding,
+// reached only through `bindingId` — so there is no path-safety check on the profile
+// object itself beyond its `exclusions` list, which is a set of relative path patterns.
+const codebaseProfileSchema = z.object({
+  profileId: z.string().min(1),
+  name: z.string().min(1),
+  bindingId: z.string().min(1).nullable(),
+  exclusions: z.array(z.string()),
+  maxFileBytes: z.number(),
+}).strict().superRefine((val, ctx) => {
+  if (!Number.isSafeInteger(val.maxFileBytes) || val.maxFileBytes <= 0) {
+    ctx.addIssue({ code: 'custom', message: 'maxFileBytes must be a positive integer' });
+  }
+  for (const exclusion of val.exclusions) {
+    try {
+      normalizeRelativePath(exclusion);
+    } catch (e) {
+      ctx.addIssue({ code: 'custom',
+        message: `${(e as Error).message} (exclusion ${JSON.stringify(exclusion)})` });
+    }
+  }
+});
+
+/** Validates and returns a CodebaseProfile, or throws ValidationError with every reason
+ *  a hand-edited data.json entry violates. Never guesses, never casts. */
+export function validateCodebaseProfile(input: unknown): CodebaseProfile {
+  const result = codebaseProfileSchema.safeParse(input);
+  if (!result.success) {
+    throw new ValidationError(result.error.issues.map(formatIssue));
+  }
+  return result.data;
+}
+
+// A binding carries the resolved rootPath and a machineId (spec 4.1/4.4): a profile
+// synced to another machine (Obsidian Sync copies data.json, not the local filesystem)
+// surfaces a MISSING binding on that machine rather than a wrong or stale path.
+const localBindingSchema = z.object({
+  bindingId: z.string().min(1),
+  label: z.string().min(1),
+  rootPath: z.string().min(1),
+  machineId: z.string().min(1),
+}).strict();
+
+/** Validates and returns a LocalBinding, or throws ValidationError. This checks the
+ *  record's own SHAPE only — whether its machineId matches the machine running right
+ *  now is a store-level policy (src/adapters/storage/plugin-data-binding-store.ts), not
+ *  a domain validation rule: a binding recorded for a different machine is still a
+ *  perfectly well-formed LocalBinding. */
+export function validateLocalBinding(input: unknown): LocalBinding {
+  const result = localBindingSchema.safeParse(input);
   if (!result.success) {
     throw new ValidationError(result.error.issues.map(formatIssue));
   }

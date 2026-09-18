@@ -1,14 +1,26 @@
 import { Plugin, type WorkspaceLeaf } from 'obsidian';
 import { CITY_VIEW_TYPE, CityView } from './host/city-view';
 import { openCity, registerCommands } from './host/commands';
+import { CodebaseInspectorSettingTab } from './host/settings-tab';
+import { PluginDataProfileStore } from './adapters/storage/plugin-data-profile-store';
+import { PluginDataBindingStore, getOrCreateMachineId } from './adapters/storage/plugin-data-binding-store';
 import './ui/styles.css';
 
 export default class CodebaseInspectorPlugin extends Plugin {
   override onload(): void {
-    // onload REGISTERS ONLY. No scanning, no expensive work (spec 4.4).
+    // onload REGISTERS ONLY. No scanning, no expensive work (spec 4.4). Constructing
+    // the stores and reading/creating this machine's id (a single synchronous
+    // localStorage read, see getOrCreateMachineId) is registration-weight, not scan
+    // work — no filesystem or network access happens here.
     this.registerView(CITY_VIEW_TYPE, (leaf: WorkspaceLeaf) => new CityView(leaf, this));
     this.addRibbonIcon('building-2', 'Open codebase city', () => { void openCity(this); });
     registerCommands(this);
+
+    const profileStore = new PluginDataProfileStore(this);
+    const bindingStore = new PluginDataBindingStore(this, getOrCreateMachineId(this.app));
+    const settingTab = new CodebaseInspectorSettingTab(this.app, this, profileStore, bindingStore);
+    this.addSettingTab(settingTab);
+    void settingTab.refresh();
 
     this.app.workspace.onLayoutReady(() => {
       // Startup work belongs here, not in onload. Nothing in WP-01 needs it yet;

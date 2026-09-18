@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { ValidationError, validateCityViewState, validateSnapshot } from '../../src/domain/validator';
+import {
+  ValidationError, validateCityViewState, validateCodebaseProfile, validateLocalBinding,
+  validateSnapshot,
+} from '../../src/domain/validator';
 import { buildSnapshotFixture, tinyFixture } from '../fixtures/snapshot-builder';
 
 describe('validateSnapshot', () => {
@@ -154,5 +157,60 @@ describe('validateCityViewState', () => {
       query: '', viewMode: 'top', camera: { ...cam, mode: 'top' }, previous3dCamera: cam,
       inspectorOpen: false });
     expect(s.previous3dCamera).toEqual(cam);
+  });
+});
+
+describe('validateCodebaseProfile', () => {
+  const valid = { profileId: 'p1', name: 'My codebase', bindingId: 'b1',
+    exclusions: ['node_modules', 'dist'], maxFileBytes: 1_000_000 };
+
+  it('round-trips a valid profile unchanged', () => {
+    expect(validateCodebaseProfile(JSON.parse(JSON.stringify(valid)))).toEqual(valid);
+  });
+
+  it('accepts a profile with no binding yet', () => {
+    const p = { ...valid, bindingId: null };
+    expect(validateCodebaseProfile(p).bindingId).toBeNull();
+  });
+
+  it('rejects an unknown key smuggled onto a hand-edited profile', () => {
+    // data.json is user-editable (spec 4.1). A profile never carries a resolved path of
+    // its own — that lives on LocalBinding — so a smuggled rootPath must be rejected.
+    expect(() => validateCodebaseProfile({ ...valid, rootPath: 'C:\\somewhere' })).toThrow();
+  });
+
+  it('rejects a maxFileBytes that is not a positive integer', () => {
+    for (const v of [0, -1, 1.5, Number.NaN]) {
+      expect(() => validateCodebaseProfile({ ...valid, maxFileBytes: v }), String(v))
+        .toThrow(/maxFileBytes/i);
+    }
+  });
+
+  it('rejects an absolute path smuggled into exclusions', () => {
+    expect(() => validateCodebaseProfile({ ...valid, exclusions: ['/etc/passwd'] })).toThrow();
+  });
+
+  it('rejects a wrong-typed field rather than casting it', () => {
+    expect(() => validateCodebaseProfile({ ...valid, name: 42 })).toThrow();
+  });
+});
+
+describe('validateLocalBinding', () => {
+  const valid = { bindingId: 'b1', label: 'My project', rootPath: 'C:\\Projects\\x', machineId: 'm1' };
+
+  it('round-trips a valid binding unchanged', () => {
+    expect(validateLocalBinding(JSON.parse(JSON.stringify(valid)))).toEqual(valid);
+  });
+
+  it('rejects an unknown key smuggled onto a hand-edited binding', () => {
+    expect(() => validateLocalBinding({ ...valid, resolvedAt: '2026-01-01' })).toThrow();
+  });
+
+  it('rejects an empty rootPath rather than casting it', () => {
+    expect(() => validateLocalBinding({ ...valid, rootPath: '' })).toThrow();
+  });
+
+  it('rejects a wrong-typed bindingId', () => {
+    expect(() => validateLocalBinding({ ...valid, bindingId: 42 })).toThrow();
   });
 });

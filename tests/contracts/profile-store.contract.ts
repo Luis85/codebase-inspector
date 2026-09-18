@@ -1,0 +1,81 @@
+// The shared suite every ProfileStore implementation must pass, so a fake and the
+// plugin.loadData()/saveData()-backed store cannot drift (ruling M24, mirroring
+// tests/contracts/source-filesystem-port.contract.ts's pattern from task 5).
+//
+// `writeRaw` bypasses the store's own validated save() path entirely, writing exactly
+// what a hand-edited data.json would contain — the ONLY way to get a structurally
+// invalid record into the backing store at all, since save() itself validates before
+// persisting (see "rejects a profile whose maxFileBytes is not a positive integer"
+// below, which exercises save()'s own guard, not writeRaw).
+// `reopen` constructs a FRESH store instance bound to the SAME backing data, simulating
+// a plugin reload: a store that cached anything outside its backing storage would fail
+// "persists across a store reconstruction" below.
+import { describe, expect, it } from 'vitest';
+import type { ProfileStore } from '../../src/application/ports/profile-store';
+import type { CodebaseProfile } from '../../src/domain/model';
+
+export interface ProfileStoreHarness {
+  store: ProfileStore;
+  writeRaw: (raw: unknown) => Promise<void>;
+  reopen: () => ProfileStore;
+}
+
+function makeProfile(overrides: Partial<CodebaseProfile> = {}): CodebaseProfile {
+  return {
+    profileId: 'p1', name: 'My codebase', bindingId: null,
+    exclusions: ['node_modules'], maxFileBytes: 1_000_000,
+    ...overrides,
+  };
+}
+
+export function runProfileStoreContract(name: string, make: () => Promise<ProfileStoreHarness>): void {
+  describe(`ProfileStore contract: ${name}`, () => {
+    it('round-trips a saved profile', async () => {
+      const { store } = await make();
+      const profile = makeProfile();
+      await store.save(profile);
+      expect(await store.get(profile.profileId)).toEqual(profile);
+      expect(await store.list()).toEqual([profile]);
+    });
+
+    it('persists across a store reconstruction', async () => {
+      const { store, reopen } = await make();
+      const profile = makeProfile({ profileId: 'p2' });
+      await store.save(profile);
+      const reconstructed = reopen();
+      expect(await reconstructed.get('p2')).toEqual(profile);
+    });
+
+    it('VALIDATES persisted data on read, because data.json is untrusted input', async () => {
+      // A hand-edited data.json with an unknown key must be rejected with a reason,
+      // not cast (spec 4.1). Only writeRaw can construct this: save() itself validates.
+      const { store, writeRaw } = await make();
+      await writeRaw({ profiles: [{ ...makeProfile({ profileId: 'corrupt-1' }), rootPath: 'C:\\smuggled' }] });
+      await expect(store.get('corrupt-1')).rejects.toThrow();
+    });
+
+    it('rejects a profile whose maxFileBytes is not a positive integer', async () => {
+      const { store } = await make();
+      for (const bad of [0, -1, 1.5, Number.NaN]) {
+        await expect(store.save(makeProfile({ maxFileBytes: bad })), String(bad)).rejects.toThrow();
+      }
+    });
+
+    it('returns null rather than throwing for an unknown id', async () => {
+      const { store } = await make();
+      expect(await store.get('does-not-exist')).toBeNull();
+    });
+
+    it('removes a profile without disturbing its siblings', async () => {
+      const { store } = await make();
+      const a = makeProfile({ profileId: 'a' });
+      const b = makeProfile({ profileId: 'b' });
+      await store.save(a);
+      await store.save(b);
+      await store.remove('a');
+      expect(await store.get('a')).toBeNull();
+      expect(await store.get('b')).toEqual(b);
+      expect((await store.list()).map((p) => p.profileId)).toEqual(['b']);
+    });
+  });
+}

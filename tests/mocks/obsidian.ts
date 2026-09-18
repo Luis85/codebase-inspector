@@ -25,6 +25,13 @@ export const Platform = { isDesktopApp: false };
 export class Plugin {
   app: unknown;
   manifest: unknown;
+  // Faithful in-memory data.json double (ruling M24, task-6-context.md section 4):
+  // loadData() returns null until the first saveData(), exactly like a fresh install
+  // with no data.json yet, and saveData() actually round-trips through JSON
+  // (JSON.parse(JSON.stringify(...))) rather than keeping a live object reference, so a
+  // caller mutating its own copy after saving cannot silently corrupt the "persisted"
+  // value — the same guarantee a real JSON file on disk gives for free.
+  #data: unknown = null;
 
   constructor(app: unknown, manifest: unknown) {
     this.app = app;
@@ -41,7 +48,18 @@ export class Plugin {
     return command;
   }
 
+  addSettingTab(_tab: unknown): void {}
+
   onUserEnable(): void {}
+
+  loadData(): Promise<unknown> {
+    return Promise.resolve(this.#data === null ? null : JSON.parse(JSON.stringify(this.#data)));
+  }
+
+  saveData(data: unknown): Promise<void> {
+    this.#data = JSON.parse(JSON.stringify(data));
+    return Promise.resolve();
+  }
 }
 
 interface LeafDouble {
@@ -95,6 +113,145 @@ export abstract class ItemView {
   onPaneMenu(): void {}
 }
 
+// Task 6: PluginSettingTab. Deliberately minimal — this double does NOT attempt to
+// interpret a SettingDefinitionItem[] tree into DOM the way real Obsidian's 1.13+
+// declarative renderer does: that renderer ships no runtime anywhere in this dependency
+// tree to fake faithfully against (see
+// docs/superpowers/notes/2026-09-17-setting-definitions-verification.md, "What this
+// means for task 6"). Tests call getSettingDefinitions() directly and invoke the
+// returned definitions' own render/action/onDelete callbacks by hand — this class only
+// needs to exist and hold app/plugin/containerEl for that to work.
+export abstract class PluginSettingTab {
+  app: unknown;
+  plugin: unknown;
+  containerEl: HTMLElement;
+
+  constructor(app: unknown, plugin: unknown) {
+    this.app = app;
+    this.plugin = plugin;
+    // tests/host/plugin-onload.test.ts constructs a real CodebaseInspectorPlugin under
+    // the 'node' vitest project (no `document`) to exercise onload() cheaply; this class
+    // is not asked for any real DOM there (getSettingDefinitions() returns plain data),
+    // so containerEl only needs to exist, not to be a real element, when there is no DOM.
+    this.containerEl = typeof document === 'undefined' ? ({} as HTMLElement) : document.createElement('div');
+  }
+
+  getSettingDefinitions(): unknown[] { return []; }
+  // A real no-op: this class does not attempt to fake Obsidian's declarative renderer
+  // (see the file-level comment above this class), so there is no re-render for
+  // update() to trigger here. Present only so production code calling it at runtime
+  // (settings-tab.ts, after every mutation) does not throw under test.
+  update(): void {}
+  hide(): void {}
+}
+
+// The long-stable (since 0.9.7), well-documented imperative Setting API — unrelated to
+// the 1.13+ declarative renderer above. A SettingDefinitionRender callback receives a
+// real Setting instance (obsidian.d.ts:6284), so this is what our own render()
+// functions build DOM through; faithfully reproducing this decade-old, simple API is
+// low-risk, unlike the declarative renderer.
+export class Setting {
+  settingEl: HTMLElement;
+  infoEl: HTMLElement;
+  nameEl: HTMLElement;
+  descEl: HTMLElement;
+  controlEl: HTMLElement;
+
+  constructor(containerEl: HTMLElement) {
+    this.settingEl = containerEl.createDiv({ cls: 'setting-item' });
+    this.infoEl = this.settingEl.createDiv({ cls: 'setting-item-info' });
+    this.nameEl = this.infoEl.createDiv({ cls: 'setting-item-name' });
+    this.descEl = this.infoEl.createDiv({ cls: 'setting-item-description' });
+    this.controlEl = this.settingEl.createDiv({ cls: 'setting-item-control' });
+  }
+
+  setName(name: string): this { this.nameEl.textContent = name; return this; }
+  setDesc(desc: string): this { this.descEl.textContent = desc; return this; }
+  setClass(cls: string): this { this.settingEl.addClass(cls); return this; }
+
+  addButton(cb: (component: ButtonComponent) => unknown): this {
+    cb(new ButtonComponent(this.controlEl));
+    return this;
+  }
+}
+
+export class ButtonComponent {
+  buttonEl: HTMLButtonElement;
+
+  constructor(containerEl: HTMLElement) {
+    this.buttonEl = containerEl.createEl('button', { attr: { type: 'button' } });
+  }
+
+  setButtonText(text: string): this { this.buttonEl.textContent = text; return this; }
+  setCta(): this { this.buttonEl.addClass('mod-cta'); return this; }
+  setWarning(): this { this.buttonEl.addClass('mod-warning'); return this; }
+  setTooltip(tooltip: string): this { this.buttonEl.title = tooltip; return this; }
+  setDisabled(disabled: boolean): this { this.buttonEl.disabled = disabled; return this; }
+  onClick(callback: (evt: MouseEvent) => unknown): this {
+    this.buttonEl.addEventListener('click', (evt) => { void callback(evt); });
+    return this;
+  }
+}
+
+// Real Modal.open()/close() attach/detach the modal from the document and drive
+// onOpen()/onClose() — the part this plugin's ClearBindingModal actually depends on.
+export class Modal {
+  app: unknown;
+  containerEl: HTMLElement;
+  modalEl: HTMLElement;
+  titleEl: HTMLElement;
+  contentEl: HTMLElement;
+
+  constructor(app: unknown) {
+    this.app = app;
+    this.containerEl = document.createElement('div');
+    this.containerEl.classList.add('modal-container');
+    this.modalEl = this.containerEl.createDiv({ cls: 'modal' });
+    this.titleEl = this.modalEl.createDiv({ cls: 'modal-title' });
+    this.contentEl = this.modalEl.createDiv({ cls: 'modal-content' });
+  }
+
+  open(): void {
+    document.body.appendChild(this.containerEl);
+    void this.onOpen();
+  }
+
+  close(): void {
+    this.containerEl.remove();
+    this.onClose();
+  }
+
+  onOpen(): void | Promise<void> {}
+  onClose(): void {}
+  setTitle(title: string): this { this.titleEl.textContent = title; return this; }
+  setContent(content: string): this { this.contentEl.textContent = content; return this; }
+}
+
+// createEl/createDiv/createSpan/empty (obsidian.d.ts's `Node`/`HTMLElement` global
+// augmentation). obsidianmd/prefer-create-el requires plugin source to use these
+// instead of document.createElement, so any DOM-building code under test needs a real
+// implementation here, not a stub — task 6 is the first task with DOM-building
+// settings-tab/modal code, hence the first to need it. Module-scoped (not a closure
+// inside installDomPolyfills): it captures nothing from that function.
+interface DomInfo {
+  cls?: string | string[];
+  text?: string;
+  attr?: Record<string, string | number | boolean | null>;
+  title?: string;
+}
+function applyDomInfo(el: HTMLElement, info?: DomInfo | string): void {
+  if (info === undefined) return;
+  if (typeof info === 'string') { el.textContent = info; return; }
+  if (info.cls) el.className = Array.isArray(info.cls) ? info.cls.join(' ') : info.cls;
+  if (info.text !== undefined) el.textContent = info.text;
+  if (info.title !== undefined) el.title = info.title;
+  if (info.attr) {
+    for (const [key, value] of Object.entries(info.attr)) {
+      if (value !== null) el.setAttribute(key, String(value));
+    }
+  }
+}
+
 // --- Obsidian's global DOM prototype extensions -----------------------------------
 // Real Obsidian patches these onto Element/HTMLElement at app startup, ambiently
 // declared in obsidian.d.ts's own `declare global` block (active program-wide once any
@@ -117,6 +274,28 @@ function installDomPolyfills(): void {
     return this instanceof ctor;
   };
   proto.onWindowMigrated = (): (() => void) => () => {};
+
+  proto.createEl = function (
+    this: HTMLElement, tag: string, info?: DomInfo | string, callback?: (el: HTMLElement) => void,
+  ): HTMLElement {
+    const el = document.createElement(tag);
+    applyDomInfo(el, info);
+    this.appendChild(el);
+    callback?.(el);
+    return el;
+  };
+  proto.createDiv = function (this: HTMLElement, info?: DomInfo | string, callback?: (el: HTMLDivElement) => void): HTMLDivElement {
+    return this.createEl('div', info, callback);
+  };
+  proto.createSpan = function (this: HTMLElement, info?: DomInfo | string, callback?: (el: HTMLSpanElement) => void): HTMLSpanElement {
+    return this.createEl('span', info, callback);
+  };
+  proto.empty = function (this: HTMLElement): void {
+    while (this.firstChild) this.removeChild(this.firstChild);
+  };
+  proto.addClass = function (this: HTMLElement, ...classes: string[]): void {
+    this.classList.add(...classes);
+  };
 }
 installDomPolyfills();
 
