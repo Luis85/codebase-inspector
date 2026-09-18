@@ -33,6 +33,17 @@ export function layoutOf(snapshotId: string, count: number): LayoutResult {
   };
 }
 
+/** One measured lot and one whose metric is unavailable, so the two channels that can
+ *  carry a colour to the marker mesh (its material, and its per-instance colour) can be
+ *  told apart by their PRODUCT. */
+export function layoutWithUnavailable(): LayoutResult {
+  const base = layoutOf('mixed', 2);
+  return {
+    ...base,
+    lots: [base.lots[0]!, { ...base.lots[1]!, metricState: 'unavailable' as const }],
+  };
+}
+
 export function paletteFixture(background = '#1e1e1e'): CityPalette {
   const categories = Object.fromEntries(CATEGORY_IDS.map((id) => [id, '#4c8bf5'])) as CityPalette['categories'];
   return {

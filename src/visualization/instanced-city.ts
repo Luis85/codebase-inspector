@@ -207,7 +207,15 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
     slabMaterial.color = new Color(palette.districtSurface);
     borderMaterial.color = new Color(palette.districtBorder);
     selectionMaterial.color = new Color(palette.selection);
-    markerMaterial.color = new Color(palette.unavailable);
+    // markerMaterial's colour is deliberately NEVER set. three's color_vertex does
+    // `vColor.rgb *= instanceColor.rgb` and color_fragment does `diffuseColor *= vColor`
+    // starting from material.color, so what renders is the PRODUCT of the two channels.
+    // Writing palette.unavailable into both applied it twice and a mid-grey neutral came
+    // out at about sRGB 0.24 — no longer distinguishable, which is exactly what spec 4.3
+    // and ruling M10's footprint distinction are for. One channel only: the per-instance
+    // one, because it is also what setFilter dims, and an unavailable lot is still a file
+    // that a search can match or miss. buildingMaterial has no colour for the same
+    // reason, so its product is exactly the instance colour.
   }
 
   function applySelection(): void {

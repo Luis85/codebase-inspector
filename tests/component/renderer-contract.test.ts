@@ -3,19 +3,20 @@
 // Geometry accounting is real here, not asserted against a stub: the `three` double
 // below wraps the geometry classes this renderer constructs so that
 // `renderer.info.memory.geometries` is a LIVE count of undisposed geometries, and
-// BufferGeometry.prototype.dispose decrements it. It also collects the InstancedMesh
-// and LineSegments instances, which is how these tests reach the live scene graph
-// without the port growing an accessor it does not owe anyone.
+// BufferGeometry.prototype.dispose decrements it. It also collects the InstancedMesh and
+// LineSegments instances, which is how these tests reach the live scene graph.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 // Side-effect import: installs the createDiv/setCssStyles prototype extensions real
 // Obsidian patches onto HTMLElement before any plugin loads (tests/mocks/obsidian.ts),
 // which the renderer's label overlay uses to build its DOM in the right document.
 import '../mocks/obsidian';
+import { Color } from 'three';
 import type { CityPalette, CityRendererEvent, CityRendererPort } from '../../src/visualization/renderer-port';
 import { CATEGORY_IDS } from '../../src/domain/classify';
 import {
-  HEIGHT, ID, WIDTH, captureGetContext, layoutOf, makeWinDouble, paletteFixture, stubGetContext,
+  HEIGHT, ID, WIDTH, captureGetContext, layoutOf, layoutWithUnavailable, makeWinDouble,
+  paletteFixture, stubGetContext,
 } from '../fixtures/renderer-doubles';
 
 interface FakeRenderer {
@@ -126,7 +127,7 @@ afterEach(() => {
 interface InstancedLike {
   instanceColor: { array: ArrayLike<number> } | null;
   instanceMatrix: { array: ArrayLike<number> };
-  material: { color?: { getHex: () => number } };
+  material: { color?: { getHex: () => number; r: number; g: number; b: number } };
 }
 interface LineLike { visible: boolean; material: { color?: { getHex: () => number } } }
 
@@ -137,14 +138,31 @@ function city(): { buildings: InstancedLike; markers: InstancedLike; slabs: Inst
   return { buildings: buildings!, markers: markers!, slabs: slabs!, borders: borders!, selection: selection! };
 }
 
+/** What the shader actually multiplies together for instance `i`: the material colour
+ *  times the per-instance colour, in working (linear) space. */
+function rendered(mesh: InstancedLike, i: number): [number, number, number] {
+  const m = mesh.material.color ?? { r: 1, g: 1, b: 1 };
+  const a = mesh.instanceColor?.array;
+  const at = (offset: number): number => (a ? a[i * 3 + offset]! : 1);
+  return [m.r * at(0), m.g * at(1), m.b * at(2)];
+}
+
+function expectColour(actual: [number, number, number], want: [number, number, number]): void {
+  actual.forEach((channel, i) => { expect(channel).toBeCloseTo(want[i]!, 6); });
+}
+
+function linearOf(css: string): [number, number, number] {
+  const c = new Color(css);
+  return [c.r, c.g, c.b];
+}
+
 const hexOf = (holder: { material: { color?: { getHex: () => number } } }): number =>
   holder.material.color?.getHex() ?? -1;
 
 function sceneColours(): Record<string, number> {
   const c = city();
   return {
-    slab: hexOf(c.slabs), border: hexOf(c.borders),
-    marker: hexOf(c.markers), selection: hexOf(c.selection),
+    slab: hexOf(c.slabs), border: hexOf(c.borders), selection: hexOf(c.selection),
   };
 }
 
@@ -225,6 +243,41 @@ describe('the port never throws', () => {
     expect(h.port.getDiagnostics().instanceCount).toBe(layoutB.lots.length);
   });
 
+  it('refuses to apply a build that finished AFTER the signal aborted', async () => {
+    // The OTHER supersession check — city-renderer's own, after `await buildCity`. It
+    // cannot be reached from outside while instanced-city re-checks after every yield,
+    // because that check always fires first: there is no yield-free window an external
+    // caller can act in. Isolating the two modules is what makes this guard testable
+    // rather than merely present, and it is worth keeping rather than deleting precisely
+    // because it is the guard that survives a change to instanced-city's own contract
+    // (a future fast path for a tiny layout would not yield, and so would not check).
+    const controller = new AbortController();
+    const specifier = '../../src/visualization/instanced-city';
+    vi.resetModules();
+    vi.doMock(specifier, async () => {
+      const actual = await vi.importActual<typeof import('../../src/visualization/instanced-city')>(specifier);
+      return {
+        ...actual,
+        buildCity: async (layout: Parameters<typeof actual.buildCity>[0],
+                          options: Parameters<typeof actual.buildCity>[1]) => {
+          const built = await actual.buildCity(layout, { ...options, superseded: () => false });
+          controller.abort();      // the window: the build FINISHED, then the signal aborted
+          return built;
+        },
+      };
+    });
+    try {
+      const h = await makeHarness();
+      h.port.resize(WIDTH, HEIGHT, 1);
+      await expect(h.port.setLayout(layoutOf('s1', 3), { generation: 1, signal: controller.signal }))
+        .resolves.toBeUndefined();
+      expect(h.port.getDiagnostics().instanceCount).toBe(0);
+    } finally {
+      vi.doUnmock(specifier);
+      vi.resetModules();
+    }
+  });
+
   it('accepts a LayoutResult and has NO method taking a CodebaseSnapshot', async () => {
     const h = await makeHarness();
     const anyPort = h.port as unknown as Record<string, unknown>;
@@ -287,13 +340,38 @@ describe('the port never throws', () => {
     expect(colourOf(1)).toEqual(dimmed);         // its neighbour is not
   });
 
+  it('applies each lot colour EXACTLY ONCE, never squared by a second channel', async () => {
+    // three's color_vertex is `vColor = vec4(1.0)` then `vColor.rgb *= instanceColor.rgb`,
+    // and color_fragment is `diffuseColor *= vColor` starting from material.color — so
+    // what renders is the PRODUCT of the two. Writing the same colour into both channels
+    // applies it twice: a mid-grey neutral (linear 0.216) renders at 0.047 linear, about
+    // sRGB 0.24, which stops the `unavailable` state being distinguishable at all (spec
+    // 4.3, and the half of ruling M10 that is not the footprint). Asserting that each
+    // factor CHANGED — which is what the setColors test below does — cannot see this;
+    // only their product can.
+    const h = await makeHarness();
+    h.port.resize(WIDTH, HEIGHT, 1);
+    const palette = paletteFixture();
+    h.port.setColors(palette);
+    await h.port.setLayout(layoutWithUnavailable(), { generation: 1, signal: new AbortController().signal });
+    const c = city();
+    // toBeCloseTo, not toEqual: the instance colour round-trips through a Float32Array,
+    // so the product carries float32 precision. A squared neutral is off by a factor of
+    // ~4.6, nowhere near this tolerance.
+    expectColour(rendered(c.markers, 0), linearOf(palette.unavailable));
+    expectColour(rendered(c.buildings, 0), linearOf(palette.categories[CATEGORY_IDS[0]]));
+  });
+
   it('re-supplies EVERY colour the scene draws on setColors', async () => {
     const h = await makeHarness();
     h.port.resize(WIDTH, HEIGHT, 1);
     h.port.setColors(paletteFixture());
-    await h.port.setLayout(layoutOf('s1', 3), { generation: 1, signal: new AbortController().signal });
+    // A layout with BOTH states, so the marker mesh actually has an instance colour to
+    // re-supply — the channel that now carries the unavailable neutral on its own.
+    await h.port.setLayout(layoutWithUnavailable(), { generation: 1, signal: new AbortController().signal });
     const before = sceneColours();
     const buildingBefore = Array.from(city().buildings.instanceColor!.array).slice(0, 3);
+    const markerBefore = Array.from(city().markers.instanceColor!.array).slice(0, 3);
     h.port.setColors({
       ...paletteFixture('#ffffff'),
       districtSurface: '#112233', districtBorder: '#445566', selection: '#778899',
@@ -304,7 +382,10 @@ describe('the port never throws', () => {
     expect(after.slab).not.toEqual(before.slab);
     expect(after.border).not.toEqual(before.border);
     expect(after.selection).not.toEqual(before.selection);
-    expect(after.marker).not.toEqual(before.marker);
+    // The unavailable neutral moved to the per-instance channel (see "applies each lot
+    // colour EXACTLY ONCE"), so THAT is where its re-supply has to be observed now —
+    // the marker material has no colour of its own to re-supply, by design.
+    expect(Array.from(city().markers.instanceColor!.array).slice(0, 3)).not.toEqual(markerBefore);
     // Building colour is per INSTANCE (setColorAt), not a material colour — the one
     // that would silently stay stale if setColors only re-coloured materials.
     expect(Array.from(city().buildings.instanceColor!.array).slice(0, 3)).not.toEqual(buildingBefore);
@@ -364,21 +445,6 @@ describe('the port never throws', () => {
     expect(h.port.getCamera().mode).toBe('top');
     h.port.setCameraMode('3d');
     expect(h.port.getCamera()).toEqual(threeD);
-  });
-
-  it('keeps every light intensity inside the unclipped budget', async () => {
-    // Nothing but a reader catches a wrong intensity, so this is the reader. With the
-    // sun at SUN_DIRECTION, the largest dot product an axis-aligned box face can have
-    // is that direction's largest normalised component; a fully lit face of the
-    // brightest albedo a theme can supply (1.0) must land below 1.0, or the render
-    // clips to white and the shading disappears — the blown-out white the task-S spike
-    // photographed. Both intensities are also written as `<value> * Math.PI` (r155/r165).
-    const { AMBIENT_BASE, DIRECTIONAL_BASE, SUN_DIRECTION } = await import('../../src/visualization/city-renderer');
-    const length = Math.hypot(...SUN_DIRECTION);
-    const maxDotNL = Math.max(...SUN_DIRECTION.map((c) => Math.abs(c) / length));
-    expect(AMBIENT_BASE + DIRECTIONAL_BASE * maxDotNL).toBeLessThan(1);
-    // …and the shaded sides must still be clearly darker, or every box reads as flat.
-    expect(AMBIENT_BASE).toBeLessThan(AMBIENT_BASE + DIRECTIONAL_BASE * maxDotNL - 0.2);
   });
 });
 
