@@ -66,7 +66,6 @@ function activate(entityId: EntityId, event: Event): void {
           :tabindex="rovingTabIndex(entity.id)"
           :aria-pressed="entity.id === store.selectedEntityId"
           @click="activate(entity.id, $event)"
-          @keydown.enter="activate(entity.id, $event)"
           @focus="store.focusRow(entity.id)"
         >
           {{ entity.path }}
