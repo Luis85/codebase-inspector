@@ -194,18 +194,12 @@ describe('CityView', () => {
     expect(view.getState()).not.toHaveProperty('rootPath');
   });
 
-  it('creates its own Pinia instance per view', async () => {
-    const view1 = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
-    const view2 = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
-    await view1.onOpen();
-    await view2.onOpen();
-    // Each view's welcome copy renders independently — if they shared one Pinia
-    // instance/app, mounting the second would either throw (element already has an
-    // app) or the first view's content would go stale. Neither happens.
-    expect(view1.contentEl.textContent).toContain('Select a codebase');
-    expect(view2.contentEl.textContent).toContain('Select a codebase');
-    expect(view1.contentEl).not.toBe(view2.contentEl);
-  });
+  // "creates its own Pinia instance per view" moved to
+  // tests/host/city-view-store-wiring.test.ts (task 9 fix round 1, items 1 and 8):
+  // this file was at the tests/** 450-line budget once that test's fix round 1
+  // rewrite (making it non-vacuous — see that file's own comment) was added
+  // alongside the two new store-wiring tests. Same test, same assertions, moved
+  // wholesale, not weakened.
 
   it('unmounts Vue and disposes the renderer in onClose', async () => {
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
@@ -338,6 +332,10 @@ describe('CityView', () => {
       // A real refresh happened -- a NEW snapshot was published, not the modal chain.
       expect(snapshotStore.latestFor('p1')?.snapshotId).not.toBe('s1');
     });
+
+    // The two production store-wiring tests (item 1) that used to follow here also
+    // moved to tests/host/city-view-store-wiring.test.ts, for the same budget
+    // reason as the Pinia test above.
   });
 
   // Fix wave item 1 (C1, Critical), layer 2: withScanGuard had try/finally with NO

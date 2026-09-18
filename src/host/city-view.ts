@@ -22,9 +22,11 @@ import { createPinia, type Pinia } from 'pinia';
 import RootComponent from '../ui/App.vue';
 import { createCityRenderer } from '../visualization/city-renderer';
 import { computeLayout } from '../domain/layout/layout';
-import { ScanCoordinator, createCancellationToken, formatProgressMessage } from '../application/scan-coordinator';
-import { CANCELLED_BANNER } from '../application/run-state';
+import { ScanCoordinator, createCancellationToken } from '../application/scan-coordinator';
 import { resolveOrCreateProfile, runInitialScan, runRefresh } from './scan-flow';
+import { useCityStore } from '../ui/stores/city-store';
+import { useRunStore } from '../ui/stores/run-store';
+import { reactToLifecycleChange } from './lifecycle-notices';
 import type { CityRendererEvent, CityRendererPort } from '../visualization/renderer-port';
 import type { ScanLifecycleState } from '../application/run-state';
 import type { CodebaseSnapshot, CityViewState, CodebaseProfile } from '../domain/model';
@@ -79,7 +81,13 @@ export class CityView extends ItemView {
   private cssChangeRef: EventRef | null = null;
   private unsubscribeCoordinator: (() => void) | null = null;
   private state: CityViewState = defaultCityViewState();
-  private progressNotice: Notice | null = null;
+  // Task 9 fix round 1, item 1 (ruling M66): each view's OWN store instances,
+  // resolved by passing `this.pinia` explicitly to the store getters (Pinia's
+  // documented pattern for using a store outside a component's setup) rather than
+  // relying on "whichever pinia is currently active" — the same discipline that
+  // keeps `createPinia()` itself per-view (spec 4.4), not a module-level singleton.
+  private cityStore: ReturnType<typeof useCityStore> | null = null;
+  private runStore: ReturnType<typeof useRunStore> | null = null;
   // Fix round 1, Minor 6: `coordinator.state.status` alone does not guard the WHOLE of
   // startScan() -- it stays 'idle' until AFTER both consent modals resolve, so two fast
   // clicks (or two scan-codebase invocations) both pass that check, both resolve/create
@@ -188,6 +196,11 @@ export class CityView extends ItemView {
     this.contentEl.classList.add('codebase-inspector-root');
 
     this.pinia = createPinia();
+    // This view's OWN store instances (item 1, ruling M66) — explicit `pinia`
+    // argument, never the ambient "currently active" one, so two CityViews never
+    // share data even if Vue's own per-app resolution were ever bypassed.
+    this.cityStore = useCityStore(this.pinia);
+    this.runStore = useRunStore(this.pinia);
     // typescript-eslint's type-aware linting resolves a cross-file .vue import as an
     // untyped/error module (it has no Vue SFC language-service plugin, unlike vue-tsc,
     // which DOES type-check this correctly — see `npm run typecheck`). Real behaviour
@@ -238,13 +251,13 @@ export class CityView extends ItemView {
     }
     this.unsubscribeCoordinator?.();
     this.unsubscribeCoordinator = null;
-    this.progressNotice?.hide();
-    this.progressNotice = null;
     this.layoutAbort?.abort();
     this.teardownRenderer();
     this.vueApp?.unmount();
     this.vueApp = null;
     this.pinia = null;
+    this.cityStore = null;
+    this.runStore = null;
     this.rendererMountEl = null;
   }
 
@@ -264,65 +277,24 @@ export class CityView extends ItemView {
     this.state = decodeCityViewState(state, this.state);
   }
 
-  /** Reacts to every run-lifecycle transition (spec 7). Progress gets one persistent,
-   *  updated-in-place Notice (COPY-08, a plain count, never a percentage); every
-   *  terminal transition dismisses it. A completed run updates this view's own
-   *  identifiers and publishes the new layout; a cancelled or failed run publishes
-   *  NOTHING and only ever surfaces a message -- `this.state.snapshotId` (and therefore
-   *  the rendered city) is untouched by either. */
+  /** Reacts to every run-lifecycle transition (spec 7) — the actual decision logic
+   *  now lives in `lifecycle-notices.ts`'s `reactToLifecycleChange` (task 9 fix
+   *  round 1, item 1: extracted purely to keep this file under the 400-line
+   *  budget; no logic changed). This method is just the host-specific wiring:
+   *  which store, which snapshot store, which callbacks. */
   private onLifecycleChange(lifecycle: ScanLifecycleState): void {
-    const run = lifecycle.run;
-    if (run.status === 'running') {
-      const message = formatProgressMessage(run.processedFiles);
-      if (this.progressNotice) this.progressNotice.setMessage(message);
-      else this.progressNotice = new Notice(message, 0);
-      return;
-    }
-    this.progressNotice?.hide();
-    this.progressNotice = null;
-
-    if (run.status === 'complete') {
-      const snapshot = lifecycle.publishedSnapshotId ? this.deps.snapshotStore.get(lifecycle.publishedSnapshotId) : null;
-      if (!snapshot) return;
-      this.state = { ...this.state, profileId: snapshot.repositoryId, snapshotId: snapshot.snapshotId };
-      void this.publishLayout(snapshot);
-      return;
-    }
-    if (run.status === 'cancelled') {
-      this.showNotice(`${CANCELLED_BANNER}${this.retainedSnapshotSuffix(lifecycle)}`);
-      return;
-    }
-    if (run.status === 'failed') {
-      const base = lifecycle.banner ?? 'Scan failed.';
-      this.showNotice(`${base}${this.retainedSnapshotSuffix(lifecycle)}`);
-    }
+    const updated = reactToLifecycleChange(
+      lifecycle, this.deps.snapshotStore, this.state.snapshotId, this.runStore,
+      { publishLayout: (snapshot) => { void this.publishLayout(snapshot); }, showNotice: (m) => { this.showNotice(m); } },
+    );
+    if (updated) this.state = { ...this.state, ...updated };
   }
 
-  /** A one-shot Notice: nothing here retains the instance afterwards, unlike
-   *  `progressNotice`, which is updated in place across several PROGRESS ticks. */
+  /** A one-shot Notice for a terminal (cancelled/failed) transition or a scan-start
+   *  failure — never for progress, which is `runStore`'s and `StatusBanner`'s job
+   *  now (item 1). Nothing here retains the instance afterwards. */
   private showNotice(message: string): void {
     void new Notice(message, 6000);
-  }
-
-  /** The "Your complete snapshot from {time} is unchanged" half of COPY-10, or '' when
-   *  there is no retained snapshot to name (a cancelled/failed FIRST scan).
-   *
-   *  Fix round 1, Important 1: `lifecycle.publishedSnapshotId` is the COORDINATOR's own
-   *  record, set only by a SCAN_COMPLETED this exact coordinator instance dispatched.
-   *  `ScanCoordinator` is per-CityView (Fact F), so after a view is closed and
-   *  re-created (or popped out) with a snapshot already restored via setState, a fresh
-   *  coordinator's `publishedSnapshotId` is null even though the shared, in-memory
-   *  SnapshotStore still holds — and this view is still SHOWING — a complete snapshot.
-   *  Falling back to `this.state.snapshotId` (this view's own persisted identifier,
-   *  restored by setState/onOpen regardless of which coordinator instance produced it)
-   *  is what keeps this sentence appearing after that re-creation, which is exactly the
-   *  checkpoint #2 line this covers. */
-  private retainedSnapshotSuffix(lifecycle: ScanLifecycleState): string {
-    const snapshotId = lifecycle.publishedSnapshotId ?? this.state.snapshotId;
-    const previous = snapshotId ? this.deps.snapshotStore.get(snapshotId) : null;
-    if (!previous) return '';
-    const time = new Date(previous.providerRun.capturedAt).toLocaleTimeString();
-    return ` Your complete snapshot from ${time} is unchanged.`;
   }
 
   /** Obligation 7 (task-8 brief step 4): recomputes layout from the published snapshot
@@ -332,16 +304,30 @@ export class CityView extends ItemView {
    *  strictly-increasing per-call token so the renderer can discard a stale or
    *  superseded setLayout call; nothing requires it to be numerically the same value as
    *  the run that produced the snapshot, and a run generation is not even defined any
-   *  more once a run reaches 'complete' (spec 4.1's frozen union drops it there). */
+   *  more once a run reaches 'complete' (spec 4.1's frozen union drops it there).
+   *
+   *  Task 9 fix round 1, item 1 (ruling M66): `cityStore.setCity(snapshot, layout)`
+   *  runs UNCONDITIONALLY, before the `this.renderer` guard — the HTML list,
+   *  inspector and legend must hold real data below the 320 px floor and before the
+   *  first size measurement too, where no renderer exists at all (spec 5.2:
+   *  "list-first" is the fallback, not a degraded, dataless mode). `computeLayout`
+   *  gets its own try/catch for exactly the reason Minor 8's comment below states —
+   *  it has no never-throws contract, and this now runs even when there is no
+   *  renderer to catch a later throw for it. */
   private async publishLayout(snapshot: CodebaseSnapshot): Promise<void> {
+    let layout;
+    try {
+      layout = computeLayout(snapshot);
+    } catch {
+      this.showNotice('The city could not be rendered from the latest scan.');
+      return;
+    }
+    this.cityStore?.setCity(snapshot, layout);
     if (!this.renderer) return;
     // Fix round 1, Minor 8: this runs from `void this.publishLayout(...)` at every call
     // site, so an uncaught throw here would be an unhandled promise rejection, not a
-    // catchable error anywhere. `setLayout` itself never rejects (spec 4.2), but
-    // `computeLayout` is a plain function with no such contract -- catch it here, once,
-    // rather than requiring every current and future call site to remember `.catch()`.
+    // catchable error anywhere. `setLayout` itself never rejects (spec 4.2).
     try {
-      const layout = computeLayout(snapshot);
       this.layoutAbort?.abort();
       this.layoutAbort = new AbortController();
       this.layoutGeneration += 1;

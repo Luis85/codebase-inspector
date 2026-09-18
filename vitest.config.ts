@@ -26,13 +26,15 @@ export default defineConfig({
         plugins: [vue()],
         test: { name: 'node', environment: 'node',
                 include: ['tests/{unit,contracts,integration,host,acceptance,benchmarks}/**/*.test.ts'],
-                // city-view.test.ts needs a real DOM (mounts Vue, measures contentEl);
-                // the 'jsdom' project below picks it up instead.
-                exclude: ['tests/host/city-view.test.ts'] } },
+                // city-view.test.ts and city-view-store-wiring.test.ts (task 9 fix
+                // round 1, split out of the former for the tests/** line budget)
+                // both need a real DOM (mount Vue, measure contentEl); the 'jsdom'
+                // project below picks up both by this same prefix.
+                exclude: ['tests/host/city-view*.test.ts'] } },
       { resolve: { alias: { obsidian: obsidianMock } },
         plugins: [vue()],
         test: { name: 'jsdom', environment: 'jsdom',
-                include: ['tests/component/**/*.test.ts', 'tests/host/city-view.test.ts'] } },
+                include: ['tests/component/**/*.test.ts', 'tests/host/city-view*.test.ts'] } },
     ],
   },
 });
