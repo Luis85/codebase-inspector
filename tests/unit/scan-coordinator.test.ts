@@ -32,6 +32,12 @@ function spyPort() {
 
 const clock = createFixedClock();
 
+function manyFiles(n: number): Record<string, string> {
+  const files: Record<string, string> = {};
+  for (let i = 0; i < n; i += 1) files[`file-${i}.ts`] = 'x';
+  return files;
+}
+
 describe('ScanCoordinator', () => {
   let scope: AnalysisScope;
   let approval: ApprovedInventoryRun;
@@ -189,6 +195,100 @@ describe('ScanCoordinator', () => {
     const retained = store.latestFor('p');
     expect(retained?.snapshotId).toBe('previous');
     expect(retained?.providerRun.capturedAt).toBe(previous.providerRun.capturedAt);
+  });
+
+  // Ruling M50 (fix round 5): spec 5.2's "Throttle rapidly changing counters," applied
+  // at the source. A fixed clock (never advances) means every file after the first
+  // falls inside the SAME throttle window -- exactly the scenario that lets these
+  // assertions be tight rather than approximate.
+  describe('progress is THROTTLED (ruling M50)', () => {
+    it('produces far fewer PROGRESS notifications than one per file', async () => {
+      const { port } = createFakeSourceFileSystem(manyFiles(200));
+      const store = new InMemorySnapshotStore(clock);
+      const coordinator = new ScanCoordinator({ port, store, clock, createCancellationToken });
+      let runningNotifications = 0;
+      coordinator.subscribe((s) => { if (s.run.status === 'running') runningNotifications += 1; });
+
+      await coordinator.start(approval, scope);
+
+      expect(runningNotifications).toBeGreaterThan(0);
+      // On a clock that never advances, only the very first tick and the forced final
+      // one (see below) can ever get past the throttle -- nowhere close to 200.
+      expect(runningNotifications).toBeLessThanOrEqual(3);
+    });
+
+    it('always emits a FINAL notification carrying the true, exact count', async () => {
+      const { port } = createFakeSourceFileSystem(manyFiles(200));
+      const store = new InMemorySnapshotStore(clock);
+      const coordinator = new ScanCoordinator({ port, store, clock, createCancellationToken });
+      const counts: number[] = [];
+      coordinator.subscribe((s) => { if (s.run.status === 'running') counts.push(s.run.processedFiles); });
+
+      await coordinator.start(approval, scope);
+
+      // The count itself is never throttled, only how often it is REPORTED -- the last
+      // reported value must be exact, never one file short of the truth.
+      expect(counts[counts.length - 1]).toBe(200);
+    });
+
+    it('still emits fresh notifications once the throttle interval has genuinely elapsed', async () => {
+      // A clock that ADVANCES past PROGRESS_THROTTLE_MS between files proves the
+      // throttle is time-based, not "only ever the first and last tick" by coincidence.
+      const advancingClock = createFixedClock();
+      const { port } = createFakeSourceFileSystem(manyFiles(5));
+      const wrappedWalk: SourceFileSystemPort = {
+        ...port,
+        walk: (root, opts, token) => ({
+          async *[Symbol.asyncIterator]() {
+            for await (const entry of port.walk(root, opts, token)) {
+              if (entry.kind === 'file') advancingClock.advance(150);   // > PROGRESS_THROTTLE_MS
+              yield entry;
+            }
+          },
+        }),
+      };
+      const store = new InMemorySnapshotStore(advancingClock);
+      const coordinator = new ScanCoordinator({
+        port: wrappedWalk, store, clock: advancingClock, createCancellationToken,
+      });
+      let runningNotifications = 0;
+      coordinator.subscribe((s) => { if (s.run.status === 'running') runningNotifications += 1; });
+
+      await coordinator.start(approve('p', scope.rootPath, scope, advancingClock), scope);
+
+      // Every one of the 5 files lands in its OWN window now -- one tick per file,
+      // plus the initial SCAN_STARTED notification (processedFiles: 0) and the forced
+      // final emission (obligation: exact count on completion) that always bracket it.
+      expect(runningNotifications).toBe(1 + 5 + 1);
+    });
+
+    it('a cancel during a throttled (suppressed) window leaves no stray notification behind', async () => {
+      const { port } = createFakeSourceFileSystem(manyFiles(50));
+      const store = new InMemorySnapshotStore(clock);
+      const coordinator = new ScanCoordinator({ port, store, clock, createCancellationToken });
+
+      const notifications: ScanLifecycleState[] = [];
+      let cancelledOnce = false;
+      coordinator.subscribe((s) => {
+        notifications.push(s);
+        // Cancel the moment the FIRST progress tick is observed. On this fixed clock,
+        // every subsequent file falls inside that SAME suppressed throttle window --
+        // there is no second tick to wait for before cancelling.
+        if (!cancelledOnce && s.run.status === 'running' && s.run.processedFiles >= 1) {
+          cancelledOnce = true;
+          coordinator.cancel(s.run.runId);
+        }
+      });
+
+      await coordinator.start(approval, scope);
+
+      expect(coordinator.state.status).toBe('cancelled');
+      // Nothing arrives AFTER the collector confirms stopped -- specifically, no stray
+      // 'running' notification, which a leftover forced-final emission would produce.
+      const cancelledIndex = notifications.findIndex((s) => s.run.status === 'cancelled');
+      expect(cancelledIndex).toBeGreaterThanOrEqual(0);
+      expect(notifications.slice(cancelledIndex + 1)).toEqual([]);
+    });
   });
 
   it('never starts a scan because a view became visible', () => {

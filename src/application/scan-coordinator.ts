@@ -16,6 +16,15 @@ import type { SnapshotStore } from './ports/snapshot-store';
 
 const READING_FILES = 'Reading included files.';
 
+// Ruling M50 (fix round 5): spec 5.2 says, verbatim, "Throttle rapidly changing
+// counters." At ~40,000 files, one PROGRESS dispatch (a reducer pass, a state
+// allocation, and a real DOM write via CityView's Notice.setMessage) PER FILE is
+// ~40,000 of each, interleaved with the walk itself -- measured as the actual cause of
+// "the scan takes several minutes in the real host" after a 76.7s in-Node measurement
+// (no DOM, no Notice) could not see it. One emission per ~100ms is frequent enough to
+// feel live and rare enough that the notification storm is gone.
+const PROGRESS_THROTTLE_MS = 100;
+
 /** Every InventoryRunState variant except 'idle' carries a runId. Used instead of an
  *  `as` cast wherever this file needs to compare "is this still MY run" against a state
  *  that might, by the time it is inspected, be idle. */
@@ -150,12 +159,26 @@ export class ScanCoordinator {
       }
 
       // Obligation 3: drives collectInventory with a CancellationToken, through a port
-      // wrapper that turns each file read into a plain-count PROGRESS notification.
-      const trackedPort = this.progressTrackingPort(runId);
+      // wrapper that turns each file read into a plain-count PROGRESS notification
+      // (ruling M50: throttled to at most one per PROGRESS_THROTTLE_MS).
+      const { port: trackedPort, emitFinal } = this.progressTrackingPort(runId);
       const raw = this.onProduce
         ? await this.onProduce()
         : await collectInventory(trackedPort, scope, approval, token, this.deps.clock);
 
+      if (this.wasCancelled(runId)) { this.finishCancelled(runId); return; }
+      // Ruling M50: the run did NOT cancel -- force one last dispatch with the true,
+      // exact count, so a throttled counter never leaves the user looking at a stale
+      // number. Deliberately only reached on this (non-cancelled) path: a cancelled run
+      // discards its progress entirely (COPY-10), so there is no "final count" to show.
+      emitFinal();
+      // `emitFinal` notifies subscribers SYNCHRONOUSLY and RE-ENTRANTLY (same hazard as
+      // SCAN_STARTED's own re-entrancy fix, round 2): a subscriber reacting to that
+      // notification by calling `cancel(runId)` can advance `this.lifecycle` to
+      // 'cancelling' before this line runs. Re-checked for exactly that reason -- without
+      // it, `mayPublish` below would correctly refuse to publish (status is no longer
+      // 'running') but nothing would ever call `finishCancelled`, leaving the run stuck
+      // at 'cancelling' forever instead of confirming 'cancelled'.
       if (this.wasCancelled(runId)) { this.finishCancelled(runId); return; }
 
       // Obligation 4, part 1: validates the snapshot BEFORE publishing it, regardless of
@@ -236,19 +259,37 @@ export class ScanCoordinator {
    *  forever. Counts each `kind: 'file'` entry the walk yields instead — exactly one per
    *  KEPT file (spec 5.2's "Reading included files"; excluded or skipped entries never
    *  reach this count), so this is still exactly "files read so far", never a fabricated
-   *  percentage (there is no total here to divide by). */
-  private progressTrackingPort(runId: string): SourceFileSystemPort {
+   *  percentage (there is no total here to divide by).
+   *
+   *  Ruling M50 (fix round 5): dispatches are THROTTLED to at most one per
+   *  `PROGRESS_THROTTLE_MS`, using `this.deps.clock` (never a real timer -- there is
+   *  nothing here to leak or to fire late after cancellation, because the throttle is
+   *  just a synchronous elapsed-time check made on each walk entry, not a scheduled
+   *  callback). The COUNT itself is never throttled -- `processed` increments on every
+   *  kept file regardless of whether this tick happens to emit -- only how often a
+   *  dispatch actually reaches subscribers is. `emitFinal` is returned alongside the
+   *  port so `start()` can force one LAST dispatch carrying the true, exact count once
+   *  the walk is over (but only on the non-cancelled path -- see its call site): a
+   *  throttled counter that stops one file short of the truth is worse than no
+   *  throttle at all. */
+  private progressTrackingPort(runId: string): { port: SourceFileSystemPort; emitFinal: () => void } {
     const port = this.deps.port;
+    const clock = this.deps.clock;
     let processed = 0;
-    return {
+    let lastEmittedAtMs: number | null = null;
+    const dispatch = (n: number): void => { this.dispatch({ type: 'PROGRESS', runId, processedFiles: n }); };
+    const wrappedPort: SourceFileSystemPort = {
       ...port,
       walk: (root, opts, token) => {
-        const dispatch = (n: number): void => { this.dispatch({ type: 'PROGRESS', runId, processedFiles: n }); };
         async function* wrapped(): AsyncGenerator<WalkEntry> {
           for await (const entry of port.walk(root, opts, token)) {
             if (entry.kind === 'file') {
               processed += 1;
-              dispatch(processed);
+              const nowMs = clock.now().getTime();
+              if (lastEmittedAtMs === null || nowMs - lastEmittedAtMs >= PROGRESS_THROTTLE_MS) {
+                lastEmittedAtMs = nowMs;
+                dispatch(processed);
+              }
             }
             yield entry;
           }
@@ -256,5 +297,6 @@ export class ScanCoordinator {
         return wrapped();
       },
     };
+    return { port: wrappedPort, emitFinal: () => { dispatch(processed); } };
   }
 }
