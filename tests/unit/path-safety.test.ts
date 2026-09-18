@@ -56,6 +56,33 @@ describe('isContained', () => {
     expect(isContained('C:\\Root\\Foo', 'c:\\root\\foo\\x', { caseSensitive: false })).toBe(true);
   });
 
+  // Fix wave item 3 (I2, Important). The case-insensitive branch used to compare with
+  // `localeCompare(other, undefined, { sensitivity: 'accent' })`, a full Unicode
+  // collation -- not the ordinal case fold `path.relative` performs on Windows, which
+  // this function's own doc claimed equivalence to. Default-ignorable code points
+  // collate AWAY under that comparison, so a path OUTSIDE the approved root read as
+  // INSIDE it: the wrong failure direction for a containment boundary. It was also
+  // locale-dependent (a Turkish-locale host answers the opposite for I/i) and cost
+  // 949 ms / 2,090 ms per 40,000 entries against 83 ms for toLowerCase, paid
+  // synchronously on the renderer thread before any read.
+  it('a default-ignorable code point does not collate away: SHY makes a DIFFERENT directory', () => {
+    // 'C:\app\u00AD' is a genuinely different directory from 'C:\app' on Windows.
+    expect(isContained('C:\\app', 'C:\\app\u00AD\\secret')).toBe(false);
+    expect(isContained('C:\\app', 'C:\\app\u00AD\\secret', { caseSensitive: false })).toBe(false);
+    expect(isContained('C:\\app', 'C:\\app\u00AD\\secret', { caseSensitive: true })).toBe(false);
+  });
+
+  it('a zero-width space does not collate away either', () => {
+    expect(isContained('/root/a', '/root/a\u200B/x')).toBe(false);
+    expect(isContained('/root/a', '/root/a\u200B/x', { caseSensitive: false })).toBe(false);
+    expect(isContained('/root/a', '/root/a\u200B/x', { caseSensitive: true })).toBe(false);
+  });
+
+  it('still contains the genuinely identical segment under both modes', () => {
+    expect(isContained('C:\\app\u00AD', 'C:\\app\u00AD\\secret', { caseSensitive: false })).toBe(true);
+    expect(isContained('C:\\app\u00AD', 'C:\\app\u00AD\\secret', { caseSensitive: true })).toBe(true);
+  });
+
   it('prefix collision is rejected under BOTH case modes', () => {
     expect(isContained('C:\\Projects\\app', 'C:\\Projects\\app-evil\\a.ts', { caseSensitive: true })).toBe(false);
     expect(isContained('C:\\Projects\\app', 'C:\\Projects\\app-evil\\a.ts', { caseSensitive: false })).toBe(false);

@@ -2,7 +2,7 @@
 // to validate it and does NOTHING else: no readdir of the tree, no file open, no
 // content read. Every filesystem touch goes through the injected SourceFileSystemPort
 // (task 5), never a second path to Node (no-nodejs-modules stays 'error' for src/**).
-import { FileSystemAdapter, Modal } from 'obsidian';
+import { FileSystemAdapter, Modal, Platform } from 'obsidian';
 import type { App } from 'obsidian';
 import type { CodebaseProfile } from '../../domain/model';
 import type { SourceFileSystemPort } from '../../application/ports/source-filesystem-port';
@@ -175,7 +175,16 @@ class SourceModal extends Modal {
         return null;
       }
       const resolvedRoot = joinVaultPath(base, relativeNormalized);
-      if (!isContained(base, resolvedRoot)) {
+      // Deferred minor #17 (fix wave item 3): the `caseSensitive` option ruling M20 made
+      // the adapter/host layer's responsibility was omitted here, so this call silently
+      // took the default -- contrast walker.ts:190's explicit
+      // `{ caseSensitive: deps.caseSensitive }`. Inert today (normalizeRelativePath
+      // fully gates escapes before this runs) but it was the defaulted branch that was
+      // both wrong and slow, and a defaulted platform decision in host code is exactly
+      // what M20 exists to stop. `Platform.isWin`, matching
+      // node-source-filesystem.ts's own derivation (`path.sep !== '\\'`) so the two
+      // layers cannot disagree about the filesystem they are both looking at.
+      if (!isContained(base, resolvedRoot, { caseSensitive: !Platform.isWin })) {
         this.setError('That folder is not inside this vault.');
         return null;
       }

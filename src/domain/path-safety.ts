@@ -61,7 +61,23 @@ function segments(p: string): string[] {
  *  `src/domain/**` may not read the platform (it is forbidden from importing Node or any
  *  host API), so it cannot decide this itself — ruling M20: the ADAPTER layer decides,
  *  based on the platform it is actually running on, and passes the decision in here on
- *  every call. */
+ *  every call.
+ *
+ *  Comparison is ORDINAL in both modes: `===`, or `toLowerCase()` on both sides. Fix
+ *  wave item 3 (I2): the insensitive branch used to be
+ *  `localeCompare(other, undefined, { sensitivity: 'accent' })`, which is a full Unicode
+ *  collation and NOT what `path.relative` does — Windows folds case ordinally. Three
+ *  consequences, all measured: (1) default-ignorable code points collate away, so
+ *  `isContained('C:\app', 'C:\app\u00AD\secret')` answered TRUE for a genuinely
+ *  different directory — "outside reads as inside", the wrong failure direction for a
+ *  containment boundary; (2) the answer depended on the host's locale (a Turkish-locale
+ *  host inverts I/i); (3) it cost 949 ms for a 3-segment root and 2,090 ms for a
+ *  7-segment one over 40,000 entries, against 83 ms for `toLowerCase`, paid
+ *  synchronously on the Obsidian renderer thread by `classifyEntry` on every entry
+ *  before any read. `String.prototype.toLowerCase` is locale-INDEPENDENT (unlike
+ *  `toLocaleLowerCase`), which is what makes this deterministic — and it is the exact
+ *  comparison `walker.ts`'s `isExcluded` already used thirty lines away, so the codebase
+ *  no longer holds two different definitions of "case-insensitive". */
 export function isContained(root: string, candidate: string, options?: { caseSensitive?: boolean }): boolean {
   const caseSensitive = options?.caseSensitive ?? false;
   const r = segments(root);
@@ -70,6 +86,6 @@ export function isContained(root: string, candidate: string, options?: { caseSen
   if (c.length < r.length) return false;
   return r.every((part, i) => {
     const other = c[i]!;
-    return caseSensitive ? part === other : part.localeCompare(other, undefined, { sensitivity: 'accent' }) === 0;
+    return caseSensitive ? part === other : part.toLowerCase() === other.toLowerCase();
   });
 }
