@@ -43,6 +43,32 @@ describe('App.vue welcome-state shell', () => {
     expect(wrapper.text()).toContain('The 3D view is unavailable. File inspection still works.');
   });
 
+  // Task 9 fix round 1, item 4 (Important): view-surface.ts's derivation used to
+  // check renderer/root unavailability BEFORE no-source/scanning/cancelled/
+  // empty-scope/no-search-matches/partial-read, as the head of a single-winner
+  // priority chain — and city-view.ts initialises `rendererAvailable` to
+  // `ref(false)` (only flipped true once a measurement runs), so this was worse
+  // than a narrow-leaf edge case: the welcome action was hidden before the FIRST
+  // size measurement, and permanently on any leaf under the 320px floor, which is
+  // exactly where spec 5.2 says the view must render list-first and KEEP WORKING.
+  // A regression against task 3, whose welcome button was unconditional.
+  it('does not let renderer unavailability mask "no source selected"', () => {
+    const wrapper = mount(App, {
+      global: { provide: { rendererAvailable: ref(false) } },
+    });
+    expect(wrapper.text()).toContain('Understand your codebase. Start with its structure.');
+    expect(wrapper.text()).toContain('Select a codebase');
+  });
+
+  it('prints COPY-14 exactly once, not twice, when the renderer is unavailable', () => {
+    const wrapper = mount(App, {
+      global: { provide: { rendererAvailable: ref(false) } },
+    });
+    const copy14 = 'The 3D view is unavailable. File inspection still works.';
+    const occurrences = wrapper.text().split(copy14).length - 1;
+    expect(occurrences).toBe(1);
+  });
+
   it('exposes an empty renderer-host element for the host to mount into', () => {
     const wrapper = mount(App);
     const exposed = wrapper.vm as unknown as { rendererHost: HTMLElement | null };

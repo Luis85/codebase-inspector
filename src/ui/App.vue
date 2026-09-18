@@ -16,7 +16,6 @@
 -->
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue';
-import type { Ref } from 'vue';
 import { useCityStore } from './stores/city-store';
 import { useRunStore } from './stores/run-store';
 import { provideCityRenderer, provideCityStageEl } from './renderer-handle';
@@ -33,7 +32,8 @@ import StatusBanner from './components/StatusBanner.vue';
 import EmptyState from './components/EmptyState.vue';
 import AnnouncementRegion from './components/AnnouncementRegion.vue';
 
-const rendererAvailable = inject<Ref<boolean>>('rendererAvailable', () => ref(true), true);
+// `rendererAvailable` is no longer read here (item 4) — CityViewport injects it
+// directly itself; App.vue's own derivation must never see it (see below).
 const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
 
 provideCityRenderer();
@@ -42,10 +42,23 @@ provideCityStageEl();
 const store = useCityStore();
 const runStore = useRunStore();
 
-type RendererUnavailableReason = 'unsupported' | 'context-lost' | 'initialization-failed' | null;
-interface CityViewportExposed { stageEl: HTMLElement | null; unavailableReason: RendererUnavailableReason }
+interface CityViewportExposed { stageEl: HTMLElement | null }
 const cityViewportRef = ref<CityViewportExposed | null>(null);
 
+// Task 9 fix round 1, item 4 (Important): renderer/root unavailability are
+// deliberately NEVER wired into this derivation. `view-surface.ts` still SUPPORTS
+// 'renderer-unavailable'/'context-lost' as states (StatusBanner/EmptyState's own
+// component tests exercise them directly), but feeding the real signal in here
+// made it the head of a single-winner priority chain — masking "no source
+// selected", scanning, cancelled and every other state behind it. Since
+// `rendererAvailable` starts `false` in city-view.ts and only flips true after
+// the first size measurement (and stays false forever below the 320px floor),
+// that meant the welcome action was hidden before the first measurement and
+// permanently on any narrow leaf — a regression against task 3, whose welcome
+// button was unconditional. CityViewport already renders its OWN, genuinely
+// non-exclusive notice for exactly this signal (COPY-14 / the reconstruct
+// notice), inside the viewport pane, alongside whatever else is on screen —
+// picking IT as the one owner of that copy is what fixes the double-print too.
 const viewSurfaceState = computed(() => deriveViewSurfaceState({
   hasSnapshot: store.snapshot !== null,
   runStatus: runStore.run.status,
@@ -55,8 +68,7 @@ const viewSurfaceState = computed(() => deriveViewSurfaceState({
   matchingIds: store.matchingIds,
   query: store.query,
   partialRead: countPartialRead(store.snapshot),
-  rendererUnavailableReason: cityViewportRef.value?.unavailableReason
-    ?? (rendererAvailable.value ? null : 'unsupported'),
+  rendererUnavailableReason: null,
   rootUnavailable: false,
 }));
 
