@@ -99,6 +99,11 @@
   gap: var(--ci-space-2);
   flex: 1 1 auto;
   min-height: 0;
+  /* Phase 2c, B1/B2: a flex item's default `min-width: auto` is its CONTENT minimum,
+     so without this the stage column refuses to shrink below whatever the canvas and
+     the camera dock happen to measure, and the row overflows the leaf instead of
+     giving the stage the width the budget allocated it. */
+  min-width: 0;
 }
 /* Task 9 fix round 1, item 7: .ci-app__list-wrapper carries the drawer's own
    open/close chrome (App.vue) around CodebaseFileList; the container-query
@@ -134,8 +139,31 @@
     flex-direction: row;
     align-items: stretch;
   }
+  /* Phase 2c, B1 (ruling M105) and B2. These two panels used to be
+     `flex: 0 0 260px` / `flex: 0 0 280px` -- immovable at EVERY width, with no
+     `max-width` and no `min-width` anywhere in this file. Two consequences, both real:
+
+     B1: their fixed 540 px combined was never reconciled with the 820 px threshold
+     above. `320 + 260 + 280 + 24 + 32 + 2 = 918`, so between 820 and 917 the app
+     classified the leaf as wide while the stage fell to 222-319 px the moment the
+     inspector opened -- which every canvas pick does -- and CityViewport disposed the
+     renderer and showed COPY-14. A user clicked a building in an 850 px pane and the
+     city vanished. tests/unit/layout-budget.test.ts now pins the arithmetic, reading
+     these very declarations, so the band cannot be reopened by changing a width here.
+
+     B2: fixed pixels against an unbounded viewport is the proportions complaint. The
+     city got 35% of the leaf at 918 px and 76% at 2510 px. A clamped percentage basis
+     gives the panels a RANGE instead of a point: they yield near the threshold (down
+     to the minimum the budget allows) and grow with the viewport, but stop at a cap,
+     because a file list wider than ~320 px is wasted space where the city uses every
+     pixel it is given.
+
+     The minimum is declared explicitly rather than left to `min-width: auto`: a
+     definite floor is both what the budget needs and what removes the content-based
+     flex-blowout risk on the list's long unbroken paths. */
   :where(.codebase-inspector-root) .ci-app__list-wrapper {
-    flex: 0 0 260px;
+    flex: 0 1 clamp(180px, 18%, 320px);
+    min-width: 180px;
   }
   /* No drawer concept at all above the threshold. */
   :where(.codebase-inspector-root) .ci-app__drawer-opener,
@@ -143,7 +171,8 @@
     display: none;
   }
   :where(.codebase-inspector-root) .ci-inspector {
-    flex: 0 0 280px;
+    flex: 0 1 clamp(200px, 20%, 360px);
+    min-width: 200px;
   }
 }
 @container (max-width: 819px) {
@@ -186,8 +215,15 @@
   display: flex;
   flex-direction: column;
 }
+/* Phase 2c, B3: 1087 rows of paths up to 83 characters in a column whose text area is
+   ~236 px wrap to 2.3-2.6 lines each, which is most of what "the panel layout is off"
+   looks like. `anywhere` (not `break-word`) also makes the row's MIN-CONTENT width
+   bounded by construction, which is what removes the `min-width: auto` flex-blowout the
+   diagnosis flagged as unverifiable without a real browser: the question stops mattering
+   rather than being answered. */
 :where(.codebase-inspector-root) .ci-file-list__row {
   width: 100%;
+  overflow-wrap: anywhere;
   text-align: left;
   padding: var(--ci-space-2) var(--ci-space-3);
   border: none;
