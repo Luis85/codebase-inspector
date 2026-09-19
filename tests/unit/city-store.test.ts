@@ -240,6 +240,28 @@ describe('useCityStore', () => {
       expect(store.camera).toEqual(bookmark3d);    // top-view operations never mutate it
     });
 
+    // Phase 2 fix wave, C1: the assertion the test above only APPEARS to make. That
+    // one names '3d' itself, which no production caller ever did; this one derives the
+    // next mode the way CameraControls.top() now does, so it pins the SECOND press of
+    // the toggle specifically — including that `previous3dCamera`, which spec 4.1 calls
+    // load-bearing, is what comes back rather than whatever `camera` became while away.
+    // Reachability from the UI is proven by camera-controls.test.ts, not here.
+    it('C1: a SECOND Top press restores previous3dCamera, not the live top camera', () => {
+      const store = useCityStore();
+      store.setCamera(bookmark3d);
+      const pressTop = (): void => { store.setViewMode(store.viewMode === 'top' ? '3d' : 'top'); };
+
+      pressTop();
+      expect(store.viewMode).toBe('top');
+      store.nudgeInTopView();
+      expect(store.camera).not.toEqual(bookmark3d);   // the LIVE camera has moved
+
+      pressTop();
+      expect(store.viewMode).toBe('3d');
+      expect(store.camera).toEqual(bookmark3d);
+      expect(store.previous3dCamera).toEqual(bookmark3d);
+    });
+
     it('retains selection and query across Fit', () => {
       const store = useCityStore();
       store.setCity(snapshot, layout);

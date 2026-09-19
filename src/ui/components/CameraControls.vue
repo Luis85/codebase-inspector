@@ -9,7 +9,7 @@
   Obsidian command/hotkey; this component never imports 'obsidian' at all.
 -->
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { useCityRendererHandle, useCityStageEl } from '../renderer-handle';
 import { useCityStore } from '../stores/city-store';
 import { cameraKeyCommand } from '../interaction/keymap';
@@ -28,9 +28,22 @@ function nudge(delta: { orbit?: [number, number]; pan?: [number, number]; zoomFa
 }
 
 function fit(): void { renderer.value?.fit(); }
+
+// Phase 2 fix wave, C1 (Critical): Top is a TOGGLE, not a one-way door. Before this
+// it hardcoded 'top' at both ends, so `setCameraMode('3d')` and `setViewMode('3d')`'s
+// previous3dCamera restore had NO production caller anywhere in src/ — pressing Top
+// removed the oblique view from that leaf permanently, across restarts (viewMode is
+// persisted into CityViewState, and `returnFromList()` comes back to `lastSpatialMode`,
+// which is 'top' by then). Spec 5.2 requires the round trip ("Top→3D restores the saved
+// CameraBookmark in full; top-view operations never mutate it") and the rank-4 handoff's
+// host gate asks a human to perform it. The rig and the store both already implemented
+// it exactly; this is the caller they were missing. The `T` key reaches the SAME
+// function (applyCommand below), so there is one toggle, not two.
+const isTopView = computed(() => store.viewMode === 'top');
 function top(): void {
-  renderer.value?.setCameraMode('top');
-  store.setViewMode('top');
+  const next = isTopView.value ? '3d' : 'top';
+  renderer.value?.setCameraMode(next);
+  store.setViewMode(next);
 }
 function focusSelection(): void {
   if (store.selectedEntityId) renderer.value?.focus(store.selectedEntityId);
@@ -136,12 +149,17 @@ onBeforeUnmount(() => {
     >
       Fit
     </button>
+    <!-- C1: one button, both directions. `aria-pressed` carries the state for
+         assistive technology; the accessible name and the visible label say which
+         way the NEXT press goes, because "Top" while already in top view reads as a
+         control that does nothing (and, before this fix, was one). -->
     <button
       type="button"
-      aria-label="Top"
+      :aria-label="isTopView ? 'Return to 3D view' : 'Top'"
+      :aria-pressed="isTopView ? 'true' : 'false'"
       @click="top"
     >
-      Top
+      {{ isTopView ? '3D' : 'Top' }}
     </button>
     <button
       type="button"

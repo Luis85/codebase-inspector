@@ -9,6 +9,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import '../mocks/obsidian';
 import CameraControls from '../../src/ui/components/CameraControls.vue';
 import { CITY_RENDERER_KEY, CITY_STAGE_KEY } from '../../src/ui/renderer-handle';
+import { useCityStore } from '../../src/ui/stores/city-store';
 
 // Resolved from the working directory (the repo root, always run with the
 // UPPERCASE drive letter — see task-9-context.md §7), not `import.meta.url`: under
@@ -84,6 +85,42 @@ describe('CameraControls.vue (C09) — WCAG 2.5.7', () => {
     await byLabel(wrapper, 'Focus').trigger('click');
     // No selection yet in this test's store — focus() is only meaningful with one;
     // see the dedicated "Focus" behaviour covered by FileInspector's own test.
+  });
+
+  // Phase 2 fix wave, C1 (Critical): `Top` used to be a ONE-WAY DOOR. Nothing in
+  // `src/` ever called `setCameraMode('3d')`, so once a user pressed Top the oblique
+  // view was gone for that leaf — permanently, across restarts, because `viewMode` is
+  // persisted into CityViewState. The store and the rig both implemented the round
+  // trip correctly and completely; neither had a production caller. This test drives
+  // the BUTTON, twice, which is the thing the store-level test below cannot prove.
+  it('C1: Top is a TOGGLE — a second press returns the camera to 3D', async () => {
+    const wrapper = mountControls(rendererDouble, stageEl);
+    const store = useCityStore();
+    const topButton = byLabel(wrapper, 'Top');
+
+    await topButton.trigger('click');
+    expect(rendererDouble.setCameraMode).toHaveBeenNthCalledWith(1, 'top');
+    expect(store.viewMode).toBe('top');
+    expect(topButton.attributes('aria-pressed')).toBe('true');
+    expect(topButton.attributes('aria-label')).toBe('Return to 3D view');
+
+    await topButton.trigger('click');
+    expect(rendererDouble.setCameraMode).toHaveBeenNthCalledWith(2, '3d');
+    expect(store.viewMode).toBe('3d');
+    expect(topButton.attributes('aria-pressed')).toBe('false');
+    expect(topButton.attributes('aria-label')).toBe('Top');
+  });
+
+  it('C1: the T key routes through the SAME toggle as the button', () => {
+    mountControls(rendererDouble, stageEl);
+    const store = useCityStore();
+    stageEl.focus();
+    stageEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'T', bubbles: true }));
+    expect(rendererDouble.setCameraMode).toHaveBeenNthCalledWith(1, 'top');
+    expect(store.viewMode).toBe('top');
+    stageEl.dispatchEvent(new KeyboardEvent('keydown', { key: 't', bubbles: true }));
+    expect(rendererDouble.setCameraMode).toHaveBeenNthCalledWith(2, '3d');
+    expect(store.viewMode).toBe('3d');
   });
 
   it('uses the KEYBOARD increments for key presses, only while the canvas has focus', async () => {
