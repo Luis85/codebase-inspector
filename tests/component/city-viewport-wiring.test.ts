@@ -21,9 +21,24 @@ import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import type { CityRendererEvent, CreateCityRenderer } from '../../src/visualization/renderer-port';
 
-function makeRendererDouble() {
+/** Phase 2c, I5: what a real renderer's FIRST setLayout reports on its way past. */
+const AUTO_FIT_CAMERA = {
+  projection: 'orthographic' as const, mode: '3d' as const,
+  position: [77, 77, 77] as [number, number, number], target: [5, 5, 5] as [number, number, number],
+  up: [0, 1, 0] as [number, number, number], zoom: 0.01,
+};
+
+/** Phase 2c, I5 (Important): the double FITS on its first setLayout and therefore emits
+ *  `camera-changed`, exactly as the frozen 4.2 contract says the real port does. A
+ *  double whose setLayout does nothing cannot observe C1's ordering at all. */
+function makeRendererDouble(emit: (e: CityRendererEvent) => void) {
+  let hasFitted = false;
   return {
-    setLayout: vi.fn(async (_layout: unknown, _opts: { generation: number; signal: AbortSignal }) => {}),
+    setLayout: vi.fn(async (_layout: unknown, _opts: { generation: number; signal: AbortSignal }) => {
+      if (hasFitted) return;
+      hasFitted = true;
+      emit({ type: 'camera-changed', camera: AUTO_FIT_CAMERA });
+    }),
     setColors: vi.fn(),
     setSelection: vi.fn((_entityId: string | null) => {}),
     setFilter: vi.fn(), setLabels: vi.fn(),
@@ -76,7 +91,7 @@ async function mountViewport(): Promise<Harness> {
   let emit: ((e: CityRendererEvent) => void) | null = null;
   const factory = vi.fn((_el: HTMLElement, _win: Window, onEvent: (e: CityRendererEvent) => void) => {
     emit = onEvent;
-    const next = makeRendererDouble();
+    const next = makeRendererDouble(onEvent);
     renderers.push(next);
     return next;
   }) as unknown as CreateCityRenderer;

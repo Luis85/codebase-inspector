@@ -36,6 +36,12 @@ const CAMERA_A: CameraBookmark = {
 const CAMERA_B: CameraBookmark = {
   projection: 'orthographic', mode: '3d', position: [9, 9, 9], target: [0, 0, 0], up: [0, 1, 0], zoom: 3,
 };
+/** What a REAL renderer's first `setLayout` reports on its way past: the auto-fit's own
+ *  camera. Deliberately unlike either bookmark above, so "the restore was lost" is
+ *  visible rather than coincidentally equal to what was wanted. */
+const AUTO_FIT_CAMERA: CameraBookmark = {
+  projection: 'orthographic', mode: '3d', position: [77, 77, 77], target: [5, 5, 5], up: [0, 1, 0], zoom: 0.01,
+};
 
 // Named spy fields, never read back off `port.dispose`/`port.setLayout`/etc. --
 // @typescript-eslint/unbound-method flags a live method-typed member expression
@@ -63,10 +69,24 @@ function makePort(spies: Pick<RendererCall, 'dispose' | 'setLayout' | 'setCamera
   };
 }
 
+// Phase 2c, I5 (Important): AN HONEST DOUBLE. This used to be
+// `vi.fn(async () => {})`, and a `setLayout` that does nothing never fits, so it never
+// emits `camera-changed` -- which is exactly the event the frozen 4.2 contract says the
+// FIRST layout produces ("the FIRST layout frames itself", city-renderer.ts's `hasFitted`
+// guard -> `rig.fit()` -> a rig-INITIATED commit -> `camera-changed`). With that event
+// stubbed away, `lands the camera where it left off` below asserted a CALL and passed
+// while production destroyed the bookmark (C1). The double now mirrors the contract, so
+// the assertion is about an OUTCOME and the suite can tell the broken version from the
+// fixed one.
 vi.mock('../../src/visualization/city-renderer', () => ({
   createCityRenderer: vi.fn((_mountEl: HTMLElement, win: Window, onEvent: (e: CityRendererEvent) => void) => {
     const dispose = vi.fn<() => void>();
-    const setLayout = vi.fn<CityRendererPort['setLayout']>(async () => {});
+    let hasFitted = false;
+    const setLayout = vi.fn<CityRendererPort['setLayout']>(async () => {
+      if (hasFitted) return;
+      hasFitted = true;
+      onEvent({ type: 'camera-changed', camera: AUTO_FIT_CAMERA });
+    });
     const setCamera = vi.fn<(camera: CameraBookmark) => void>();
     const setColors = vi.fn<(palette: CityPalette) => void>();
     const port = makePort({ dispose, setLayout, setCamera, setColors });
@@ -203,7 +223,12 @@ describe('pop-out migration', () => {
     migrateElement(view.containerEl, popout);
     await nextTick();
     await nextTick();   // the reconstruction's own setLayout().then(...) microtask
-    expect(rendererCalls[1]!.setCamera).toHaveBeenCalledWith(CAMERA_B);
+    // Phase 2c, I5: the SECOND renderer now auto-fits like a real one, so this is an
+    // outcome and not merely a call -- it is only CAMERA_B if the restore captured the
+    // bookmark BEFORE issuing setLayout. Both halves are asserted: the last camera the
+    // port was commanded with, and that it was never left holding the fit's own camera.
+    expect(rendererCalls[1]!.setCamera).toHaveBeenLastCalledWith(CAMERA_B);
+    expect(rendererCalls[1]!.setCamera).not.toHaveBeenCalledWith(AUTO_FIT_CAMERA);
   });
 
   it('creates every DOM node in the NEW window, never the old one', async () => {

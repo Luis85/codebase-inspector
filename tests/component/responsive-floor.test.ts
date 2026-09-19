@@ -14,6 +14,14 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../../tests/fixtures/snapshot-builder';
 
+/** Phase 2c, I5: what a real renderer's FIRST setLayout reports on its way past — the
+ *  auto-fit's own camera. Deliberately unlike any bookmark these tests set. */
+const AUTO_FIT_CAMERA = {
+  projection: 'orthographic' as const, mode: '3d' as const,
+  position: [77, 77, 77] as [number, number, number], target: [5, 5, 5] as [number, number, number],
+  up: [0, 1, 0] as [number, number, number], zoom: 0.01,
+};
+
 function setRect(el: HTMLElement, width: number, height: number): void {
   el.getBoundingClientRect = () => ({
     width, height, top: 0, left: 0, right: width, bottom: height, x: 0, y: 0, toJSON: () => ({}),
@@ -229,9 +237,18 @@ describe('a stale-open Files drawer (R1)', () => {
 // behind a sibling tab) or a box below the 320 px floor -- the reason is never cleared
 // and the branch DOES render. Deleting the whole `v-else-if` left the suite green at
 // 751; these three assert the branch and document M83's true boundary.
-function makeRendererDouble() {
+// Phase 2c, I5 (Important): the double FITS on its first setLayout, exactly as the
+// frozen 4.2 contract says the real port does ("the FIRST layout frames itself"), and
+// therefore emits `camera-changed`. A double that never fits cannot observe C1's
+// ordering at all; this one can. `emit` is wired by the factory below.
+function makeRendererDouble(emit: (e: CityRendererEvent) => void) {
+  let hasFitted = false;
   return {
-    setLayout: vi.fn(async () => {}),
+    setLayout: vi.fn(async () => {
+      if (hasFitted) return;
+      hasFitted = true;
+      emit({ type: 'camera-changed', camera: AUTO_FIT_CAMERA });
+    }),
     setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setLabels: vi.fn(),
     setCameraMode: vi.fn(), setMotion: vi.fn(),
     getCamera: vi.fn(() => ({
@@ -265,7 +282,7 @@ async function mountViewport(width: number, height: number) {
   let onEvent: ((e: CityRendererEvent) => void) | null = null;
   const factory = vi.fn((_el: HTMLElement, _win: Window, handler: (e: CityRendererEvent) => void) => {
     onEvent = handler;
-    return makeRendererDouble();
+    return makeRendererDouble(handler);
   }) as unknown as CreateCityRenderer;
   const wrapper = mount(CityViewport, { global: { provide: { createCityRenderer: factory } } });
   const stage = wrapper.get('[data-ci-role="stage"]').element as HTMLElement;
@@ -349,8 +366,12 @@ describe('the stage is measured by its CONTENT box (checkpoint #3 defect 1)', ()
   async function mountStage(): Promise<{
     double: ReturnType<typeof makeRendererDouble>; stage: HTMLElement; triggerResize: () => void;
   }> {
-    const double = makeRendererDouble();
-    const factory = vi.fn(() => double) as unknown as CreateCityRenderer;
+    let onEvent: ((e: CityRendererEvent) => void) | null = null;
+    const double = makeRendererDouble((e) => { onEvent?.(e); });
+    const factory = vi.fn((_el: HTMLElement, _win: Window, handler: (e: CityRendererEvent) => void) => {
+      onEvent = handler;
+      return double;
+    }) as unknown as CreateCityRenderer;
     const wrapper = mount(CityViewport, { global: { provide: { createCityRenderer: factory } } });
     const stage = wrapper.get('[data-ci-role="stage"]').element as HTMLElement;
     const { win, triggerResize } = makeTriggerableWin();
