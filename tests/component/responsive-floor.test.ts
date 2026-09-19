@@ -155,55 +155,55 @@ describe('the 320 px floor renders list-first (I2)', () => {
 // behind a sibling tab) or a box below the 320 px floor -- the reason is never cleared
 // and the branch DOES render. Deleting the whole `v-else-if` left the suite green at
 // 751; these three assert the branch and document M83's true boundary.
+function makeRendererDouble() {
+  return {
+    setLayout: vi.fn(async () => {}),
+    setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setLabels: vi.fn(),
+    setCameraMode: vi.fn(), setMotion: vi.fn(),
+    getCamera: vi.fn(() => ({
+      projection: 'orthographic' as const, mode: '3d' as const,
+      position: [0, 0, 0] as [number, number, number], target: [0, 0, 0] as [number, number, number],
+      up: [0, 1, 0] as [number, number, number], zoom: 1,
+    })),
+    setCamera: vi.fn(), nudgeCamera: vi.fn(), focus: vi.fn(), fit: vi.fn(), resize: vi.fn(),
+    pause: vi.fn(), resume: vi.fn(), dispose: vi.fn(),
+    getDiagnostics: vi.fn(() => ({
+      geometries: 0, textures: 0, programs: 0, drawCalls: 0, instanceCount: 0, lastFrameMs: 0, contextLost: false,
+    })),
+    debugLoseContext: vi.fn(),
+  };
+}
+
+function makeFakeWin(): Window {
+  class NoopResizeObserver {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  return {
+    ResizeObserver: NoopResizeObserver,
+    matchMedia: vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    devicePixelRatio: 1,
+  } as unknown as Window;
+}
+
+async function mountViewport(width: number, height: number) {
+  let onEvent: ((e: CityRendererEvent) => void) | null = null;
+  const factory = vi.fn((_el: HTMLElement, _win: Window, handler: (e: CityRendererEvent) => void) => {
+    onEvent = handler;
+    return makeRendererDouble();
+  }) as unknown as CreateCityRenderer;
+  const wrapper = mount(CityViewport, { global: { provide: { createCityRenderer: factory } } });
+  const stage = wrapper.get('[data-ci-role="stage"]').element as HTMLElement;
+  (stage as unknown as { win: Window }).win = makeFakeWin();
+  setRect(stage, width, height);
+  await nextTick();
+  return { wrapper, stage, factory, loseContext: (): void => { onEvent!({ type: 'unavailable', reason: 'context-lost' }); } };
+}
+
+const settle = async (): Promise<void> => { await nextTick(); await nextTick(); await nextTick(); };
+
 describe('the context-loss notice, where the self-heal cannot run (M1)', () => {
-  function makeRendererDouble() {
-    return {
-      setLayout: vi.fn(async () => {}),
-      setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setLabels: vi.fn(),
-      setCameraMode: vi.fn(), setMotion: vi.fn(),
-      getCamera: vi.fn(() => ({
-        projection: 'orthographic' as const, mode: '3d' as const,
-        position: [0, 0, 0] as [number, number, number], target: [0, 0, 0] as [number, number, number],
-        up: [0, 1, 0] as [number, number, number], zoom: 1,
-      })),
-      setCamera: vi.fn(), nudgeCamera: vi.fn(), focus: vi.fn(), fit: vi.fn(), resize: vi.fn(),
-      pause: vi.fn(), resume: vi.fn(), dispose: vi.fn(),
-      getDiagnostics: vi.fn(() => ({
-        geometries: 0, textures: 0, programs: 0, drawCalls: 0, instanceCount: 0, lastFrameMs: 0, contextLost: false,
-      })),
-      debugLoseContext: vi.fn(),
-    };
-  }
-
-  function makeFakeWin(): Window {
-    class NoopResizeObserver {
-      observe(): void {}
-      unobserve(): void {}
-      disconnect(): void {}
-    }
-    return {
-      ResizeObserver: NoopResizeObserver,
-      matchMedia: vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
-      devicePixelRatio: 1,
-    } as unknown as Window;
-  }
-
-  async function mountViewport(width: number, height: number) {
-    let onEvent: ((e: CityRendererEvent) => void) | null = null;
-    const factory = vi.fn((_el: HTMLElement, _win: Window, handler: (e: CityRendererEvent) => void) => {
-      onEvent = handler;
-      return makeRendererDouble();
-    }) as unknown as CreateCityRenderer;
-    const wrapper = mount(CityViewport, { global: { provide: { createCityRenderer: factory } } });
-    const stage = wrapper.get('[data-ci-role="stage"]').element as HTMLElement;
-    (stage as unknown as { win: Window }).win = makeFakeWin();
-    setRect(stage, width, height);
-    await nextTick();
-    return { wrapper, stage, factory, loseContext: (): void => { onEvent!({ type: 'unavailable', reason: 'context-lost' }); } };
-  }
-
-  const settle = async (): Promise<void> => { await nextTick(); await nextTick(); await nextTick(); };
-
   beforeEach(() => { setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
