@@ -147,6 +147,80 @@ describe('the 320 px floor renders list-first (I2)', () => {
   });
 });
 
+// Phase 2 fix wave, re-review round 2 (R1, Important): a STALE-OPEN Files drawer.
+// Nothing reset `filesDrawerOpen` when the leaf grew back past 820 px, and the
+// Escape branch this wave added was not gated on `narrowDrawer` the way its Inspector
+// neighbour is -- so after opening Files narrow and widening the pane (a plain drag,
+// or a pop-out), Escape resolved a layer that is NOT ON SCREEN: the press was
+// swallowed instead of clearing the selection, and `closeFilesDrawer()` parked focus
+// on the opener button, which the container query sets to `display: none` at >= 820 px
+// (so in the real host `activeElement` falls to <body> and the user loses their place
+// in the tab order). The same wrong-layer class as I1, non-destructive but reachable
+// by a plain drag -- and the manual checkpoint performs exactly this gesture.
+describe('a stale-open Files drawer (R1)', () => {
+  let resizeObserver: { trigger: () => void; restore: () => void };
+
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    resizeObserver = installControllableResizeObserver();
+  });
+  afterEach(() => {
+    resizeObserver.restore();
+    document.body.innerHTML = '';
+  });
+
+  /** Opens the Files drawer at a genuinely narrow width, with a selection already
+   *  made, and then widens the leaf past the 820 px drawer threshold. */
+  async function openDrawerNarrowThenWiden() {
+    const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
+    setRect(leaf, 400, 700);                    // narrow: the drawer IS a drawer
+    const store = useCityStore();
+    const snapshot = buildSnapshotFixture({ files: 2 });
+    store.setCity(snapshot, computeLayout(snapshot));
+    const wrapper = mount(App, { attachTo: leaf });
+    await nextTick();
+
+    const row = wrapper.get('.ci-file-list__row');
+    await row.trigger('click');
+    const selected = store.selectedEntityId;
+    expect(selected).not.toBeNull();
+
+    const opener = wrapper.get('[aria-label="Files"]');
+    await opener.trigger('click');
+    expect(wrapper.find('.ci-app__list-wrapper--open').exists()).toBe(true);
+
+    // The user drags the pane wide. In the real host the drawer STOPS being a drawer
+    // here -- the list becomes a permanent column and the opener is display:none.
+    setRect(leaf, 1000, 700);
+    resizeObserver.trigger();
+    await nextTick();
+
+    return { wrapper, store, row, opener, selected };
+  }
+
+  it('R1: widening past the drawer threshold closes it, so the state cannot go stale', async () => {
+    const { wrapper } = await openDrawerNarrowThenWiden();
+
+    expect(wrapper.find('.ci-app__list-wrapper--open').exists()).toBe(false);
+    expect(wrapper.find('[aria-label="Close files"]').exists()).toBe(false);
+  });
+
+  it('R1: Escape then clears the SELECTION, and never parks focus on a hidden control', async () => {
+    const { store, row, opener } = await openDrawerNarrowThenWiden();
+    (row.element as HTMLElement).focus();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await nextTick();
+
+    // The layer that is actually on screen is the selection; the drawer is not.
+    expect(store.selectedEntityId).toBeNull();
+    // `closeFilesDrawer()` focuses the opener, which at >= 820 px is display:none in
+    // the real host -- focus must have stayed where the user put it.
+    expect(document.activeElement).not.toBe(opener.element);
+    expect(document.activeElement).toBe(row.element);
+  });
+});
+
 // Phase 2 fix wave, M1 (ruling M89). Ruling M83 decided not to force the
 // context-loss notice to be visible, on the stated ground that M80's self-healing
 // reconstruction clears it within the same microtask drain so it is "never painted".

@@ -19,9 +19,8 @@ export interface EscapeContext {
   query?: string;
   inInspector?: boolean;
   /** The OTHER nonmodal drawer spec 5.2 names (App.vue's `filesDrawerOpen`).
-   *  Unlike the inspector's, this flag is not paired with `narrowDrawer`: the
-   *  Files overlay has no meaning at all above 820 px (its opener is hidden by
-   *  the container query), so if it is open it IS a drawer. */
+   *  Paired with `narrowDrawer` exactly like `inInspector` is -- see the branch
+   *  below for why the unpaired version was a defect. */
   filesDrawer?: boolean;
   narrowDrawer?: boolean;
   inCanvas?: boolean;
@@ -48,7 +47,15 @@ export function escapeIntent(ctx: EscapeContext): EscapeIntent | null {
   // while the drawer stayed open. The two drawers are mutually exclusive in
   // App.vue (one overlay at a time), so their relative order here is not a choice
   // the UI can ever exercise.
-  if (ctx.filesDrawer) return 'close-files-drawer';
+  //
+  // Re-review round 2 (R1, Important): `&& ctx.narrowDrawer`, matching the Inspector
+  // branch above, because a DRAWER THAT IS NOT A DRAWER IS NOT A LAYER. At >= 820 px
+  // the list is a permanent column and the opener is `display: none`, so resolving
+  // this branch there swallows the press (nothing visible happens, and the layer that
+  // IS on screen -- the selection -- never gets it) and focuses a hidden control. The
+  // caller also clears the flag at that width now, so this is the second of two
+  // guards, not the only one; the shape difference from its neighbour bought nothing.
+  if (ctx.filesDrawer && ctx.narrowDrawer) return 'close-files-drawer';
   if (ctx.inSearch && ctx.query) return 'clear-query';
   if (ctx.inCanvas && ctx.selected) return 'clear-selection';
   return null;

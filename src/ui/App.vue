@@ -109,6 +109,15 @@ function updateResponsiveLayout(): void {
   if (!el) return;
   const width = narrowContainer(el).getBoundingClientRect().width;
   narrowDrawer.value = width < DRAWER_MAX_INLINE_SIZE;
+  // Re-review round 2 (R1, Important): at or above the threshold the Files overlay
+  // STOPS EXISTING -- styles.css makes the list a permanent column and hides the
+  // opener -- but nothing reset this flag, so a drawer opened narrow stayed flagged
+  // open forever after a pane drag or a pop-out. `filesDrawerOpen` is a
+  // narrow-layout-only concern (its own declaration says so), so the width that
+  // ends the narrow layout is where it is retired. Assigned directly rather than
+  // through `closeFilesDrawer()`: that one focuses the opener, which is exactly the
+  // hidden control this must not send focus to.
+  if (!narrowDrawer.value) filesDrawerOpen.value = false;
   // A hidden leaf collapses to exactly 0 (spec 4.2's pause/resume invariant, the
   // same case CityViewport's own zero-box guard exists for) -- suspended, not narrow.
   if (width <= 0) return;

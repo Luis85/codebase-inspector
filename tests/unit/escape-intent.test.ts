@@ -71,17 +71,33 @@ describe('escapeIntent — exactly one layer per press', () => {
   // in the drawer link of it, which is what these three pin.
   it('closes the Files drawer rather than clearing the selection under it', () => {
     expect(escapeIntent({
-      filesDrawer: true, inCanvas: true, selected: true,
+      filesDrawer: true, narrowDrawer: true, inCanvas: true, selected: true,
     })).toBe('close-files-drawer');
   });
 
   it('closes the Files drawer before clearing a query', () => {
-    expect(escapeIntent({ filesDrawer: true, inSearch: true, query: 'x' })).toBe('close-files-drawer');
+    expect(escapeIntent({
+      filesDrawer: true, narrowDrawer: true, inSearch: true, query: 'x',
+    })).toBe('close-files-drawer');
   });
 
   it('still resolves a modal, help and IME composition ahead of the Files drawer', () => {
-    expect(escapeIntent({ filesDrawer: true, modal: true })).toBe('close-modal');
-    expect(escapeIntent({ filesDrawer: true, help: true })).toBe('close-help');
-    expect(escapeIntent({ filesDrawer: true, composing: true })).toBeNull();
+    expect(escapeIntent({ filesDrawer: true, narrowDrawer: true, modal: true })).toBe('close-modal');
+    expect(escapeIntent({ filesDrawer: true, narrowDrawer: true, help: true })).toBe('close-help');
+    expect(escapeIntent({ filesDrawer: true, narrowDrawer: true, composing: true })).toBeNull();
+  });
+
+  // Re-review round 2 (R1, Important): the branch above was NOT gated on
+  // `narrowDrawer`, unlike its Inspector neighbour, and I recorded that shape
+  // difference as safe. It is not. At >= 820 px the list is a permanent column and
+  // the Files opener is `display: none`, so a `filesDrawer` flag left over from a
+  // narrower width made Escape resolve a layer that is not on screen -- swallowing
+  // the press instead of clearing the selection, and parking focus on a hidden
+  // control. A drawer that is not a drawer is not a layer.
+  it('R1: ignores a stale Files flag at a width where the drawer is not a drawer', () => {
+    expect(escapeIntent({
+      filesDrawer: true, narrowDrawer: false, inCanvas: true, selected: true,
+    })).toBe('clear-selection');
+    expect(escapeIntent({ filesDrawer: true, narrowDrawer: false })).toBeNull();
   });
 });
