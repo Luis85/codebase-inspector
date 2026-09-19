@@ -64,6 +64,36 @@ function installBoundingRectDefault(): void {
 }
 installBoundingRectDefault();
 
+// Checkpoint #3 defect 1: the SAME gap, one layer down. jsdom computes no layout, so
+// `clientWidth`/`clientHeight` are hard 0 on every element -- which, now that
+// `CityViewport.applySize()` measures the CONTENT box (the border box is what caused the
+// unbounded canvas growth; see the component's own comment), would make every element in
+// the suite look like a hidden, 0x0 leaf.
+//
+// The stand-in defers to the rect stub above, which is what every test in this tree
+// already sets. That is exact rather than approximate: jsdom applies no borders and no
+// padding, so in this environment the border box and the content box genuinely ARE the
+// same rectangle. A test that needs them to DIFFER -- which is the only way the defect is
+// expressible under Node -- defines its own `clientWidth`/`clientHeight` on the element,
+// and that own property shadows this prototype accessor exactly as an own
+// `getBoundingClientRect` shadows the one above. `Math.floor` because the real properties
+// are integers while a rect is fractional.
+function installClientBoxDefault(): void {
+  if (typeof Element === 'undefined') return;
+  const proto = Element.prototype as unknown as { ciClientBoxStub?: boolean };
+  if (proto.ciClientBoxStub) return;
+  Object.defineProperty(proto, 'ciClientBoxStub', { value: true, enumerable: false });
+  Object.defineProperty(Element.prototype, 'clientWidth', {
+    configurable: true,
+    get(this: Element): number { return Math.floor(this.getBoundingClientRect().width); },
+  });
+  Object.defineProperty(Element.prototype, 'clientHeight', {
+    configurable: true,
+    get(this: Element): number { return Math.floor(this.getBoundingClientRect().height); },
+  });
+}
+installClientBoxDefault();
+
 // jsdom's HTMLCanvasElement has no 2D context (the optional `canvas` npm package is
 // not installed), so getContext('2d') returns null with a noisy console warning.
 // cssColorToSrgbBytes already handles a null context gracefully, but the warning would

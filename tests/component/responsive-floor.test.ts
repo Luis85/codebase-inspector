@@ -306,3 +306,87 @@ describe('the context-loss notice, where the self-heal cannot run (M1)', () => {
     expect(wrapper.text()).not.toContain(CONTEXT_LOST_NOTICE);
   });
 });
+
+// Checkpoint #3 defect 1 -- "when opening the city view, the canvas grows in height all
+// the time." `applySize()` measured the stage with `getBoundingClientRect()`, which
+// ALWAYS returns the BORDER box regardless of `box-sizing`; `.ci-viewport__stage` carries
+// `border: 1px solid` (styles.css), so the figure handed to `resize()` was the content
+// box + 2px. `city-renderer.ts`'s `resize()` calls `setSize(w, h, true)`, and Three writes
+// that straight to `canvas.style.height` -- and the canvas is the stage's only in-flow
+// block child, so the stage's CONTENT height became the PREVIOUS BORDER-box height. The
+// ResizeObserver fired, `applySize()` re-measured, +2px. A ratchet, forever.
+//
+// jsdom has no layout engine, so the real feedback loop is not reproducible here and the
+// 801-test suite never saw it. What IS pinnable is the MEASUREMENT CONTRACT: make the two
+// boxes differ and assert which one reaches the port. The second test then models the one
+// layout rule that closes the loop (canvas CSS height -> stage content height) and asserts
+// the sequence reaches a FIXED POINT instead of ratcheting.
+function setContentBox(el: HTMLElement, width: number, height: number): void {
+  Object.defineProperty(el, 'clientWidth', { value: width, configurable: true });
+  Object.defineProperty(el, 'clientHeight', { value: height, configurable: true });
+}
+
+function makeTriggerableWin(): { win: Window; triggerResize: () => void } {
+  const callbacks: (() => void)[] = [];
+  class TriggerableResizeObserver {
+    constructor(cb: () => void) { callbacks.push(cb); }
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  const win = {
+    ResizeObserver: TriggerableResizeObserver,
+    matchMedia: vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    devicePixelRatio: 1,
+  } as unknown as Window;
+  return { win, triggerResize: () => { callbacks.forEach((cb) => { cb(); }); } };
+}
+
+describe('the stage is measured by its CONTENT box (checkpoint #3 defect 1)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  async function mountStage(): Promise<{
+    double: ReturnType<typeof makeRendererDouble>; stage: HTMLElement; triggerResize: () => void;
+  }> {
+    const double = makeRendererDouble();
+    const factory = vi.fn(() => double) as unknown as CreateCityRenderer;
+    const wrapper = mount(CityViewport, { global: { provide: { createCityRenderer: factory } } });
+    const stage = wrapper.get('[data-ci-role="stage"]').element as HTMLElement;
+    const { win, triggerResize } = makeTriggerableWin();
+    (stage as unknown as { win: Window }).win = win;
+    return { double, stage, triggerResize };
+  }
+
+  it('hands the renderer the content box, never the border box', async () => {
+    const { double, stage } = await mountStage();
+    setRect(stage, 402, 242);          // border box: content + the stage's 1px border, both sides
+    setContentBox(stage, 400, 240);    // content box: the only size the canvas may be given
+    await nextTick();
+
+    expect(double.resize).toHaveBeenCalledWith(400, 240, expect.any(Number));
+    expect(double.resize).not.toHaveBeenCalledWith(402, 242, expect.any(Number));
+  });
+
+  it('settles on a fixed point instead of ratcheting +2px per observer tick', async () => {
+    const { double, stage, triggerResize } = await mountStage();
+    // The one layout rule that closes the real loop, modelled: the canvas is the stage's
+    // only in-flow child, so whatever height `resize()` writes to it becomes the stage's
+    // content height on the next pass -- and the border box is that plus 2px.
+    let contentHeight = 240;
+    Object.defineProperty(stage, 'clientWidth', { get: () => 400, configurable: true });
+    Object.defineProperty(stage, 'clientHeight', { get: () => contentHeight, configurable: true });
+    stage.getBoundingClientRect = () => ({
+      width: 402, height: contentHeight + 2, top: 0, left: 0,
+      right: 402, bottom: contentHeight + 2, x: 0, y: 0, toJSON: () => ({}),
+    });
+    double.resize.mockImplementation((_w: number, h: number) => { contentHeight = h; });
+
+    await nextTick();
+    for (let tick = 0; tick < 5; tick += 1) { triggerResize(); }
+
+    expect(contentHeight).toBe(240);
+    const heights = double.resize.mock.calls.map((call: unknown[]) => call[1]);
+    expect(new Set(heights)).toEqual(new Set([240]));
+  });
+});

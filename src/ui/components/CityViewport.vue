@@ -189,27 +189,48 @@ watch(cityRendererHandle, (handle) => { applyStoreState(handle); });
 function applySize(): void {
   const el = stageEl.value;
   if (!el || !createRenderer) return;
-  const rect = el.getBoundingClientRect();
+  // Checkpoint #3 defect 1 -- THE CONTENT BOX, never `getBoundingClientRect()`.
+  // `getBoundingClientRect()` always returns the BORDER box, whatever `box-sizing`
+  // says, and `.ci-viewport__stage` carries `border: 1px solid` (styles.css), so the
+  // rect is the content box + 2px in each axis. That figure reached `resize()`, which
+  // hands it to `setSize(w, h, true)`, and Three writes it straight to
+  // `canvas.style.height`. The canvas is this element's only IN-FLOW child (the label
+  // overlay is `position: absolute`), so the stage's CONTENT height then became the
+  // PREVIOUS BORDER-box height -- +2px -- the ResizeObserver fired, and it ratcheted
+  // forever: "the canvas grows in height all the time". `clientWidth`/`clientHeight`
+  // ARE the content box (this element has a border and no padding), so the canvas is
+  // sized to exactly the box it lives in and the next measurement returns the SAME
+  // number: a fixed point that terminates on the first tick, not a ratchet. Used for
+  // every guard below too, so there is ONE measurement rule here and not two -- the
+  // observer's own `contentBoxSize` would only cover the observer path, leaving mount,
+  // the context-loss rebuild and the cross-window migration on the other rule.
+  const width = el.clientWidth;
+  const height = el.clientHeight;
   // Task 11 (task-11-context.md section 1): a leaf hidden behind a sibling tab
   // collapses BOTH dimensions to exactly zero (Obsidian hides an inactive leaf's
   // pane via `display:none`, which a real ResizeObserver reports as a zero content
   // box) -- distinct from the 320px floor below, which only ever narrows WIDTH
-  // while the leaf stays visible. Spec 4.2's pause/resume invariant is explicit:
+  // while the leaf stays visible. `clientWidth`/`clientHeight` are zero for a
+  // `display: none` subtree too, so this guard reads the same either way.
+  // Spec 4.2's pause/resume invariant is explicit:
   // hidden leaves SUSPEND drawing and input, they are never disposed -- before this,
   // `pause()`/`resume()` had no production caller anywhere in `src/`, and this same
   // width check alone tore the whole scene down and rebuilt it on every tab switch.
-  if (rect.width === 0 && rect.height === 0) {
+  if (width === 0 && height === 0) {
     cityRendererHandle.value?.pause();
     return;
   }
-  if (rect.width < MIN_INLINE_SIZE) {
+  // Spec 5.2 says INLINE SIZE, and the CSS half of the same rule
+  // (`@container (max-width: 819px)`) measures the content box as well, so comparing
+  // a content-box width here is the more faithful reading, not a looser one.
+  if (width < MIN_INLINE_SIZE) {
     available.value = false;
     cityRendererHandle.value?.dispose();
     cityRendererHandle.value = null;
     return;
   }
   available.value = true;
-  if (rect.height <= 0) return;   // zero-size box: no-op, independent of the floor
+  if (height <= 0) return;   // zero-size box: no-op, independent of the floor
   const win = winOf(el);
   if (!cityRendererHandle.value) {
     // Task 9 fix round 3, item 2: a stale CONTEXT_LOST_NOTICE/COPY-14 must not
@@ -229,7 +250,7 @@ function applySize(): void {
     applyMotionPreference(win);
   }
   const ratio = Math.min(win.devicePixelRatio || 1, MAX_PIXEL_RATIO);
-  cityRendererHandle.value?.resize(rect.width, rect.height, ratio);
+  cityRendererHandle.value?.resize(width, height, ratio);
   cityRendererHandle.value?.resume();   // undoes a previous pause() -- always safe, idempotent
 }
 
