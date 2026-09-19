@@ -291,7 +291,27 @@ export function createCameraRig(options: CameraRigOptions): CameraRig {
         if (next.mode === '3d') {
           const { theta, phi, radius } = sphericalOf(next);
           const nextPhi = Math.min(MAX_PHI, Math.max(MIN_PHI, phi + delta.orbit[1]));
-          next = { ...next, position: positionFor(next.target, theta + delta.orbit[0], nextPhi, radius) };
+          // Phase 2c, ruling M101: MINUS, not plus. In this rig's own convention
+          // `theta = atan2(dz, dx)` is measured from +X toward +Z, and at the default
+          // pose the camera's screen-RIGHT is the -Z side -- so INCREASING theta moves
+          // the camera LEFT. Every call site was written as though it moved it right,
+          // which inverted the 3D horizontal orbit while leaving the vertical correct:
+          // exactly the single-axis asymmetry a user describes as "inverted". The
+          // decisive evidence is internal, not a comparison with any other library: in
+          // the same 3D view, a rightward primary drag moved the city LEFT while the
+          // same drag with Shift held (the pan, whose own comment states the intended
+          // convention -- "Dragging right moves the CONTENT right") moved it RIGHT, and
+          // top view moved it RIGHT too. Three of the four paths agreed; this one did
+          // not. Fixed HERE rather than at city-renderer.ts's onOrbit call site, which
+          // was the diagnosis's own first answer and is wrong: top view routes an orbit
+          // delta back through `panX -= delta.orbit[0] / ORBIT_RADIANS_PER_CSS_PX`,
+          // exactly inverting the pre-negation, so negating at the call site would fix
+          // 3D and BREAK top view, which is correct today. One character here corrects
+          // the drag, both dock Rotate buttons and both arrow keys at once, and leaves
+          // vertical orbit, top view, fit(), focusOn() and every persisted bookmark
+          // untouched -- fit/focusOn derive their angles from sphericalOf(bookmark) and
+          // never pass a delta through here.
+          next = { ...next, position: positionFor(next.target, theta - delta.orbit[0], nextPhi, radius) };
         } else {
           // Phase 2 fix wave, I3 (Important): top view is a PLAN -- it has no orbit,
           // and this delta used to be silently discarded, so a primary drag (which
