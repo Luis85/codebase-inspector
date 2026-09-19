@@ -64,6 +64,24 @@ function layoutFixture(): LayoutResult {
   };
 }
 
+/** Phase 2 fix wave, I5: three measured lots and ONE whose metric is unavailable.
+ *  The unavailable lot lives in a DIFFERENT InstancedMesh (the wireframe markers),
+ *  where `instanceId` 0 collides with measured `instanceId` 0 -- which is exactly the
+ *  off-by-one this file's own header warns about ("selects a neighbouring building,
+ *  which looks entirely plausible and is wrong"). Same bounds as the base fixture, so
+ *  `screenOf`'s independently-built rig still agrees with the renderer's own. */
+function layoutWithUnavailableFixture(): LayoutResult {
+  const base = layoutFixture();
+  return {
+    ...base,
+    lots: [...base.lots, {
+      entityId: ID('vendor/blob.min.js'), directoryId: DIR,
+      center: [10, 1, 0], dimensions: [2, 2, 2],
+      colorKey: CATEGORY_IDS[0], metricState: 'unavailable',
+    }],
+  };
+}
+
 function paletteFixture(): CityPalette {
   const categories = Object.fromEntries(CATEGORY_IDS.map((id) => [id, '#4c8bf5'])) as CityPalette['categories'];
   return {
@@ -184,6 +202,46 @@ describe('picking', () => {
     // Never labels, ground planes, district borders or overlays (spec 5.2).
     clickAt(districtGroundPosition());
     expect(picked()).toHaveLength(0);
+  });
+
+  // Phase 2 fix wave, I5 (Important): the ONE mapping this file's own header calls
+  // "plausible and wrong" had no test at all. Mutation: `entityAt` ignoring the mesh
+  // and indexing `measuredLots[instanceId]` directly left the suite green at 751 --
+  // every pick on an unavailable-metric marker would have opened the inspector on a
+  // DIFFERENT, measured file whose index happens to collide, and nothing would look
+  // wrong.
+  it('I5: a pick on an UNAVAILABLE marker returns the marker own entity, not a colliding lot', async () => {
+    vi.useRealTimers();       // buildCity yields through win.setTimeout
+    await port.setLayout(layoutWithUnavailableFixture(), { generation: 2, signal: new AbortController().signal });
+    runFrames();
+    events.length = 0;
+
+    clickAt(screenOf([10, 1, 0]));
+    expect(picked()).toEqual([
+      { type: 'entity-picked', entityId: ID('vendor/blob.min.js'), snapshotId: 's1' },
+    ]);
+
+    // ...and the measured lot at the COLLIDING instance index is still its own.
+    events.length = 0;
+    clickAt(lotScreenPosition('src/domain/model.ts'));
+    expect(picked()).toEqual([
+      { type: 'entity-picked', entityId: ID('src/domain/model.ts'), snapshotId: 's1' },
+    ]);
+  });
+
+  // Mutation: `pickTargets: [measured, markers, slabs, borders]` ALSO left the suite
+  // green -- "clicking the ground selects nothing" passes either way, because
+  // `entityAt` returns null for a mesh the map does not know. So the assertion has to
+  // be on what the ray is tested AGAINST, which is what spec 5.2 actually constrains:
+  // "Ray picking runs only against file lots -- never labels, ground planes, district
+  // borders or overlays."
+  it('I5: raycasts against exactly the two file-lot batches, and they hold exactly the lots', () => {
+    clickAt(lotScreenPosition('src/domain/layout.ts'));
+    expect(raycastSpy).toHaveBeenCalled();
+    const targets = raycastSpy.mock.calls[0]![0] as { count: number }[];
+    expect(targets).toHaveLength(2);        // measured + unavailable markers, nothing else
+    const instances = targets.reduce((total, mesh) => total + mesh.count, 0);
+    expect(instances).toBe(layoutFixture().lots.length);
   });
 
   it('is a no-op on empty space', () => {

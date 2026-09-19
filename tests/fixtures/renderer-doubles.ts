@@ -44,6 +44,23 @@ export function layoutWithUnavailable(): LayoutResult {
   };
 }
 
+/** Phase 2 fix wave, I7: two districts, the second anchored far outside the fitted
+ *  view (bounds stay the base fixture's), so LABEL CULLING is observable -- one label
+ *  on screen, one off it. */
+export function layoutWithTwoDistricts(): LayoutResult {
+  const base = layoutOf('two-districts', 2);
+  return {
+    ...base,
+    districts: [
+      { ...base.districts[0]!, name: 'src' },
+      {
+        directoryId: 'repo\0directory\0tests', parentId: null, name: 'tests', depth: 0,
+        center: [5000, 0, 0], extent: [40, 20], labelAnchor: [5000, 0.2, 0], aggregated: false,
+      },
+    ],
+  };
+}
+
 export function paletteFixture(background = '#1e1e1e'): CityPalette {
   const categories = Object.fromEntries(CATEGORY_IDS.map((id) => [id, '#4c8bf5'])) as CityPalette['categories'];
   return {

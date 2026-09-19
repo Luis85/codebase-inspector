@@ -303,4 +303,45 @@ describe('sibling-broadcast reconciliation reaches the production path (task 11 
     const notices = [...document.querySelectorAll('.notice')].map((n) => n.textContent ?? '');
     expect(notices.some((t) => t.includes('newer scan of this codebase'))).toBe(true);
   });
+
+  // Phase 2 fix wave, I10 (Important): the guard that makes the broadcast above safe
+  //   if (state.profileId !== snapshot.repositoryId) return { notice: null };
+  // could be DELETED with the suite green at 751 (mutation N5). reconcileEveryView
+  // runs for every open CityView in every window, so without it a scan completing for
+  // profile A clears the selection and closes the inspector in a leaf showing profile
+  // B, and tells B's user that "a newer scan of this codebase no longer contains the
+  // selected file" about a file that is still right there in its own list. Ruling M9
+  // makes multiple leaves first-class and task 11's whole reconciliation design rests
+  // on this one comparison. The suite exercised independence in other respects but
+  // never put two leaves on DIFFERENT profiles and completed a scan in one.
+  it('I10: leaves a leaf on a DIFFERENT profile completely untouched', async () => {
+    const h = makeHarness();
+    await h.deps.profileStore.save({ profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 });
+    const scope = { rootPath: '/fake-root', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false as const };
+    h.deps.snapshotStore.put({ ...buildSnapshotFixture({ files: 1, repositoryId: 'p1' }), snapshotId: 'snap-p1', scope });
+
+    const view1 = new CityView({ width: 1000, height: 700 } as never, h.plugin as never, h.deps);
+    await view1.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 'snap-p1' }, {} as never);
+    await view1.onOpen();
+    h.addLeafWithView(view1);
+
+    // The other leaf is on ANOTHER codebase entirely, with its own snapshot.
+    const view2 = await openLeafWithSnapshot(h, 'p2', 2);
+    firstRow(view2).click();
+    await nextTick();
+    const selectedBefore = view2.contentEl.querySelector('.ci-file-list__row--selected')?.textContent;
+    expect(selectedBefore).toBeTruthy();
+    expect(view2.contentEl.querySelector('.ci-inspector')).not.toBeNull();
+
+    // Only notices raised from here on are this test's own.
+    document.querySelectorAll('.notice').forEach((n) => { n.remove(); });
+    await view1.startScan();
+    await nextTick();
+
+    expect(view2.contentEl.querySelector('.ci-file-list__row--selected')?.textContent).toBe(selectedBefore);
+    expect(view2.contentEl.querySelector('.ci-inspector')).not.toBeNull();
+    expect(view2.contentEl.querySelectorAll('.ci-file-list__row').length).toBe(2);
+    const notices = [...document.querySelectorAll('.notice')].map((n) => n.textContent ?? '');
+    expect(notices.some((t) => t.includes('newer scan of this codebase'))).toBe(false);
+  });
 });

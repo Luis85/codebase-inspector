@@ -11,8 +11,10 @@ import '../mocks/obsidian';
 import { Object3D } from 'three';
 import type { CityRendererEvent, CityRendererPort } from '../../src/visualization/renderer-port';
 import {
-  HEIGHT, WIDTH, captureGetContext, layoutOf, makeWinDouble, stubGetContext,
+  HEIGHT, ID, WIDTH, captureGetContext, layoutOf, layoutWithTwoDistricts, makeWinDouble,
+  paletteFixture, stubGetContext,
 } from '../fixtures/renderer-doubles';
+import { createPicking } from '../../src/visualization/picking';
 
 interface FakeRenderer {
   render: Mock; dispose: Mock; forceContextLoss: Mock; setPixelRatio: Mock;
@@ -195,6 +197,123 @@ describe('disposal', () => {
     h.port.debugLoseContext();
     h.port.resize(WIDTH, HEIGHT, 1);
     expect(h.events).toHaveLength(0);
+  });
+
+  // Phase 2 fix wave, I6 (Important): `swapCity`'s two re-application lines
+  //   next.setFilter(filter); next.setSelection(selection);
+  // could each be DELETED with the suite green at 751 (mutations P1 and N6), while
+  // the neighbouring `setColors` and `setBounds` re-applications are pinned by three
+  // and two tests. A new layout arrives on every rescan and on every
+  // dispose-and-reconstruct (a context loss, a pop-out, a 320 px round trip); if
+  // these regress, the outline and the search dimming silently vanish while
+  // city-store still holds both, so the list, inspector and banner keep showing them
+  // and the two halves of the view disagree with no error.
+  it('I6: a NEW layout comes back with the live selection and filter still applied', async () => {
+    const h = await makeHarness();
+    h.port.resize(WIDTH, HEIGHT, 1);
+    h.port.setColors(paletteFixture());
+    await h.port.setLayout(layoutOf('s1', 3), { generation: 1, signal: new AbortController().signal });
+
+    h.port.setSelection(ID('src/f1.ts'));
+    h.port.setFilter(new Set([ID('src/f1.ts')]));     // f0 and f2 are non-matches
+    probe.meshes.length = 0;
+    probe.lines.length = 0;                            // only the NEXT build's objects
+
+    await h.port.setLayout(layoutOf('s2', 3), { generation: 2, signal: new AbortController().signal });
+
+    // The selection outline is the last LineSegments a build constructs.
+    const outline = probe.lines[probe.lines.length - 1] as { visible: boolean };
+    expect(outline.visible).toBe(true);
+
+    // ...and the first InstancedMesh is the measured-lot batch. A dimmed lot and a
+    // matching one must not share a colour.
+    const measured = probe.meshes[0] as { instanceColor: { array: ArrayLike<number> } | null };
+    const colours = measured.instanceColor!.array;
+    expect([colours[0], colours[1], colours[2]]).not.toEqual([colours[3], colours[4], colours[5]]);
+  });
+
+  // Phase 2 fix wave, I7 (Important): district labels had NO test at all, and three
+  // independent ways of breaking them were all suite-green -- dropping
+  // `overlay.setDistricts` entirely (no label is ever created), making `setVisible` a
+  // no-op, and dropping the off-screen culling. Labels are one of the five additions
+  // spec 4.2 records as proved necessary, and `setLabels` is on the frozen port.
+  it('I7: builds one label per district, named, in the mount element', async () => {
+    const h = await makeHarness();
+    h.port.resize(WIDTH, HEIGHT, 1);
+    await h.port.setLayout(layoutWithTwoDistricts(), { generation: 1, signal: new AbortController().signal });
+
+    const labels = [...h.mount.querySelectorAll('.ci-city-labels__label')];
+    expect(labels).toHaveLength(2);
+    expect(labels.map((el) => el.textContent)).toEqual(['src', 'tests']);
+  });
+
+  it('I7: culls the labels that are off screen, and only those', async () => {
+    const h = await makeHarness();
+    h.port.resize(WIDTH, HEIGHT, 1);
+    await h.port.setLayout(layoutWithTwoDistricts(), { generation: 1, signal: new AbortController().signal });
+    h.runFrames();          // labels are repositioned on render, not on setLayout
+
+    const labels = [...h.mount.querySelectorAll('.ci-city-labels__label')] as HTMLElement[];
+    expect(labels[0]!.hidden).toBe(false);      // 'src', at the fitted centre
+    expect(labels[1]!.hidden).toBe(true);       // 'tests', anchored 5000 units away
+  });
+
+  it('I7: setLabels(false) hides the whole overlay', async () => {
+    const h = await makeHarness();
+    h.port.resize(WIDTH, HEIGHT, 1);
+    await h.port.setLayout(layoutWithTwoDistricts(), { generation: 1, signal: new AbortController().signal });
+    const overlay = h.mount.querySelector('.ci-city-labels') as HTMLElement;
+    expect(overlay.hidden).toBe(false);
+    h.port.setLabels(false);
+    expect(overlay.hidden).toBe(true);
+    h.port.setLabels(true);
+    expect(overlay.hidden).toBe(false);
+  });
+
+  // Phase 2 fix wave, I8 (Important): `picking.dispose()` could leak canvas listeners
+  // with nothing noticing -- removing the `pointermove` removal, and never
+  // registering the document-level `pointerup` at all, both left the suite green at
+  // 751. Every pop-out migration, context loss and 320 px round trip disposes and
+  // reconstructs a renderer, so a leaked pointermove accumulates one live closure per
+  // cycle, each holding the canvas, the scene and the hitTest closure -- and each
+  // still raycasting whenever isActive() happens to be true. Spec 4.4's manual-cleanup
+  // list is explicit that Component does not cover this, and checkpoint #3's leak
+  // check is aimed here. One assertion covers all seven registrations permanently.
+  it('I8: picking removes on dispose exactly what it registered, canvas AND document', () => {
+    const canvasEvents: string[] = [];
+    const canvasRemoved: string[] = [];
+    const docEvents: string[] = [];
+    const docRemoved: string[] = [];
+    const canvas = {
+      addEventListener: (type: string) => canvasEvents.push(type),
+      removeEventListener: (type: string) => canvasRemoved.push(type),
+      getBoundingClientRect: () => ({ width: WIDTH, height: HEIGHT, left: 0, top: 0 }),
+    } as unknown as HTMLCanvasElement;
+    const win = {
+      document: {
+        addEventListener: (type: string) => docEvents.push(type),
+        removeEventListener: (type: string) => docRemoved.push(type),
+      },
+      setTimeout: () => 1,
+      clearTimeout: () => {},
+    } as unknown as Window;
+
+    const picking = createPicking({
+      win, canvas,
+      hitTest: () => null, onPick: () => {}, onHover: () => {},
+      onOrbit: () => {}, onPan: () => {}, onZoom: () => {}, isActive: () => true,
+    });
+
+    expect(canvasEvents).toEqual([
+      'pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'pointerleave', 'wheel',
+    ]);
+    // "A release outside the canvas still ends the gesture" -- its own documented
+    // behaviour, and the second mutation showed it was unheld.
+    expect(docEvents).toEqual(['pointerup']);
+
+    picking.dispose();
+    expect([...canvasRemoved].sort()).toEqual([...canvasEvents].sort());
+    expect(docRemoved).toEqual(docEvents);
   });
 
   it('leaks nothing across ten construct-and-dispose cycles', async () => {
