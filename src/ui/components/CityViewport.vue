@@ -167,8 +167,32 @@ function applyStoreState(handle: CityRendererPort | null): void {
   // actually was. Applied only AFTER setLayout settles, never before: the FIRST
   // setLayout a fresh renderer receives fits itself (city-renderer.ts's own
   // `hasFitted` guard), and a setCamera issued earlier would just be overwritten.
+  //
+  // Phase 2c, C1 (Critical): CAPTURED HERE, BEFORE the call — never read out of the
+  // store inside the `.then()`. `setLayout`'s own auto-fit is a RIG-INITIATED commit,
+  // so it emits `camera-changed`, which `handleRendererEvent` mirrors straight into
+  // `store.setCamera` — synchronously, inside the awaited call, before this callback
+  // ever runs. Reading `store.camera` there therefore re-applied the auto-fit camera
+  // this very call had just caused, and `previous3dCamera` (the fit's own mode is
+  // '3d') was clobbered with it. Both are persisted into workspace.json, so the
+  // bookmark was destroyed on every context loss, every sub-320px round trip, every
+  // pop-out migration and every list <-> 3D round trip. `restored` is the value as of
+  // the moment the reconstruction began, which is the only value that means anything.
+  //
+  // The STORE is put back too, and that half is not optional. `setCamera` is a COMMAND
+  // and deliberately emits no `camera-changed` (spec 4.2, so host synchronisation
+  // cannot loop) — so re-aiming the renderer alone leaves the store still holding the
+  // auto-fit bookmark the fit wrote on its way past, and it is the STORE that
+  // `view-state-sync.ts` persists into workspace.json. Renderer-only would have made
+  // the two disagree and destroyed the saved bookmark on the next persist anyway.
+  // Routed through the same `store.setCamera` the event path uses, so there is one
+  // definition of "the camera is now here" and `previous3dCamera` is restored by the
+  // same rule in both cases.
+  const restored = store.camera;
   void handle.setLayout(store.layout, { generation: nextLayoutGeneration(), signal: abort.signal }).then(() => {
-    if (!abort.signal.aborted && store.camera) handle.setCamera(store.camera);
+    if (abort.signal.aborted || !restored) return;
+    handle.setCamera(restored);
+    store.setCamera(restored);
   });
 }
 
