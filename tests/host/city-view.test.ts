@@ -210,7 +210,16 @@ describe('CityView', () => {
   // The stage element's own measurement drives this now (M68), overridden at the
   // PROTOTYPE level (active from CityViewport's first measurement) rather than
   // per-element, which would race the mocks file's own 1000x700 default.
-  it('creates NO WebGL context below the 320 CSS px hard floor', async () => {
+  //
+  // Phase 2 fix wave, I2 (Important): this test used to assert that COPY-14 ("The 3D
+  // view is unavailable...") is what a below-floor leaf shows. Spec 5.2 says the
+  // opposite -- "below a hard floor of 320 CSS px inline size the view renders
+  // LIST-FIRST and creates no WebGL context at all" -- and an empty bordered stage
+  // carrying that notice, with the file list hidden behind the Files drawer opener,
+  // IS the defect I2 names. The load-bearing half of this test (no WebGL context is
+  // ever created) is unchanged and still first; what replaced the notice assertion
+  // is the OTHER half of the same spec sentence, which now ships.
+  it('creates NO WebGL context below the 320 CSS px hard floor, and renders list-first', async () => {
     const rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
       width: 300, height: 700, top: 0, left: 0, right: 300, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
     });
@@ -220,7 +229,9 @@ describe('CityView', () => {
       await nextTick();
       await nextTick();   // `available.value = false`'s OWN render flush
       expect(createRendererSpy).not.toHaveBeenCalled();
-      expect(view.contentEl.textContent).toContain('The 3D view is unavailable. File inspection still works.');
+      expect(view.contentEl.querySelector('[data-ci-role="stage"]')).toBeNull();
+      expect(view.contentEl.querySelector('.ci-app__list-wrapper--open')).not.toBeNull();
+      expect(view.contentEl.textContent).toContain('Return to city view');
     } finally {
       rectSpy.mockRestore();
     }

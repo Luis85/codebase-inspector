@@ -21,6 +21,7 @@ import { provideCityRenderer, provideCityStageEl } from './renderer-handle';
 import { provideInspectorOpener } from './drawer-focus';
 import { countPartialRead, deriveViewSurfaceState } from './view-surface';
 import { escapeIntent } from './interaction/escape-intent';
+import { DRAWER_MAX_INLINE_SIZE, MIN_INLINE_SIZE } from './responsive';
 import { COPY_02 } from './copy';
 import FileSearch from './components/FileSearch.vue';
 import CodebaseFileList from './components/CodebaseFileList.vue';
@@ -85,10 +86,40 @@ interface DocBearing { doc?: Document }
 function narrowContainer(el: HTMLElement): Element {
   return el.closest('.codebase-inspector-root') ?? el;
 }
-function updateNarrowDrawer(): void {
+// Phase 2 fix wave, I2 (Important): spec 5.2 says "below a hard floor of 320 CSS px
+// inline size the view renders LIST-FIRST and creates no WebGL context at all", and
+// only the second half shipped -- CityViewport disposed the renderer, but viewMode
+// stayed spatial, so a leaf dragged into a sidebar (spec 5.2: "can be ~150 px")
+// showed an empty bordered stage with COPY-14 and no file list at all, since below
+// 819 px styles.css hides the list wrapper unless it is open.
+//
+// This lives HERE, not in CityViewport.applySize, for a structural reason: entering
+// list mode UNMOUNTS CityViewport (the `v-if` below), which disconnects the very
+// ResizeObserver that would have to notice the leaf widening again -- a one-way
+// door. This component's observer is on the leaf container and survives the switch.
+//
+// `forcedListByFloor` records that WE switched, so widening restores the user's own
+// spatial mode (`returnFromList()` -> `lastSpatialMode`) and never drags someone out
+// of a list view they chose themselves. `setViewMode` preserves query, selection and
+// the camera bookmark, which is exactly what the spec's next sentence requires.
+const forcedListByFloor = ref(false);
+
+function updateResponsiveLayout(): void {
   const el = rootEl.value;
   if (!el) return;
-  narrowDrawer.value = narrowContainer(el).getBoundingClientRect().width < 820;
+  const width = narrowContainer(el).getBoundingClientRect().width;
+  narrowDrawer.value = width < DRAWER_MAX_INLINE_SIZE;
+  // A hidden leaf collapses to exactly 0 (spec 4.2's pause/resume invariant, the
+  // same case CityViewport's own zero-box guard exists for) -- suspended, not narrow.
+  if (width <= 0) return;
+  if (width < MIN_INLINE_SIZE) {
+    if (store.viewMode === 'list') return;
+    forcedListByFloor.value = true;
+    store.setViewMode('list');
+  } else if (forcedListByFloor.value) {
+    forcedListByFloor.value = false;
+    store.returnFromList();
+  }
 }
 
 let resizeObserver: ResizeObserver | null = null;
@@ -170,7 +201,7 @@ function attachResizeObserver(el: HTMLElement): void {
   const win = (el as unknown as WinBearing).win;
   if (!win) return;
   resizeObserver = new (win as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver(() => {
-    updateNarrowDrawer();
+    updateResponsiveLayout();
   });
   resizeObserver.observe(narrowContainer(el));
 }
@@ -179,13 +210,13 @@ onMounted(() => {
   const el = rootEl.value;
   if (!el) return;
   attachKeydownListener(el);
-  updateNarrowDrawer();
+  updateResponsiveLayout();
   attachResizeObserver(el);
   // Task 11 fix round 1, item 3: re-attaches BOTH on migration -- this is the
   // "no wrong-window DOM" clause task 11 itself named as unmet.
   unwireRootMigration = el.onWindowMigrated(() => {
     attachKeydownListener(el);
-    updateNarrowDrawer();
+    updateResponsiveLayout();
     attachResizeObserver(el);
   });
 });
@@ -279,7 +310,7 @@ defineExpose({ rendererHost });
            mutually exclusive with the Inspector drawer, never both at once. -->
       <div
         class="ci-app__list-wrapper"
-        :class="{ 'ci-app__list-wrapper--open': filesDrawerOpen }"
+        :class="{ 'ci-app__list-wrapper--open': filesDrawerOpen || store.viewMode === 'list' }"
       >
         <button
           v-if="filesDrawerOpen"

@@ -24,8 +24,11 @@ import { useCityRendererHandle, useCityStageEl, useLayoutGeneration } from '../r
 import { useCityStore } from '../stores/city-store';
 import { useInspectorOpener } from '../drawer-focus';
 import { COPY_14, CONTEXT_LOST_NOTICE } from '../copy';
+// Phase 2 fix wave, I2: the floor is shared with App.vue, which applies the OTHER
+// half of the same spec 5.2 sentence (render list-first) against the leaf container
+// while this component applies the renderer half against its own stage.
+import { MIN_INLINE_SIZE } from '../responsive';
 
-const MIN_INLINE_SIZE = 320;     // spec 5.2 hard floor, CSS px
 const MAX_PIXEL_RATIO = 2;
 // WP-01 ships no label toggle: no control, no microcopy and no spec line defines one,
 // and inventing a hide rule would be a design decision the spec does not authorise. The

@@ -45,7 +45,7 @@ const DEFAULT_RECT_WIDTH = 1000;
 const DEFAULT_RECT_HEIGHT = 700;
 
 function rectOf(width: number, height: number): DOMRect {
-  return { width, height, top: 0, left: 0, right: width, bottom: height, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+  return { width, height, top: 0, left: 0, right: width, bottom: height, x: 0, y: 0, toJSON: () => ({}) };
 }
 
 function installBoundingRectDefault(): void {
