@@ -20,6 +20,7 @@
 // is no inertia and no decay — motion stops the frame the tween ends.
 import { OrthographicCamera, Vector3 } from 'three';
 import type { CameraBookmark } from '../domain/model';
+import { projectedHalfExtents, zoomForHalfExtents, type HalfExtents } from './camera-framing';
 
 export interface CameraRigBounds {
   min: [number, number, number];
@@ -127,11 +128,18 @@ export function createCameraRig(options: CameraRigOptions): CameraRig {
 
   function orbitDistance(): number { return boundsRadius(bounds) * 4 + 10; }
 
+  function aspectRatio(): number { return cssHeight > 0 ? cssWidth / cssHeight : 1; }
+
+  /** Frames a SPHERE of `radius` — still exactly right for focusOn(), which is handed a
+   *  radius by contract (one lot plus context), and is the degenerate case of the
+   *  rectangle form below. */
   function fitZoom(radius: number): number {
-    const aspect = cssHeight > 0 ? cssWidth / cssHeight : 1;
-    const needed = 2 * radius * FIT_MARGIN;
-    const zoomH = (2 * FRUSTUM_HALF_HEIGHT) / needed;
-    return clampZoom(Math.min(zoomH, zoomH * aspect));
+    return fitZoomFor({ halfWidth: radius, halfHeight: radius });
+  }
+
+  function fitZoomFor(extents: HalfExtents): number {
+    const zoom = zoomForHalfExtents(extents, aspectRatio(), FRUSTUM_HALF_HEIGHT, FIT_MARGIN);
+    return clampZoom(zoom ?? 1);
   }
 
   function clampZoom(z: number): number {
@@ -188,19 +196,15 @@ export function createCameraRig(options: CameraRigOptions): CameraRig {
    *  visual tween and, for a rig-initiated move, reports the change exactly once.
    *
    *  Phase 2c, I1 (Important): `continuous` is the third state this needed. The tween
-   *  exists for a DISCRETE move -- easing 220 ms into a jump is the designed behaviour
-   *  for a dock button, an arrow key, Fit, Focus or a mode switch. Applied to a delta
-   *  that is itself arriving at pointer rate it is not smoothing, it is a restart storm:
-   *  every `pointermove` re-anchored `tweenFrom` at the current live camera and reset
-   *  `tweenElapsed` to 0, so at a 16.7 ms frame only `ease(16.7/220) = 0.0017` of the
-   *  gap closed per frame. Measured on this rig: 1.7-1.9% of a one-second drag reached
-   *  the screen while it happened, and the camera then leapt the remaining ~197 degrees
-   *  over twelve further frames once the pointer stopped. A continuous commit therefore
-   *  takes exactly the path `motion === 'reduced'` already takes -- live = bookmark,
-   *  no tween -- while still REPORTING (so the host keeps mirroring the bookmark) and
-   *  still invalidating a frame. This removes the restart rather than the symptom:
-   *  shortening TWEEN_MS or clamping tweenElapsed would still leave the drawn camera
-   *  chasing a destination that moves on every event. */
+   *  exists for a DISCRETE move -- a dock button, an arrow key, Fit, Focus, a mode
+   *  switch. Applied to a delta arriving at pointer rate it is not smoothing but a
+   *  restart storm: every `pointermove` re-anchored `tweenFrom` and reset `tweenElapsed`,
+   *  so only `ease(16.7/220) = 0.0017` of the gap closed per frame -- 1.7-1.9% of a
+   *  one-second drag reached the screen, then the camera leapt ~197 degrees over twelve
+   *  further frames. A continuous commit takes the path `motion === 'reduced'` already
+   *  takes (live = bookmark, no tween) while still REPORTING and still invalidating a
+   *  frame. That removes the RESTART, not the symptom: shortening TWEEN_MS or clamping
+   *  tweenElapsed would leave the drawn camera chasing a moving destination. */
   function commit(next: CameraBookmark, initiated: boolean, continuous = false): void {
     bookmark = next;
     if (bookmark.mode === '3d') saved3d = copyBookmark(bookmark);
@@ -291,26 +295,17 @@ export function createCameraRig(options: CameraRigOptions): CameraRig {
         if (next.mode === '3d') {
           const { theta, phi, radius } = sphericalOf(next);
           const nextPhi = Math.min(MAX_PHI, Math.max(MIN_PHI, phi + delta.orbit[1]));
-          // Phase 2c, ruling M101: MINUS, not plus. In this rig's own convention
-          // `theta = atan2(dz, dx)` is measured from +X toward +Z, and at the default
-          // pose the camera's screen-RIGHT is the -Z side -- so INCREASING theta moves
-          // the camera LEFT. Every call site was written as though it moved it right,
-          // which inverted the 3D horizontal orbit while leaving the vertical correct:
-          // exactly the single-axis asymmetry a user describes as "inverted". The
-          // decisive evidence is internal, not a comparison with any other library: in
-          // the same 3D view, a rightward primary drag moved the city LEFT while the
-          // same drag with Shift held (the pan, whose own comment states the intended
-          // convention -- "Dragging right moves the CONTENT right") moved it RIGHT, and
-          // top view moved it RIGHT too. Three of the four paths agreed; this one did
-          // not. Fixed HERE rather than at city-renderer.ts's onOrbit call site, which
-          // was the diagnosis's own first answer and is wrong: top view routes an orbit
-          // delta back through `panX -= delta.orbit[0] / ORBIT_RADIANS_PER_CSS_PX`,
-          // exactly inverting the pre-negation, so negating at the call site would fix
-          // 3D and BREAK top view, which is correct today. One character here corrects
-          // the drag, both dock Rotate buttons and both arrow keys at once, and leaves
-          // vertical orbit, top view, fit(), focusOn() and every persisted bookmark
-          // untouched -- fit/focusOn derive their angles from sphericalOf(bookmark) and
-          // never pass a delta through here.
+          // Phase 2c, ruling M101: MINUS, not plus. `theta = atan2(dz, dx)` is measured
+          // from +X toward +Z, and at the default pose the camera's screen-RIGHT is the
+          // -Z side -- so INCREASING theta moves the camera LEFT. Every call site was
+          // written as though it moved it right, which inverted the 3D horizontal orbit
+          // while leaving the vertical correct. The evidence is internal: a rightward
+          // primary drag moved the city LEFT while the same drag with Shift held (the
+          // pan, see panVector's own "Dragging right moves the CONTENT right") moved it
+          // RIGHT, as did top view. Fixed HERE, not at city-renderer's onOrbit: top view
+          // routes an orbit delta back through `panX -= orbit[0]/ORBIT_RADIANS_PER_CSS_PX`,
+          // exactly inverting that call site's pre-negation, so negating there would fix
+          // 3D and BREAK top view. See tests/unit/camera-rig-signs.test.ts.
           next = { ...next, position: positionFor(next.target, theta - delta.orbit[0], nextPhi, radius) };
         } else {
           // Phase 2 fix wave, I3 (Important): top view is a PLAN -- it has no orbit,
@@ -345,7 +340,15 @@ export function createCameraRig(options: CameraRigOptions): CameraRig {
       const position = bookmark.mode === 'top'
         ? [target[0], target[1] + orbitDistance(), target[2]] as Triple
         : positionFor(target, theta, phi, orbitDistance());
-      commit({ ...bookmark, target, position, zoom: fitZoom(boundsRadius(bounds)) }, true);
+      // Phase 2c, I2b: the SILHOUETTE, not `boundsRadius` -- half the AABB's 3D
+      // diagonal. A codebase city is a flat, elongated plate, so its circumscribed
+      // sphere is far larger than anything on screen: the intended 10% margin measured
+      // 41-61% in practice, worse the wider the leaf, and a wide Obsidian pane showed a
+      // small city marooned in an empty field. Not a contract change -- fit()'s
+      // signature is untouched and spec 4.2's "resize NEVER implies fit" still holds;
+      // how fit chooses its framing is the rig's own.
+      const extents = projectedHalfExtents(bounds, position, target, bookmark.up);
+      commit({ ...bookmark, target, position, zoom: fitZoomFor(extents) }, true);
     },
 
     focusOn(center: Triple, radius: number): void {

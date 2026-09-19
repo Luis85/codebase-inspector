@@ -95,6 +95,14 @@ function paletteFixture(): CityPalette {
 function screenOf(world: [number, number, number]): { x: number; y: number } {
   const rig = createCameraRig({ bounds: layoutFixture().bounds, onChanged: () => {} });
   rig.setViewportSize(WIDTH, HEIGHT);
+  // Phase 2c, I2b: the renderer's FIRST setLayout auto-fits (city-renderer.ts's
+  // `hasFitted` guard), so this helper has to fit too or it is not "built the same way"
+  // at all. It used to agree by coincidence: `fit()` framed the bounding sphere, whose
+  // radius happened to equal what the DEFAULT bookmark already used for these centred
+  // bounds. Now that fit() frames the projected silhouette the two genuinely differ, and
+  // the coincidence is gone -- so the helper does what it always said it did. The other
+  // 23 picks in this file passing unchanged is the check that it is right.
+  rig.fit();
   const v = new Vector3(...world).project(rig.camera);
   return {
     x: RECT_LEFT + ((v.x + 1) / 2) * WIDTH,
