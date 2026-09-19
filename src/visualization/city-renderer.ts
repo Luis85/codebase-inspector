@@ -161,6 +161,10 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
     },
   });
 
+  /** Phase 2c, I1: the one flag object, hoisted so the three picking handlers below
+   *  cannot drift apart and no allocation happens per pointer event. */
+  const CONTINUOUS = { continuous: true } as const;
+
   const overlay = createLabelOverlay(mountEl);
   const timer = new Timer();          // r183 deprecated Clock; Timer is core since r179
   const raycaster = new Raycaster();
@@ -208,9 +212,16 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
     onHover: (entityId, position) => {
       if (layout) onEvent({ type: 'hover-changed', entityId, snapshotId: layout.snapshotId, position });
     },
-    onOrbit: (dx, dy) => { rig.nudge({ orbit: [-dx * ORBIT_RADIANS_PER_CSS_PX, -dy * ORBIT_RADIANS_PER_CSS_PX] }); },
-    onPan: (dx, dy) => { rig.nudge({ pan: [dx, dy] }); },
-    onZoom: (factor) => { rig.nudge({ zoomFactor: factor }); },
+    // Phase 2c, I1: CONTINUOUS. These three are the only call sites in the codebase
+    // that know the delta was produced by picking, i.e. at pointer rate -- a drag
+    // delivers one per pointermove, ~60-1000 a second, and a wheel burst the same.
+    // `nudgeCamera` below (the dock and the keyboard) is discrete and keeps the tween.
+    // The flag is the rig's own; it never crosses the frozen 4.2 port boundary.
+    onOrbit: (dx, dy) => {
+      rig.nudge({ orbit: [-dx * ORBIT_RADIANS_PER_CSS_PX, -dy * ORBIT_RADIANS_PER_CSS_PX] }, CONTINUOUS);
+    },
+    onPan: (dx, dy) => { rig.nudge({ pan: [dx, dy] }, CONTINUOUS); },
+    onZoom: (factor) => { rig.nudge({ zoomFactor: factor }, CONTINUOUS); },
   });
 
   function handleContextLost(): void {

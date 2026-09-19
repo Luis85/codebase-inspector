@@ -42,7 +42,15 @@ export interface CameraRig {
   setMotion(mode: 'standard' | 'reduced'): void;
   setBounds(bounds: CameraRigBounds): void;
   setViewportSize(cssWidth: number, cssHeight: number): void;
-  nudge(delta: { orbit?: [number, number]; pan?: [number, number]; zoomFactor?: number }): void;
+  /** `continuous` marks a delta that is itself being produced at POINTER RATE (a drag,
+   *  a wheel burst) rather than a discrete command (a dock button, an arrow key, Fit,
+   *  Focus, a mode switch). A continuous move is applied to the drawn camera directly;
+   *  only a discrete one tweens. See `commit`. The flag never crosses the frozen 4.2
+   *  port boundary -- `nudgeCamera`'s signature is untouched. */
+  nudge(
+    delta: { orbit?: [number, number]; pan?: [number, number]; zoomFactor?: number },
+    options?: { continuous?: boolean },
+  ): void;
   fit(): void;
   focusOn(center: [number, number, number], radius: number): void;
   /** Advances the visual tween by `deltaMs`; returns true while it is still moving. */
@@ -177,11 +185,26 @@ export function createCameraRig(options: CameraRigOptions): CameraRig {
   }
 
   /** Every write to the logical bookmark goes through here: it starts (or skips) the
-   *  visual tween and, for a rig-initiated move, reports the change exactly once. */
-  function commit(next: CameraBookmark, initiated: boolean): void {
+   *  visual tween and, for a rig-initiated move, reports the change exactly once.
+   *
+   *  Phase 2c, I1 (Important): `continuous` is the third state this needed. The tween
+   *  exists for a DISCRETE move -- easing 220 ms into a jump is the designed behaviour
+   *  for a dock button, an arrow key, Fit, Focus or a mode switch. Applied to a delta
+   *  that is itself arriving at pointer rate it is not smoothing, it is a restart storm:
+   *  every `pointermove` re-anchored `tweenFrom` at the current live camera and reset
+   *  `tweenElapsed` to 0, so at a 16.7 ms frame only `ease(16.7/220) = 0.0017` of the
+   *  gap closed per frame. Measured on this rig: 1.7-1.9% of a one-second drag reached
+   *  the screen while it happened, and the camera then leapt the remaining ~197 degrees
+   *  over twelve further frames once the pointer stopped. A continuous commit therefore
+   *  takes exactly the path `motion === 'reduced'` already takes -- live = bookmark,
+   *  no tween -- while still REPORTING (so the host keeps mirroring the bookmark) and
+   *  still invalidating a frame. This removes the restart rather than the symptom:
+   *  shortening TWEEN_MS or clamping tweenElapsed would still leave the drawn camera
+   *  chasing a destination that moves on every event. */
+  function commit(next: CameraBookmark, initiated: boolean, continuous = false): void {
     bookmark = next;
     if (bookmark.mode === '3d') saved3d = copyBookmark(bookmark);
-    if (motion === 'standard' && initiated) {
+    if (motion === 'standard' && initiated && !continuous) {
       tweenFrom = copyBookmark(live);
       tweenElapsed = 0;
     } else {
@@ -261,7 +284,7 @@ export function createCameraRig(options: CameraRigOptions): CameraRig {
       applyAspect();                 // resize NEVER implies fit (spec 4.2)
     },
 
-    nudge(delta): void {
+    nudge(delta, options): void {
       let next = copyBookmark(bookmark);
       let [panX, panY] = delta.pan ?? [0, 0];
       if (delta.orbit) {
@@ -293,7 +316,7 @@ export function createCameraRig(options: CameraRigOptions): CameraRig {
         };
       }
       if (delta.zoomFactor) next = { ...next, zoom: clampZoom(next.zoom * delta.zoomFactor) };
-      commit(next, true);
+      commit(next, true, options?.continuous === true);
     },
 
     fit(): void {

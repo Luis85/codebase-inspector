@@ -32,6 +32,13 @@ function azimuth(b: CameraBookmark): number {
   return Math.atan2(b.position[2] - b.target[2], b.position[0] - b.target[0]);
 }
 
+/** The azimuth of the LIVE (drawn) camera -- the one a user actually sees -- about the
+ *  same target. `getCamera()` reports the LOGICAL destination by design, so the two can
+ *  only be compared by reading the Three camera directly. */
+function liveAzimuth(r: CameraRig, target: readonly number[]): number {
+  return Math.atan2(r.camera.position.z - target[2]!, r.camera.position.x - target[0]!);
+}
+
 /** The unit view direction, which fit() and focusOn() must both leave untouched. */
 function direction(b: CameraBookmark): number[] {
   const d = [0, 1, 2].map((i) => b.position[i]! - b.target[i]!);
@@ -338,4 +345,57 @@ describe('camera rig', () => {
     expect(z).toBeGreaterThan(0);
     expect(Number.isFinite(z)).toBe(true);
   });
+
+  // Phase 2c, I1 (Important). No existing tween test drives a SEQUENCE: every one of
+  // them issues exactly one nudge and then advances, so the suite could not tell the
+  // defective rig from its fix (the review's MUT-2 survived all 804 tests). A real drag
+  // is the only shape that exposes it -- MANY nudges between frames, at a REALISTIC
+  // frame delta. `commit()` restarted the 220 ms ease on every initiated move, so a
+  // continuous drag re-armed it ~60x/s and `ease(16.7/220) = 0.0017` of the gap closed
+  // per frame: the drawn camera moved 1.74% of the gesture while it happened and then
+  // leapt the rest on release.
+  it('I1: a CONTINUOUS drag is NOT smoothed away -- the drawn camera tracks the gesture', () => {
+    rig.setMotion('standard');
+    const target = rig.getCamera().target;
+    const start = liveAzimuth(rig, target);
+    // One second of dragging at a 125 Hz pointer against a 60 Hz rAF clock: two pointer
+    // events per frame, exactly what picking.ts delivers on a real drag.
+    for (let frame = 0; frame < 60; frame++) {
+      for (let event = 0; event < 2; event++) {
+        rig.nudge({ orbit: [-4 * ORBIT_RADIANS_PER_CSS_PX, 0] }, { continuous: true });
+      }
+      rig.advance(1000 / 60);
+    }
+    const drawn = Math.abs(liveAzimuth(rig, target) - start);
+    const logical = Math.abs(azimuth(rig.getCamera()) - start);
+    expect(logical).toBeGreaterThan(0.5);            // the gesture really did move
+    expect(drawn / logical).toBeGreaterThan(0.9);    // before the fix: 0.017
+  });
+
+  it('I1: a continuous move leaves NOTHING still animating after the gesture stops', () => {
+    rig.setMotion('standard');
+    rig.nudge({ orbit: [0.4, 0] }, { continuous: true });
+    // The review measured twelve further frames drawn after the last pointermove. A
+    // continuous commit writes the live camera directly, so there is nothing to settle.
+    expect(rig.isAnimating()).toBe(false);
+    expect(rig.advance(16)).toBe(false);
+  });
+
+  it('I1: a DISCRETE move still tweens -- the fix must not delete the tween', () => {
+    // The dock buttons, the arrow keys, Fit, Focus and the mode switch are discrete
+    // commands, and easing 220 ms into a jump is the designed behaviour there.
+    rig.setMotion('standard');
+    const from = rig.camera.position.x;
+    rig.nudge({ orbit: [0.4, 0] });
+    expect(rig.isAnimating()).toBe(true);
+    expect(rig.camera.position.x).toBeCloseTo(from, 6);
+  });
+
+  it('I1: a continuous move still REPORTS, so the host keeps mirroring the bookmark', () => {
+    rig.setMotion('standard');
+    changed.mockClear();
+    rig.nudge({ orbit: [0.1, 0] }, { continuous: true });
+    expect(changed).toHaveBeenCalledTimes(1);
+  });
+
 });
