@@ -9,6 +9,9 @@ import { nextTick } from 'vue';
 import '../mocks/obsidian';
 import FileSearch from '../../src/ui/components/FileSearch.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
+import { computeLayout } from '../../src/domain/layout/layout';
+import { buildSnapshotFixture } from '../../tests/fixtures/snapshot-builder';
+import type { CameraBookmark } from '../../src/domain/model';
 
 function mountInRoot() {
   const root = document.body.createDiv({ cls: 'codebase-inspector-root' });
@@ -88,6 +91,77 @@ describe('FileSearch.vue (C06)', () => {
     await input.trigger('keydown', { key: 'Escape' });
     expect(store.query).toBe('');
     expect((input.element as HTMLInputElement).value).toBe('');
+  });
+
+  // Phase 2 fix wave, I4 (Important): spec 5.2's "Enter selects the first match in
+  // deterministic order WITHOUT MOVING THE CAMERA. Enter with no matches is a no-op."
+  // was simply not implemented -- `onKeydown` returned immediately for every key but
+  // Escape, and `confirmSearch()` appeared nowhere in `src/` at all. The store action
+  // was complete and correct and had no production caller; the seventh instance of
+  // this branch's defining defect.
+  describe('I4: Enter selects the first match', () => {
+    const snapshot = buildSnapshotFixture({ files: 3, directories: 1 });
+    const layout = computeLayout(snapshot);
+    const firstMatch = (needle: string): string => {
+      const files = snapshot.entities.filter((e) => e.kind === 'file' && e.path.includes(needle));
+      return [...files].sort((a, b) => a.path.localeCompare(b.path))[0]!.id;
+    };
+    const bookmark: CameraBookmark = {
+      projection: 'orthographic', mode: '3d',
+      position: [5, 5, 5], target: [0, 0, 0], up: [0, 1, 0], zoom: 2,
+    };
+
+    it('selects it on Enter, flushing the pending debounce, and never moves the camera', async () => {
+      const { wrapper } = mountInRoot();
+      const store = useCityStore();
+      store.setCity(snapshot, layout);
+      store.setCamera(bookmark);
+      const camera = store.camera;
+      const input = wrapper.get('input');
+
+      await input.setValue('file-');
+      // No timer advance: Enter must commit the text the user can SEE, not wait out
+      // a debounce that is still pending when they press it.
+      await input.trigger('keydown', { key: 'Enter' });
+
+      expect(store.query).toBe('file-');
+      expect(store.selectedEntityId).toBe(firstMatch('file-'));
+      expect(store.camera).toBe(camera);
+    });
+
+    it('is a no-op with no matches', async () => {
+      const { wrapper } = mountInRoot();
+      const store = useCityStore();
+      store.setCity(snapshot, layout);
+      const input = wrapper.get('input');
+
+      await input.setValue('nothing-matches-this');
+      await input.trigger('keydown', { key: 'Enter' });
+
+      expect(store.selectedEntityId).toBeNull();
+      expect(store.inspectorOpen).toBe(false);
+    });
+
+    it('does nothing while composing, or with a modifier held', async () => {
+      const { wrapper } = mountInRoot();
+      const store = useCityStore();
+      store.setCity(snapshot, layout);
+      const input = wrapper.get('input');
+      await input.setValue('file-');
+
+      await input.trigger('compositionstart');
+      await input.trigger('keydown', { key: 'Enter' });
+      expect(store.selectedEntityId).toBeNull();
+      await input.trigger('compositionend');
+
+      await input.trigger('keydown', { key: 'Enter', ctrlKey: true });
+      expect(store.selectedEntityId).toBeNull();
+
+      // ...and the plain press still works afterwards, so the guards above are
+      // guards and not a dead handler.
+      await input.trigger('keydown', { key: 'Enter' });
+      expect(store.selectedEntityId).toBe(firstMatch('file-'));
+    });
   });
 
   it('is reachable with "/" only when this view owns focus and the target is not editable', () => {

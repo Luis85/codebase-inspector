@@ -5,7 +5,8 @@
   reachability (spec 5.2: only while this view owns focus and the event target is
   not itself editable). Escape clears a non-empty query and keeps focus in the
   field — never blurs it, never a second layer of Escape handling; that chain lives
-  in escape-intent.ts and is reused here rather than re-implemented.
+  in escape-intent.ts and is reused here rather than re-implemented. Enter flushes the
+  debounce and selects the first match (spec 5.2, Phase 2 fix wave I4).
 -->
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -44,7 +45,29 @@ function onInput(event: Event): void {
   commit(value);
 }
 
+/** Phase 2 fix wave, I4 (Important): spec 5.2's "Enter selects the first match in
+ *  deterministic order without moving the camera. Enter with no matches is a no-op."
+ *  `confirmSearch()` implemented all of that and had NO production caller anywhere in
+ *  `src/` -- this handler returned immediately for every key but Escape, so pressing
+ *  Enter after typing did nothing at all. The pending debounce is FLUSHED first
+ *  (cancelled, then committed synchronously): Enter acts on the text the user can see
+ *  in the field, never on whatever the store happened to hold ~150 ms ago.
+ *  Ctrl/Meta/Alt are left alone so a same-key host shortcut is never shadowed, and
+ *  composition is suppressed for the same reason Escape is. */
+function confirmFromDraft(): void {
+  if (debounceHandle) clearTimeout(debounceHandle);
+  debounceHandle = null;
+  store.setQuery(draft.value);
+  store.confirmSearch();
+}
+
 function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Enter') {
+    if (composing || event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+    event.preventDefault();
+    confirmFromDraft();
+    return;
+  }
   if (event.key !== 'Escape') return;
   const intent = escapeIntent({ inSearch: true, query: draft.value, composing });
   if (intent === 'clear-query') {
