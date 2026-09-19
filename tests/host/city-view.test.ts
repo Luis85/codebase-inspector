@@ -190,6 +190,34 @@ describe('CityView', () => {
     expect(view.getState()).not.toHaveProperty('rootPath');
   });
 
+  // Phase 2 fix wave, M2: spec 11 names the ordering between `setState` and `onOpen`
+  // on workspace restore as an OPEN QUESTION, so `city-view.ts` seeds from both --
+  // and the setState-arrives-second branch shipped with no test at all (mutation Q2,
+  // deleting the call, left the suite green). Asserted through the DOM rather than
+  // through `getState()`: `this.state` round-tripping proves only that setState
+  // stored the payload, which is the vacuous shape the review called out elsewhere.
+  // The search field showing the restored query proves the LIVE store was seeded.
+  it('M2: seeds the live store when setState arrives AFTER onOpen', async () => {
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
+    await view.onOpen();
+    const input = view.contentEl.querySelector<HTMLInputElement>('.ci-search__input')!;
+    expect(input.value).toBe('');
+
+    await view.setState({ ...defaultCityViewState(), query: 'file-0' }, {} as never);
+    await nextTick();
+
+    expect(input.value).toBe('file-0');
+  });
+
+  it('M2: a REJECTED late setState seeds nothing', async () => {
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
+    await view.onOpen();
+    await view.setState({ ...defaultCityViewState(), query: 'file-0', viewMode: 'vr' }, {} as never);
+    await nextTick();
+
+    expect(view.contentEl.querySelector<HTMLInputElement>('.ci-search__input')!.value).toBe('');
+  });
+
   // "creates its own Pinia instance per view" moved wholesale, not weakened, to
   // tests/host/city-view-store-wiring.test.ts (fix round 1, items 1 and 8): this
   // file was at the tests/** 450-line budget once that rewrite (non-vacuous — see

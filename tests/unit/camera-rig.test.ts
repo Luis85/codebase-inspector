@@ -285,6 +285,29 @@ describe('camera rig', () => {
     expect(changed).toHaveBeenCalled();           // a rig-initiated move DOES report
   });
 
+  // Phase 2 fix wave, M6: making `setMotion('reduced')` not snap the live camera to
+  // the bookmark left the suite green. Spec 4.4 requires the preference to reach the
+  // tween, and CityViewport re-reads it on every reconstruction and now tracks live
+  // OS changes -- none of which meant anything without an assertion that reduced
+  // motion actually skips the tween that is already in flight.
+  it('M6: reduced motion snaps the live camera to the bookmark and ends the tween', () => {
+    rig.setMotion('standard');
+    rig.nudge({ zoomFactor: 2 });
+    expect(rig.isAnimating()).toBe(true);
+    // The LIVE camera still lags the logical one: that is what a tween is.
+    expect(rig.camera.zoom).not.toBeCloseTo(rig.getCamera().zoom, 6);
+
+    rig.setMotion('reduced');
+    expect(rig.isAnimating()).toBe(false);
+    expect(rig.camera.zoom).toBeCloseTo(rig.getCamera().zoom, 9);
+    expect(rig.camera.position.x).toBeCloseTo(rig.getCamera().position[0], 9);
+
+    // ...and a move made while reduced never starts one at all.
+    rig.nudge({ zoomFactor: 2 });
+    expect(rig.isAnimating()).toBe(false);
+    expect(rig.camera.zoom).toBeCloseTo(rig.getCamera().zoom, 9);
+  });
+
   it('reports a rig-initiated move for fit, focus and mode switches too', () => {
     rig.fit();
     rig.focusOn([1, 2, 3], 4);

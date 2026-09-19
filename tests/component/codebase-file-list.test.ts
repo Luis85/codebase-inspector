@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import { nextTick } from 'vue';
 import CodebaseFileList from '../../src/ui/components/CodebaseFileList.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { computeLayout } from '../../src/domain/layout/layout';
@@ -40,6 +41,29 @@ describe('CodebaseFileList.vue (C07)', () => {
     const wrapper = mountWithRenderer(rendererDouble);
     const row = wrapper.get('.ci-file-list__row');
     expect(row.element.tagName).toBe('BUTTON');
+  });
+
+  // Phase 2 fix wave, M7: `rovingTabIndex` returning 0 for EVERY row left the suite
+  // green. A stated accessibility decision ("moving focus with the keyboard never
+  // selects") depends on exactly one row being in the tab order -- making every row
+  // tabbable would put thousands of stops in it with nothing to notice.
+  it('M7: exactly ONE row is in the tab order, and it follows the roving focus', async () => {
+    const store = useCityStore();
+    const snapshot = buildSnapshotFixture({ files: 3 });
+    store.setCity(snapshot, computeLayout(snapshot));
+    const wrapper = mountWithRenderer(makeRendererDouble());
+    const tabIndexes = (): (string | undefined)[] =>
+      wrapper.findAll('.ci-file-list__row').map((row) => row.attributes('tabindex'));
+
+    // No roving focus yet: the FIRST row is the single entry point.
+    expect(tabIndexes()).toEqual(['0', '-1', '-1']);
+
+    const ids = snapshot.entities.filter((e) => e.kind === 'file').map((e) => e.id);
+    store.focusRow(ids[2]!);
+    await nextTick();
+    expect(tabIndexes()).toEqual(['-1', '-1', '0']);
+    // ...and moving focus did NOT select (spec: activation is Enter/click only).
+    expect(store.selectedEntityId).toBeNull();
   });
 
   it('puts no role=tree on an incomplete implementation', () => {

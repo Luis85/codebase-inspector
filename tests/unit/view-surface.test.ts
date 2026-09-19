@@ -142,6 +142,18 @@ describe('deriveViewSurfaceState', () => {
     expect(state).toEqual({ kind: 'partial-read', measured: 4, included: 5 });
   });
 
+  // Phase 2 fix wave, M5: swapping the `no-search-matches` and `partial-read`
+  // branches left the suite green -- no test set BOTH, so the one thing this module
+  // exists to own, the priority chain, was unpinned at its last link. A live search
+  // is what the user is looking at right now; the read-completeness note is about the
+  // snapshot, and waits.
+  it('M5: a zero-match filter outranks a partial read when both apply', () => {
+    const state = deriveViewSurfaceState(baseInputs({
+      matchingIds: new Set(), query: 'zz', partialRead: { measured: 4, included: 5 },
+    }));
+    expect(state).toEqual({ kind: 'no-search-matches', matchingFileCount: 3, query: 'zz' });
+  });
+
   it('is "none" when nothing applies', () => {
     expect(deriveViewSurfaceState(baseInputs()).kind).toBe('none');
   });

@@ -306,6 +306,30 @@ describe('pop-out migration', () => {
     expect(rendererCalls[1]!.dispose).toHaveBeenCalledTimes(1);
   });
 
+  // Phase 2 fix wave, M3: App.vue re-attaches BOTH its keydown listener and its own
+  // ResizeObserver on migration, and only the keydown half was held down -- removing
+  // the `attachResizeObserver(el)` line alone left the suite green (mutation Q4).
+  // App's observer is what evaluates the 820 px drawer threshold AND (fix wave I2)
+  // the 320 px list-first floor, so an observer left pointing at the old window's
+  // constructor means neither is ever re-evaluated in the pop-out.
+  it('M3: re-attaches the shell OWN ResizeObserver to the new window', async () => {
+    const { view } = await openViewWithSnapshot();
+    const popout = createPopoutWindow();
+    migrateElement(view.containerEl, popout);
+    await nextTick();
+
+    // The leaf is dragged narrow IN THE POP-OUT. Only an observer built from the
+    // pop-out's own constructor can hear this.
+    view.contentEl.getBoundingClientRect = () => ({
+      width: 200, height: 700, top: 0, left: 0, right: 200, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+    });
+    popout.triggerResize();
+    await nextTick();
+
+    expect(view.contentEl.querySelector('[data-ci-role="stage"]')).toBeNull();
+    expect(view.contentEl.querySelector('.ci-app__list-wrapper--open')).not.toBeNull();
+  });
+
   // Same clause, App.vue's half: the 820px drawer threshold and the Escape
   // shortcut were never re-attached to the new window/document at all before this
   // fix -- resizing across 820px in the pop-out did not re-evaluate the drawer

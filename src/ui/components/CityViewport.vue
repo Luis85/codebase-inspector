@@ -103,6 +103,15 @@ function winOf(el: HTMLElement): Window {
 // a real subsequent resize already used (no second code path); `nextTick` defers it
 // past the CURRENT reactive flush, so the notice's own DOM update (already queued
 // by the `unavailableReason.value` assignment above) commits first.
+//
+// Ruling M89 (Phase 2 fix wave, M1) corrects ruling M83's boundary, which said the
+// context-loss notice "is never painted": it is never painted WHEN THE SELF-HEAL CAN
+// RUN. The reconstruction below clears `unavailableReason` within the same microtask
+// drain, so on a visible, wide-enough leaf the browser never paints it -- which is why
+// checkpoint #3 tells the human to expect a silent rebuild. But when `applySize()`
+// returns EARLY -- a 0x0 box (a leaf behind a sibling tab) or a box below the 320 px
+// floor -- nothing clears the reason and the notice genuinely renders and stays.
+// tests/component/responsive-floor.test.ts asserts both sides of that boundary.
 function handleRendererEvent(event: CityRendererEvent): void {
   if (event.type === 'unavailable') {
     unavailableReason.value = event.reason;

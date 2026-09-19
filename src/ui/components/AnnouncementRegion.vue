@@ -44,8 +44,16 @@ function announceProgress(processedFiles: number): void {
 watch(() => runStore.run, (run) => {
   if (run.status === 'running') announceProgress(run.processedFiles);
   else if (run.status === 'complete') announcePolite(ANNOUNCE_SCAN_COMPLETE);
-  else if (run.status === 'cancelled') announcePolite(runStore.banner ?? 'Scan cancelled.');
-  else if (run.status === 'failed') announceAssertive(runStore.banner ?? 'Scan failed.');
+  // Phase 2 fix wave, M16: these two used to carry `?? 'Scan cancelled.'` /
+  // `?? 'Scan failed.'` fallbacks. Both were dead -- run-state.ts sets
+  // `banner: CANCELLED_BANNER` on the cancel transition and
+  // `banner: failureBanner(action.message)` on the failure one, and
+  // `run-store.setLifecycle` copies it verbatim, so no reducer path leaves `banner`
+  // null on either -- and both strings were invented microcopy with no COPY id. If
+  // that invariant ever breaks, announcing NOTHING is the honest outcome: the banner
+  // is the announcement, and there is no approved text to substitute for it.
+  else if (run.status === 'cancelled' && runStore.banner) announcePolite(runStore.banner);
+  else if (run.status === 'failed' && runStore.banner) announceAssertive(runStore.banner);
 }, { deep: true });
 
 watch(() => cityStore.selectedEntityId, (entityId) => {

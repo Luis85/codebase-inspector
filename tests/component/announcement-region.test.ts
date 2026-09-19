@@ -46,6 +46,32 @@ describe('AnnouncementRegion.vue', () => {
     expect(wrapper.get('[aria-live="polite"]').text()).toContain(CANCELLED_BANNER);
   });
 
+  // Phase 2 fix wave, M16: the two `?? 'Scan cancelled.'` / `?? 'Scan failed.'`
+  // fallbacks were dead -- run-state.ts sets a banner on BOTH terminal transitions
+  // and run-store copies it verbatim, so no reducer path reaches here with a null
+  // banner -- and they were invented microcopy with no COPY id behind it. Silence is
+  // the honest behaviour if that invariant ever breaks; a fabricated string is not.
+  it('M16: announces nothing, rather than invented copy, when a terminal transition carries no banner', async () => {
+    const runStore = useRunStore();
+    const wrapper = mountRegion({ value: 0 });
+
+    runStore.setLifecycle({
+      run: { status: 'cancelled', runId: 'r1' },
+      approval: null, generation: 0, publishedSnapshotId: null, banner: null,
+      selectedEntityId: null, query: '',
+    });
+    await nextTick();
+    expect(wrapper.get('[aria-live="polite"]').text()).toBe('');
+
+    runStore.setLifecycle({
+      run: { status: 'failed', runId: 'r2', message: 'disk error' },
+      approval: null, generation: 0, publishedSnapshotId: null, banner: null,
+      selectedEntityId: null, query: '',
+    });
+    await nextTick();
+    expect(wrapper.get('[aria-live="assertive"]').text()).toBe('');
+  });
+
   it('is POLITE for control-initiated selection', async () => {
     const cityStore = useCityStore();
     const snapshot = buildSnapshotFixture({ files: 1 });
