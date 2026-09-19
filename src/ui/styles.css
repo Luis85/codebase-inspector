@@ -86,6 +86,15 @@
   cursor: pointer;
   white-space: nowrap;
 }
+/* Phase 2c, I4: COPY-30, the filter-hidden-selection explanation (spec 5.2). */
+:where(.codebase-inspector-root) .ci-app__selection-notice {
+  margin: 0;
+  padding: var(--ci-space-2) var(--ci-space-3);
+  border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-control);
+  background: var(--ci-panel);
+  color: var(--ci-text-muted);
+}
 :where(.codebase-inspector-root) .ci-app__body {
   display: flex;
   flex-direction: column;

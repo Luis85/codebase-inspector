@@ -1,7 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
+import { nextTick } from 'vue';
+import '../mocks/obsidian';
+import App from '../../src/ui/App.vue';
 import StatusBanner from '../../src/ui/components/StatusBanner.vue';
 import EmptyState from '../../src/ui/components/EmptyState.vue';
+import { COPY_30 } from '../../src/ui/copy';
+import { useCityStore } from '../../src/ui/stores/city-store';
+import { computeLayout } from '../../src/domain/layout/layout';
+import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import type { ViewSurfaceState } from '../../src/ui/view-surface';
 
 function renderBoth(state: ViewSurfaceState): string {
@@ -72,5 +80,54 @@ describe('StatusBanner.vue (C16) + EmptyState.vue (C17) — every view-level sta
       const empty = mount(EmptyState, { props: { state } }).text().trim();
       expect(banner === '' || empty === '').toBe(true);
     }
+  });
+});
+
+// Phase 2c, I4 (Important) -- the EIGHTH no-production-caller instance, and the first to
+// survive by being REFERENCED from dead code: `city-store.ts`'s `banner` getter imports
+// COPY_30 and nothing reads the getter, so a sweep counting unused EXPORTS missed it.
+//
+// The brief asks which way to resolve it. The spec answers, so the dead getter is not the
+// bug -- the MISSING SURFACE is:
+//   * spec line 913 adopts COPY-30 as one of the WP-01 strings, explicitly;
+//   * spec 5.2 (line 860): "A filter-hidden selection stays selected and is EXPLAINED
+//     ..., never silently replaced";
+//   * 04-microcopy.md:36 (rank-4 handoff) gives it verbatim, for "Selection outside
+//     filter".
+// So the getter is rendered rather than deleted.
+describe('I4: COPY-30 reaches the user when the selection is outside the filter', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  function mountApp() {
+    const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
+    leaf.getBoundingClientRect = () => ({
+      width: 1000, height: 700, top: 0, left: 0, right: 1000, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+    });
+    const store = useCityStore();
+    const snapshot = buildSnapshotFixture({ files: 3 });
+    store.setCity(snapshot, computeLayout(snapshot));
+    return { wrapper: mount(App, { attachTo: leaf }), store };
+  }
+
+  it('renders the explanation when the selected file is not among the matches', async () => {
+    const { wrapper, store } = mountApp();
+    const file = store.snapshot!.entities.find((e) => e.kind === 'file')!;
+    store.select(file.id);
+    store.setQuery('nothing-matches-this');
+    await nextTick();
+    expect(wrapper.text()).toContain(COPY_30);
+  });
+
+  it('says nothing while unfiltered, or while the selection IS among the matches', async () => {
+    const { wrapper, store } = mountApp();
+    const file = store.snapshot!.entities.find((e) => e.kind === 'file')!;
+    store.select(file.id);
+    await nextTick();
+    expect(wrapper.text()).not.toContain(COPY_30);
+
+    store.setQuery(file.path);
+    await nextTick();
+    expect(wrapper.text()).not.toContain(COPY_30);
   });
 });

@@ -311,6 +311,19 @@ defineExpose({ rendererHost });
         Files
       </button>
     </div>
+    <!-- Phase 2c, I4: COPY-30. `city-store`'s `banner` getter had no production reader,
+         so the string never reached a user. Spec line 913 adopts COPY-30 and spec 5.2
+         requires a filter-hidden selection be "EXPLAINED ..., never silently replaced" —
+         so the bug was the missing surface, not the dead getter. NOT routed through
+         viewSurfaceState/StatusBanner (a single-winner chain; this notice must coexist
+         with whatever else is showing), and not a second live region (AnnouncementRegion
+         owns that — the COPY-14 double-print is why). -->
+    <p
+      v-if="store.banner"
+      class="ci-app__selection-notice"
+    >
+      {{ store.banner }}
+    </p>
     <div class="ci-app__body">
       <!-- Rendered per the container-query layout (styles.css's 820px threshold),
            never per viewMode: the >=820px layout is "list + canvas + inspector"
