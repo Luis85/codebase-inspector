@@ -20,7 +20,34 @@ installMatchMediaStub();
 // measures its OWN nested stage element, not `contentEl` (stubbed per-instance
 // above, no longer reached) -- a generous 1000x700 default avoids racing a POST-HOC
 // per-element override against construction's own microtask timing (hit empirically
-// in city-view-store-wiring.test.ts). A narrow-stage test uses `vi.spyOn` instead.
+// in city-view-store-wiring.test.ts).
+//
+// Phase 2 fix wave, M11 (PREREQUISITE for the 320 px responsive work): the flat
+// 1000x700 default was UNCONDITIONAL, so a rect set on an ANCESTOR -- which is the
+// only rect a test can set BEFORE Vue creates the descendant that gets measured --
+// reached nothing. `makeLeafDouble(200)` (which sets contentEl's own rect, via
+// tests/mocks/obsidian.ts's View constructor) therefore MEANT "narrow" and MEASURED
+// 1000 px at the stage, and `App.vue`'s `narrowDrawer` was false in every test that
+// did not reach inside the component tree afterwards. A future test written as
+// `makeLeafDouble(200)` would have passed for the wrong reason.
+//
+// So the default now INHERITS: an element with no rect of its own reports the rect
+// of its nearest ancestor that has one (a plain own-property assignment, which is
+// what every test in this tree already uses and which shadows this prototype method
+// for that element regardless), falling back to 1000x700 when no ancestor has one.
+// That is layout-inaccurate in general and deliberately so: it makes "this leaf is
+// 200 px wide" expressible from outside the component tree, which is exactly the
+// thing spec 5.2's floor and drawer thresholds are measured against. It changes
+// nothing for the existing suite, where every host test's contentEl already carries
+// the 1000x700 default and every component test overrides the measured element
+// itself.
+const DEFAULT_RECT_WIDTH = 1000;
+const DEFAULT_RECT_HEIGHT = 700;
+
+function rectOf(width: number, height: number): DOMRect {
+  return { width, height, top: 0, left: 0, right: width, bottom: height, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+}
+
 function installBoundingRectDefault(): void {
   if (typeof Element === 'undefined') return;
   const proto = Element.prototype as unknown as { ciRectStub?: boolean };
@@ -28,7 +55,12 @@ function installBoundingRectDefault(): void {
   // Fix round 3, item 4 (fold): non-enumerable, unlike a plain assignment --
   // this guard flag must not show up in a `for...in` over any element.
   Object.defineProperty(proto, 'ciRectStub', { value: true, enumerable: false });
-  Element.prototype.getBoundingClientRect = () => ({ width: 1000, height: 700, top: 0, left: 0, right: 1000, bottom: 700, x: 0, y: 0, toJSON: () => ({}) });
+  Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
+    for (let el: Element | null = this.parentElement; el; el = el.parentElement) {
+      if (Object.prototype.hasOwnProperty.call(el, 'getBoundingClientRect')) return el.getBoundingClientRect();
+    }
+    return rectOf(DEFAULT_RECT_WIDTH, DEFAULT_RECT_HEIGHT);
+  };
 }
 installBoundingRectDefault();
 
