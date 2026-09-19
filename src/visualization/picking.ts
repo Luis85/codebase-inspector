@@ -15,7 +15,15 @@ import type { EntityId } from './renderer-port';
 
 export const DRAG_THRESHOLD_CSS_PX = 5;
 export const HOVER_DWELL_MS = 200;
-const WHEEL_ZOOM_RATE = 0.0035;
+/** Phase 2c, ruling M104. One Chromium/Windows wheel notch is `deltaMode 0, deltaY 100`
+ *  (WHEEL_DELTA 120 x the OS "lines to scroll" default of 3 x Chromium's 100/3 px per
+ *  line). At the previous 0.0035 that was `exp(-100 * 0.0035) = 0.7047` -- a 29.5% cut
+ *  PER NOTCH, and 40.8% at WHEEL_CLAMP, which also left only ~6.8 notches of zoom-out
+ *  after a fit before MIN_ZOOM clamped. 0.00105 is `-ln(0.9)/100`: a conventional 10%
+ *  per notch, chosen because it is the round number the ratio is derived FROM rather
+ *  than a tuned constant. WHEEL_CLAMP is unchanged, so a flung trackpad still cannot
+ *  teleport the camera. */
+const WHEEL_ZOOM_RATE = 0.00105;
 const WHEEL_CLAMP = 150;
 
 export interface CanvasPoint { x: number; y: number }
@@ -23,6 +31,11 @@ export interface CanvasPoint { x: number; y: number }
 export interface PickingOptions {
   win: Window;
   canvas: HTMLCanvasElement;
+  /** The view's single focusable, named region (spec 4.2) — the element the canvas is
+   *  mounted into. Read ONLY to answer "is this canvas focused or engaged", which is the
+   *  gate the handoff puts on the wheel; no listener is attached to it and nothing about
+   *  focus is changed from here (the VIEW owns focus). */
+  focusRoot: HTMLElement;
   /** Canvas-relative point -> the entity under it, or null. The only raycast. */
   hitTest: (point: CanvasPoint) => EntityId | null;
   onPick: (entityId: EntityId) => void;
@@ -41,6 +54,15 @@ interface Gesture { startX: number; startY: number; lastX: number; lastY: number
 export function createPicking(options: PickingOptions): Picking {
   const { win, canvas } = options;
   let gesture: Gesture | null = null;
+  /** Phase 2c, ruling M104. The handoff says "Wheel over FOCUSED/ENGAGED canvas | Dolly |
+   *  Bound zoom; LET TEXT/LIST SCROLLING REMAIN NORMAL"
+   *  (docs/concept/design/interactions/01-core-interactions.md:17). The wheel handler
+   *  used to fire on bare hover AND `preventDefault()` unconditionally, so the pointer
+   *  merely crossing the canvas on its way somewhere else ate the leaf's scroll entirely.
+   *  Engagement is a press inside the canvas, and it ends when the pointer leaves —
+   *  focus inside the view's own region counts too, so tabbing to the stage and using
+   *  the wheel works without a click. */
+  let pressedHere = false;
   let dwell: ReturnType<Window['setTimeout']> | null = null;
   let hovered: EntityId | null = null;
   let disposed = false;
@@ -69,9 +91,18 @@ export function createPicking(options: PickingOptions): Picking {
 
   function endGesture(): void { gesture = null; }
 
+  /** Focused OR engaged, per the handoff row above. A live gesture counts: a drag that
+   *  began on the canvas is as engaged as anything can be. */
+  function isEngaged(): boolean {
+    if (gesture !== null || pressedHere) return true;
+    const active = win.document.activeElement;
+    return active !== null && options.focusRoot.contains(active);
+  }
+
   const onPointerDown = (event: Event): void => {
     const pointer = event as PointerEvent;
     if (!options.isActive()) return;
+    pressedHere = true;
     clearDwell();
     gesture = {
       startX: pointer.clientX, startY: pointer.clientY,
@@ -123,6 +154,7 @@ export function createPicking(options: PickingOptions): Picking {
   const onPointerLeave = (): void => {
     clearDwell();
     endGesture();
+    pressedHere = false;
     if (hovered === null) return;         // nothing was hovered: nothing changed
     hovered = null;
     options.onHover(null, null);          // immediately, not after the dwell
@@ -131,6 +163,9 @@ export function createPicking(options: PickingOptions): Picking {
   const onWheel = (event: Event): void => {
     const wheel = event as WheelEvent;
     if (!options.isActive()) return;
+    // The gate comes BEFORE preventDefault, which is the whole point: an unengaged
+    // canvas must let the event through so the leaf scrolls normally.
+    if (!isEngaged()) return;
     wheel.preventDefault();
     const unit = wheel.deltaMode === 1 ? 16 : wheel.deltaMode === 2 ? canvas.getBoundingClientRect().height : 1;
     const delta = Math.min(WHEEL_CLAMP, Math.max(-WHEEL_CLAMP, wheel.deltaY * unit));

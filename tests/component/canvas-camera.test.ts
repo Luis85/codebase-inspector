@@ -134,6 +134,75 @@ describe('the canvas input path reaching the camera', () => {
     expect(drawn.positions.length).toBe(settled);
   });
 
+  // Phase 2c, ruling M104 -- THE WHEEL. Two separate faults, both against the same
+  // handoff row: `01-core-interactions.md:17` reads
+  //   "Wheel over FOCUSED/ENGAGED canvas | Dolly | Bound zoom; let text/list scrolling
+  //    remain normal".
+  describe('M104: the wheel', () => {
+    /** One Chromium/Windows notch: WHEEL_DELTA 120 x the OS "lines to scroll" default of
+     *  3 x Chromium's 100/3 px per line = deltaY 100 at deltaMode 0. */
+    const notch = (): WheelEvent =>
+      new WheelEvent('wheel', { deltaY: 100, deltaMode: 0, cancelable: true, bubbles: true });
+
+    const engage = (): void => {
+      canvas.dispatchEvent(pointerEvent('pointerdown', 400, 300));
+      canvas.dispatchEvent(pointerEvent('pointerup', 400, 300));
+    };
+
+    it('one notch is a usable step, not a 30% leap', () => {
+      engage();
+      const before = port.getCamera().zoom;
+      canvas.dispatchEvent(notch());
+      const factor = port.getCamera().zoom / before;
+      // WHEEL_ZOOM_RATE 0.0035 gave exp(-100*0.0035) = 0.7047 -- a 29.5% cut per notch,
+      // and only 6.8 notches of zoom-out before MIN_ZOOM clamps. A conventional 10% is
+      // rate = -ln(0.9)/100 = 0.00105.
+      expect(factor).toBeGreaterThan(0.85);
+      expect(factor).toBeLessThan(0.95);
+    });
+
+    it('does NOT zoom or swallow the scroll on a bare hover', () => {
+      // "let text/list scrolling remain normal": the pointer merely crossing the canvas
+      // must not eat the leaf's scroll. preventDefault() on an unengaged canvas is what
+      // made a scroll over the city stop the pane scrolling at all.
+      const before = port.getCamera().zoom;
+      const wheel = notch();
+      canvas.dispatchEvent(wheel);
+      expect(port.getCamera().zoom).toBe(before);
+      expect(wheel.defaultPrevented).toBe(false);
+    });
+
+    it('DOES zoom, and suppresses the scroll, once the canvas is engaged', () => {
+      engage();
+      const before = port.getCamera().zoom;
+      const wheel = notch();
+      canvas.dispatchEvent(wheel);
+      expect(port.getCamera().zoom).toBeLessThan(before);
+      expect(wheel.defaultPrevented).toBe(true);
+    });
+
+    it('counts FOCUS as engagement, so the keyboard route works without a click', () => {
+      // The stage is the view's single focusable, named region (spec 4.2); the canvas
+      // inside it is aria-hidden and untabbable. Tabbing to the stage must be enough.
+      mount.tabIndex = 0;
+      mount.focus();
+      const before = port.getCamera().zoom;
+      canvas.dispatchEvent(notch());
+      expect(port.getCamera().zoom).toBeLessThan(before);
+    });
+
+    it('disengages when the pointer leaves, so a later stray wheel scrolls the leaf', () => {
+      engage();
+      canvas.dispatchEvent(pointerEvent('pointerleave', 400, 300));
+      mount.blur();
+      const before = port.getCamera().zoom;
+      const wheel = notch();
+      canvas.dispatchEvent(wheel);
+      expect(port.getCamera().zoom).toBe(before);
+      expect(wheel.defaultPrevented).toBe(false);
+    });
+  });
+
   it('I1: nudgeCamera — the DOCK and the keyboard — still tweens, so the fix is a SPLIT', () => {
     const before = port.getCamera().position;
     port.nudgeCamera({ orbit: [0.4, 0] });

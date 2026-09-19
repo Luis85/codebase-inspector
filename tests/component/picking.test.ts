@@ -335,7 +335,18 @@ describe('picking', () => {
     expect(after.target).not.toEqual(before.target);
   });
 
+  // Phase 2c, ruling M104 -- DISCLOSED CHANGE, and a strengthening rather than a
+  // loosening. This test used to dispatch the wheel on a BARE HOVER, which is behaviour
+  // the rank-4 handoff contradicts: 01-core-interactions.md:17 reads "Wheel over
+  // FOCUSED/ENGAGED canvas | Dolly | Bound zoom; let text/list scrolling remain normal",
+  // and firing (with preventDefault) on hover meant the pointer merely crossing the
+  // canvas ate the leaf's scroll. So the test asserted current-but-wrong behaviour. It
+  // now engages the canvas first and keeps BOTH its original assertions verbatim; the
+  // bare-hover case it used to stand for is asserted, with the opposite expectation and
+  // its citation, in tests/component/canvas-camera.test.ts.
   it('zooms on the wheel and suppresses the page scroll it would otherwise cause', () => {
+    canvas.dispatchEvent(pointerEvent('pointerdown', lotScreenPosition('src/domain/layout.ts')));
+    canvas.dispatchEvent(pointerEvent('pointerup', lotScreenPosition('src/domain/layout.ts')));
     const before = port.getCamera().zoom;
     const wheel = new WheelEvent('wheel', { deltaY: -120, cancelable: true, bubbles: true });
     canvas.dispatchEvent(wheel);
@@ -344,6 +355,8 @@ describe('picking', () => {
   });
 
   it('does not zoom on the wheel while the view is paused', () => {
+    canvas.dispatchEvent(pointerEvent('pointerdown', lotScreenPosition('src/domain/layout.ts')));
+    canvas.dispatchEvent(pointerEvent('pointerup', lotScreenPosition('src/domain/layout.ts')));
     port.pause();
     const before = port.getCamera().zoom;
     canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -120, cancelable: true, bubbles: true }));

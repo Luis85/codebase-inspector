@@ -299,7 +299,10 @@ describe('disposal', () => {
     } as unknown as Window;
 
     const picking = createPicking({
-      win, canvas,
+      // Phase 2c, ruling M104: `focusRoot` is the view's own focusable region, read only
+      // to answer "is this canvas focused or engaged" for the wheel gate. This suite is
+      // about listener registration and removal, so a bare element is enough.
+      win, canvas, focusRoot: document.body.createDiv(),
       hitTest: () => null, onPick: () => {}, onHover: () => {},
       onOrbit: () => {}, onPan: () => {}, onZoom: () => {}, isActive: () => true,
     });
