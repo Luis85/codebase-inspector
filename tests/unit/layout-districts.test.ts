@@ -116,3 +116,52 @@ describe('districts', () => {
     }
   });
 });
+
+// Phase 2c, I2 / defect 4(a) -- THE ASPECT INVARIANT. `shelfPack` computed its target
+// row width as `sqrt(totalArea)` -- unambiguously "make this square", which is the
+// algorithm's own stated intent -- but `totalArea` counted item areas only, while the
+// rows it then packed consumed `width + GUTTER` horizontally and `footprintZ + GUTTER`
+// vertically. With LOT_FOOTPRINT 10 and GUTTER 4 the target under-shot the true square
+// width by exactly 10/14, and since the depth is whatever is left over, the result
+// converged on (10/14)^2 ~= 0.51: every district at every depth came out about twice as
+// deep as it is wide, measured 762 x 1518 on the user's real 1087-file tree and 1 : 5.4
+// for a four-file folder.
+//
+// The highest-value test in either report, and for the reason they both give: it is pure
+// arithmetic over the domain layer, it needs no host, no DOM and no GPU, and it would
+// have caught this the day shelfPack was written.
+describe('I2: districts are roughly square at every size (defect 4a)', () => {
+  // A ratio band, not a point: shelf packing is discrete, so a row that cannot take one
+  // more item leaves a genuine remainder. 0.7-1.43 is a factor of sqrt(2) either way.
+  const LOWER = 0.7;
+  const UPPER = 1.43;
+
+  for (const files of [4, 9, 16, 100, 400]) {
+    it(`a flat folder of ${files} equal files packs near 1:1, not 1:2`, () => {
+      const { districts } = computeLayout(buildSnapshotFixture({ files }));
+      const district = districts.find((d) => d.parentId === null)!;
+      const ratio = district.extent[0] / district.extent[1];
+      expect(ratio).toBeGreaterThanOrEqual(LOWER);
+      expect(ratio).toBeLessThanOrEqual(UPPER);
+    });
+  }
+
+  it('holds for a NESTED tree too, where the packed items are heterogeneous boxes', () => {
+    // The one-line gutter-aware target reaches 1.000 for equal leaf items but only
+    // ~0.57 for the whole city, because at the upper levels the items are nested boxes
+    // of different sizes and a shelf row is as tall as its tallest member. This is the
+    // case that distinguishes the minimal fix from one that actually works.
+    const { districts } = computeLayout(nestedStressFixture());
+    const root = districts.find((d) => d.parentId === null)!;
+    const ratio = root.extent[0] / root.extent[1];
+    expect(ratio).toBeGreaterThanOrEqual(LOWER);
+    expect(ratio).toBeLessThanOrEqual(UPPER);
+  });
+
+  it('stays DETERMINISTIC: the same snapshot lays out identically twice', () => {
+    // Whatever shelfPack does to choose its target must not depend on anything but the
+    // items, in their given order -- determinism is this module's whole point.
+    const snapshot = nestedStressFixture();
+    expect(computeLayout(snapshot).districts).toEqual(computeLayout(snapshot).districts);
+  });
+});

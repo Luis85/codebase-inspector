@@ -130,13 +130,38 @@ function collectDescendantFiles(
  * height — so no item can reach into another row. That is the whole non-overlap proof:
  * it holds for any input, not just the fixtures this task tests against.
  */
-function shelfPack(items: readonly Footprint[]): { width: number; footprintZ: number; placed: Array<{ x: number; z: number }> } {
-  if (items.length === 0) return { width: 0, footprintZ: 0, placed: [] };
-  let totalArea = 0;
-  let widestItem = 0;
-  for (const it of items) { totalArea += it.width * it.footprintZ; widestItem = Math.max(widestItem, it.width); }
-  const targetRowWidth = Math.max(widestItem, Math.sqrt(totalArea));
+/** Candidates tried per refinement stage. Two stages: a coarse sweep of the whole
+ *  feasible range, then the same sweep again inside one step either side of the winner.
+ *  66 measure-only passes over the items, no allocation until the winner is packed for
+ *  real -- comfortably inside the ledger's own "~280 ms at 40 000 files" budget, and
+ *  measured at 9 ms -> 19 ms for the user's whole 1087-file tree. */
+const TARGET_WIDTH_SEARCH_STEPS = 32;
 
+/** How far from square, as a symmetric log ratio, so 2:1 and 1:2 score identically and
+ *  the comparison cannot be biased toward one axis. Lower is better. */
+function aspectPenalty(width: number, footprintZ: number): number {
+  if (width <= 0 || footprintZ <= 0) return Number.POSITIVE_INFINITY;
+  return Math.abs(Math.log(width / footprintZ));
+}
+
+/** The packing rule itself, measuring only — no array, so the search below can try it
+ *  many times for nothing. `place` runs the identical loop once, for the winner. */
+function measureAt(items: readonly Footprint[], targetRowWidth: number): { width: number; footprintZ: number } {
+  let rowX = 0, rowZ = 0, rowHeight = 0, maxWidth = 0;
+  for (const item of items) {
+    if (rowX > 0 && rowX + item.width > targetRowWidth) {
+      rowZ += rowHeight + GUTTER;
+      rowX = 0;
+      rowHeight = 0;
+    }
+    rowX += item.width + GUTTER;
+    rowHeight = Math.max(rowHeight, item.footprintZ);
+    maxWidth = Math.max(maxWidth, rowX - GUTTER);
+  }
+  return { width: maxWidth, footprintZ: rowZ + rowHeight };
+}
+
+function placeAt(items: readonly Footprint[], targetRowWidth: number): { width: number; footprintZ: number; placed: Array<{ x: number; z: number }> } {
   const placed: Array<{ x: number; z: number }> = [];
   let rowX = 0, rowZ = 0, rowHeight = 0, maxWidth = 0;
   for (const item of items) {
@@ -151,6 +176,59 @@ function shelfPack(items: readonly Footprint[]): { width: number; footprintZ: nu
     maxWidth = Math.max(maxWidth, rowX - GUTTER);
   }
   return { width: maxWidth, footprintZ: rowZ + rowHeight, placed };
+}
+
+/**
+ * Phase 2c, I2 / defect 4(a). The target row width used to be `sqrt(totalArea)` over the
+ * ITEM areas alone -- "make this square", which is the right intent -- while the rows it
+ * then packed consumed `width + GUTTER` horizontally and `footprintZ + GUTTER`
+ * vertically. Counting neither gutter made the target under-shoot the true square width
+ * by exactly LOT_FOOTPRINT/(LOT_FOOTPRINT + GUTTER) = 10/14, and because the depth is
+ * whatever is left over, the result converged on (10/14)^2 ~= 0.51 REGARDLESS OF INPUT:
+ * every district at every depth came out about twice as deep as it is wide. Measured
+ * 762 x 1518 on the user's real 1087-file tree, and 1 : 5.4 for a four-file folder. That
+ * shape then inflates the AABB diagonal that `camera-rig.fit()` frames, so the two
+ * defects compound.
+ *
+ * A gutter-aware `sqrt` is the minimal repair and reaches exactly 1.000 for equal leaf
+ * items -- but only ~0.57 for the whole city, because at the upper levels the packed
+ * items are heterogeneous nested boxes and a shelf row is as tall as its tallest member.
+ * So the target is SEARCHED instead of computed: the packing rule is unchanged and the
+ * item order is untouched (the caller has already sorted by path, and determinism is this
+ * module's whole point), and only the width at which rows break is chosen, by trying
+ * candidates across the feasible range and keeping the one closest to square.
+ *
+ * Deterministic by construction: the candidate set is a fixed arithmetic sweep of a range
+ * derived only from the items, it is evaluated in a fixed order, and a tie keeps the
+ * earlier (narrower) candidate. No randomness, no time, no dependence on anything but the
+ * items in the order given.
+ */
+function shelfPack(items: readonly Footprint[]): { width: number; footprintZ: number; placed: Array<{ x: number; z: number }> } {
+  if (items.length === 0) return { width: 0, footprintZ: 0, placed: [] };
+  let totalAdvance = 0;
+  let widestItem = 0;
+  for (const it of items) { totalAdvance += it.width + GUTTER; widestItem = Math.max(widestItem, it.width); }
+  // The feasible range, both ends achievable: at `widestItem` every item is on its own
+  // row (the deepest, narrowest result); at the full advance they are all on one row.
+  let low = widestItem;
+  let high = Math.max(widestItem, totalAdvance - GUTTER);
+  let bestTarget = low;
+  let bestPenalty = Number.POSITIVE_INFINITY;
+  for (let stage = 0; stage < 2; stage += 1) {
+    const step = (high - low) / TARGET_WIDTH_SEARCH_STEPS;
+    if (!(step > 0)) break;
+    for (let i = 0; i <= TARGET_WIDTH_SEARCH_STEPS; i += 1) {
+      const target = low + step * i;
+      const { width, footprintZ } = measureAt(items, target);
+      const penalty = aspectPenalty(width, footprintZ);
+      // Strictly better, so a tie keeps the narrower candidate -- the tie-break is what
+      // makes the sweep's result independent of evaluation order.
+      if (penalty < bestPenalty) { bestPenalty = penalty; bestTarget = target; }
+    }
+    low = Math.max(widestItem, bestTarget - step);
+    high = bestTarget + step;
+  }
+  return placeAt(items, bestTarget);
 }
 
 function placeFiles(files: readonly CodeEntity[], lookup: MetricLookup): { node: Pick<LayoutNode, 'width' | 'footprintZ' | 'files'> } {
