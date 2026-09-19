@@ -252,15 +252,22 @@ const cityViewportRef = ref<CityViewportExposed | null>(null);
 // notice for exactly this signal (COPY-14 / the reconstruct notice), inside the
 // viewport pane, alongside whatever else is on screen — picking IT as the one
 // owner of that copy is what fixes the double-print too.
+// Phase 2c, M8: functions of `store.snapshot` ALONE. Inline in the computed below — which
+// also depends on `store.matchingIds`, i.e. on every debounced keystroke — an O(entities)
+// filter and an O(entities + observations) scan both re-ran per keystroke while depending
+// on nothing that had changed. Split out, they cache on the snapshot.
+const totalFileCount = computed(() => store.snapshot?.entities.filter((e) => e.kind === 'file').length ?? 0);
+const partialRead = computed(() => countPartialRead(store.snapshot));
+
 const viewSurfaceState = computed(() => deriveViewSurfaceState({
   hasSnapshot: store.snapshot !== null,
   runStatus: runStore.run.status,
   runProcessedFiles: runStore.run.status === 'running' ? runStore.run.processedFiles : 0,
   runFailureMessage: runStore.run.status === 'failed' ? runStore.run.message : null,
-  totalFileCount: store.snapshot?.entities.filter((e) => e.kind === 'file').length ?? 0,
+  totalFileCount: totalFileCount.value,
   matchingIds: store.matchingIds,
   query: store.query,
-  partialRead: countPartialRead(store.snapshot),
+  partialRead: partialRead.value,
   rendererUnavailableReason: null,
   rootUnavailable: false,
 }));

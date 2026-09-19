@@ -26,13 +26,20 @@ const totalFileCount = computed(() => fileEntities.value.length);
 const noMatches = computed(() => store.matchingIds !== null && store.matchingIds.size === 0);
 const emptyCopy = computed(() => formatCopy11(totalFileCount.value, store.query));
 
+// Phase 2c, ruling M102 (the IN-SCOPE half; windowing is deliberately not attempted --
+// see the report). Both of these used to be called once PER ROW on every patch, and
+// `rovingTabIndex` re-derived the single focus target inside each of those ~1,000 calls.
+// Hoisted to two computeds, they are derived once per dependency change instead of once
+// per row, and each row's own work becomes a Set lookup and an identity comparison.
+const matchingIds = computed(() => store.matchingIds);
+const focusTarget = computed(() => store.focusedEntityId ?? fileEntities.value[0]?.id ?? null);
+
 function isDimmed(entityId: EntityId): boolean {
-  return store.matchingIds !== null && !store.matchingIds.has(entityId);
+  return matchingIds.value !== null && !matchingIds.value.has(entityId);
 }
 
 function rovingTabIndex(entityId: EntityId): number {
-  const focusTarget = store.focusedEntityId ?? fileEntities.value[0]?.id ?? null;
-  return entityId === focusTarget ? 0 : -1;
+  return entityId === focusTarget.value ? 0 : -1;
 }
 
 /** Activating a row both selects it AND opens the inspector (task 9 fix round
@@ -50,9 +57,19 @@ function activate(entityId: EntityId, event: Event): void {
 <template>
   <div class="ci-file-list">
     <ul class="ci-file-list__rows">
+      <!-- `v-memo` on the row: the ONLY things that can change a row's rendering are the
+           three below, so a keystroke that changes `matchingIds` now re-patches only the
+           rows whose dimming actually flipped, instead of all ~1,000. `entity.path` is
+           included because the entity list itself can change under a new snapshot. -->
       <li
         v-for="entity in fileEntities"
         :key="entity.id"
+        v-memo="[
+          entity.path,
+          entity.id === store.selectedEntityId,
+          isDimmed(entity.id),
+          rovingTabIndex(entity.id),
+        ]"
       >
         <button
           type="button"

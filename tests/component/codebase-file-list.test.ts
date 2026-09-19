@@ -120,6 +120,43 @@ describe('CodebaseFileList.vue (C07)', () => {
     expect(wrapper.text()).toContain('No matching files. The snapshot still contains');
   });
 
+  // Phase 2c, ruling M102. The rows now carry `v-memo`, so each one is re-patched only
+  // when one of its listed dependencies changes -- which is exactly the optimisation that
+  // can silently stop a row from updating if a dependency is missing from that list. The
+  // three existing tests above all assert the FIRST render (they set the store up before
+  // mounting), so none of them could see such a bug. These assert the UPDATE path: every
+  // state a row's rendering depends on, changed AFTER mount.
+  it('M102: a row re-renders when the dimming, selection or focus changes after mount', async () => {
+    const store = useCityStore();
+    const snapshot = buildSnapshotFixture({ files: 4 });
+    store.setCity(snapshot, computeLayout(snapshot));
+    const files = snapshot.entities.filter((e) => e.kind === 'file');
+    const wrapper = mountWithRenderer(makeRendererDouble());
+    const dimmedCount = (): number =>
+      wrapper.findAll('.ci-file-list__row').filter((r) => r.classes().includes('ci-file-list__row--dimmed')).length;
+
+    expect(dimmedCount()).toBe(0);
+    store.setQuery(files[0]!.path);
+    await nextTick();
+    expect(dimmedCount()).toBe(3);                       // dimming reaches the rows
+    store.setQuery('');
+    await nextTick();
+    expect(dimmedCount()).toBe(0);                       // ...and comes back off again
+
+    store.select(files[2]!.id);
+    await nextTick();
+    const selected = wrapper.findAll('.ci-file-list__row')
+      .filter((r) => r.classes().includes('ci-file-list__row--selected'));
+    expect(selected).toHaveLength(1);
+    expect(selected[0]!.attributes('aria-pressed')).toBe('true');
+
+    store.focusRow(files[3]!.id);
+    await nextTick();
+    const tabbable = wrapper.findAll('.ci-file-list__row').filter((r) => r.attributes('tabindex') === '0');
+    expect(tabbable).toHaveLength(1);
+    expect(tabbable[0]!.text()).toBe(files[3]!.path);
+  });
+
   it('dims non-matches in place rather than hiding rows', () => {
     const store = useCityStore();
     const snapshot = buildSnapshotFixture({ files: 3 });
