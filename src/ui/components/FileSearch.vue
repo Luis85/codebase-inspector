@@ -32,11 +32,33 @@ const draft = ref(store.query);
 // watcher is a no-op for the store write that debounce itself makes.
 watch(() => store.query, (query) => { draft.value = query; });
 let composing = false;
-let debounceHandle: ReturnType<typeof setTimeout> | null = null;
+let debounceHandle: number | null = null;
+
+// Phase 2 fix wave, I9 (spec 4.4's cross-window rule, now enforced by
+// `no-restricted-globals` in eslint.config.mjs): the debounce used to call the BARE
+// `setTimeout`/`clearTimeout`, which resolve against the window this module was
+// loaded in rather than the one this field is currently displayed in. Timers share
+// the plugin's one JS realm, so unlike a bare `document` this was not a live defect
+// -- but it was the last residue of the shape that has cost this branch three fix
+// rounds, and the rule that now forbids it cannot make an exception for "this one is
+// harmless". `rootEl.value.win` is the same injected-Window discipline every other
+// listener in this file already uses; with no root element there is nothing mounted
+// to debounce into, and the early return is that case, not a fallback to a global.
+function timerWin(): Window | null {
+  return rootEl.value?.win ?? null;
+}
+
+function clearPending(): void {
+  const win = timerWin();
+  if (debounceHandle !== null && win) win.clearTimeout(debounceHandle);
+  debounceHandle = null;
+}
 
 function commit(value: string): void {
-  if (debounceHandle) clearTimeout(debounceHandle);
-  debounceHandle = setTimeout(() => { store.setQuery(value); }, DEBOUNCE_MS);
+  clearPending();
+  const win = timerWin();
+  if (!win) return;
+  debounceHandle = win.setTimeout(() => { store.setQuery(value); }, DEBOUNCE_MS);
 }
 
 function onInput(event: Event): void {
@@ -55,8 +77,7 @@ function onInput(event: Event): void {
  *  Ctrl/Meta/Alt are left alone so a same-key host shortcut is never shadowed, and
  *  composition is suppressed for the same reason Escape is. */
 function confirmFromDraft(): void {
-  if (debounceHandle) clearTimeout(debounceHandle);
-  debounceHandle = null;
+  clearPending();
   store.setQuery(draft.value);
   store.confirmSearch();
 }
@@ -72,7 +93,7 @@ function onKeydown(event: KeyboardEvent): void {
   const intent = escapeIntent({ inSearch: true, query: draft.value, composing });
   if (intent === 'clear-query') {
     event.preventDefault();
-    if (debounceHandle) clearTimeout(debounceHandle);
+    clearPending();
     draft.value = '';
     store.setQuery('');
     // Focus is left exactly where it is — no blur(), no focus() call.
@@ -123,7 +144,7 @@ onMounted(() => {
   listenerDoc?.addEventListener('keydown', onGlobalKeydown);
 });
 onBeforeUnmount(() => {
-  if (debounceHandle) clearTimeout(debounceHandle);
+  clearPending();
   listenerDoc?.removeEventListener('keydown', onGlobalKeydown);
 });
 

@@ -129,6 +129,41 @@ export default tseslint.config(
     'obsidianmd/prefer-create-el': 'off',
   } },
 
+  // Rule 4 — spec 4.4's CROSS-WINDOW rule, backed by a tool instead of by discipline
+  // (Phase 2 fix wave, I9; ruling M88). Spec 4.4 states a closed list: "inside the
+  // renderer and view, no bare `window`, `document`, `requestAnimationFrame`,
+  // `setInterval`, `ResizeObserver`, `IntersectionObserver`, or `instanceof` on a DOM
+  // type". Every one of those resolves against the window the MODULE was loaded in,
+  // never the window the element is currently in — so after a pop-out they silently
+  // address the wrong window, with no error anywhere. This branch has already paid
+  // THREE fix rounds for that exact class (bare document/window/instanceof in three
+  // files; the Escape listener bound to the pre-migration document; the ResizeObserver
+  // built off the old window's constructor), each found by a reviewer rather than by a
+  // tool. The injected `Window`/`Document` — `el.win`, `el.doc`, or a `win` parameter —
+  // is the only correct source, exactly as the colour rule above made a silent
+  // renderer hazard loud.
+  //
+  // setTimeout/clearTimeout are included beyond §4.4's own list: timers share the
+  // plugin's one JS realm, so a bare one is not a live defect the way a bare
+  // `document` is, but it is the same SHAPE, it is the residue this rule was written
+  // against, and exempting it would leave the rule arguing with itself. The
+  // `instanceof` half of §4.4's sentence is not expressible here; `obsidianmd/
+  // prefer-instanceof` already covers it.
+  {
+    files: ['src/ui/**/*.{ts,vue}', 'src/visualization/**/*.ts'],
+    rules: {
+      'no-restricted-globals': ['error',
+        ...['window', 'document', 'requestAnimationFrame', 'cancelAnimationFrame',
+            'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout',
+            'ResizeObserver', 'IntersectionObserver', 'matchMedia', 'devicePixelRatio',
+            'getComputedStyle', 'innerWidth', 'innerHeight', 'localStorage'].map((name) => ({
+          name,
+          message: `spec 4.4: no bare \`${name}\` inside src/ui or src/visualization — it resolves against the window this MODULE loaded in, which is the wrong one after a pop-out. Use the injected Window/Document (el.win / el.doc / a \`win\` parameter).`,
+        })),
+      ],
+    },
+  },
+
   // Rule 1 — size
   { files: ['src/**/*.{ts,vue}'], rules: { 'max-lines': ['error', 400] } },
   { files: ['tests/**/*.ts'], rules: { 'max-lines': ['error', 450] } },
