@@ -116,6 +116,12 @@ function onGlobalKeydown(event: KeyboardEvent): void {
   const intent = escapeIntent({
     composing: event.isComposing,
     inInspector: store.inspectorOpen,
+    // Phase 2 fix wave, I1 (Important): the shell's OWN Files-drawer state, which
+    // this listener never passed in -- so with the drawer open the chain fell
+    // through to `inCanvas && selected` (true precisely BECAUSE focus is inside the
+    // open drawer's list) and Escape destroyed the selection instead of closing the
+    // drawer. Spec 5.2 names Files as one of the two nonmodal drawers.
+    filesDrawer: filesDrawerOpen.value,
     narrowDrawer: narrowDrawer.value,
     inSearch: Boolean(active?.closest('.ci-search')),
     query: store.query,
@@ -128,6 +134,8 @@ function onGlobalKeydown(event: KeyboardEvent): void {
   if (intent === 'close-inspector') {
     store.closeInspector();
     inspectorOpenerHandle.value?.focus();
+  } else if (intent === 'close-files-drawer') {
+    closeFilesDrawer();          // already returns focus to the opener
   } else if (intent === 'clear-selection') {
     store.clearSelection();
   } else if (intent === 'clear-query') {

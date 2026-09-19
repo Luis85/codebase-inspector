@@ -61,4 +61,27 @@ describe('escapeIntent — exactly one layer per press', () => {
       inSearch: true, query: 'x', inInspector: true, narrowDrawer: true,
     })).toBe('close-inspector');
   });
+
+  // Phase 2 fix wave, I1 (Important): the chain had a branch for the Inspector
+  // drawer and none for the FILES drawer — the other of the two drawers spec §5.2
+  // names. With the Files drawer open, focus is inside `.ci-file-list`, so
+  // `inCanvas && selected` matched instead and Escape resolved the LAST layer
+  // destructively: the drawer stayed open and the selection was silently cleared.
+  // Ruling M61 fixed the ORDER of this chain; a drawer §5.2 already names belongs
+  // in the drawer link of it, which is what these three pin.
+  it('closes the Files drawer rather than clearing the selection under it', () => {
+    expect(escapeIntent({
+      filesDrawer: true, inCanvas: true, selected: true,
+    })).toBe('close-files-drawer');
+  });
+
+  it('closes the Files drawer before clearing a query', () => {
+    expect(escapeIntent({ filesDrawer: true, inSearch: true, query: 'x' })).toBe('close-files-drawer');
+  });
+
+  it('still resolves a modal, help and IME composition ahead of the Files drawer', () => {
+    expect(escapeIntent({ filesDrawer: true, modal: true })).toBe('close-modal');
+    expect(escapeIntent({ filesDrawer: true, help: true })).toBe('close-help');
+    expect(escapeIntent({ filesDrawer: true, composing: true })).toBeNull();
+  });
 });

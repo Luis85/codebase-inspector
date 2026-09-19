@@ -356,6 +356,47 @@ describe('App.vue welcome-state shell', () => {
       }
     });
 
+    // Phase 2 fix wave, I1 (Important): with the Files drawer open, focus is inside
+    // `.ci-file-list` — so `inCanvas && selected` matched and Escape resolved the
+    // LAST layer of the chain destructively: the drawer stayed open and the user's
+    // selection was silently cleared. The layer it should have reached (spec §5.2's
+    // nonmodal drawer, of which Files is one of the two named) did not exist, and
+    // App.vue never passed its own `filesDrawerOpen` in.
+    it('I1: Escape closes the FILES drawer and keeps the selection', async () => {
+      const rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+        width: 400, height: 700, top: 0, left: 0, right: 400, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+      });
+      try {
+        const store = useCityStore();
+        const snapshot = buildSnapshotFixture({ files: 1 });
+        store.setCity(snapshot, computeLayout(snapshot));
+        const wrapper = mount(App, { attachTo: document.body });
+
+        const row = wrapper.get('.ci-file-list__row');
+        await row.trigger('click');
+        const selected = store.selectedEntityId;
+        expect(selected).not.toBeNull();
+
+        const opener = wrapper.get('[aria-label="Files"]');
+        await opener.trigger('click');
+        expect(wrapper.find('.ci-app__list-wrapper--open').exists()).toBe(true);
+        // Focus genuinely inside the open drawer's own list — the exact state that
+        // used to satisfy `inCanvas`.
+        (row.element as HTMLElement).focus();
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await nextTick();
+
+        expect(wrapper.find('.ci-app__list-wrapper--open').exists()).toBe(false);
+        expect(store.selectedEntityId).toBe(selected);
+        // The drawer's own Close button already returns focus to its opener; Escape
+        // resolves the same layer, so it must do the same thing.
+        expect(document.activeElement).toBe(opener.element);
+      } finally {
+        rectSpy.mockRestore();
+      }
+    });
+
     // Multiple leaves are a first-class WP-01 capability (ruling M9): two
     // CityViews both listen on the SAME `document`, so without containment a
     // row focused in leaf A satisfied leaf B's own `inCanvas` check too.
