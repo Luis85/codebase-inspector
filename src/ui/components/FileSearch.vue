@@ -8,7 +8,7 @@
   in escape-intent.ts and is reused here rather than re-implemented.
 -->
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useCityStore } from '../stores/city-store';
 import { escapeIntent } from '../interaction/escape-intent';
 import { shouldFocusSearchShortcut } from '../interaction/keymap';
@@ -21,6 +21,15 @@ const store = useCityStore();
 const rootEl = ref<HTMLElement | null>(null);
 const inputEl = ref<HTMLInputElement | null>(null);
 const draft = ref(store.query);
+// Phase 2 fix wave, C2 (Critical): `draft` used to be read ONCE, here, and
+// `city-view.ts` mounts this tree BEFORE it seeds a restored CityViewState into the
+// store — so a query restored from workspace.json filtered the city while this field
+// sat visibly EMPTY, and `onKeydown` gates Escape on `draft`, so Escape could not
+// clear it either. The field must always show the filter that is actually in force,
+// whoever set it (a restore, or the shell-level Escape chain's own `setQuery('')`).
+// Not a two-way binding: typing still goes draft -> debounce -> store, and this
+// watcher is a no-op for the store write that debounce itself makes.
+watch(() => store.query, (query) => { draft.value = query; });
 let composing = false;
 let debounceHandle: ReturnType<typeof setTimeout> | null = null;
 

@@ -172,6 +172,35 @@ describe('useCityStore', () => {
       expect(store.matchingIds).toEqual(new Set([fileEntity.id]));
     });
 
+    // Phase 2 fix wave, C2 (Critical). A query restored from workspace.json is
+    // seeded BEFORE any snapshot exists (SnapshotStore is in-memory for WP-01, so
+    // after a restart `city-view.ts`'s retained-snapshot lookup misses and
+    // publishLayout never runs). The old branch resolved that to an EMPTY SET, which
+    // the whole codebase reads as "zero matches" rather than "unfiltered": every lot
+    // dimmed, every row dimmed, COPY-11 and "no paths match" shown — for a query
+    // that matches most of the tree, with a search box that was visibly empty. Two
+    // halves: "nothing to not-match yet" is null, and the arrival of a snapshot
+    // applies the query that predates it.
+    it('C2: a query with no snapshot yet is UNFILTERED, not zero matches', () => {
+      const store = useCityStore();
+      store.setQuery('file-');
+      expect(store.query).toBe('file-');
+      expect(store.matchingIds).toBeNull();
+    });
+
+    it('C2: setCity applies a query that predates the snapshot', () => {
+      const store = useCityStore();
+      store.setQuery('file-1');
+      store.setCity(snapshot, layout);
+      expect(store.matchingIds).toEqual(new Set([fileId(1)]));
+    });
+
+    it('C2: setCity leaves an unfiltered view unfiltered', () => {
+      const store = useCityStore();
+      store.setCity(snapshot, layout);
+      expect(store.matchingIds).toBeNull();
+    });
+
     it('matches everything on an empty or whitespace-only query', () => {
       const store = useCityStore();
       store.setCity(snapshot, layout);

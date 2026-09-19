@@ -85,6 +85,15 @@ export const useCityStore = defineStore('city-view', {
     setCity(snapshot: CodebaseSnapshot, layout: LayoutResult): void {
       this.snapshot = snapshot;
       this.layout = layout;
+      // Phase 2 fix wave, C2 (Critical): re-run the CURRENT query against the new
+      // snapshot. A query restored from workspace.json is seeded before any snapshot
+      // exists (SnapshotStore is in-memory for WP-01, spec 4.5, so after a restart
+      // city-view.ts's retained-snapshot lookup misses and publishLayout never runs),
+      // and nothing recomputed when one finally arrived — so the first real scan
+      // landed behind a filter computed against nothing. Routed through `setQuery`
+      // rather than a second copy of the rule, so there is one definition of "what
+      // this query matches". Re-setting the same string changes no watcher.
+      this.setQuery(this.query);
     },
 
     /** Selecting never moves the camera, never touches the query or the match set,
@@ -138,7 +147,12 @@ export const useCityStore = defineStore('city-view', {
         this.matchingIds = null;
         return;
       }
-      this.matchingIds = this.snapshot ? computeMatches(this.snapshot, trimmed) : new Set();
+      // C2: with no snapshot there is nothing yet to NOT match, so this is
+      // UNFILTERED — never an empty set, which every consumer reads as "zero
+      // matches" (dim every lot, dim every row, COPY-11, "no paths match X"). The
+      // query itself is still recorded, and `setCity` applies it the moment a
+      // snapshot arrives.
+      this.matchingIds = this.snapshot ? computeMatches(this.snapshot, trimmed) : null;
     },
 
     /** Selects the first match in a DETERMINISTIC order (sorted by path — never

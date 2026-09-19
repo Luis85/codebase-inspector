@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import { nextTick } from 'vue';
 // Side-effect import only: installs the createDiv/createEl prototype extensions
 // real Obsidian patches onto Element/HTMLElement at startup (tests/mocks/obsidian.ts)
 // so this DOM-only, non-host test file can build DOM the same way plugin source
@@ -65,6 +66,28 @@ describe('FileSearch.vue (C06)', () => {
     const input = wrapper.get('input');
     await input.trigger('keydown', { key: 'Escape' });
     expect(store.query).toBe('');
+  });
+
+  // Phase 2 fix wave, C2 (Critical): `draft` was read ONCE, at mount — and
+  // `city-view.ts` mounts the tree BEFORE it seeds a restored CityViewState into the
+  // store. So a restored query filtered the city while the field sat visibly empty,
+  // and `onKeydown` gates Escape on `draft`, so Escape could not clear it either:
+  // an all-grey city, "no paths match", and no control that undoes it.
+  it('C2: the field shows a query set on the store from outside', async () => {
+    const { wrapper } = mountInRoot();
+    const store = useCityStore();
+    const input = wrapper.get('input');
+    expect((input.element as HTMLInputElement).value).toBe('');
+
+    store.setQuery('src');
+    await nextTick();
+    expect((input.element as HTMLInputElement).value).toBe('src');
+
+    // ...and Escape can now reach it, because the local draft is no longer stale.
+    (input.element as HTMLInputElement).focus();
+    await input.trigger('keydown', { key: 'Escape' });
+    expect(store.query).toBe('');
+    expect((input.element as HTMLInputElement).value).toBe('');
   });
 
   it('is reachable with "/" only when this view owns focus and the target is not editable', () => {
