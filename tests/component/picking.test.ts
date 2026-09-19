@@ -230,6 +230,36 @@ describe('picking', () => {
     expect(picked()).toHaveLength(0);                  // and it is never also a click
   });
 
+  // Phase 2 fix wave, I3 (Important): this same gesture in TOP view used to do
+  // nothing at all -- picking routes an unmodified primary drag to onOrbit whatever
+  // the camera mode is, and the rig discarded an orbit delta outside 3D. The bookmark
+  // came back unchanged, a camera-changed event still fired and a frame was still
+  // scheduled, and the city did not move. The handoff says the gesture PANS here.
+  it('I3: PANS on a primary drag in TOP view, where there is nothing to orbit', () => {
+    port.setCameraMode('top');
+    const before = port.getCamera();
+    const start = lotScreenPosition('src/domain/layout.ts');
+    canvas.dispatchEvent(pointerEvent('pointerdown', start));
+    canvas.dispatchEvent(pointerEvent('pointermove', { x: start.x + 40, y: start.y + 25 }));
+    canvas.dispatchEvent(pointerEvent('pointerup', { x: start.x + 40, y: start.y + 25 }));
+    const after = port.getCamera();
+    expect(after.mode).toBe('top');
+    expect(after.target).not.toEqual(before.target);
+    // A pan, not a drift: eye and target moved by the same vector.
+    [0, 1, 2].forEach((i) => {
+      expect(after.position[i]! - before.position[i]!).toBeCloseTo(after.target[i]! - before.target[i]!, 9);
+    });
+  });
+
+  // The same button that is inert in top view is the WCAG 2.5.7 single-pointer
+  // alternative for that drag, and was inert for the same reason.
+  it('I3: the Rotate buttons in the dock move the plan in top view too', () => {
+    port.setCameraMode('top');
+    const before = port.getCamera();
+    port.nudgeCamera({ orbit: [-Math.PI / 8, 0] });
+    expect(port.getCamera().target).not.toEqual(before.target);
+  });
+
   it('PANS when a modifier is held, moving target and eye together', () => {
     const start = lotScreenPosition('src/domain/layout.ts');
     const before = port.getCamera();

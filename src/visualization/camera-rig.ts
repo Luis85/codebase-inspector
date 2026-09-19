@@ -60,6 +60,12 @@ const MAX_PHI = Math.PI / 2 - 0.05; // never from below it
 const DEFAULT_THETA = Math.PI / 4;
 const DEFAULT_PHI = Math.acos(1 / Math.sqrt(3));   // the isometric angle, ~54.7 degrees
 const TWEEN_MS = 220;
+/** Radians of orbit per CSS pixel of pointer drag. Lives here, not in city-renderer,
+ *  because the rig is now the one place that has to convert BETWEEN the two: in top
+ *  view an orbit delta IS a pan (see `nudge`), and the conversion has to be the exact
+ *  inverse of the one picking's `onOrbit` applied, or a drag would pan by a different
+ *  amount than the same drag with Shift held. city-renderer.ts imports it. */
+export const ORBIT_RADIANS_PER_CSS_PX = 0.007;
 
 type Triple = [number, number, number];
 
@@ -257,14 +263,29 @@ export function createCameraRig(options: CameraRigOptions): CameraRig {
 
     nudge(delta): void {
       let next = copyBookmark(bookmark);
-      if (delta.orbit && next.mode === '3d') {
-        // Top view is a plan: it has no orbit. Pan and zoom still apply there.
-        const { theta, phi, radius } = sphericalOf(next);
-        const nextPhi = Math.min(MAX_PHI, Math.max(MIN_PHI, phi + delta.orbit[1]));
-        next = { ...next, position: positionFor(next.target, theta + delta.orbit[0], nextPhi, radius) };
+      let [panX, panY] = delta.pan ?? [0, 0];
+      if (delta.orbit) {
+        if (next.mode === '3d') {
+          const { theta, phi, radius } = sphericalOf(next);
+          const nextPhi = Math.min(MAX_PHI, Math.max(MIN_PHI, phi + delta.orbit[1]));
+          next = { ...next, position: positionFor(next.target, theta + delta.orbit[0], nextPhi, radius) };
+        } else {
+          // Phase 2 fix wave, I3 (Important): top view is a PLAN -- it has no orbit,
+          // and this delta used to be silently discarded, so a primary drag (which
+          // picking.ts routes to onOrbit regardless of mode), the dock's two Rotate
+          // buttons and the unshifted arrow keys all did NOTHING there while
+          // remaining visibly enabled. The rank-4 handoff says the gesture pans
+          // ("Primary drag | Orbit in 3D; pan in top view"), so the equivalent pan is
+          // what it becomes -- converted by the exact inverse of picking's own
+          // px -> radians factor, so dragging and Shift-dragging move by the same
+          // amount. Fixed here rather than in picking.ts so the frozen port is
+          // untouched and every caller of an orbit delta is fixed at once.
+          panX -= delta.orbit[0] / ORBIT_RADIANS_PER_CSS_PX;
+          panY -= delta.orbit[1] / ORBIT_RADIANS_PER_CSS_PX;
+        }
       }
-      if (delta.pan) {
-        const [vx, vy, vz] = panVector(delta.pan[0], delta.pan[1]);
+      if (panX !== 0 || panY !== 0) {
+        const [vx, vy, vz] = panVector(panX, panY);
         next = {
           ...next,
           position: [next.position[0] + vx, next.position[1] + vy, next.position[2] + vz],

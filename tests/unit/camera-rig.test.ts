@@ -7,7 +7,7 @@
 // below. Both prototypes agree on dispose-and-reconstruct and NEITHER demonstrates it.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
-import { createCameraRig, type CameraRig } from '../../src/visualization/camera-rig';
+import { createCameraRig, ORBIT_RADIANS_PER_CSS_PX, type CameraRig } from '../../src/visualization/camera-rig';
 import type { CameraBookmark } from '../../src/domain/model';
 
 type Bounds = { min: [number, number, number]; max: [number, number, number] };
@@ -146,6 +146,65 @@ describe('camera rig', () => {
     rig.nudge({ pan: [120, 90] });
     rig.setCameraMode('3d');
     expect(rig.getCamera()).toEqual(saved);
+  });
+
+  // Phase 2 fix wave, I3 (Important): a primary drag in top view did NOTHING.
+  // picking.ts routes an unmodified primary drag to onOrbit regardless of camera
+  // mode, and nudge() discarded it (`if (delta.orbit && next.mode === '3d')`) --
+  // the bookmark came back unchanged, commit() still fired onChanged, a frame was
+  // scheduled, and the city did not move, with no cue why. The rank-4 handoff is
+  // explicit ("Primary drag | Orbit in 3D; PAN IN TOP VIEW") and makes it a
+  // checkpoint step. The dock's Rotate buttons and the unshifted arrow keys were
+  // silently inert there for the same reason, while remaining visibly enabled.
+  //
+  // Fixed in the RIG, not in picking.ts: the frozen port keeps its signature, and
+  // every caller of an orbit delta -- drag, buttons, keys -- is fixed in one place.
+  it('I3: an orbit nudge in TOP view pans the plan instead of doing nothing', () => {
+    rig.setCameraMode('top');
+    const before = rig.getCamera();
+
+    rig.nudge({ orbit: [0.5, 0.2] });
+    const after = rig.getCamera();
+
+    expect(after.mode).toBe('top');                       // still a plan
+    expect(distance(after.target, before.target)).toBeGreaterThan(0);
+    // The camera and its target move TOGETHER, which is what distinguishes a pan
+    // from anything else: the view direction is unchanged.
+    expect(distance(after.position, after.target)).toBeCloseTo(distance(before.position, before.target), 6);
+    expect(after.up).toEqual(before.up);
+    expect(after.zoom).toBe(before.zoom);
+  });
+
+  it('I3: the top-view pan it produces is the same gesture the pan path produces', () => {
+    // The equivalence that makes this honest: picking.ts turns a drag of (dx, dy)
+    // CSS px into `orbit: [-dx * k, -dy * k]`, so an orbit delta in top view must
+    // land exactly where `onPan(dx, dy)` would have.
+    rig.setCameraMode('top');
+    rig.nudge({ orbit: [-40 * ORBIT_RADIANS_PER_CSS_PX, -25 * ORBIT_RADIANS_PER_CSS_PX] });
+    const viaOrbit = rig.getCamera();
+
+    const other = makeRig(SMALL);
+    other.setCameraMode('top');
+    other.nudge({ pan: [40, 25] });
+    const viaPan = other.getCamera();
+
+    // Componentwise to 9 decimals, not toEqual: `-dx * k / k` is 1-2 ulp away from
+    // `dx` in binary floating point, which is the arithmetic being asserted, not a
+    // difference in behaviour.
+    expect(viaOrbit.mode).toBe(viaPan.mode);
+    expect(viaOrbit.zoom).toBe(viaPan.zoom);
+    [0, 1, 2].forEach((i) => {
+      expect(viaOrbit.position[i]!).toBeCloseTo(viaPan.position[i]!, 9);
+      expect(viaOrbit.target[i]!).toBeCloseTo(viaPan.target[i]!, 9);
+    });
+  });
+
+  it('I3: 3D view still ORBITS -- the pan translation is top-view only', () => {
+    const before = rig.getCamera();
+    rig.nudge({ orbit: [0.3, 0] });
+    const after = rig.getCamera();
+    expect(after.target).toEqual(before.target);          // an orbit never moves the target
+    expect(Math.abs(azimuth(after) - azimuth(before))).toBeCloseTo(0.3, 6);
   });
 
   it('applies the spec step increments', () => {

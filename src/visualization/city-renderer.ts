@@ -27,7 +27,7 @@ import type {
   CityPalette, CityRendererPort, CreateCityRenderer, EntityId, RendererDiagnostics,
 } from './renderer-port';
 import { createScheduler } from './render-scheduler';
-import { createCameraRig } from './camera-rig';
+import { createCameraRig, ORBIT_RADIANS_PER_CSS_PX } from './camera-rig';
 import { buildCity, lotRadius, type CityMeshes } from './instanced-city';
 import { createPicking, type CanvasPoint } from './picking';
 import { createLabelOverlay } from './label-overlay';
@@ -67,7 +67,6 @@ const AMBIENT_INTENSITY = AMBIENT_BASE * Math.PI;
 const DIRECTIONAL_INTENSITY = DIRECTIONAL_BASE * Math.PI;
 
 const MAX_PIXEL_RATIO = 2;
-const KEYBOARD_ORBIT_PER_PX = 0.007;    // pointer drag -> radians
 const FOCUS_CONTEXT = 3;                // how much room a focused lot keeps around it
 
 const DEFAULT_CAMERA: CameraBookmark = {
@@ -209,7 +208,7 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
     onHover: (entityId, position) => {
       if (layout) onEvent({ type: 'hover-changed', entityId, snapshotId: layout.snapshotId, position });
     },
-    onOrbit: (dx, dy) => { rig.nudge({ orbit: [-dx * KEYBOARD_ORBIT_PER_PX, -dy * KEYBOARD_ORBIT_PER_PX] }); },
+    onOrbit: (dx, dy) => { rig.nudge({ orbit: [-dx * ORBIT_RADIANS_PER_CSS_PX, -dy * ORBIT_RADIANS_PER_CSS_PX] }); },
     onPan: (dx, dy) => { rig.nudge({ pan: [dx, dy] }); },
     onZoom: (factor) => { rig.nudge({ zoomFactor: factor }); },
   });
