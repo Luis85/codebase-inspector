@@ -28,7 +28,40 @@ export interface LabelOverlay {
   dispose(): void;
 }
 
-interface LabelRecord { el: HTMLElement; anchor: Vector3 }
+/**
+ * Phase 2c, ruling M103 — THE DENSITY BUDGET. A district must project at least this many
+ * CSS px in its SMALLER on-screen dimension before it is given a label.
+ *
+ * 48 px is four line-heights of `--font-ui-smaller` (~12 px, `styles.css`'s own
+ * declaration for `.ci-city-labels__label`). The reasoning, rather than a tuned number:
+ * the label is drawn CENTRED on its district, so a district narrower than a few
+ * line-heights cannot contain its own name — the text overflows on every side the box it
+ * is supposed to be naming, and once that is true of most districts the overlay stops
+ * being a legend and becomes a mat of overlapping text laid over the city. On the user's
+ * real 1087-file tree that was 157 simultaneous labels over buildings rendering 3.7 CSS
+ * px wide.
+ *
+ * Deliberately a SCREEN budget and not a depth cut-off: it is self-revealing, because the
+ * same district earns its label the moment the user zooms close enough to read it, and it
+ * needs no judgement about which nesting level "matters". Nothing is permanently hidden.
+ */
+export const MIN_DISTRICT_FOOTPRINT_CSS_PX = 48;
+
+interface LabelRecord {
+  el: HTMLElement;
+  anchor: Vector3;
+  /** Ground footprint in WORLD units, for the budget above. */
+  extent: readonly [number, number];
+  /** Phase 2c, I3 — the last values written, so a frame that changes nothing writes
+   *  nothing. `update()` ran on EVERY drawn frame and wrote `el.hidden` plus two style
+   *  properties for EVERY label unconditionally: ~28,000 style mutations a second during
+   *  a drag on the real tree, every one of them on the layout path. */
+  shown: boolean;
+  transform: string;
+}
+
+const UNIT_X = new Vector3(1, 0, 0);
+const UNIT_Z = new Vector3(0, 0, 1);
 
 export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
   const root = mountEl.createDiv({
@@ -42,6 +75,21 @@ export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
   let records: LabelRecord[] = [];
   let visible = true;
   const projected = new Vector3();
+  // Scratch vectors for the per-frame scale measurement below, allocated once.
+  const originNdc = new Vector3();
+  const axisNdc = new Vector3();
+
+  /** CSS px per world unit along a world axis. An orthographic projection is affine, so
+   *  one axis's screen length is the same everywhere in the frame and can be measured
+   *  once per frame rather than per label — three projections in total, not 3n. */
+  function pxPerUnit(axis: Vector3, camera: Camera, cssWidth: number, cssHeight: number): number {
+    originNdc.set(0, 0, 0).project(camera);
+    axisNdc.copy(axis).project(camera);
+    return Math.hypot(
+      (axisNdc.x - originNdc.x) * cssWidth / 2,
+      (axisNdc.y - originNdc.y) * cssHeight / 2,
+    );
+  }
 
   function clear(): void {
     for (const record of records) record.el.remove();
@@ -53,11 +101,16 @@ export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
       clear();
       for (const district of districts) {
         const el = root.createDiv({ cls: 'ci-city-labels__label', text: district.name });
-        el.setCssStyles({ position: 'absolute', transform: 'translate(-50%, -50%)', whiteSpace: 'nowrap' });
+        // The centring half of the transform is re-applied per frame alongside the
+        // position (one property instead of three), so it is not set here.
+        el.setCssStyles({ position: 'absolute', whiteSpace: 'nowrap' });
         el.hidden = true;
         records.push({
           el,
           anchor: new Vector3(district.labelAnchor[0], district.labelAnchor[1], district.labelAnchor[2]),
+          extent: district.extent,
+          shown: false,
+          transform: '',
         });
       }
     },
@@ -73,16 +126,31 @@ export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
 
     update(camera: Camera, cssWidth: number, cssHeight: number): void {
       if (!visible || cssWidth <= 0 || cssHeight <= 0) return;
-      for (const { el, anchor } of records) {
-        projected.copy(anchor).project(camera);
+      const pxX = pxPerUnit(UNIT_X, camera, cssWidth, cssHeight);
+      const pxZ = pxPerUnit(UNIT_Z, camera, cssWidth, cssHeight);
+      for (const record of records) {
+        projected.copy(record.anchor).project(camera);
         const onScreen = Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1
           && projected.z > -1 && projected.z < 1;
-        el.hidden = !onScreen;
-        if (!onScreen) continue;
-        el.setCssStyles({
-          left: `${((projected.x + 1) / 2) * cssWidth}px`,
-          top: `${((1 - projected.y) / 2) * cssHeight}px`,
-        });
+        // Ruling M103: on screen is necessary but no longer sufficient — the district
+        // must also be big enough on screen to carry its own name.
+        const legible = Math.min(record.extent[0] * pxX, record.extent[1] * pxZ)
+          >= MIN_DISTRICT_FOOTPRINT_CSS_PX;
+        const show = onScreen && legible;
+        if (record.shown !== show) {
+          record.shown = show;
+          record.el.hidden = !show;
+        }
+        if (!show) continue;
+        // I3: ONE property, and a transform rather than left/top — `left`/`top` on an
+        // absolutely positioned element are on the layout path where a transform is not.
+        // The centring translate rides along in the same value.
+        const x = ((projected.x + 1) / 2) * cssWidth;
+        const y = ((1 - projected.y) / 2) * cssHeight;
+        const transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
+        if (record.transform === transform) continue;   // the dirty check
+        record.transform = transform;
+        record.el.setCssStyles({ transform });
       }
     },
 
