@@ -66,6 +66,9 @@ async function makeTree(): Promise<TempTree> {
   return tree;
 }
 
+const filesOf = (es: readonly WalkEntry[]): string[] =>
+  es.filter((e) => e.kind === 'file').map((e) => e.relativePath);
+
 async function walkAll(port: SourceFileSystemPort, root: string): Promise<WalkEntry[]> {
   const { token } = createCancellationToken();
   const out: WalkEntry[] = [];
@@ -108,8 +111,6 @@ describe('M106: the walk reads concurrently WITHOUT changing a byte of its outpu
     // NOT globally sorted: the walk is depth-first over a LIFO stack, so `zeta` precedes
     // `src` and `src/deep` follows `src` — sorted WITHIN each directory, which is exactly
     // what `names.sort()` plus the stack gives.
-    const files = (es: readonly WalkEntry[]): string[] =>
-      es.filter((e) => e.kind === 'file').map((e) => e.relativePath);
     const SEQUENTIAL_ORDER = [
       'f1.ts', 'f11.ts', 'f3.ts', 'f5.ts', 'f7.ts', 'f9.ts',
       'zeta/f1.ts', 'zeta/f11.ts', 'zeta/f3.ts', 'zeta/f5.ts', 'zeta/f7.ts', 'zeta/f9.ts',
@@ -117,8 +118,8 @@ describe('M106: the walk reads concurrently WITHOUT changing a byte of its outpu
       'src/deep/f1.ts', 'src/deep/f11.ts', 'src/deep/f3.ts', 'src/deep/f5.ts',
       'src/deep/f7.ts', 'src/deep/f9.ts',
     ];
-    expect(files(expected)).toEqual(SEQUENTIAL_ORDER);
-    expect(files(actual)).toEqual(SEQUENTIAL_ORDER);
+    expect(filesOf(expected)).toEqual(SEQUENTIAL_ORDER);
+    expect(filesOf(actual)).toEqual(SEQUENTIAL_ORDER);
   });
 
   it('keeps the READ LOG identical too, which is the G2 evidence surface', async () => {

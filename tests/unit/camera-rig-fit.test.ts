@@ -9,6 +9,25 @@ import { createCameraRig, type CameraRig } from '../../src/visualization/camera-
 
 type Bounds = { min: [number, number, number]; max: [number, number, number] };
 
+// The user's own tree, as measured against their real scan.
+const PLATE: Bounds = { min: [0, 0, 0], max: [762, 128, 1518] };
+/** The NDC span of the bounds' eight corners, per screen axis. A perfect fit puts the
+ *  binding axis at 2 / FIT_MARGIN = 1.818; anything above 2 is CLIPPED. */
+function ndcSpan(r: CameraRig, b: Bounds): { x: number; y: number } {
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const x of [b.min[0], b.max[0]]) {
+    for (const y of [b.min[1], b.max[1]]) {
+      for (const z of [b.min[2], b.max[2]]) {
+        const v = new Vector3(x, y, z).project(r.camera);
+        minX = Math.min(minX, v.x); maxX = Math.max(maxX, v.x);
+        minY = Math.min(minY, v.y); maxY = Math.max(maxY, v.y);
+      }
+    }
+  }
+  return { x: maxX - minX, y: maxY - minY };
+}
+
+
 let changed: Mock<() => void>;
 
 describe('camera rig: framing', () => {
@@ -21,24 +40,6 @@ describe('camera rig: framing', () => {
   // large empty field. The projection maths (`fitZoom`, `applyAspect`) was confirmed
   // ARITHMETICALLY CORRECT by both reports independently -- the radius was the fault.
   describe('I2b: fit() frames what is DRAWN, not the circumscribed sphere', () => {
-    // The user's own tree, as measured against their real scan.
-    const PLATE: Bounds = { min: [0, 0, 0], max: [762, 128, 1518] };
-
-    /** The NDC span of the bounds' eight corners, per screen axis. A perfect fit puts the
-     *  binding axis at 2 / FIT_MARGIN = 1.818; anything above 2 is CLIPPED. */
-    function ndcSpan(r: CameraRig, b: Bounds): { x: number; y: number } {
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      for (const x of [b.min[0], b.max[0]]) {
-        for (const y of [b.min[1], b.max[1]]) {
-          for (const z of [b.min[2], b.max[2]]) {
-            const v = new Vector3(x, y, z).project(r.camera);
-            minX = Math.min(minX, v.x); maxX = Math.max(maxX, v.x);
-            minY = Math.min(minY, v.y); maxY = Math.max(maxY, v.y);
-          }
-        }
-      }
-      return { x: maxX - minX, y: maxY - minY };
-    }
 
     for (const [w, h] of [[1000, 700], [1400, 700], [600, 700], [1876, 730]] as const) {
       it(`fills the binding axis of a ${w}x${h} stage`, () => {

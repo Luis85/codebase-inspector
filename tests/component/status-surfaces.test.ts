@@ -95,23 +95,24 @@ describe('StatusBanner.vue (C16) + EmptyState.vue (C17) — every view-level sta
 //   * 04-microcopy.md:36 (rank-4 handoff) gives it verbatim, for "Selection outside
 //     filter".
 // So the getter is rendered rather than deleted.
+/** A wide (1000 px) leaf with a seeded snapshot — the ordinary three-column case. */
+function mountApp(files: number) {
+  const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
+  leaf.getBoundingClientRect = () => ({
+    width: 1000, height: 700, top: 0, left: 0, right: 1000, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+  });
+  const store = useCityStore();
+  const snapshot = buildSnapshotFixture({ files });
+  store.setCity(snapshot, computeLayout(snapshot));
+  return { wrapper: mount(App, { attachTo: leaf }), store };
+}
+
 describe('I4: COPY-30 reaches the user when the selection is outside the filter', () => {
   beforeEach(() => { setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  function mountApp() {
-    const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
-    leaf.getBoundingClientRect = () => ({
-      width: 1000, height: 700, top: 0, left: 0, right: 1000, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
-    });
-    const store = useCityStore();
-    const snapshot = buildSnapshotFixture({ files: 3 });
-    store.setCity(snapshot, computeLayout(snapshot));
-    return { wrapper: mount(App, { attachTo: leaf }), store };
-  }
-
   it('renders the explanation when the selected file is not among the matches', async () => {
-    const { wrapper, store } = mountApp();
+    const { wrapper, store } = mountApp(3);
     const file = store.snapshot!.entities.find((e) => e.kind === 'file')!;
     store.select(file.id);
     store.setQuery('nothing-matches-this');
@@ -120,7 +121,7 @@ describe('I4: COPY-30 reaches the user when the selection is outside the filter'
   });
 
   it('says nothing while unfiltered, or while the selection IS among the matches', async () => {
-    const { wrapper, store } = mountApp();
+    const { wrapper, store } = mountApp(3);
     const file = store.snapshot!.entities.find((e) => e.kind === 'file')!;
     store.select(file.id);
     await nextTick();

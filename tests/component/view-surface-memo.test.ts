@@ -23,23 +23,24 @@ vi.mock('../../src/ui/view-surface', async (importOriginal) => {
 const { countPartialRead } = await import('../../src/ui/view-surface');
 const countSpy = vi.mocked(countPartialRead);
 
+/** A wide (1000 px) leaf with a seeded snapshot — the ordinary three-column case. */
+function mountApp(files: number) {
+  const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
+  leaf.getBoundingClientRect = () => ({
+    width: 1000, height: 700, top: 0, left: 0, right: 1000, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+  });
+  const store = useCityStore();
+  const snapshot = buildSnapshotFixture({ files });
+  store.setCity(snapshot, computeLayout(snapshot));
+  return { wrapper: mount(App, { attachTo: leaf }), store };
+}
+
 describe('M8: the snapshot-only passes do not re-run on every keystroke', () => {
   beforeEach(() => { setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  function mountApp() {
-    const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
-    leaf.getBoundingClientRect = () => ({
-      width: 1000, height: 700, top: 0, left: 0, right: 1000, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
-    });
-    const store = useCityStore();
-    const snapshot = buildSnapshotFixture({ files: 12 });
-    store.setCity(snapshot, computeLayout(snapshot));
-    return { wrapper: mount(App, { attachTo: leaf }), store };
-  }
-
   it('countPartialRead does not run again when only the QUERY changes', async () => {
-    const { wrapper, store } = mountApp();
+    const { wrapper, store } = mountApp(12);
     await nextTick();
     expect(wrapper.text()).toBeDefined();
     countSpy.mockClear();
@@ -55,7 +56,7 @@ describe('M8: the snapshot-only passes do not re-run on every keystroke', () => 
 
   it('but it DOES run again when the snapshot itself changes', async () => {
     // The memo must be a memo, not a one-shot: a new scan has to be observed.
-    const { store } = mountApp();
+    const { store } = mountApp(12);
     await nextTick();
     countSpy.mockClear();
     const next = buildSnapshotFixture({ files: 5, repositoryId: 'second' });

@@ -39,6 +39,13 @@ vi.mock('three', async (importOriginal) => {
   return { ...actual, WebGLRenderer: FakeWebGLRenderer };
 });
 
+const azimuthOf = (p: readonly number[]): number => Math.atan2(p[2]!, p[0]!);
+
+/** One Chromium/Windows wheel notch: WHEEL_DELTA 120 x the OS "lines to scroll" default
+ *  of 3 x Chromium's 100/3 px per line = deltaY 100 at deltaMode 0. */
+const notch = (): WheelEvent =>
+  new WheelEvent('wheel', { deltaY: 100, deltaMode: 0, cancelable: true, bubbles: true });
+
 function pointerEvent(type: string, x: number, y: number, init: Partial<PointerEvent> = {}): Event {
   const event = new MouseEvent(type, { clientX: x, clientY: y, button: 0, bubbles: true });
   Object.assign(event, { pointerId: 1, pointerType: 'mouse', ...init });
@@ -54,7 +61,6 @@ describe('the canvas input path reaching the camera', () => {
   let events: CityRendererEvent[];
 
   const runFrame = (): void => { frames.splice(0, frames.length).forEach((f) => { f(); }); };
-  const azimuthOf = (p: readonly number[]): number => Math.atan2(p[2]!, p[0]!);
 
   beforeEach(async () => {
     frames = [];
@@ -139,11 +145,6 @@ describe('the canvas input path reaching the camera', () => {
   //   "Wheel over FOCUSED/ENGAGED canvas | Dolly | Bound zoom; let text/list scrolling
   //    remain normal".
   describe('M104: the wheel', () => {
-    /** One Chromium/Windows notch: WHEEL_DELTA 120 x the OS "lines to scroll" default of
-     *  3 x Chromium's 100/3 px per line = deltaY 100 at deltaMode 0. */
-    const notch = (): WheelEvent =>
-      new WheelEvent('wheel', { deltaY: 100, deltaMode: 0, cancelable: true, bubbles: true });
-
     const engage = (): void => {
       canvas.dispatchEvent(pointerEvent('pointerdown', 400, 300));
       canvas.dispatchEvent(pointerEvent('pointerup', 400, 300));

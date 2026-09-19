@@ -288,7 +288,7 @@ export function createCameraRig(options: CameraRigOptions): CameraRig {
       applyAspect();                 // resize NEVER implies fit (spec 4.2)
     },
 
-    nudge(delta, options): void {
+    nudge(delta, moveOptions): void {
       let next = copyBookmark(bookmark);
       let [panX, panY] = delta.pan ?? [0, 0];
       if (delta.orbit) {
@@ -331,7 +331,7 @@ export function createCameraRig(options: CameraRigOptions): CameraRig {
         };
       }
       if (delta.zoomFactor) next = { ...next, zoom: clampZoom(next.zoom * delta.zoomFactor) };
-      commit(next, true, options?.continuous === true);
+      commit(next, true, moveOptions?.continuous === true);
     },
 
     fit(): void {
