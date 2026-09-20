@@ -7,6 +7,7 @@
     "build": "vite build && node scripts/copy-manifest.mjs && node scripts/assert-bundle.mjs",
     "dev": "vite build --watch",
     "harness": "vite --config vite.harness.config.ts",
+    "harness-shot": "node scripts/harness-shot.mjs",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.test.json",
     "lint:fast": "oxlint --deny-warnings",
     "lint": "eslint . --max-warnings 0",

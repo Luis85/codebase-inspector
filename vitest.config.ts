@@ -38,7 +38,10 @@ export default defineConfig({
       { resolve: { alias: { obsidian: obsidianMock } },
         plugins: [vue()],
         test: { name: 'node', environment: 'node',
-                include: ['tests/{unit,contracts,integration,host}/**/*.test.ts'],
+                // tests/build/** (task 0c) reads scripts/harness-shot.mjs and
+                // scripts/chromium.mjs as plain source — no DOM, no Vue mount — so it
+                // belongs beside unit/contracts/integration/host, not the jsdom project.
+                include: ['tests/{unit,contracts,integration,host,build}/**/*.test.ts'],
                 exclude: JSDOM_HOST_TESTS } },
       { resolve: { alias: { obsidian: obsidianMock } },
         plugins: [vue()],

@@ -450,7 +450,7 @@ Counts from `npx vitest run` per directory. **No round or commit label**: a labe
 naming a round goes stale every round, and the guard below now forces these figures
 to be current rather than asking a reader to trust a date. Re-take with the same
 command whenever tests are added.
-**92 files, 988 tests, 987 passed,
+**93 files, 994 tests, 993 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -489,6 +489,7 @@ above whenever tests are added.
 | Benchmark | `tests/benchmarks/**` | 1 | yes | 5 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers |
 | Harness | `tests/harness/**` | 1 | yes | 6 | task 0b: keeps the browser dev harness (`npm run harness`) alive under the ordinary suite — pins the three-stylesheet load order, that `/styles.css` is served from `src/ui/styles.css` on disk rather than a build, the fixture's shape and determinism, and that scheme classes land on `<body>` and nothing else. Not a screenshot test: nothing here asserts what gets drawn, and headless-browser drawing is out of jsdom's reach — see the harness task's own report for what step 10 saw with real eyes |
 
+| Build | `tests/build/**` | 1 | yes | 6 | task 0c: pins `scripts/harness-shot.mjs`'s `SHOTS` coverage (all seven city screens, including S11's two distinct entry paths -- the list-only fallback and a genuine WebGL failure) and `scripts/chromium.mjs`'s own browser-resolution rule (`executablePath()`, asked of playwright-core, never a hand-mirrored per-platform path). Not a screenshot test itself -- see the task's own report for what `npm run harness-shot` produced with real eyes |
 <!-- g8:table:end -->
 
 | Layer | Ran | Notes |
