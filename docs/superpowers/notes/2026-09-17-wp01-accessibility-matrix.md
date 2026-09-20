@@ -49,10 +49,17 @@ requires a human in the real Obsidian host. **NOT PERFORMED** = nobody has done 
 
 ## Summary
 
-- **Verified at jsdom and passing: 4 rows** — single-pointer equivalence (11 controls),
-  reduced motion (the command half), long Unicode paths (the list and inspector half),
-  and the canvas as one named region. Plus the jsdom half of focus visibility and order.
-- **NOT PERFORMED: every manual row**, which is 10 of the 14 in whole or in part.
+- Exactly **1** row is fully PASSED: the canvas as one named region.
+- **4** more rows have a PASSED jsdom half and an unperformed manual half — single-pointer
+  equivalence (11 controls), reduced motion (the command half), long Unicode paths (the
+  list and inspector half), and focus visibility and order (the order half).
+- **NOT PERFORMED: every manual row.** That is **13** of the matrix's **14** rows, in
+  whole or in part — a row with a passed jsdom half is still open, because half a row is
+  not a gate.
+
+All three figures above are DERIVED from the table by
+`tests/unit/evidence-numbers.test.ts`. They were transcribed once and were wrong within
+one fix round; they are not transcribed now.
 
 The correct reading of this table is that the **structure** is in place and machine-checked
 — roving tabindex, one live region, one named canvas region, single-pointer alternatives,
@@ -62,3 +69,30 @@ zoom reflow, screen-reader output and third-party themes are all unverified.
 
 No row above may be reported as passing on the strength of the evidence in its own
 "Result" cell unless that cell says **PASSED**.
+
+---
+
+## Numbers in this document
+
+Every count stated above is **derived from the table itself** by
+`tests/unit/evidence-numbers.test.ts` and `tests/unit/gate-evidence.test.ts`: the total,
+the open count, the fully-PASSED count and the half-passed count. A stale value anywhere
+in this file reddens a test, and so does a value that disagrees with
+`2026-09-17-wp01-gate-evidence.md`.
+
+One convention, so the guard can tell two different facts apart: the phrase
+"**N** of the **14**" is reserved for claims about OPEN rows. The fully-PASSED and
+half-passed counts are stated in their own shapes ("Exactly **1** row is fully PASSED",
+"**4** more rows have a PASSED jsdom half"), because a sweep that cannot tell a
+passed-row claim from an open-row claim is a sweep that has to be argued with. (This
+paragraph tripped the guard on its first run, for using the reserved shape as an
+example. That is the guard working, and the example is now written without it.)
+
+Nothing else in this file is a count. The test-file names in the Result column are cited,
+not counted; `11 controls` is the number `tests/component/camera-controls.test.ts` itself
+asserts (WCAG 2.5.7's "every dragging gesture"), and it is checked there rather than here.
+
+This block exists because the open-row count was found wrong three separate times, each
+time in a place the previous fix had not looked. If you add a sentence to this file that
+states one of these counts, you do not need to update anything: the guard will tell you if
+you got it wrong.

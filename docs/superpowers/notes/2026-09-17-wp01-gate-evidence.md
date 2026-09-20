@@ -69,8 +69,9 @@ PERFORMED**, in whole or in part; exactly one is fully PASSED. They are answered
 What **is** closed, and may be cited: the structural half. Roving tabindex with exactly
 one row in the tab order, one polite live region with an assertive path only for a
 blocking failure, the canvas as one named focusable region with an `aria-hidden`
-untabbable canvas inside it, a single-pointer alternative for all eleven dragging
-gestures, focus return from both modals taken from `activeDocument`, and cross-window DOM
+untabbable canvas inside it, a single-pointer alternative for every dragging
+gesture (eleven controls in all, of which three — Fit, Top and Focus — are not drag
+alternatives at all), focus return from both modals taken from `activeDocument`, and cross-window DOM
 ownership enforced by `no-restricted-globals` and exercised against a genuinely separate
 jsdom realm. Each is named with its test in the matrix.
 
@@ -225,7 +226,7 @@ record above; it corroborates it.
 
 ## G3 — Evidence truth
 
-**Physical lines: exact definition + 7 unit tests.** `src/domain/metrics.ts`:
+**Physical lines: exact definition, with its unit tests.** `src/domain/metrics.ts`:
 empty text is 0; CRLF is **one** separator; a trailing newline adds no phantom line;
 blank and comment lines **count**. Tests: `tests/unit/metrics.test.ts` (7 `it` blocks).
 
@@ -443,8 +444,11 @@ the benchmark and the disposal suites consume. No instrumentation was added besi
 
 ## G8 — Testing coverage — WHICH LAYERS ACTUALLY RAN
 
-Counts from `npx vitest run` per directory, at commit `HEAD` of task 12 fix round 1:
-**89 files, 950 tests, 949 passed,
+Counts from `npx vitest run` per directory. **No round or commit label**: a label
+naming a round goes stale every round, and the guard below now forces these figures
+to be current rather than asking a reader to trust a date. Re-take with the same
+command whenever tests are added.
+**90 files, 959 tests, 958 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -461,7 +465,7 @@ pinned by their sum. Reproduce any row with `npx vitest run <directory>`.
 that actually happened), a wrong FILE count, an added or removed test FILE, and a
 half-updated table where one row or the heading is edited without the other. *What it
 does NOT catch:* a UNIFORMLY stale transcription — adding one `it()` to an existing
-file moves the suite from 950 to 951 while the rows still sum to the stated 950, and
+file moves the suite from 959 to 960 while the rows still sum to the stated 959, and
 the guard stays green. That is exactly how the first round's three missing tests were
 added (one scope-modal, two snapshot-status, all in existing files), so it is named as
 the residual rather than described as solved. Re-take the counts with the command
@@ -471,11 +475,11 @@ above whenever tests are added.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 39 | yes | 462 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
+| Unit | `tests/unit/**` | 40 | yes | 471 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
 | Contract | `tests/contracts/**` | 2 | yes | 40 | **one suite, two implementations** — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift |
 | Integration (real temp dirs) | `tests/integration/**` | 8 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
 | Component (jsdom) | `tests/component/**` | 29 | yes | 298 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal |
-| Host (Obsidian doubles) | `tests/host/**` | 9 | yes | 94 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output. **This is the layer the rest of this document cites nine times** |
+| Host (Obsidian doubles) | `tests/host/**` | 9 | yes | 94 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output. **This is the layer the rest of this document leans on most heavily** |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
 | Benchmark | `tests/benchmarks/**` | 1 | yes | 5 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers |
 
@@ -492,8 +496,8 @@ it.** `scan-coordinator.ts`'s `if (!mayPublish(resultIdentity, currentIdentity, 
 the identity-tuple check that refuses a late result — cannot fail within a single
 coordinator in WP-01's design, and therefore nothing in the suite distinguishes a
 coordinator that consults it from one that ignores it. Disabling it outright
-(`if (false && !mayPublish(…))`) leaves all 26 acceptance tests and all 42 run-lifecycle
-tests green. That was true before fix round 1 and it is still true after it.
+(`if (false && !mayPublish(…))`) leaves every acceptance test green, and every test in
+the four run-lifecycle suites green with them. That was true before fix round 1 and it is still true after it.
 
 The reason is structural, not a coverage gap, and it rests on **exactly two legs** — the
 re-review corrected an earlier, larger statement of this, and the correction matters
@@ -590,3 +594,58 @@ assertion in the same commit that adds them (ruling P5).
 The G2 record above is what those two sentences rest on. If any of it ceases to be
 true — in particular the read-log property, which has an open decision against it — the
 claims come back out.
+
+---
+
+## Numbers in this document
+
+Read this before quoting a figure from here. The counts in this document are of three
+kinds, and which kind a number is decides how much weight it will bear.
+
+**DERIVED — a stale value reddens a test.** `tests/unit/evidence-numbers.test.ts` and
+`tests/unit/gate-evidence.test.ts` read this file and the accessibility matrix and check
+these against the suite and against the matrix itself:
+
+- the accessibility row counts, **everywhere either document states them** — the total,
+  the open count, the fully-PASSED count and the half-passed count, positively at every
+  site and negatively against every value they are not;
+- the length of the GATE STATUS outstanding-rows enumeration, against the open count;
+- the G8 layer set, and each layer's **file** count, against `tests/` on disk;
+- the sum of the G8 table's per-layer test counts, against the total in its heading;
+- every per-file test count cited in prose, against that file's own `it(` blocks;
+- the acceptance scenario counts, against `tests/acceptance/wp01.feature`;
+- the `src/` file floor in the G2 structural sweep, against `src/` on disk;
+- the `npm run analyze` baseline's parts, against the total it claims;
+- the contract suite's **twenty obligations**, against the contracts layer's own test
+  count — one suite run against two implementations, so the layer must be exactly
+  twice the obligations;
+- the yield-point invariant the `mayPublish` note depends on, against
+  `src/application/scan-coordinator.ts` itself.
+
+**TRANSCRIBED — reproduce with the command named beside them; no test can check these.**
+
+- The **per-layer test counts** in the G8 table. Vitest exposes no whole-suite tally to a
+  test inside that suite, and static counting is wrong where a runner generates tests from
+  a loop. Their *sum* is pinned; a uniformly stale set is the named residual. Re-take with
+  `npx vitest run <directory>`.
+- Every **G5 benchmark figure** — timings, lots, districts, clamped values. They come from
+  `tests/benchmarks/city-benchmark.test.ts`, which writes
+  `<tmpdir>/codebase-inspector-benchmark/results.json`; that file is outside the
+  repository by design, so nothing here can compare against it.
+- The **fixture entity counts** in G2's no-write table (1,000 generated files, 1,004
+  collected entities). They come from the same generator the benchmark uses and are
+  asserted inside `tests/integration/no-source-writes.test.ts` as bounds, not
+  compared against this document.
+- The **reference hardware** rows, which describe a machine.
+- The `npm run analyze` **total of 11**. Its internal breakdown is checked, but the figure
+  itself needs the tool, which is not part of `npm run verify` and needs network.
+
+**NEITHER — prose.** Version numbers, spec section numbers, ruling numbers, COPY ids,
+defect numbers, dates and checkpoint numbers are identifiers, not counts. They are not
+swept, and a reader should not treat them as measured.
+
+This block exists because the same count was found wrong three separate times, each in a
+place the previous fix had not read. The guard now enumerates the *wrong values* rather
+than the *known sites*, so a figure written into a section nobody has thought of still
+fails. If you add a sentence here that states a derived count, you need not update
+anything else — the guard will tell you if you got it wrong.
