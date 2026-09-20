@@ -278,3 +278,47 @@ describe('item 4 sweep: the search input has ONE owner across all of its states'
     ).toBe(weOwnTheRestingState);
   });
 });
+
+// ---------------------------------------------------------------------------------------
+// Fix round 1, CRITICAL: the UA stylesheet's `[hidden] { display: none }` is UA-origin,
+// and an author rule that declares `display` on the SAME element beats it on cascade
+// ORIGIN ALONE -- author-normal always outranks UA-normal, whatever specificity either
+// side carries. `.ci-city-labels__label { display: flex }` (with no guard) made
+// `record.el.hidden = true` a silent no-op in a real browser: every label stayed
+// visible, which disabled both M103's density budget and this task's own collision
+// rule and reproduced the exact "mush" F1 exists to fix. A jsdom `.hidden === true`
+// assertion cannot see this at all -- it is testing the IDL property, never the
+// computed style a real cascade produces -- which is why this suite parses the
+// SOURCE, the same approach the rest of this file already uses to catch a cascade
+// fight `.hidden`-style tests never could.
+//
+// Every selector below is one this codebase actually sets `.hidden = ...` on
+// (src/visualization/label-overlay.ts) -- not a general sweep of the whole sheet,
+// which would need to know which classes in FUTURE code get toggled the same way.
+const HIDDEN_TOGGLED_SELECTORS = ['.ci-city-labels__label', '.ci-city-labels'];
+
+describe('fix round 1: `[hidden]` must still win, wherever this sheet declares `display`', () => {
+  it.each(HIDDEN_TOGGLED_SELECTORS)('%s has no unguarded display rule', (selectorPart) => {
+    // A rule is "unguarded" if it declares `display` for this selector without either
+    // `:not([hidden])` in its own selector (never asserts display while hidden, so the
+    // UA default applies unopposed) or `[hidden]` itself (declares the override
+    // directly). Every OTHER declaration in the same rule is irrelevant here: the
+    // defect was specifically about `display`, not the chip's background/padding/etc.
+    const unguarded = rules().filter((r) => r.selector.includes(selectorPart)
+      && declares(r.body, 'display')
+      && !r.selector.includes(':not([hidden])')
+      && !r.selector.includes('[hidden]'));
+    expect(
+      unguarded.map((r) => r.selector),
+      `${selectorPart} declares display with no [hidden] guard -- el.hidden would be a no-op`,
+    ).toEqual([]);
+  });
+
+  it('the label chip specifically guards its display rule with :not([hidden])', () => {
+    // Names the exact defect this round fixed, rather than only the general sweep
+    // above: if a future edit ever moves the guard from the selector into a separate,
+    // differently-scoped rule, this still pins WHICH rule must carry it.
+    const [chip] = rulesFor('.ci-city-labels__label', 'display');
+    expect(chip!.selector).toContain(':not([hidden])');
+  });
+});

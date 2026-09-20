@@ -364,7 +364,26 @@
    being baked into a texture. Their COLOUR is set at runtime from CityPalette.labelText
    on the overlay root and inherited here, so it must not be declared — everything that
    makes them legible over an arbitrary district colour must be. */
-:where(.codebase-inspector-root) .ci-city-labels__label {
+/* Fix round 1, CRITICAL: the UA stylesheet's hidden-attribute rule sets `display: none`
+   as a UA-origin declaration, and an author rule that declares `display` on the SAME
+   element beats it on cascade ORIGIN alone, whatever specificity either side carries —
+   so this rule, bare, made `record.el.hidden = true` a no-op in a real browser
+   (confirmed against the pinned Chromium: computed `display` stayed `flex` with
+   `hidden` set), silently disabling both M103's density budget and this task's own
+   collision rule. The `:not([hidden])` guard below fixes it by never asserting
+   `display` at all while the attribute is present, so the UA default applies
+   unopposed — narrower than a sheet-wide hidden-attribute guard, and correct without
+   `!important`, which nothing else in this file uses (the comment two rules up
+   explains why: it is what lets a user's own snippet override us). This raises the
+   selector to two classes' worth of specificity; harmless here, since nothing in
+   Obsidian's own app.css competes for a class inside our own aria-hidden overlay, and
+   it still only TIES a scoped user snippet at that same level rather than beating it —
+   a tie a later user snippet's own source position resolves in their favour, as it
+   already must for every other rule in this file (see tests/unit/host-cascade.test.ts,
+   which is where this guard's own regression test lives, not here — inline CSS
+   examples in this comment are written without brace pairs on purpose, so a
+   comment-blind text scan over this sheet cannot mistake prose for a second rule). */
+:where(.codebase-inspector-root) .ci-city-labels__label:not([hidden]) {
   display: flex;
   flex-direction: column;
   align-items: center;

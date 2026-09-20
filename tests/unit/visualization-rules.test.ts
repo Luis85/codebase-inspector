@@ -105,11 +105,16 @@ describe("the label overlay's CSS contract", () => {
 
   function block(selector: string): string {
     // Plain text extraction rather than a constructed RegExp: the selectors here are
-    // wrapped in :where(...), so only the class part is searched for.
+    // wrapped in :where(...), so only the class part is searched for. The class may
+    // not be immediately followed by `{` in the source — fix round 1 added a
+    // `:not([hidden])` guard onto `.ci-city-labels__label` — so this finds the class
+    // first and then the NEXT `{` after it, rather than requiring the two adjacent.
     const source = css();
-    const start = source.indexOf(selector + ' {');
+    const start = source.indexOf(selector);
     if (start < 0) return '';
-    return source.slice(start, source.indexOf('}', start));
+    const braceStart = source.indexOf('{', start);
+    if (braceStart < 0) return '';
+    return source.slice(start, source.indexOf('}', braceStart));
   }
 
   it('positions the stage, which is what the overlay anchors to', () => {

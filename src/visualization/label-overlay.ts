@@ -181,7 +181,17 @@ export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
         const y = ((1 - projected.y) / 2) * cssHeight;
         if (show) {
           if (!record.size) {
+            // Fix round 1, defect 2: the element must be UNHIDDEN to measure a real
+            // box — reading offsetWidth/offsetHeight while `[hidden]` still applies
+            // (its first shown frame, or one restored below by a later collision) now
+            // that hidden correctly collapses layout (fix round 1's CRITICAL) would
+            // otherwise cache 0x0 forever, since this read runs at most once per
+            // record. The toggle below happens on that one frame only, never per
+            // frame, so it does not reintroduce ruling I3's per-frame layout cost.
+            const wasHidden = record.el.hidden;
+            if (wasHidden) record.el.hidden = false;
             record.size = { width: record.el.offsetWidth, height: record.el.offsetHeight };
+            if (wasHidden) record.el.hidden = true;   // the write below decides for real
           }
           const rect: ScreenRect = {
             left: x - record.size.width / 2, right: x + record.size.width / 2,
