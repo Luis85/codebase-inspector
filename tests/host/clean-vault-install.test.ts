@@ -20,20 +20,24 @@
 //      out-of-vault / no-network / no-telemetry statements, a recognised LICENSE, and
 //      — structurally — that nothing in src/ can reach the network at all.
 //
-//   3. THE CHECKPOINT #4 CHECKLIST ITSELF. This plan's manual checklists have FOUR
+//   3. THE CHECKPOINT #4 CHECKLIST ITSELF. This plan's manual checklists have now FIVE
 //      times asked a human to verify something that did not exist: a keybinding
-//      Obsidian does not expose, two over-reaches into other tasks, and a frame counter
-//      unreachable from a console. So every control the implementation report tells the
-//      human to press, every key it tells them to type, every command and every settings
-//      row it enumerates, is checked against src/ here. A checklist item naming a
-//      control that does not ship reddens this file.
+//      Obsidian does not expose, two over-reaches into other tasks, a frame counter
+//      unreachable from a console — and, in round 1 of THIS task, an Obsidian command
+//      called "Reopen last closed tab" that the host has never had. So every control the
+//      implementation report tells the human to press, every key it tells them to type,
+//      every command and every settings row it enumerates is checked: the ones this
+//      plugin ships against src/, the ones Obsidian provides against the installed
+//      host's own obsidian.asar. And the section may not name a control in PROSE at all
+//      without that name appearing in one of the lists — which is what round 1 did, with
+//      every list correct and the sentence between them wrong.
 //
 // What this file does NOT establish, stated because the document it guards is a release
 // record: that the plugin enables, renders, scans or behaves at all. Every one of those
 // is a human's observation at checkpoint #4 and is recorded there as NOT PERFORMED
 // until it is made.
 import { describe, expect, it } from 'vitest';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 
@@ -240,6 +244,71 @@ describe('the checkpoint #4 checklist names only things that exist', () => {
     const evidence = read('docs', 'superpowers', 'notes', '2026-09-17-wp01-gate-evidence.md');
     expect(g8Slice(REPORT, 'the implementation report'))
       .toBe(g8Slice(evidence, 'the gate-evidence document'));
+  });
+
+  // ---------------------------------------------------------------------------------
+  // FIX ROUND 1, Important 1. The guard above reads the marker blocks and nothing else,
+  // so a control named in PROSE was checked by nobody — and that is exactly where the
+  // fifth instance of this branch's oldest defect shipped: step 9 told the human to use
+  // "Reopen last closed tab", an Obsidian command that does not exist (the real one is
+  // `workspace:undo-close-pane`, labelled "Undo close tab"). The marker blocks were all
+  // correct; the sentence between them was not.
+  //
+  // So the convention is now structural rather than careful: INSIDE THE CHECKPOINT #4
+  // SECTION, A CONTROL IS WRITTEN IN SINGLE-ASTERISK EMPHASIS, AND EVERY SUCH PHRASE
+  // MUST APPEAR IN ONE OF THE FOUR BLOCKS. Ordinary emphasis in that section is written
+  // with double asterisks instead, so the two cannot be confused by a reader or by this
+  // test. The one derived exception is the plugin's own name, which lives in
+  // manifest.json rather than in any list.
+  //
+  // WHAT THIS STILL DOES NOT CATCH, named rather than left to be discovered: a control
+  // named in that section with NO emphasis at all. The convention is the whole of the
+  // mitigation for that, exactly as the evidence documents' own count convention is.
+  it('lets no control be named in the checkpoint section outside the lists', () => {
+    const start = REPORT.indexOf('## CHECKPOINT #4');
+    expect(start, 'the checkpoint #4 section is gone').toBeGreaterThan(-1);
+    const section = REPORT.slice(start, REPORT.indexOf('\n## ', start + 5));
+    const listed = new Set([
+      ...reportList('checkpoint4:controls'), ...reportList('checkpoint4:keys'),
+      ...reportList('checkpoint4:commands'), ...reportList('checkpoint4:settings'),
+      ...reportList('checkpoint4:host-controls'), manifest.name,
+    ]);
+    const emphasised = [...section.matchAll(/(?<!\*)\*([^*\n]+)\*(?!\*)/g)].map((m) => m[1]!);
+    // The sweep must have found the real ones, or a convention nobody follows passes.
+    expect(emphasised.length, 'no emphasised control names at all — is the convention still used?')
+      .toBeGreaterThanOrEqual(5);
+    for (const phrase of emphasised) {
+      expect(listed.has(phrase),
+        `the checkpoint section names "${phrase}" in prose, and no checkpoint4 list carries it`)
+        .toBe(true);
+    }
+  });
+
+  it('names only host controls the installed Obsidian actually has', () => {
+    // These are Obsidian's, not ours: nothing in src/ can confirm them, and the
+    // marker-block guards above would pass them vacuously. They are checked against the
+    // host's own bundle, byte-exactly. The document records which version that was.
+    const hostControls = reportList('checkpoint4:host-controls');
+    expect(hostControls.length, 'the host-control list is empty or unparsed').toBeGreaterThanOrEqual(2);
+    const local = process.env.LOCALAPPDATA;
+    const asarPath = process.env.CODEBASE_INSPECTOR_OBSIDIAN_ASAR
+      ?? (local ? join(local, 'Programs', 'Obsidian', 'resources', 'obsidian.asar') : '');
+    if (!asarPath || !existsSync(asarPath)) {
+      // No host to check against. NOT a pass for the claim: the document must still say
+      // which host the names were verified on, so a reader is never left to assume.
+      expect(REPORT, 'no Obsidian to check against, and the report does not say where '
+        + 'these names were verified either').toMatch(/verified against Obsidian \*\*\d+\.\d+\.\d+\*\*/);
+      return;
+    }
+    const asar = readFileSync(asarPath);
+    for (const control of hostControls) {
+      expect(asar.includes(control), `Obsidian has no "${control}"`).toBe(true);
+    }
+    // The negative control, and the actual defect this test was written for: the name
+    // that shipped in round 1 is NOT in the host, so the scan above is discriminating
+    // rather than matching everything.
+    expect(asar.includes('Reopen last closed tab'),
+      'the asar scan matches a name Obsidian does not have — it is not discriminating').toBe(false);
   });
 
   it('records G4 and G7 as OPEN, never as gates this release passed', () => {

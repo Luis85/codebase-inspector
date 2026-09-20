@@ -71,6 +71,43 @@ describe('dist/', () => {
     expect([...new Set(specifiers)].sort()).toEqual(['obsidian']);
   });
 
+  // Task 13 fix round 1, Important 2. The README's claim — "It makes no network requests
+  // of any kind" — is about the SHIPPED ARTEFACT, and until now the only sweep behind it
+  // read `src/` (tests/host/clean-vault-install.test.ts). `dist/main.js` carries two
+  // `new XMLHttpRequest` that `src/` does not: a FileSaver island from pinia's own
+  // `dist/pinia.js`, which is the single entry pinia 4.0.3's `exports` map offers — there
+  // is no production variant to select, and the helper survives tree-shaking even though
+  // the devtools code that calls it does not. It is dead: every symbol in it is
+  // referenced only from inside it, and `saveAs` has no caller. That was HAND-verified
+  // once, at one commit, with nothing behind it — so a pinia or vue bump could make it
+  // live, or add a real `fetch`, with the whole suite green and a shipped factual claim
+  // silently false.
+  //
+  // Two assertions, because the island can become live two different ways:
+  //   * the network-API census itself, pinned to the known set;
+  //   * the absence of pinia's devtools entry points, which are the ONLY thing that
+  //     calls the island. `vite.config.ts`'s production `NODE_ENV` define is what
+  //     eliminates them; flipping it back is an ordinary edit and is completely silent
+  //     today.
+  // Recorded in docs/superpowers/notes/2026-09-17-wp01-limitations.md, which this pins.
+  it('carries no network call beyond the known dead FileSaver island', () => {
+    const occurrences = (needle: string): number => main.split(needle).length - 1;
+    expect(occurrences('XMLHttpRequest'), 'the FileSaver island').toBe(2);
+    expect(occurrences('new XMLHttpRequest'), 'both XHRs are the island\'s own').toBe(2);
+    for (const api of ['fetch(', 'WebSocket', 'EventSource', 'sendBeacon', 'requestUrl']) {
+      expect(occurrences(api), `dist/main.js reaches ${api}`).toBe(0);
+    }
+  });
+
+  it('keeps the island DEAD: no devtools entry point survives the production build', () => {
+    for (const hook of ['setupDevtoolsPlugin', '__VUE_DEVTOOLS_GLOBAL_HOOK__', 'devtools']) {
+      expect(main.includes(hook), `dist/main.js carries ${hook}, which reaches the island`)
+        .toBe(false);
+    }
+    // Not vacuous: the bundle really is the one pinia is in.
+    expect(main).toContain('XMLHttpRequest');
+  });
+
   it('ships the repository manifest byte for byte', () => {
     // The installed folder name must equal the manifest id or onExternalSettingsChange
     // never fires, and every id/name/version assertion made about manifest.json is only

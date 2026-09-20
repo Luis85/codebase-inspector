@@ -77,7 +77,11 @@ as evidence that accessibility is gated.
       it cannot silently drift.
 - [x] **The README discloses out-of-vault reads, no network use and no telemetry** —
       **MET**, and each of the three disclosures is asserted by
-      `tests/host/clean-vault-install.test.ts`.
+      `tests/host/clean-vault-install.test.ts`, which also sweeps `src/` for every
+      network API. **Read the next paragraph before quoting the no-network line**: the
+      shipped bundle carries two `new XMLHttpRequest` that `src/` does not, in dead
+      vendor code. They are pinned by `tests/host/build-output.test.ts` and recorded in
+      `2026-09-17-wp01-limitations.md`.
 - [x] **A recognised LICENSE file is present** — **MET.** MIT, at the repository root,
       asserted by the same file.
 
@@ -144,7 +148,7 @@ cannot drift from the original.
 | Contract | `tests/contracts/**` | 2 | yes | 40 | **one suite, two implementations** — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift |
 | Integration (real temp dirs) | `tests/integration/**` | 8 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
 | Component (jsdom) | `tests/component/**` | 29 | yes | 298 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal |
-| Host (Obsidian doubles) | `tests/host/**` | 10 | yes | 109 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
+| Host (Obsidian doubles) | `tests/host/**` | 10 | yes | 113 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
 | Benchmark | `tests/benchmarks/**` | 1 | yes | 5 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers |
 
@@ -198,10 +202,18 @@ Vue's own runtime packages (`@vue/runtime-core`, `@vue/runtime-dom`, `@vue/react
 `@vue/shared`) are MIT at the same version and ship inside `vue`. `@vue/devtools-api` is
 **not** in the production bundle. The project's own license is MIT (`LICENSE`).
 
+**Host and runtime versions, all three of them, and which claim rests on which.**
+
+| | Version | What rests on it |
+|---|---|---|
+| Obsidian on the development machine | **1.12.4** | every `obsidian.asar` reading on this branch, including the host-control names in the checkpoint checklist below and the stylesheet-cascade facts in `tests/unit/host-cascade.test.ts` |
+| `obsidian` types package | **1.13.1** | every API-shape claim in this report and every `d.ts` the build type-checks against |
+| The user's host | **1.13.7**, Electron **39.6.0**, Chrome **142.0.7444.265** | nothing here — no measurement and no reading was taken on it. It is the host the checkpoint #4 run will actually use, and the one a real performance figure would have to come from |
+
 **The documented `minAppVersion` was NOT tested.** Stated as a gap rather than closed:
-`1.13.0` itself has not been run. The versions available are **1.12.4** on the
-development machine (below the declared minimum) and **1.13.7** on the user's host
-(above it). The human at checkpoint #4 records which version they actually used; the gap
+`1.13.0` itself has not been run — 1.12.4 is below the declared minimum and 1.13.7 is
+above it, and there is no 1.13.0 anywhere on this machine (the cached updater carries
+1.12.4 too). The human at checkpoint #4 records which version they actually used; the gap
 between that version and `1.13.0` remains.
 
 **Current community submission policies: NOT REVIEWED.** No policy page was fetched or
@@ -278,11 +290,20 @@ a plugin-wide binding, and there is no keybinding for the human to look for.
 ## CHECKPOINT #4 — what the human must do
 
 **This is the release gate. It runs in a brand-new throwaway vault with no other
-plugins.** Everything here was read against the tree before it was written down: every
-control named below ships as visible text, and every key named below is read by a
-handler in `src/`. Both facts are asserted by `tests/host/clean-vault-install.test.ts`,
-because this plan's checklists have four times asked someone to verify something that
-did not exist.
+plugins.**
+
+**How far the names below are checked, exactly.** `tests/host/clean-vault-install.test.ts`
+asserts that every control **this plugin ships** appears as visible text in `src/`, that
+every key appears in a handler there, that the command and settings lists equal what
+`src/host/commands.ts` and `src/host/setting-definitions.ts` actually build, and that
+every control **Obsidian provides** appears byte-exactly in the installed host's own
+`obsidian.asar`. It also refuses to let this section name a control **in prose** without
+that name appearing in one of the `checkpoint4:` lists — the controls, host-controls and
+keys lists below, plus the command and settings enumerations above — because round 1 did
+exactly that, and shipped a command ("Reopen last closed tab") that Obsidian does not
+have. So: a control named here is written in single-asterisk emphasis, ordinary emphasis
+in this section is written in bold, and a name written with neither is outside the guard
+— which is the residual, stated rather than left to be found.
 
 ### Step 2 — install into a throwaway clean vault
 
@@ -294,7 +315,7 @@ did not exist.
    `manifest.json`. **Copy them by hand.** Do not use the repository's development
    install script: it also writes a `.hotreload` marker, which is a development
    affordance and has no place in this vault.
-4. Enable *Codebase Inspector* in Community plugins. Open the developer console before
+4. Enable *Codebase Inspector* in *Community plugins*. Open the developer console before
    enabling and keep it open.
 5. **Pass:** it appears as *Codebase Inspector*, is marked desktop-only, enables with no
    console **error**, and the vault contains no other plugin. A Three.js **warning**
@@ -311,13 +332,15 @@ Controls you will use (each ships; each is verified to exist):
 <!-- checkpoint4:controls:start -->
 
 - `Select a codebase` — the welcome action, shown when no source is selected.
-- `Review scope and read access` — the scope modal's own heading and confirm label.
+- `Review scope and read access` — COPY-04, the scope modal's own TITLE and nothing
+  else. Its confirm button is *Scan codebase*, below; do not look for this string on a
+  button.
 - `Read-only source access` — the claim on the consent screen and in the status line.
 - `Source remains unchanged.` — the second claim, at both the same places.
 - `I approve read access to this directory for this scan.` — the acknowledgement
   checkbox. It starts **unchecked**, and Scan stays disabled until it is checked.
 - `Scan codebase` — the scope modal's confirm button, and the command of the same name.
-  A **refresh** is started from the command palette, or by going through *Select a
+  A **refresh** is started from the *Command palette*, or by going through *Select a
   codebase* again; there is no separate on-screen Refresh button.
 - `Cancel scan` — **a command-palette entry, not an on-screen button.** No component
   renders a cancel control; the palette entry is hidden unless the active view has a run
@@ -331,8 +354,31 @@ Controls you will use (each ships; each is verified to exist):
 - `Snapshot retained from` — the age line shown on reopening a view.
 - `The 3D view is unavailable. File inspection still works.` — COPY-14, if the renderer
   is unavailable. Seeing it is not a failure of the HTML path; it is the HTML path.
+- `Continue` — the source modal's confirm button, after the radio choice and the typed
+  path.
+- `Open codebase city` — the command that opens a NEW city tab, every time.
 
 <!-- checkpoint4:controls:end -->
+
+Controls **Obsidian** provides, which this plugin does not ship and `src/` cannot
+confirm. These were verified against Obsidian **1.12.4**, the host installed on the
+development machine, by byte-exact scan of its own `obsidian.asar`
+(`tests/host/clean-vault-install.test.ts` re-runs that scan against whatever host is
+installed where the suite runs). **The user's host is 1.13.7 and was NOT checked** — no
+1.13.7 install exists on this machine, and the cached updater carries 1.12.4 too. For
+*Undo close tab* the label comes from the localisation key `undoCloseTab` and the command
+is registered as `workspace:undo-close-pane`; the id is the thing to look for if a label
+has moved.
+
+<!-- checkpoint4:host-controls:start -->
+
+- `Community plugins` — the Settings section where the plugin is enabled.
+- `Command palette` — where *Scan codebase*, *Cancel scan* and *Undo close tab* are run
+  from; this plugin registers no hotkey for anything.
+- `Undo close tab` — `workspace:undo-close-pane`. Restores the closed leaf **with its own
+  saved state**, which is what step 9 depends on.
+
+<!-- checkpoint4:host-controls:end -->
 
 Keys this plugin itself handles (Tab and Shift-Tab are the browser's own focus order and
 are deliberately **not** in this list, because no source file reads them):
@@ -343,8 +389,12 @@ are deliberately **not** in this list, because no source file reads them):
   not itself editable.
 - `Enter` — in search, selects the first match **without moving the camera**; on the
   canvas, focuses the selected building.
-- `Escape` — resolves one intent at a time: inspector, then drawer, then query, then
-  selection.
+- `Escape` — resolves exactly one layer per press: modal, then camera help, then a
+  narrow-layout drawer (inspector or Files), then the query, then the selection. **The
+  two drawer links apply only below 820 px**, where those panels really are overlays; on
+  a wide leaf they are permanent columns, so Escape goes straight to the query or the
+  selection and the inspector stays open. That is deliberate — a drawer that is not a
+  drawer is not a layer — and is not a defect to report.
 - `f` — Fit.
 - `t` — Top, a toggle, so the 3D view is reachable again.
 - `+` — zoom in.
@@ -364,36 +414,39 @@ The sequence, and what a pass looks like:
 1. **Select a real external repository** as the source. *Select a codebase* opens a modal
    with two radio choices — a folder inside this vault, or an absolute path — and a
    **typed text field** for the path; there is no native folder picker, which is why the
-   keyboard-only run in step 6 can start here. Then *Continue*. *Pass:* the directory you
+   keyboard-only run in step 6 can start here. Then *Continue*. **Pass:** the directory you
    typed is the one shown on the consent screen.
 2. **Approve scope.** If the modal shows a scope error (an unusable exclusion or file-size
    value), Scan stays disabled until that is fixed too — that is correct, not a defect.
-   *Pass:* the acknowledgement starts unchecked and *Scan codebase*
+   **Pass:** the acknowledgement starts unchecked and *Scan codebase*
    is **disabled** until you check it.
-3. **Scan.** *Pass:* it completes and a real city renders — buildings, districts,
+3. **Scan.** **Pass:** it completes and a real city renders — buildings, districts,
    labels — not an empty stage.
 4. **Find a known file** by typing part of its path into search and pressing `Enter`.
-   *Pass:* the first match is selected and **the camera does not move**.
+   **Pass:** the first match is selected and **the camera does not move**.
 5. **Confirm its measurements** against an editor. Open the same file in any editor and
-   compare its **physical line count** with the inspector's. *Pass:* they agree. The
+   compare its **physical line count** with the inspector's. **Pass:** they agree. The
    definition: CRLF is one separator, a trailing newline adds no phantom line, and blank
    and comment lines count.
 6. **Complete the whole path with the keyboard only.** From step 1 to step 4 without
-   touching the mouse. *Pass:* you never had to reach for it, and focus was visible the
+   touching the mouse. **Pass:** you never had to reach for it, and focus was visible the
    whole way. This is accessibility matrix row 1; record what you observe even if it
    passes.
 7. **Complete the whole path in the HTML list with the 3D view off.** Press `List view`
    first; that unmounts the viewport and disposes the WebGL context rather than hiding
-   it. *Pass:* every file is listed, a row activates and selects, the inspector still
+   it. **Pass:** every file is listed, a row activates and selects, the inspector still
    shows raw lines and bytes, and **no scan starts** — losing the renderer is never
    authorisation to re-enumerate the source.
 8. **Cancel a refresh.** Start a second scan with the *Scan codebase* command, then run
-   *Cancel scan* from the command palette while it is still running. *Pass:* the
+   *Cancel scan* from the *Command palette* while it is still running. **Pass:** the
    previous city is still on screen with its **original** timestamp, and the notice says
    the incomplete result was discarded and names the time of the snapshot you still
    have.
 9. **Reopen the view.** Close the tab and bring it back the way Obsidian restores a leaf
-   — *Reopen last closed tab*. *Pass:* the retained state is shown **with its age**
+   — the *Undo close tab* command, id `workspace:undo-close-pane`. (Round 1 of this task
+   called it "Reopen last closed tab", which Obsidian does not have; if the label ever
+   differs on your host, the id is the stable thing to look for in Settings → Hotkeys.)
+   **Pass:** the retained state is shown **with its age**
    ("Snapshot retained from …") and **no scan starts** on its own. Two things to know
    before you judge this step, both read out of `src/host/city-view.ts`: retention is
    keyed to **the view's own saved state** (`onOpen` looks the snapshot up by the
@@ -402,7 +455,7 @@ The sequence, and what a pass looks like:
    in-memory, so nothing survives an Obsidian restart. **If the reopened tab comes back
    empty, record it rather than treating it as a pass or a defect** — which reopen
    routes actually restore a custom view's state has not been confirmed by anybody.
-10. **`git status` in the repository is clean.** *Pass:* no file changed. This is the
+10. **`git status` in the repository is clean.** **Pass:** no file changed. This is the
     observation that corroborates the two shipped claims in a real host.
 
 Then repeat all ten with **the vault itself** as the source, and additionally confirm
@@ -410,10 +463,10 @@ that the **actual** `vault.configDir` was never read, that no other plugin's `da
 was read, and that `.git` was never read.
 
 **Confirm those three by ABSENCE, using the search field**, not by looking for a skipped
-row: an excluded directory is pruned *before* anything inside it is opened, so its
+row: an excluded directory is pruned **before** anything inside it is opened, so its
 contents appear nowhere at all — not as files and not as skipped entries. Search for
 `.obsidian` (or whatever this vault's config directory is actually called), for `.git`
-and for `data.json`. *Pass:* no path under the config directory, no `.git` path and no
+and for `data.json`. **Pass:** no path under the config directory, no `.git` path and no
 plugin's `data.json` is listed. The automated counterpart to this — a read log that
 records every path the port opens, with positive controls so an empty log cannot satisfy
 it — is the G2 evidence cited above; what you are adding is that it holds in a real host
@@ -472,6 +525,15 @@ The full record is `2026-09-17-wp01-limitations.md`. In summary:
   reads enter the G2 evidence surface. **That trade is the user's to make.**
 - **`npm run analyze` is red by design** at a baseline of **11** findings, each assessed,
   and nobody tuned it to green.
+- **The shipped bundle contains an unreachable FileSaver island** carrying two
+  `XMLHttpRequest` constructions, from pinia 4.0.3's own `dist/pinia.js` — the single
+  entry its `exports` map offers, with no production variant to select. The devtools code
+  that would call it is eliminated by the production `NODE_ENV` define; the helper is
+  not. It is dead — every symbol in it is referenced only from inside it — and it is now
+  guarded two ways in `tests/host/build-output.test.ts`: the network-API census over
+  `dist/main.js` is pinned to exactly those two, and the devtools entry points that reach
+  the island must be absent. Disclosed rather than suppressed: a reviewer greps the
+  bundle, and they should find this written down before they find the string.
 - **The file-symlink case is unverified on this machine** (Developer Mode is off); the
   directory-junction case, which is the one that matters for escaping an approved root,
   runs for real.
@@ -489,14 +551,23 @@ open count immediately beside an openness word — and **asterisk emphasis only*
 lettered list of what escapes that sweep lives in the gate-evidence document's own
 Numbers block and applies here identically. The G8 table above is asserted **identical**
 to the gate-evidence document's by `tests/host/clean-vault-install.test.ts`, so it is as
-derived as that one is. The command and settings enumerations are derived from
+derived as that one is — which means its layer set, its file counts and its sum, and NOT
+its per-layer test counts. See the transcribed paragraph below. The command and settings enumerations are derived from
 `src/host/commands.ts` and `src/host/setting-definitions.ts` by the same file.
 
-**TRANSCRIBED — no test can check these.** The artefact byte sizes and the `npm ci`
-package count, taken from the run recorded in the G1 section; the dependency versions,
-taken from `package-lock.json` at this commit; the `npm run analyze` total of 11; and
-every figure cited from the G5 benchmark, which writes its results outside this
-repository by design.
+**TRANSCRIBED — no test can check these.** **The per-layer test counts inside the G8
+table above are transcribed, not derived**, and that is worth saying here rather than
+leaving a reader to infer it from the word "identical": vitest exposes no whole-suite
+tally to a test inside that suite, and static `it(` counting is wrong where a runner
+generates tests from a loop. What IS derived is their sum, the file counts, the layer
+set, and the fact that this copy of the table matches the original byte for byte — so a
+uniformly stale set of seven numbers stays green, and is the named residual in the
+gate-evidence document's own Numbers block. Re-take with `npx vitest run <directory>`.
+
+Also transcribed: the artefact byte sizes and the `npm ci` package count, taken from the
+run recorded in the G1 section; the dependency versions, taken from `package-lock.json`
+at this commit; the `npm run analyze` total of 11; and every figure cited from the G5
+benchmark, which writes its results outside this repository by design.
 
 **NEITHER — prose.** Version numbers, spec section numbers, ruling numbers, COPY ids,
 packet ids, checkpoint numbers and dates are identifiers, not counts.
