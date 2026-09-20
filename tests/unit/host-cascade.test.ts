@@ -188,6 +188,7 @@ const PLUGIN_SKINNED_BUTTONS = [
   '.ci-welcome__action',
   '.ci-camera-controls button',  // already compliant; asserted so it cannot regress
   '.ci-toolbar__scan',           // Task 5 (F7): the toolbar's own Scan control
+  '.ci-file-list__group-focus',  // Task 6 (C07's directoryFocusRequested control)
 ];
 
 /** `@media (hover: hover) { button:hover { ... } }` -- a media query changes no specificity. */

@@ -280,6 +280,66 @@
 }
 
 /* --- CodebaseFileList (C07) -------------------------------------------------- */
+/* Task 6 (F9): the panel's own name and count. A plain heading, not sticky -- it lives
+   inside the same scrolling box as the groups below it (`.ci-app__list`'s own
+   `overflow-y: auto`, C01 shell layout, untouched by this section) rather than adding a
+   second flex/scroll boundary that could reopen the height-chain hazard the C01 section's
+   own comment documents. */
+:where(.codebase-inspector-root) .ci-file-list__header {
+  padding: var(--ci-space-2) var(--ci-space-3);
+  border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-file-list__title {
+  margin: 0;
+  font-size: 0.95em;
+  font-weight: 600;
+  color: var(--ci-text);
+}
+/* Task 6: one district's own heading -- C07's `grouping` input. `.ci-file-list__group`
+   itself carries no box styling beyond separating one district from the next; the row
+   list inside it keeps the existing `.ci-file-list__rows` treatment unchanged. */
+:where(.codebase-inspector-root) .ci-file-list__group {
+  border-top: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-file-list__group:first-of-type {
+  border-top: none;
+}
+:where(.codebase-inspector-root) .ci-file-list__group-heading {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ci-space-2);
+  padding: var(--ci-space-2) var(--ci-space-3);
+}
+:where(.codebase-inspector-root) .ci-file-list__group-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;   /* a short DISPLAY NAME (districts.ts), never a path */
+}
+:where(.codebase-inspector-root) .ci-file-list__group-count {
+  flex: 1 1 auto;
+  color: var(--ci-text-muted);
+  font-size: 0.85em;
+}
+/* M113 -- same recipe as `.ci-file-list__row` below: `button.ci-file-list__group-focus`
+   is (0,1,1), tying Obsidian's own `button:not(.clickable-icon)` and winning on document
+   order, and still losing to a root-scoped user snippet at (0,2,0). Modelled on
+   `.ci-app__drawer-close` (border + background + box-shadow: none + its own :hover),
+   the existing plugin-skinned-button shape, rather than inventing a second one. */
+:where(.codebase-inspector-root) button.ci-file-list__group-focus {
+  flex: 0 0 auto;
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-2);
+  border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-control);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  font-size: 0.85em;
+  cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-file-list__group-focus:hover {
+  background: var(--ci-raised);
+}
 :where(.codebase-inspector-root) .ci-file-list__rows {
   list-style: none;
   margin: 0;
@@ -287,12 +347,6 @@
   display: flex;
   flex-direction: column;
 }
-/* Phase 2c, B3: 1087 rows of paths up to 83 characters in a column whose text area is
-   ~236 px wrap to 2.3-2.6 lines each, which is most of what "the panel layout is off"
-   looks like. `anywhere` (not `break-word`) also makes the row's MIN-CONTENT width
-   bounded by construction, which is what removes the `min-width: auto` flex-blowout the
-   diagnosis flagged as unverifiable without a real browser: the question stops mattering
-   rather than being answered. */
 /* Checkpoint #3 item 4 -- THE SPECIFICITY RULE, stated once here and pinned by
    tests/unit/host-cascade.test.ts.
 
@@ -323,13 +377,34 @@
    simply had to be declared. */
 :where(.codebase-inspector-root) button.ci-file-list__row {
   width: 100%;
+  /* Task 6 (F4): a flex item's (the <li>'s) default `min-width: auto` is its CONTENT
+     minimum -- the same B1/B2 rule `.ci-app__stage-column` states above -- and B3 used
+     to satisfy it as a SIDE EFFECT of `overflow-wrap: anywhere` (a run with no break
+     opportunity anywhere has no floor at all). `word-break: keep-all` below reintroduces
+     a real floor (one unbroken path segment's width), so it is declared explicitly here
+     instead of leaned on implicitly. */
+  min-width: 0;
   /* Undoes `display: inline-flex` + `justify-content: center`, which is what turned a long
      path into one unshrinkable centred flex item overflowing both ends. As a block box the
      path is ordinary inline content again, so `text-align` and `overflow-wrap` both apply. */
   display: block;
   /* Undoes `white-space: nowrap`. Without this the line below does nothing at all. */
   white-space: normal;
-  overflow-wrap: anywhere;
+  /* Task 6 (F4): replaces Phase 2c's `overflow-wrap: anywhere`, which broke a path
+     ANYWHERE it ran out of room -- including mid-word, inside one filename with no
+     separator at all (the user's own capture: `GeometrySidecarVie` / `w.ts`). `normal`
+     plus `keep-all` never breaks inside a run of non-space characters; the row's own
+     `<wbr>` after each `/` (CodebaseFileListGroup.vue's `wrapSegments`) is what supplies
+     the actual break opportunities, so a path still wraps at every directory boundary --
+     just never inside one. A single path segment (typically a filename) longer than the
+     column can overflow rather than break mid-word; `min-width: 0` above keeps that a
+     local, contained overflow rather than a repeat of B3's flex-blowout. The committed
+     harness fixture's own paths (`dir-0/file-96.ts`) are too short to ever wrap even
+     with the Files drawer opened, so `s10-narrow-dark.png` does not show this by
+     itself -- see task-6-report.md for the standalone confirmation against F4's own
+     real path. */
+  overflow-wrap: normal;
+  word-break: keep-all;
   /* Undoes `height: var(--input-height)`, so a wrapped row is as tall as its own content
      instead of 30px with the rest clipped. */
   height: auto;

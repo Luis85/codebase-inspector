@@ -106,6 +106,31 @@ export function formatAnnounceSelected(name: string): string {
   return `Selected ${name}.`;
 }
 
+/** Task 6 (F9): C07's file list had no name and no count of its own in the DOM -- a
+ *  sighted user could infer both from the panel's position and its scrollbar, but
+ *  nothing said so. Not in the microcopy catalogue under any COPY id (the catalogue
+ *  covers states and outcomes, not a panel's own heading); authored fresh, in the
+ *  catalogue's factual voice -- a label plus a count, nothing more. */
+export function formatFileListHeader(fileCount: number): string {
+  return `Codebase files (${fileCount})`;
+}
+
+/** Task 6: one district group's heading, appended after its name. Not catalogued --
+ *  see `formatFileListHeader`. Pluralised because `formatFileListGroup(1)` is a real
+ *  case (a district that ends up holding exactly one file). */
+export function formatFileListGroup(fileCount: number): string {
+  return `${fileCount} file${fileCount === 1 ? '' : 's'}`;
+}
+
+/** Task 6: the accessible name for a group's own focus control. Visible text on the
+ *  button stays the short "Focus" (styles.css keeps it compact); every one of these
+ *  buttons needs a DISTINCT accessible name or a screen-reader user tabbing through
+ *  the list hears "Focus, Focus, Focus..." with nothing to tell them apart -- this is
+ *  the aria-label that names which district each one frames. */
+export function formatDirectoryFocusLabel(directoryName: string): string {
+  return `Focus ${directoryName} in the 3D view`;
+}
+
 /** Not in the microcopy catalogue: WebGL context loss (spec §4.2's "no self-healing —
  *  the VIEW disposes and reconstructs") has no COPY id. Authored fresh, in the
  *  catalogue's own factual, action-oriented voice, naming the mechanism spec §4.2

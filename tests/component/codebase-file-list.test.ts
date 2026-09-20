@@ -7,7 +7,10 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../../tests/fixtures/snapshot-builder';
 import { CITY_RENDERER_KEY } from '../../src/ui/renderer-handle';
+import { classify } from '../../src/domain/classify';
+import { makeEntityId } from '../../src/domain/entity-id';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
+import type { CodeEntity, CodebaseSnapshot, Observation } from '../../src/domain/model';
 
 function makeRendererDouble() {
   return {
@@ -26,6 +29,82 @@ function mountWithRenderer(rendererDouble: CityRendererPort) {
   return mount(CodebaseFileList, {
     global: { provide: { [CITY_RENDERER_KEY as symbol]: { value: rendererDouble } } },
   });
+}
+
+/** Task 6: a snapshot built from EXPLICIT paths, for the two fixtures `buildSnapshotFixture`
+ *  cannot produce (round-robin directory assignment, no control over which basename lands
+ *  where). Directory entities are synthesised from path prefixes, deduplicated by path,
+ *  parented recursively -- exactly the containment tree `buildDistrictLayout` (districts.ts)
+ *  expects. */
+function buildPathsSnapshot(paths: readonly string[]): CodebaseSnapshot {
+  const repositoryId = 'repo-paths';
+  const repositoryEntity: CodeEntity = {
+    id: makeEntityId(repositoryId, 'repository', ''),
+    repositoryId, kind: 'repository', path: '', name: repositoryId, parentId: null, category: null,
+  };
+  const entities: CodeEntity[] = [repositoryEntity];
+  const observations: Observation[] = [];
+  const dirsByPath = new Map<string, CodeEntity>();
+
+  function ensureDir(dirPath: string): CodeEntity {
+    if (dirPath === '') return repositoryEntity;
+    const existing = dirsByPath.get(dirPath);
+    if (existing) return existing;
+    const lastSlash = dirPath.lastIndexOf('/');
+    const parent = ensureDir(lastSlash === -1 ? '' : dirPath.slice(0, lastSlash));
+    const entity: CodeEntity = {
+      id: makeEntityId(repositoryId, 'directory', dirPath),
+      repositoryId, kind: 'directory', path: dirPath, name: dirPath.slice(lastSlash + 1),
+      parentId: parent.id, category: null,
+    };
+    dirsByPath.set(dirPath, entity);
+    entities.push(entity);
+    return entity;
+  }
+
+  for (const path of paths) {
+    const lastSlash = path.lastIndexOf('/');
+    const parent = ensureDir(lastSlash === -1 ? '' : path.slice(0, lastSlash));
+    const fileEntity: CodeEntity = {
+      id: makeEntityId(repositoryId, 'file', path),
+      repositoryId, kind: 'file', path, name: path.slice(lastSlash + 1),
+      parentId: parent.id, category: classify(path),
+    };
+    entities.push(fileEntity);
+    observations.push({
+      entityId: fileEntity.id,
+      measurement: { metricId: 'physical-lines', unit: 'lines', definitionVersion: '1' },
+      status: 'measured', value: 10, reason: null,
+    });
+  }
+
+  return {
+    snapshotId: 'snapshot-paths', schemaVersion: 1, repositoryId,
+    providerRun: {
+      runId: 'run-paths', provider: 'builtin-inventory', origin: 'collected',
+      capturedAt: '2026-01-01T00:00:00.000Z', completedAt: '2026-01-01T00:00:01.000Z',
+    },
+    scope: { rootPath: '/fixture/paths', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false },
+    entities, observations, fileSetDigest: `fixture-digest-paths-${entities.length}`,
+    completeness: 'complete', warnings: [],
+  };
+}
+
+/** Set by every `mountList` call, so a test that mounts once can still assert against
+ *  the double afterwards -- mirroring task-6-brief.md's pseudocode, which reads
+ *  `rendererDouble` as a variable already in scope by the time it asserts. Named
+ *  differently from the LOCAL `rendererDouble` const several tests above already
+ *  declare (no-shadow), not because the concept differs. */
+let mountedRendererDouble: ReturnType<typeof makeRendererDouble>;
+
+function mountList(spec: { files?: number; directories?: number; paths?: readonly string[] }) {
+  const store = useCityStore();
+  const snapshot = spec.paths
+    ? buildPathsSnapshot(spec.paths)
+    : buildSnapshotFixture({ files: spec.files ?? 0, directories: spec.directories ?? 0 });
+  store.setCity(snapshot, computeLayout(snapshot));
+  mountedRendererDouble = makeRendererDouble();
+  return mountWithRenderer(mountedRendererDouble);
 }
 
 describe('CodebaseFileList.vue (C07)', () => {
@@ -168,5 +247,57 @@ describe('CodebaseFileList.vue (C07)', () => {
     expect(rows).toHaveLength(3);   // never hidden
     const dimmed = rows.filter((r) => r.classes().includes('ci-file-list__row--dimmed'));
     expect(dimmed.length).toBe(2);
+  });
+
+  // Task 6 (F9/F4). C07 declares `grouping` as an input and `directoryFocusRequested` as
+  // an event; before this task neither had a surface at all.
+  describe('task 6: panel header, grouping, directory focus, and wrap-at-separator', () => {
+    it('names the panel and says how much is in it', () => {
+      const wrapper = mountList({ files: 144, directories: 6 });
+      const header = wrapper.find('.ci-file-list__header');
+      expect(header.text()).toContain('Codebase files');
+      expect(header.text()).toContain('144');
+    });
+
+    it('groups rows under their directory, with a count per group', () => {
+      // C07's `grouping` input, ordered by `store.layout.districts` -- the same
+      // districts the city itself draws -- rather than a second organisation.
+      const wrapper = mountList({ files: 144, directories: 6 });
+      const groups = wrapper.findAll('.ci-file-list__group');
+      expect(groups.length).toBe(6);
+      expect(groups[0]!.text()).toMatch(/\b24 files\b/);
+    });
+
+    it('offers directory focus from the group heading', async () => {
+      // C07's `directoryFocusRequested`, which had no surface at all.
+      const wrapper = mountList({ files: 144, directories: 6 });
+      await wrapper.findAll('.ci-file-list__group-focus')[0]!.trigger('click');
+      expect(mountedRendererDouble.focus).toHaveBeenCalledOnce();
+    });
+
+    it('still disambiguates duplicate basenames', () => {
+      // C07's own requirement: grouping must not become an excuse to show a bare
+      // basename twice. Rows still carry the full path.
+      const wrapper = mountList({ paths: ['src/a/index.ts', 'src/b/index.ts'] });
+      const labels = wrapper.findAll('.ci-file-list__row').map((row) => row.text());
+      expect(new Set(labels).size).toBe(2);
+    });
+
+    it('breaks long paths at a separator, never mid-word', () => {
+      // F4: `presentation/views/GeometrySidecarVie` / `w.ts` in the user's own capture.
+      // Weak on its own -- jsdom computes almost nothing here -- paired with a harness
+      // capture at narrow width, which is the real evidence (task-6-report.md).
+      const wrapper = mountList({ paths: ['presentation/views/GeometrySidecarView.ts'] });
+      const row = wrapper.find('.ci-file-list__row');
+      expect(getComputedStyle(row.element).overflowWrap).not.toBe('break-word');
+    });
+
+    it('renders every path segment with none of its characters dropped or reordered', () => {
+      // The <wbr>-insertion mechanism itself: this is what a jsdom test CAN see, since
+      // `.text()` reads textContent, which a <wbr> never contributes to.
+      const wrapper = mountList({ paths: ['presentation/views/GeometrySidecarView.ts'] });
+      const row = wrapper.find('.ci-file-list__row');
+      expect(row.text()).toBe('presentation/views/GeometrySidecarView.ts');
+    });
   });
 });

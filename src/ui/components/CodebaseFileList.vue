@@ -3,44 +3,99 @@
   of record, and nothing else: task 10 fix round 1, item 2 removed the direct
   `renderer.setSelection()` call that used to sit beside it, because a canvas pick had
   no equivalent and so the two surfaces disagreed. CityViewport now watches
-  `store.selectedEntityId` and is the SINGLE path to the port, for both surfaces — this
-  component neither imports the renderer handle nor issues a command to it. Its own test
-  guards against the second path being reintroduced here.
+  `store.selectedEntityId` and is the SINGLE path to the port, for both surfaces — row
+  activation neither imports the renderer handle for selection nor issues a selection
+  command to it. Its own test guards against the second SELECTION path being
+  reintroduced here.
 
   Rows are native <button>s (never role="tree" — that is future, richer-than-WP-01
   tree semantics this component does not implement) with a roving tabindex: moving
   focus with the keyboard never selects, only Enter/click activation does.
+
+  Task 6 (F9/F4): grouped by district (C07's `grouping` input) with a per-group focus
+  control (C07's `directoryFocusRequested` event) — this is the ONE place in the
+  component that DOES hold a renderer handle, for that one command; it still never
+  touches selection. See `focusDistrict` below for why that command currently has no
+  effect on the real renderer (a Wave 1 gap, out of this task's file ownership).
 -->
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useCityStore } from '../stores/city-store';
 import { useInspectorOpener } from '../drawer-focus';
-import { formatCopy11 } from '../copy';
+import { useCityRendererHandle } from '../renderer-handle';
+import { formatCopy11, formatFileListHeader } from '../copy';
+import CodebaseFileListGroup from './CodebaseFileListGroup.vue';
+import type { FileGroup, RowState } from './file-list-types';
 import type { EntityId } from '../../domain/entity-id';
+import type { CodeEntity } from '../../domain/model';
 
 const store = useCityStore();
 const inspectorOpener = useInspectorOpener();
+const renderer = useCityRendererHandle();
 
 const fileEntities = computed(() => (store.snapshot?.entities.filter((e) => e.kind === 'file') ?? []));
 const totalFileCount = computed(() => fileEntities.value.length);
 const noMatches = computed(() => store.matchingIds !== null && store.matchingIds.size === 0);
 const emptyCopy = computed(() => formatCopy11(totalFileCount.value, store.query));
+const headerCopy = computed(() => formatFileListHeader(totalFileCount.value));
+
+// C07's `grouping` input. Files are grouped by the SAME directoryId the city itself
+// assigns each lot (store.layout.lots), never by entity.parentId — the two can differ
+// once MAX_DIRECT_SUBDISTRICTS aggregation re-parents a file's lot to an ancestor
+// district (districts.ts), and group ORDER follows store.layout.districts, so the
+// list and the city agree on both membership and order rather than introducing a
+// second, disagreeing organisation (task-6-brief.md). A district with none of its own
+// files directly under it — the repository root itself, the instant any subdirectory
+// exists — is simply omitted rather than rendered as an empty heading.
+const groupedFiles = computed<FileGroup[]>(() => {
+  const directoryOf = new Map<EntityId, EntityId>();
+  for (const lot of store.layout?.lots ?? []) directoryOf.set(lot.entityId, lot.directoryId);
+
+  const byDirectory = new Map<EntityId, CodeEntity[]>();
+  for (const entity of fileEntities.value) {
+    const directoryId = directoryOf.get(entity.id);
+    if (directoryId === undefined) continue;   // no layout yet for this entity — never misfile it
+    const list = byDirectory.get(directoryId);
+    if (list) list.push(entity); else byDirectory.set(directoryId, [entity]);
+  }
+
+  const groups: FileGroup[] = [];
+  for (const district of store.layout?.districts ?? []) {
+    const entities = byDirectory.get(district.directoryId);
+    if (entities && entities.length > 0) {
+      groups.push({ directoryId: district.directoryId, name: district.name, entities });
+    }
+  }
+  return groups;
+});
 
 // Phase 2c, ruling M102 (the IN-SCOPE half; windowing is deliberately not attempted --
-// see the report). Both of these used to be called once PER ROW on every patch, and
-// `rovingTabIndex` re-derived the single focus target inside each of those ~1,000 calls.
-// Hoisted to two computeds, they are derived once per dependency change instead of once
-// per row, and each row's own work becomes a Set lookup and an identity comparison.
+// see the report). These used to be called (twice each -- once for `v-memo`'s own
+// dependency array, once again for the class/tabindex/aria bindings) PER ROW on every
+// patch, and `rovingTabIndex` re-derived the single focus target inside each of those
+// ~2,000 calls. `rowStates` computes every row's {dimmed, tabIndex, selected} ONCE per
+// relevant change instead -- still one pass over the files, same as before, just a
+// single pass instead of up to four -- and each row's own work in
+// CodebaseFileListGroup.vue becomes a Map lookup.
+//
+// Deliberately its OWN computed, not folded into `groupedFiles` above: `groupedFiles`
+// depends only on the snapshot/layout (rare changes), and a keystroke touches only
+// `matchingIds`. Combining the two would make every keystroke also re-run the
+// directory-grouping pass for no reason -- the same mistake M102 exists to prevent.
 const matchingIds = computed(() => store.matchingIds);
 const focusTarget = computed(() => store.focusedEntityId ?? fileEntities.value[0]?.id ?? null);
 
-function isDimmed(entityId: EntityId): boolean {
-  return matchingIds.value !== null && !matchingIds.value.has(entityId);
-}
-
-function rovingTabIndex(entityId: EntityId): number {
-  return entityId === focusTarget.value ? 0 : -1;
-}
+const rowStates = computed<ReadonlyMap<EntityId, RowState>>(() => {
+  const map = new Map<EntityId, RowState>();
+  for (const entity of fileEntities.value) {
+    map.set(entity.id, {
+      dimmed: matchingIds.value !== null && !matchingIds.value.has(entity.id),
+      tabIndex: entity.id === focusTarget.value ? 0 : -1,
+      selected: entity.id === store.selectedEntityId,
+    });
+  }
+  return map;
+});
 
 /** Activating a row both selects it AND opens the inspector (task 9 fix round
  *  1, item 7 — this is the "opener" the narrow-drawer close returns focus to;
@@ -52,41 +107,46 @@ function activate(entityId: EntityId, event: Event): void {
   inspectorOpener.value = event.currentTarget as HTMLElement;
   store.openInspector();
 }
+
+/** C07's `directoryFocusRequested`: frames a district's lots in the 3D view without
+ *  touching selection or the inspector — unlike `activate`, this never calls
+ *  `store.select`. It commands the renderer directly, the same handle CameraControls'
+ *  own Focus button reads (`renderer.value?.focus(store.selectedEntityId)`); there is
+ *  no store field for "which directory is framed" because nothing else needs to read
+ *  it back (spec 4.2: the renderer owns the live camera, the store only mirrors it).
+ *
+ *  PRODUCTION-CALLER SWEEP FINDING (report this, do not silently work around it): the
+ *  real renderer's `focus(entityId)` (city-renderer.ts) resolves the id through
+ *  `city.lotOf(entityId)`, and `lotOf`'s backing map (instanced-city.ts `byEntity`) is
+ *  populated ONLY from `layout.lots` — files, never `layout.districts`. A directory's
+ *  own entityId is therefore never in that map, so in the shipped renderer this call
+ *  currently finds no lot and returns having moved nothing. The wiring above is
+ *  correct and reachable (this button exists, a user can click it, and it issues the
+ *  command C07 asks for) but its EFFECT is not, until `instanced-city.ts` also indexes
+ *  district entityIds — that file is owned by Wave 1 (`src/visualization/**`), outside
+ *  this task's file list (`task-6-brief.md`), and its `focus(entityId)` signature is a
+ *  frozen §4.2 contract besides. Raised rather than routed around. */
+function focusDistrict(directoryId: EntityId): void {
+  renderer.value?.focus(directoryId);
+}
 </script>
 
 <template>
   <div class="ci-file-list">
-    <ul class="ci-file-list__rows">
-      <!-- `v-memo` on the row: the ONLY things that can change a row's rendering are the
-           three below, so a keystroke that changes `matchingIds` now re-patches only the
-           rows whose dimming actually flipped, instead of all ~1,000. `entity.path` is
-           included because the entity list itself can change under a new snapshot. -->
-      <li
-        v-for="entity in fileEntities"
-        :key="entity.id"
-        v-memo="[
-          entity.path,
-          entity.id === store.selectedEntityId,
-          isDimmed(entity.id),
-          rovingTabIndex(entity.id),
-        ]"
-      >
-        <button
-          type="button"
-          class="ci-file-list__row"
-          :class="{
-            'ci-file-list__row--dimmed': isDimmed(entity.id),
-            'ci-file-list__row--selected': entity.id === store.selectedEntityId,
-          }"
-          :tabindex="rovingTabIndex(entity.id)"
-          :aria-pressed="entity.id === store.selectedEntityId"
-          @click="activate(entity.id, $event)"
-          @focus="store.focusRow(entity.id)"
-        >
-          {{ entity.path }}
-        </button>
-      </li>
-    </ul>
+    <div class="ci-file-list__header">
+      <h3 class="ci-file-list__title">
+        {{ headerCopy }}
+      </h3>
+    </div>
+    <CodebaseFileListGroup
+      v-for="group in groupedFiles"
+      :key="group.directoryId"
+      :group="group"
+      :row-states="rowStates"
+      @activate="activate"
+      @focus-row="store.focusRow"
+      @focus-district="focusDistrict"
+    />
     <p
       v-if="noMatches"
       class="ci-file-list__empty"
