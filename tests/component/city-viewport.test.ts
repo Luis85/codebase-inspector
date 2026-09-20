@@ -32,15 +32,17 @@ function makeRendererDouble() {
 function makeFakeWin(overrides: { matches?: boolean } = {}): {
   win: Window; triggerResize: () => void; matchMediaSpy: ReturnType<typeof vi.fn>;
   observerConstructed: ReturnType<typeof vi.fn>; observeSpy: ReturnType<typeof vi.fn>;
+  setMotionPreference: (matches: boolean) => void;
 } {
   let observedCallback: (() => void) | null = null;
   const observerConstructed = vi.fn();
   const observeSpy = vi.fn();
-  const matchMediaSpy = vi.fn(() => ({
-    matches: overrides.matches ?? false,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  }));
+  const motionListeners = new Set<() => void>();
+  const mql = { matches: overrides.matches ?? false,
+    addEventListener: (_type: string, fn: () => void) => { motionListeners.add(fn); },
+    removeEventListener: (_type: string, fn: () => void) => { motionListeners.delete(fn); } };
+  const matchMediaSpy = vi.fn(() => mql);
+  const setMotionPreference = (matches: boolean): void => { mql.matches = matches; motionListeners.forEach((fn) => { fn(); }); };
   class FakeResizeObserver {
     constructor(cb: () => void) { observedCallback = cb; observerConstructed(cb); }
     observe(el: Element): void { observeSpy(el); }
@@ -52,7 +54,7 @@ function makeFakeWin(overrides: { matches?: boolean } = {}): {
     matchMedia: matchMediaSpy,
     devicePixelRatio: 1,
   } as unknown as Window;
-  return { win, triggerResize: () => observedCallback?.(), matchMediaSpy, observerConstructed, observeSpy };
+  return { win, triggerResize: () => observedCallback?.(), matchMediaSpy, observerConstructed, observeSpy, setMotionPreference };
 }
 
 function setRect(stage: HTMLElement, width: number, height: number): void {
@@ -254,6 +256,21 @@ describe('CityViewport.vue (C08)', () => {
     mountWithFactory(factory, win, { width: 800, height: 600 });
     await nextTick();
     expect(rendererDouble.setMotion).toHaveBeenCalledWith('reduced');
+  });
+
+  // FINAL WAVE, Important 2. The matrix credited a PASSED jsdom half for LIVE OS-level
+  // tracking that no double could fire, so deleting the live response left 980 tests green.
+  it('follows a LIVE prefers-reduced-motion change, not just the value at construction', async () => {
+    const rendererDouble = makeRendererDouble();
+    const factory = vi.fn(() => rendererDouble) as unknown as CreateCityRenderer;
+    const { win, setMotionPreference } = makeFakeWin({ matches: false });
+    mountWithFactory(factory, win, { width: 800, height: 600 });
+    await nextTick();
+    expect(rendererDouble.setMotion).toHaveBeenLastCalledWith('standard');
+    setMotionPreference(true);
+    expect(rendererDouble.setMotion).toHaveBeenLastCalledWith('reduced');
+    setMotionPreference(false);
+    expect(rendererDouble.setMotion).toHaveBeenLastCalledWith('standard');
   });
 
   it('renders COPY-14 when the renderer reports unavailable', async () => {

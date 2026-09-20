@@ -230,6 +230,43 @@ describe('the evidence documents state the matrix row counts consistently, every
     expect(matrix, 'the matrix does not state how many rows have a passed jsdom half')
       .toContain(`${partial} more rows have a PASSED jsdom half`);
   });
+
+  it('states that breakdown consistently in EVERY document, not only in the matrix', () => {
+    // FINAL WAVE, Important 1. Both release documents head their Numbers block with
+    // "DERIVED — a stale value reddens a test" and list these two counts in it. That was
+    // not true: the check above reads documents()[0], the matrix, and the open-count
+    // sweeps cover only the OPEN count. Rewriting the limitations document to "exactly 6
+    // rows are fully PASSED and 9 more have a PASSED jsdom half" left this file 11/11
+    // green — a six-fold OVERSTATEMENT of accessibility surviving the suite, in the one
+    // record whose stated purpose is that accessibility must not be read as gated.
+    //
+    // So the claim is made true rather than withdrawn: every site in every document that
+    // states either count, in the shapes the documents actually use, is read and
+    // compared. A site carrying a wrong numeral fails by construction, so no separate
+    // negative family is needed — what escapes is a restatement in NEITHER shape, which
+    // is residual (a) in the gate-evidence Numbers block and is now named there for
+    // these two counts as well as for the open count.
+    const { closed, partial } = matrixCounts();
+    const numeral = `\\d{1,2}|${Object.keys(WORDS).join('|')}`;
+    const claims: { pattern: RegExp; expected: number; label: string; floor: number }[] = [
+      { pattern: new RegExp(`(${numeral})\\s+(?:rows?\\s+)?(?:is|are)\\s+fully PASSED`, 'gi'),
+        expected: closed, label: 'fully PASSED', floor: 4 },
+      { pattern: new RegExp(`(${numeral})\\s+more\\s+(?:rows\\s+)?(?:have|has)\\s+a PASSED jsdom half`, 'gi'),
+        expected: partial, label: 'PASSED jsdom half', floor: 3 },
+    ];
+    for (const { pattern, expected, label, floor } of claims) {
+      let sites = 0;
+      for (const { name, text } of documents()) {
+        for (const match of text.replace(/\s+/g, ' ').matchAll(pattern)) {
+          sites += 1;
+          expect(asNumber(match[1]!), `${name}: "${match[0]}" contradicts the matrix`).toBe(expected);
+        }
+      }
+      // An expression that matches nothing passes every assertion it never makes.
+      expect(sites, `the ${label} sweep matched too little to be guarding anything`)
+        .toBeGreaterThanOrEqual(floor);
+    }
+  });
 });
 
 describe('the evidence documents state derivable test counts truthfully', () => {

@@ -144,10 +144,10 @@ cannot drift from the original.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 40 | yes | 473 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
+| Unit | `tests/unit/**` | 40 | yes | 474 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
 | Contract | `tests/contracts/**` | 2 | yes | 40 | **one suite, two implementations** — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift |
 | Integration (real temp dirs) | `tests/integration/**` | 8 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
-| Component (jsdom) | `tests/component/**` | 29 | yes | 298 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal |
+| Component (jsdom) | `tests/component/**` | 29 | yes | 299 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal |
 | Host (Obsidian doubles) | `tests/host/**` | 10 | yes | 113 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
 | Benchmark | `tests/benchmarks/**` | 1 | yes | 5 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers |
@@ -185,7 +185,7 @@ What is established here, from the tree:
 | Declared `minAppVersion` | `1.13.0` | `manifest.json`, and `versions.json` maps `0.1.0` → `1.13.0` |
 | Release files | `main.js`, `styles.css`, `manifest.json` — nothing else | `scripts/assert-bundle.mjs` on every build; `tests/host/build-output.test.ts` |
 | Built from | a clean `npm ci` against the committed `package-lock.json` (475 packages, 0 vulnerabilities), then `npm run build` | run at this commit |
-| Artefact size | `main.js` 781,539 bytes; `styles.css` 21,525 bytes; `manifest.json` 300 bytes | the build above |
+| Artefact size | `main.js` 781,437 bytes; `styles.css` 21,525 bytes; `manifest.json` 300 bytes | the build above |
 | Runtime module resolution | the bundle contains exactly **one** bare `require()` specifier, `obsidian` | `tests/host/build-output.test.ts` |
 
 **Dependency licenses — verified, at the versions in `package-lock.json`.** Only these
@@ -315,7 +315,11 @@ and were invisible to it. A guard whose stated scope is wider than its real scop
 same overclaim this document exists to avoid, one level in.)
 
 **What that guard still does not cover, plainly.** A control named here with **no
-emphasis at all** is outside it — the convention is the whole of the mitigation. And the
+emphasis at all** is outside it, and so is one written with **underscore emphasis** —
+`_Undo close tab_` is invisible to a sweep that reads asterisks, which is the same escape
+the evidence documents' own Numbers block lists as (c). In both cases the convention is
+the whole of the mitigation: **use asterisks in this section, or put the name in a list.**
+And the
 host-control half is **machine-dependent**: it scans the Obsidian installed where the
 suite runs, so on a machine with no Obsidian — CI, or any non-Windows box, where the
 install path cannot even be formed — that scan **does not run at all** and those three
@@ -564,10 +568,14 @@ The full record is `2026-09-17-wp01-limitations.md`. In summary:
 open count, the fully-PASSED count and the half-passed count) are swept by
 `tests/unit/evidence-numbers.test.ts`, which reads this document exactly as it reads the
 gate-evidence document and the matrix: positively at every site that states one, and
-negatively against every value they are not. Two shapes only — "N of the 14", and the
-open count immediately beside an openness word — and **asterisk emphasis only**; the
-lettered list of what escapes that sweep lives in the gate-evidence document's own
-Numbers block and applies here identically. The G8 table above is asserted **identical**
+negatively against every value they are not. **All four counts, in all four documents** —
+until the final fix wave the fully-PASSED and half-passed counts were swept in the matrix
+alone while this paragraph already called them derived, and a six-fold overstatement of
+how many rows had passed survived the whole suite. Four shapes only: "N of the 14"; the
+open count immediately beside an openness word; a count before "fully PASSED"; and a count
+before "a PASSED jsdom half" — and **asterisk emphasis only**. The lettered list of what
+escapes that sweep lives in the gate-evidence document's own Numbers block and applies
+here identically, to all four counts. The G8 table above is asserted **identical**
 to the gate-evidence document's by `tests/host/clean-vault-install.test.ts`, so it is as
 derived as that one is — which means its layer set, its file counts and its sum, and NOT
 its per-layer test counts. See the transcribed paragraph below. The command and settings

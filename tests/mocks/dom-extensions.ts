@@ -60,6 +60,17 @@ export function installObsidianDomExtensions(win: Window): void {
   // per-element override (many existing tests do `el.win = fakeWin` directly) still
   // wins, via the setter below -- this is additive, not a breaking change to that
   // long-standing pattern.
+  //
+  // KNOWN DIVERGENCE FROM THE REAL EXTENSION, written down here rather than discovered
+  // (final whole-branch review, minor 6). `obsidian.d.ts` declares `win` and `doc` as
+  // READ-ONLY getters; these have setters, and the override a setter records is
+  // PERMANENT for that element — once a test assigns `el.win`, that element's `win` can
+  // never follow an adoption into another document, because the override always wins
+  // over the ownerDocument-based default. Harmless at HEAD: the cross-window suite
+  // (tests/host/window-migration.test.ts) never assigns `.win`, so the one place the
+  // difference would matter does not use it. It is a real difference from the host all
+  // the same, and a future test that both assigns `.win` and then migrates the element
+  // would pass here and fail in Obsidian.
   Object.defineProperty(proto, 'win', {
     configurable: true,
     get(this: HTMLElement): Window { return winOverrides.get(this) ?? (this.ownerDocument?.defaultView ?? win); },

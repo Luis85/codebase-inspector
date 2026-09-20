@@ -46,12 +46,27 @@ if (main.includes('dev-fixture') || main.includes('devFixtureLayout')) {
 // host; an unqualified `require(...)` is the bundler's own externalised import. Minified
 // output may quote the specifier with ', " or a backtick, so all three are matched.
 const builtins = new Set([...builtinModules, ...builtinModules.map((m) => `node:${m}`)]);
-const bundledBuiltins = [...main.matchAll(/(?:([A-Za-z_$][\w$]*)\s*\.\s*)?require\(\s*(["'`])([^"'`]+)\2\s*\)/g)]
+const requires = [...main.matchAll(/(?:([A-Za-z_$][\w$]*)\s*\.\s*)?require\(\s*(["'`])([^"'`]+)\2\s*\)/g)];
+const bundledBuiltins = requires
   .filter((m) => m[1] !== 'window' && builtins.has(m[3]))
   .map((m) => m[3]);
 if (bundledBuiltins.length > 0) {
   fail(`dist/main.js bundles Node built-in(s): ${[...new Set(bundledBuiltins)].join(', ')}. `
     + 'All Node access goes through window.require in src/adapters/filesystem/node-access.ts.');
+}
+
+// Final-wave minor 2. The check above is about Node BUILT-INS only, so an ordinary
+// dependency added to vite.config.ts's `external` list — where it looks harmless — left
+// this script printing OK for a bundle that cannot load: a clean vault has no
+// node_modules, no lockfile and no package manager, and `obsidian` is the only specifier
+// the host injects. tests/host/build-output.test.ts catches it and `npm run verify` runs
+// that test, but a developer running `npm run build` by hand was told OK. Same regex,
+// same `window.require` exemption (that one is node-access.ts asking the host, spec §4.4).
+const externals = [...new Set(requires.filter((m) => m[1] !== 'window').map((m) => m[3]))];
+const unresolvable = externals.filter((specifier) => specifier !== 'obsidian');
+if (unresolvable.length > 0) {
+  fail(`dist/main.js asks the host to require ${unresolvable.join(', ')}. A vault resolves `
+    + "nothing but 'obsidian' — the plugin would fail to load. Check rollupOptions.external.");
 }
 // Breakage-round item 2: GUARDED, because fail() sets process.exitCode and RETURNS --
 // every check above runs, so that every reason is reported, and the run therefore

@@ -7,6 +7,7 @@
 // responsibility, which is what keeps this file unit-testable without any DOM at all.
 import type { Setting, SettingDefinitionItem, SettingDefinitionPage } from 'obsidian';
 import type { CodebaseProfile, LocalBinding } from '../domain/model';
+import { COPY_28 } from '../ui/copy';
 
 /** A profile paired with its resolved binding. `binding` is null both when the profile
  *  has no bindingId yet AND when LocalBindingStore.get() reports the binding
@@ -27,9 +28,13 @@ export interface SettingDefinitionsCallbacks {
   onClearBinding: (profileId: string) => void;
 }
 
-// COPY-28, spec 5.2, verbatim — character for character, including both full stops.
-export const BINDING_MISSING_TEXT =
-  'The saved source directory is unavailable on this machine. The stored snapshot can still be inspected.';
+// COPY-28, from the ONE catalogue (final whole-branch review, minor 1). This used to be
+// the catalogue sentence RETYPED here, so the shipped settings row and src/ui/copy.ts
+// could drift apart with nothing to notice — and the only test over it asserted against
+// this constant, so the assertion was self-referential and arbitrary copy passed. Same
+// fix COPY-03…COPY-07 and COPY-09 already got: import it. Re-exported under the old name
+// because settings-tab.ts and its tests read it by that name.
+export const BINDING_MISSING_TEXT = COPY_28;
 
 // Neither "Read-only source access" nor "Source remains unchanged" appears here —
 // ruling M25: those two strings ship only after task 12 records the G2 evidence.

@@ -57,7 +57,9 @@ PERFORMED**, in whole or in part; exactly one is fully PASSED. They are answered
 8. Non-drag single-pointer equivalence — the *reachable at a real pointer size* half
    (the 11 controls themselves are machine-checked)
 9. Reduced motion — the *visibly jumps rather than tweens* half (the command is
-   machine-checked)
+   machine-checked, and since the final fix wave so is the response to a live
+   preference change; what no double can show is a REAL OS-level change reaching
+   the page)
 10. Long Unicode paths — the *wraps or truncates legibly* half, and the tooltip case,
     which is covered at no layer
 11. Host shortcuts are not captured while the city lacks focus
@@ -448,7 +450,7 @@ Counts from `npx vitest run` per directory. **No round or commit label**: a labe
 naming a round goes stale every round, and the guard below now forces these figures
 to be current rather than asking a reader to trust a date. Re-take with the same
 command whenever tests are added.
-**91 files, 980 tests, 979 passed,
+**91 files, 982 tests, 981 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -478,10 +480,10 @@ above whenever tests are added.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 40 | yes | 473 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
+| Unit | `tests/unit/**` | 40 | yes | 474 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
 | Contract | `tests/contracts/**` | 2 | yes | 40 | **one suite, two implementations** — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift |
 | Integration (real temp dirs) | `tests/integration/**` | 8 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
-| Component (jsdom) | `tests/component/**` | 29 | yes | 298 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal |
+| Component (jsdom) | `tests/component/**` | 29 | yes | 299 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal |
 | Host (Obsidian doubles) | `tests/host/**` | 10 | yes | 113 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
 | Benchmark | `tests/benchmarks/**` | 1 | yes | 5 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers |
@@ -550,9 +552,22 @@ and `tests/unit/layout-budget.test.ts` strip comments before parsing. Task 12 wr
 stylesheet-reading test.
 
 **`npm run analyze` is a review list, not a pass/fail gate, and it is not part of
-`npm run verify`.** It runs `fallow dead-code src` — scoped to `src/` deliberately,
-because question 1 of this branch's own dead-surface sweep is literally "does anything in
-`src/` — not `tests/` — call this?". **Accepted baseline at this commit: 11 findings** — 7 unused exports, 1 unused type,
+`npm run verify`.** It runs `fallow dead-code src`, and what it reports is **exported
+symbols with no known consumer anywhere the tool can resolve one — `tests/` included**.
+
+**It does NOT implement question 1 of this branch's dead-surface sweep, and an earlier
+version of this paragraph said it did.** Question 1 is "does anything in **`src/`** — not
+`tests/` — call this?", and scoping fallow's *scan* to `src/` does not stop it resolving
+*consumers* in `tests/`. The final whole-branch review proved it: `parseEntityId`
+(`src/domain/entity-id.ts`) and `COPY_10` (`src/ui/copy.ts`) each have **zero** `src/`
+consumers and neither is reported, because each is imported by a test. So a symbol that
+only tests use — precisely the shape this branch's defect class takes — is invisible
+here. **Question 1 is answered by review, not by tooling**, on this branch and at this
+commit; nothing standing implements it, and a reader of this document must not take
+`analyze` as the instrument. That matters out of proportion to its size, because the
+review methodology recorded throughout this document rests on question 1.
+
+**Accepted baseline at this commit: 11 findings** — 7 unused exports, 1 unused type,
 1 unused class member, 1 duplicate export pair, 1 circular dependency. The count is
 recorded here (review M4) precisely because this gate exits non-zero permanently by
 design: without a baseline, a TWELFTH finding is indistinguishable from the eleven
@@ -615,10 +630,15 @@ since task 13, the two release documents `2026-09-17-wp01-implementation-report.
 these two are, each required to state the figure somewhere the sweep can read it — and
 check these against the suite and against the matrix itself:
 
-- the accessibility row counts, **everywhere either document states them in one of the two
-  shapes the guard reads** — the total, the open count, the fully-PASSED count and the
-  half-passed count, positively at every site and negatively against every value they are
-  not. The two shapes, and what falls outside them, are named at the end of this block;
+- the accessibility row counts, **everywhere ANY of the four documents states them in one
+  of the shapes the guard reads** — the total, the open count, the fully-PASSED count and
+  the half-passed count, positively at every site and negatively against every value they
+  are not. Four documents, not two: this one, the matrix, and task 13's implementation
+  report and limitations document. The fully-PASSED and half-passed counts were swept in
+  the matrix ALONE until the final fix wave, while both release documents declared them
+  DERIVED — rewriting the limitations document to claim six fully-passed rows left the
+  suite green, a six-fold overstatement of accessibility. The shapes, and what falls
+  outside them, are named at the end of this block;
 - the length of the GATE STATUS outstanding-rows enumeration, against the open count;
 - the G8 layer set, and each layer's **file** count, against `tests/` on disk;
 - the G8 table's own text, against the copy of it in the implementation report —
@@ -679,6 +699,15 @@ the sweep will not vet a number separated from what it counts by an intervening 
 because this document says "Four questions remain open" about something else entirely,
 and a sweep that reddens on a true sentence gets deleted.
 
+**Shape 3 — the fully-PASSED count before "fully PASSED":** "N row is fully PASSED",
+"N rows are fully PASSED", "N is fully PASSED". Any spelling, any of the four documents.
+
+**Shape 4 — the half-passed count before "a PASSED jsdom half":** "N more rows have a
+PASSED jsdom half", "N more have a PASSED jsdom half". Shapes 3 and 4 need no negative
+family: a site matching either shape is READ, so a wrong numeral inside one fails on the
+spot rather than having to be enumerated. What escapes them is (a) below, exactly as for
+shapes 1 and 2.
+
 **What still escapes, named.** Lettered and listed in full, so that a reader of this block
 — task 13's release gate among them — can see the edge of the guarantee rather than infer
 it from silence. (No count of them is given here on purpose: a tally beside an enumeration
@@ -705,6 +734,10 @@ both. Neither document uses underscore emphasis for anything today (the only und
 either file are inside identifiers), and that convention is the whole of the mitigation.
 **Use asterisks for emphasis in these two files.**
 
-**State these counts in one of the two shapes, with asterisk emphasis, against the matrix's
-own total**, and the guard will tell you when you get one wrong. If you find another way to
+**Every letter above applies to all four counts, not just the open one** — (a) a
+restatement in none of the four shapes, (b) a pairing with a wrong total, and (c)
+underscore emphasis are each as invisible for "fully PASSED" as for "N of the 14".
+
+**State these counts in one of the four shapes, with asterisk emphasis, against the
+matrix's own total**, and the guard will tell you when you get one wrong. If you find another way to
 escape it, add it to this list — the list being complete is what makes it useful.

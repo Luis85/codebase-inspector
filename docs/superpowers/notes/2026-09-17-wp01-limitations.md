@@ -107,6 +107,28 @@ section, where that gap is stated rather than closed.
   vocabulary and nothing emits it.
 - **An edge drag takes no `setPointerCapture`** (ruling M95), so an unclamped canvas
   point can raycast outside the frustum and pick an off-screen building.
+- **Three more surfaces with no production caller, recorded rather than removed.**
+  `ScanCoordinator.getLifecycle()` is named below; the final whole-branch review added
+  two. `parseEntityId` (`src/domain/entity-id.ts`) has zero callers in `src/` — only
+  tests use it — and `CityRendererPort.getCamera()` (`src/visualization/renderer-port.ts`)
+  has none at all. `getCamera` is a **frozen §4.2 member and must not be removed**; unlike
+  `getDiagnostics` and `debugLoseContext` it was never disclosed as instrumentation, and it
+  is disclosed here now. Neither is visible to `npm run analyze`, for the reason recorded
+  under that gate below.
+- **No COPY literal is pinned to the design catalogue by any test.** The microcopy in
+  `src/ui/copy.ts` is transcribed character-for-character from
+  `docs/concept/design/interactions/04-microcopy.md`, and nothing compares the two: a test
+  that asserts a component renders `COPY_14` passes whatever `COPY_14` says. The
+  duplication that used to sit beside this — COPY-28 retyped in
+  `src/host/setting-definitions.ts` rather than imported — is fixed (the constant is now
+  the catalogue entry, so the settings row and `src/ui/copy.ts` cannot drift), but the
+  broader property stands for every id.
+- **Layering is only partly enforced by lint, and deliberately so.** Spec §3.4's Rule 2
+  names `src/domain/**` and `src/visualization/**`, and `eslint.config.mjs` implements
+  exactly that. `application`, `adapters`, `host` and `ui` carry no backwards-import ban;
+  the wider layering holds at HEAD by inspection and nothing keeps it. Not added in the
+  final fix wave because inventing a layering the spec never stated, during a release
+  gate, is how a rule gets the direction wrong — it is a decision for the user.
 - **`ScanCoordinator.getLifecycle()` is dead code** — zero callers in `src/` or
   `tests/`. Assessed as an inert accessor rather than a fake feature, reported rather
   than removed, and it still ships in the bundle.
@@ -275,10 +297,14 @@ total, the open count, the fully-PASSED count and the half-passed count) are swe
 `tests/unit/evidence-numbers.test.ts`, which reads this file exactly as it reads
 `2026-09-17-wp01-gate-evidence.md` and `2026-09-17-wp01-accessibility-matrix.md`:
 positively at every site that states one, and negatively against every value they are
-not. The same boundary applies here as there — the sweep reads two shapes, "N of the
-14" and the open count immediately beside an openness word, and **asterisk emphasis
-only**. The lettered list of what still escapes it lives in the gate-evidence
-document's own Numbers block and applies to this file identically.
+not. The same boundary applies here as there — the sweep reads four shapes: "N of the
+14"; the open count immediately beside an openness word; a count before "fully PASSED";
+and a count before "a PASSED jsdom half" — and **asterisk emphasis only**. The last two
+were added in the final fix wave: before it, this paragraph called the fully-PASSED and
+half-passed counts derived while nothing read them in this file, and rewriting the
+sentence above to claim six fully-passed rows left the suite green. The lettered list of
+what still escapes the sweep lives in the gate-evidence document's own Numbers block and
+applies to this file identically, to all four counts.
 
 **TRANSCRIBED — reproduce with the command named beside them in the gate-evidence
 document; no test can check these.** Every benchmark figure, the adjacent scan timings,
