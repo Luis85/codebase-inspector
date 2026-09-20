@@ -4,10 +4,21 @@
 // quote (COPY-11), that quote is reproduced exactly; a straight-quote transcription
 // would fail a character-for-character comparison.
 //
-// Two strings must NEVER appear anywhere this plugin ships (task-9-context.md §5,
-// D25): "Read-only source access" and "Source remains unchanged" are factual claims
-// gated on task 12's G2 evidence. COPY-20 ("Unused candidate") is WP-02+. S01's
-// "Analysis reports can be added later" is dropped. None of the four appear below.
+// TASK 12 UPDATE. Two of the four strings this comment used to forbid now SHIP, and
+// the reason is recorded rather than assumed: "Read-only source access" and "Source
+// remains unchanged." were factual claims made on the product's behalf, gated on the
+// G2 evidence in docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md. That
+// evidence now exists -- a whole-tree hash diff over a 1,000-file vault with this
+// plugin installed showing zero differences, and a read-log proof that excluded paths
+// (including the ACTUAL vault.configDir) are never opened -- so the claims are true
+// and they are exported below as CLAIM_*.
+//
+// If the G2 record ever ceases to hold, these two exports come back out. They are
+// named CLAIM_, not COPY_, precisely because they are not catalogue microcopy: they
+// are assertions about what this software does to someone's files.
+//
+// Still forbidden, and absent below: COPY-20 ("Unused candidate") is WP-02+, and S01's
+// "Analysis reports can be added later" is dropped.
 //
 // Centralised here (not one file's own `<script>` block) because several components
 // share the exact same approved sentence and the 400-line src/** budget cannot afford
@@ -26,6 +37,18 @@ export const COPY_14 = 'The 3D view is unavailable. File inspection still works.
 export const COPY_27 = 'Relative path copied.';
 export const COPY_28 = 'The saved source directory is unavailable on this machine. The stored snapshot can still be inspected.';
 export const COPY_30 = 'The selected file is outside these filters. Reveal file or clear selection.';
+
+/** The two factual claims (spec 5.2 and 10). Evidence:
+ *  docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md, section G2 -- the boundary
+ *  matrix, the whole-tree hash diff (content, size AND mtime) at 1,000 files with the
+ *  plugin installed showing ZERO differences, and the read-log proof that excluded
+ *  paths, including the actual `vault.configDir`, are never opened.
+ *
+ *  Defined here, once, so the consent screen and the status line cannot drift into
+ *  making slightly different promises. The trailing full stop on the second is
+ *  deliberate: it is a sentence, where the first is a label. */
+export const CLAIM_READ_ONLY_ACCESS = 'Read-only source access';
+export const CLAIM_SOURCE_UNCHANGED = 'Source remains unchanged.';
 
 /** COPY-08, formatted. `run-state.ts`'s own `formatProgressMessage` (task 8) is the
  *  identical string, kept in sync by construction — both read the same catalogue

@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue';
 import { useCityStore } from '../stores/city-store';
+import { CLAIM_READ_ONLY_ACCESS, CLAIM_SOURCE_UNCHANGED } from '../copy';
 
 const store = useCityStore();
 const now = inject<() => Date>('now', () => new Date());
@@ -43,5 +44,20 @@ const ageText = computed(() => {
     class="ci-snapshot-status"
   >
     Snapshot retained from {{ ageText }}.
+    <!-- THE TWO FACTUAL CLAIMS (spec 5.2 and 10), shipped by task 12 with the
+         evidence that makes them true: docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md,
+         section G2 — the boundary matrix, a whole-tree hash diff (content, size AND
+         mtime) over a 1,000-file vault WITH THIS PLUGIN INSTALLED showing zero
+         differences, and a read-log proof that excluded paths, including the actual
+         `vault.configDir`, are never opened. The scope modal makes the same two claims
+         BEFORE the read; this is the AFTER — beside the snapshot they are about, which
+         is where someone actually wonders what the scan did to their files.
+
+         Inside the `v-if`, deliberately: a safety claim with no scan behind it is a
+         claim about nothing, and this component's own test asserts it renders nothing
+         at all without a snapshot. If the G2 record ceases to hold, this comes out. -->
+    <span class="ci-snapshot-status__claims">
+      {{ CLAIM_READ_ONLY_ACCESS }} · {{ CLAIM_SOURCE_UNCHANGED }}
+    </span>
   </p>
 </template>

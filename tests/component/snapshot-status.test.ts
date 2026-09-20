@@ -46,4 +46,25 @@ describe('SnapshotStatus.vue (C12)', () => {
     // spec 4.2/4.4: restoring/showing a retained snapshot never starts one.
     expect(runStore.run.status).toBe('idle');
   });
+
+  // Task 12: the two factual claims ship with the G2 evidence that makes them true
+  // (docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md). The scope modal makes
+  // them BEFORE the read; this line makes them AFTER it, beside the snapshot they are
+  // about -- which is where a user actually wonders what the scan did to their files.
+  it('states "Read-only source access" and "Source remains unchanged." beside a retained snapshot', () => {
+    const store = useCityStore();
+    const snapshot = buildSnapshotFixture({ files: 2 });
+    store.setCity(snapshot, computeLayout(snapshot));
+    const wrapper = mount(SnapshotStatus, { global: { provide: { now: twelveMinutesLater } } });
+    expect(wrapper.text()).toContain('Read-only source access');
+    expect(wrapper.text()).toContain('Source remains unchanged.');
+  });
+
+  it('claims nothing when there is no snapshot to claim it about', () => {
+    // A safety claim with no scan behind it is a claim about nothing. This component
+    // already renders nothing without a snapshot; the claims must not be the exception
+    // that makes it render anyway.
+    const wrapper = mount(SnapshotStatus);
+    expect(wrapper.text()).toBe('');
+  });
 });

@@ -191,15 +191,40 @@ describe('scope modal (C04)', () => {
     expect(await promise).toBeNull();
   });
 
-  // Ruling in task-7-context.md section 3 / spec 5.2 & 10: these two factual claims
-  // ship only after task 12 records the G2 evidence. Kept as ONE assertion (not
-  // scattered not.toContain checks) so task 12 can flip it to a presence check in the
-  // same commit that adds the claims (ruling P5 extends task 12's file ownership to
-  // this file and this test file for exactly that reason).
-  it('does NOT claim "Read-only source access" or "Source remains unchanged" yet', () => {
+  // FLIPPED BY TASK 12 UNDER RULING P5, in the same commit that ships the claims.
+  //
+  // This was an ABSENCE assertion: "does NOT claim 'Read-only source access' or
+  // 'Source remains unchanged' yet". Those two sentences are factual claims made on
+  // the product's behalf (spec 5.2 and 10), and they were deliberately withheld from
+  // the UI until task 12 recorded the G2 evidence that makes them true -- shipping a
+  // safety claim the plugin had not demonstrated is exactly what that sequencing
+  // exists to prevent. The evidence now exists
+  // (docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md, G2), so the assertion
+  // becomes a PRESENCE assertion in the same commit.
+  //
+  // Deliberately written as two separate `toContain` checks rather than one boolean:
+  // the absence form was one assertion because either string appearing was a failure,
+  // and the presence form needs to fail SEPARATELY for each, naming which one went
+  // missing.
+  it('claims "Read-only source access" and "Source remains unchanged", now that G2 is recorded', () => {
     void openScopeModal(app, makeSelection());
     const text = modalRoot().textContent;
-    expect(text.includes('Read-only source access') || text.includes('Source remains unchanged')).toBe(false);
+    expect(text).toContain('Read-only source access');
+    expect(text).toContain('Source remains unchanged.');
+    cancelButton().click();
+  });
+
+  it('makes both claims BEFORE the read, alongside the permission detail it qualifies', () => {
+    void openScopeModal(app, makeSelection());
+    const text = modalRoot().textContent;
+    // COPY-05 says what is read; the claims say what is NOT done to it. They belong on
+    // the same screen, in front of the acknowledgement the user is about to tick.
+    expect(text).toContain(
+      'Source text and file metadata are read. No project scripts, dependency installation, or source writes are performed.');
+    const claim = modalRoot().querySelector('.scope-modal-claims');
+    expect(claim, 'the claims are not rendered as their own, findable element').not.toBeNull();
+    expect(claim!.textContent).toContain('Read-only source access');
+    expect(claim!.textContent).toContain('Source remains unchanged.');
     cancelButton().click();
   });
 

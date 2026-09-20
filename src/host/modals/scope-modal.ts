@@ -6,7 +6,7 @@
 import { Modal } from 'obsidian';
 import type { App } from 'obsidian';
 import { approve } from '../../application/approval';
-import { COPY_04, COPY_05, COPY_06, COPY_07 } from '../../ui/copy';
+import { CLAIM_READ_ONLY_ACCESS, CLAIM_SOURCE_UNCHANGED, COPY_04, COPY_05, COPY_06, COPY_07 } from '../../ui/copy';
 import { scopeValidationReasons } from '../../domain/validator';
 import type { Clock } from '../../application/ports/clock';
 import type { AnalysisScope, ApprovedInventoryRun, CodebaseProfile } from '../../domain/model';
@@ -113,6 +113,23 @@ class ScopeModal extends Modal {
   override onOpen(): void {
     this.setTitle(COPY_04);
     this.contentEl.createEl('p', { text: COPY_05 });
+    // THE TWO FACTUAL CLAIMS (spec 5.2 and 10), shipped by task 12 with the evidence
+    // that makes them true: docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md,
+    // section G2 -- the boundary matrix, a whole-tree hash diff (content, size AND
+    // mtime) over a 1,000-file vault WITH THIS PLUGIN INSTALLED showing zero
+    // differences, and a read-log proof that excluded paths, including the actual
+    // `vault.configDir`, are never opened. They were deliberately absent from this
+    // modal until that record existed, and task 7's own test asserted their absence;
+    // ruling P5 flipped it to a presence assertion in the commit that added these two
+    // lines. If the G2 record ceases to hold, these come back out.
+    //
+    // HERE, on the consent artefact, because this is the screen where the user decides
+    // -- a claim made only after the scan is a claim made too late to inform consent.
+    // Right after COPY-05, which says what IS read; these say what is not done to it.
+    const claims = this.contentEl.createDiv({ cls: 'scope-modal-claims' });
+    claims.createSpan({ text: CLAIM_READ_ONLY_ACCESS });
+    claims.createSpan({ text: ` · ${CLAIM_SOURCE_UNCHANGED}` });
+
     this.contentEl.createEl('p', { text: `Source: ${this.analysisScope.rootPath}`, cls: 'scope-modal-root' });
 
     this.contentEl.createEl('label', { text: 'Excluded paths' });
