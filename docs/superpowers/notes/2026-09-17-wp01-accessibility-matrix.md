@@ -76,9 +76,13 @@ No row above may be reported as passing on the strength of the evidence in its o
 
 Every count stated above is **derived from the table itself** by
 `tests/unit/evidence-numbers.test.ts` and `tests/unit/gate-evidence.test.ts`: the total,
-the open count, the fully-PASSED count and the half-passed count. A stale value anywhere
-in this file reddens a test, and so does a value that disagrees with
-`2026-09-17-wp01-gate-evidence.md`.
+the open count, the fully-PASSED count and the half-passed count. A stale value reddens a
+test wherever in this file it is written — and so does a value that disagrees with
+`2026-09-17-wp01-gate-evidence.md` — **provided it is written in one of the two shapes the
+guard reads.** Those shapes, and what falls outside them, are named in
+`2026-09-17-wp01-gate-evidence.md`'s own Numbers block. The boundary is stated rather than
+implied because half of this guard was inert for a whole fix round while being described
+as catching everything.
 
 One convention, so the guard can tell two different facts apart: the phrase
 "**N** of the **14**" is reserved for claims about OPEN rows. The fully-PASSED and
@@ -91,8 +95,12 @@ example. That is the guard working, and the example is now written without it.)
 Nothing else in this file is a count. The test-file names in the Result column are cited,
 not counted; `11 controls` is the number `tests/component/camera-controls.test.ts` itself
 asserts (WCAG 2.5.7's "every dragging gesture"), and it is checked there rather than here.
+That test names all eleven controls **and** asserts the component renders exactly that many
+buttons, so a twelfth control cannot ship unnamed. Until this round it asserted only that
+the eleven were present, which is a weaker thing than this sentence used to claim.
 
 This block exists because the open-row count was found wrong three separate times, each
 time in a place the previous fix had not looked. If you add a sentence to this file that
-states one of these counts, you do not need to update anything: the guard will tell you if
-you got it wrong.
+states one of these counts **in one of the two shapes**, you do not need to update
+anything: the guard will tell you if you got it wrong. If you state it some other way, it
+will not — so use one of the shapes.

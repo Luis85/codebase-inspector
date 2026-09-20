@@ -64,6 +64,15 @@ describe('CameraControls.vue (C09) — WCAG 2.5.7', () => {
       expect(byLabel(wrapper, label).exists(), label).toBe(true);
       expect(byLabel(wrapper, label).element.tagName, label).toBe('BUTTON');
     }
+    // EXHAUSTIVENESS, not merely presence. The accessibility matrix cites this test for
+    // the figure "11 controls"; a presence loop alone proves the eleven named controls
+    // exist and says nothing about a twelfth shipping unnamed, so the matrix's claim was
+    // wider than the test. WCAG 2.5.7 is about EVERY dragging gesture having a
+    // single-pointer route — a control this list does not know about is exactly the case
+    // that has not been thought through.
+    expect(wrapper.findAll('button'),
+      'a control exists that LABELS does not name — add it here and to the matrix')
+      .toHaveLength(LABELS.length);
   });
 
   it('drives nudgeCamera with the spec step increments', async () => {

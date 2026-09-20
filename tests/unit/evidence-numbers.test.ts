@@ -18,6 +18,27 @@
 //     too. That is the specific lesson of the `## Summary` instance: it was a live
 //     contradiction in a section the previous guard simply did not read.
 //
+// THE NEGATIVE SWEEP'S OWN HISTORY, because it is the point of this file: it shipped
+// inert. Its probe was built as `` new RegExp(`\b…\b`) ``, and inside a template literal
+// `\b` is a backspace character, not a word boundary — so it searched for phrases wrapped
+// in control codes, matched nothing, could not fail, and was reported and believed as
+// working for a whole round. `wordBounded()` below now makes every probe prove it can
+// match before it is trusted. A guard that cannot fail is worse than no guard: it spends
+// the confidence of one without doing the work.
+//
+// AND ITS BOUNDARY, stated because the last version of this comment did not have one.
+// The negative sweep reads two shapes: "N of the 14" (family 1, which the positive sweep
+// already reaches — kept for its failure message) and the open count sitting IMMEDIATELY
+// beside an openness word (family 2: "N outstanding rows", "N remain open" and near
+// neighbours, which the positive sweep cannot reach and which the documents really use).
+// Adjacency is deliberate. The gate-evidence document contains the true sentence "Four
+// questions remain open" about something else; a windowed or sentence-scoped sweep
+// reddens on it, and a sweep that cries wolf gets deleted. What still escapes both
+// sweeps is a restatement in neither shape — the same fact reordered so the numeral sits
+// beside nothing the sweep anchors on. That residual is real, is named in both documents'
+// "Numbers in this document" blocks, and is answered by the stated convention rather than
+// by more phrases.
+//
 // `tests/unit/gate-evidence.test.ts` is the sibling of this file and guards the
 // STRUCTURE (the G8 layer table, the accessibility enumeration, the yield-point
 // tripwire). This one guards the ARITHMETIC. Both read documents rather than code, which
@@ -55,6 +76,29 @@ const WORDS: Record<string, number> = {
 
 function asNumber(token: string): number {
   return WORDS[token.toLowerCase()] ?? Number(token);
+}
+
+/** A word-bounded probe for one literal phrase, WHICH PROVES ITSELF LIVE BEFORE IT IS
+ *  TRUSTED. Round 3 built this pattern as `` new RegExp(`\b${phrase}\b`) `` — inside a
+ *  template literal `\b` is the BACKSPACE escape (U+0008), not the word-boundary
+ *  metacharacter — so every probe searched for the phrase wrapped in control characters,
+ *  matched nothing, and passed whatever the documents said. A guard that cannot match
+ *  cannot fail, and it was reported as working for a whole round.
+ *
+ *  So the construction is not merely corrected: the probe must demonstrate, on a control
+ *  string built from the phrase itself, that it FINDS the phrase and REFUSES it when it is
+ *  glued inside a longer word. Any future escaping mistake fails here, loudly, at the
+ *  first phrase, instead of going quiet. */
+function wordBounded(phrase: string): RegExp {
+  const literal = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const probe = new RegExp(String.raw`\b` + literal + String.raw`\b`, 'i');
+  expect(probe.test(`the document says ${phrase} somewhere`),
+    `the probe for "${phrase}" matches nothing at all — it cannot fail, so it is not a guard`)
+    .toBe(true);
+  expect(probe.test(`x${phrase}x`),
+    `the probe for "${phrase}" is not word-bounded, and will report correct text as stale`)
+    .toBe(false);
+  return probe;
 }
 
 interface MatrixCounts { total: number; open: number; closed: number; partial: number }
@@ -137,14 +181,29 @@ describe('the evidence documents state the matrix row counts consistently, every
         for (const spelling of [String(value), Object.keys(WORDS).find((w) => WORDS[w] === value)]) {
           if (!spelling) continue;
           for (const phrase of [
+            // FAMILY 1 — the "N of the 14" shape. Every one of these is ALSO reachable by
+            // the positive sweep above, so on its own this family adds nothing; it is kept
+            // because it names the wrong answer in the failure message.
             `${spelling} of the ${total}`, `${spelling} of ${total}`,
             `${spelling} of the matrix's ${total}`,
             `${spelling} of the fourteen`, `${spelling} of fourteen`,
+            // FAMILY 2 — the open count stated WITHOUT the "of the total" shape, which is
+            // the only part of this test the positive sweep cannot reach. The document
+            // already does this once ("the thirteen outstanding rows", G4), and a
+            // re-review demonstrated the gap with "…fourteen rows, ten remain open" — the
+            // same fact in the same words, merely reordered, seen by neither sweep.
+            // The phrases are ADJACENT, not windowed: "Four questions remain open" is a
+            // true sentence in this document about something else, and a sweep that
+            // reddens on it gets deleted.
+            `${spelling} outstanding rows`, `${spelling} open rows`,
+            `${spelling} rows remain open`, `${spelling} rows are still open`,
+            `${spelling} remain open`, `${spelling} remains open`,
+            `${spelling} are still open`, `${spelling} rows outstanding`,
           ]) {
             // WORD-BOUNDED, not a substring: "13 of the 14" contains "3 of the 14", so a
             // plain `toContain` would report the CORRECT text as a stale 3. A sweep that
             // cries wolf gets deleted, which is worse than one that never existed.
-            const probe = new RegExp(`\b${phrase.toLowerCase()}\b`);
+            const probe = wordBounded(phrase.toLowerCase());
             expect(probe.test(flat.toLowerCase()),
               `${name} states "${phrase}" — the matrix has ${open} open rows of ${total}`)
               .toBe(false);
@@ -218,6 +277,21 @@ describe('the evidence documents keep their own arithmetic', () => {
     expect(parts.length, 'the baseline breakdown lists no parts').toBeGreaterThan(2);
     expect(parts.reduce((a, b) => a + b, 0), 'the baseline breakdown does not add up')
       .toBe(Number(match![1]));
+  });
+
+  it('states a G8 passed/skipped split that adds up to its own test total', () => {
+    // The G8 heading states FOUR numbers. `gate-evidence.test.ts` checks the files count
+    // against disk and the tests count against the table's own sum; the passed/skipped
+    // pair was checked by nothing and classified nowhere — a load-bearing-looking figure
+    // in the document whose whole subject is which figures are load-bearing.
+    // WHICH test is skipped is a runner fact no in-suite test can read, and is declared
+    // TRANSCRIBED. The arithmetic is derivable, so it is derived here.
+    const evidence = readFileSync(EVIDENCE, 'utf8').replace(/[*`]/g, '').replace(/\s+/g, ' ');
+    const match = /(\d+) files, (\d+) tests, (\d+) passed, (\d+) skipped\./.exec(evidence);
+    expect(match, 'the G8 heading no longer states files/tests/passed/skipped').not.toBeNull();
+    const [tests, passed, skipped] = [Number(match![2]), Number(match![3]), Number(match![4])];
+    expect(passed + skipped, `${passed} passed + ${skipped} skipped is not ${tests} tests`)
+      .toBe(tests);
   });
 
   it('states the contract suite as twenty obligations, which is what it has', () => {

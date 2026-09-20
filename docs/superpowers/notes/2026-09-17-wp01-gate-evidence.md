@@ -448,7 +448,7 @@ Counts from `npx vitest run` per directory. **No round or commit label**: a labe
 naming a round goes stale every round, and the guard below now forces these figures
 to be current rather than asking a reader to trust a date. Re-take with the same
 command whenever tests are added.
-**90 files, 959 tests, 958 passed,
+**90 files, 960 tests, 959 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -462,11 +462,14 @@ benchmark's. Those figures are transcribed from the command named in each row an
 pinned by their sum. Reproduce any row with `npx vitest run <directory>`.
 
 *What the guard makes impossible, precisely:* a missing or phantom layer (the error
-that actually happened), a wrong FILE count, an added or removed test FILE, and a
-half-updated table where one row or the heading is edited without the other. *What it
+that actually happened), a wrong FILE count, an added or removed test FILE, a
+half-updated table where one row or the heading is edited without the other, and a
+passed/skipped split that does not add up to the test total beside it. *What it
 does NOT catch:* a UNIFORMLY stale transcription — adding one `it()` to an existing
-file moves the suite from 959 to 960 while the rows still sum to the stated 959, and
-the guard stays green. That is exactly how the first round's three missing tests were
+file moves the suite's true total by one while the rows still sum to the stated total,
+and the guard stays green. (That example is deliberately written without figures: a
+worked example carrying real-looking numbers is a count in disguise, and this document
+has been wrong three times about counts.) That is exactly how the first round's three missing tests were
 added (one scope-modal, two snapshot-status, all in existing files), so it is named as
 the residual rather than described as solved. Re-take the counts with the command
 above whenever tests are added.
@@ -475,7 +478,7 @@ above whenever tests are added.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 40 | yes | 471 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
+| Unit | `tests/unit/**` | 40 | yes | 472 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
 | Contract | `tests/contracts/**` | 2 | yes | 40 | **one suite, two implementations** — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift |
 | Integration (real temp dirs) | `tests/integration/**` | 8 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
 | Component (jsdom) | `tests/component/**` | 29 | yes | 298 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal |
@@ -606,12 +609,15 @@ kinds, and which kind a number is decides how much weight it will bear.
 `tests/unit/gate-evidence.test.ts` read this file and the accessibility matrix and check
 these against the suite and against the matrix itself:
 
-- the accessibility row counts, **everywhere either document states them** — the total,
-  the open count, the fully-PASSED count and the half-passed count, positively at every
-  site and negatively against every value they are not;
+- the accessibility row counts, **everywhere either document states them in one of the two
+  shapes the guard reads** — the total, the open count, the fully-PASSED count and the
+  half-passed count, positively at every site and negatively against every value they are
+  not. The two shapes, and what falls outside them, are named at the end of this block;
 - the length of the GATE STATUS outstanding-rows enumeration, against the open count;
 - the G8 layer set, and each layer's **file** count, against `tests/` on disk;
 - the sum of the G8 table's per-layer test counts, against the total in its heading;
+- the G8 heading's **passed/skipped split**, against the test total in the same heading —
+  the split must add up, or one of the two was retyped without the other;
 - every per-file test count cited in prose, against that file's own `it(` blocks;
 - the acceptance scenario counts, against `tests/acceptance/wp01.feature`;
 - the `src/` file floor in the G2 structural sweep, against `src/` on disk;
@@ -636,6 +642,9 @@ these against the suite and against the matrix itself:
   collected entities). They come from the same generator the benchmark uses and are
   asserted inside `tests/integration/no-source-writes.test.ts` as bounds, not
   compared against this document.
+- **Which** test is skipped, in the G8 heading's one skip. That the split adds up is
+  derived (above); which test the runner skipped is a fact of the run, not of the
+  repository, and no test inside the suite can read it. Re-take with `npx vitest run`.
 - The **reference hardware** rows, which describe a machine.
 - The `npm run analyze` **total of 11**. Its internal breakdown is checked, but the figure
   itself needs the tool, which is not part of `npm run verify` and needs network.
@@ -645,7 +654,23 @@ defect numbers, dates and checkpoint numbers are identifiers, not counts. They a
 swept, and a reader should not treat them as measured.
 
 This block exists because the same count was found wrong three separate times, each in a
-place the previous fix had not read. The guard now enumerates the *wrong values* rather
-than the *known sites*, so a figure written into a section nobody has thought of still
-fails. If you add a sentence here that states a derived count, you need not update
-anything else — the guard will tell you if you got it wrong.
+place the previous fix had not read. The guard enumerates the *wrong values* rather than
+the *known sites*, so a figure written into a section nobody has thought of fails — **as
+long as it is written in one of two shapes.** The boundary is stated here rather than left
+to be discovered, because the previous version of this paragraph claimed no boundary at
+all while half the mechanism it described was inert.
+
+**Shape 1 — "N of the 14".** Reserved, by the matrix's own convention, for claims about
+OPEN rows. Any spelling, any emphasis, either document, anywhere.
+
+**Shape 2 — the open count immediately beside an openness word:** "…outstanding rows",
+"…rows remain open", "…remains open" and their close neighbours. Adjacency is the point:
+the sweep will not vet a number separated from what it counts by an intervening noun,
+because this document says "Four questions remain open" about something else entirely,
+and a sweep that reddens on a true sentence gets deleted.
+
+**What still escapes, named:** a restatement using neither shape — the same fact, the same
+words, reordered so the numeral no longer sits beside either anchor. A re-review
+demonstrated exactly that and it is not fixed by more phrases; it is the reason the
+convention above exists. **State these counts in one of the two shapes**, and the guard
+will tell you when you get one wrong.
