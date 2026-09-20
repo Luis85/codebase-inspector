@@ -301,9 +301,26 @@ every control **Obsidian provides** appears byte-exactly in the installed host's
 that name appearing in one of the `checkpoint4:` lists — the controls, host-controls and
 keys lists below, plus the command and settings enumerations above — because round 1 did
 exactly that, and shipped a command ("Reopen last closed tab") that Obsidian does not
-have. So: a control named here is written in single-asterisk emphasis, ordinary emphasis
-in this section is written in bold, and a name written with neither is outside the guard
-— which is the residual, stated rather than left to be found.
+have.
+
+**The rule, exactly as the test implements it.** A control named in this section is
+written in single-asterisk emphasis; ordinary emphasis here is written in bold. Every
+single-asterisk phrase in this section must either appear in one of the `checkpoint4:`
+lists, **or be this plugin's own name** — which is not a control at all, comes from
+`manifest.json`, and is checked against it separately by the same file. The phrase is
+matched **across a line break**, so a name that happens to wrap at the right margin is
+checked exactly like one that does not. (Fix round 1's version of this guard forbade a
+newline inside the phrase, and two of this document's own names already wrapped that way
+and were invisible to it. A guard whose stated scope is wider than its real scope is the
+same overclaim this document exists to avoid, one level in.)
+
+**What that guard still does not cover, plainly.** A control named here with **no
+emphasis at all** is outside it — the convention is the whole of the mitigation. And the
+host-control half is **machine-dependent**: it scans the Obsidian installed where the
+suite runs, so on a machine with no Obsidian — CI, or any non-Windows box, where the
+install path cannot even be formed — that scan **does not run at all** and those three
+names go unchecked; the test then asserts only that this document still records the
+version they were verified on. On this machine it runs, against 1.12.4.
 
 ### Step 2 — install into a throwaway clean vault
 
@@ -364,7 +381,8 @@ Controls **Obsidian** provides, which this plugin does not ship and `src/` canno
 confirm. These were verified against Obsidian **1.12.4**, the host installed on the
 development machine, by byte-exact scan of its own `obsidian.asar`
 (`tests/host/clean-vault-install.test.ts` re-runs that scan against whatever host is
-installed where the suite runs). **The user's host is 1.13.7 and was NOT checked** — no
+installed where the suite runs, and checks nothing here when there is none — see the
+machine-dependence note above). **The user's host is 1.13.7 and was NOT checked** — no
 1.13.7 install exists on this machine, and the cached updater carries 1.12.4 too. For
 *Undo close tab* the label comes from the localisation key `undoCloseTab` and the command
 is registered as `workspace:undo-close-pane`; the id is the thing to look for if a label
@@ -552,8 +570,9 @@ lettered list of what escapes that sweep lives in the gate-evidence document's o
 Numbers block and applies here identically. The G8 table above is asserted **identical**
 to the gate-evidence document's by `tests/host/clean-vault-install.test.ts`, so it is as
 derived as that one is — which means its layer set, its file counts and its sum, and NOT
-its per-layer test counts. See the transcribed paragraph below. The command and settings enumerations are derived from
-`src/host/commands.ts` and `src/host/setting-definitions.ts` by the same file.
+its per-layer test counts. See the transcribed paragraph below. The command and settings
+enumerations are derived from `src/host/commands.ts` and `src/host/setting-definitions.ts`
+by the same file.
 
 **TRANSCRIBED — no test can check these.** **The per-layer test counts inside the G8
 table above are transcribed, not derived**, and that is worth saying here rather than

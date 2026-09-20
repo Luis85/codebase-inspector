@@ -116,10 +116,20 @@ section, where that gap is stated rather than closed.
   production `NODE_ENV` define, a small download helper survives tree-shaking and
   carries two `XMLHttpRequest` constructions. It is a closed island: its only caller is
   itself, verified by counting every reference to each of its symbols in
-  `dist/main.js`. Nothing in `src/` reaches any network API at all, which is what the
-  README's no-network statement rests on and what
-  `tests/host/clean-vault-install.test.ts` sweeps for — but a reviewer grepping the
-  bundle will find the string, so it is written down here rather than discovered there.
+  `dist/main.js`. **Two guards stand behind the README's no-network statement, not one,
+  and they cover different things.** `tests/host/clean-vault-install.test.ts` sweeps
+  `src/`, which reaches no network API at all; `tests/host/build-output.test.ts` sweeps
+  **the shipped artefact** — the bundle's network-API census is pinned to exactly these
+  two `XMLHttpRequest` constructions and zero of `fetch(`, `WebSocket`, `EventSource`,
+  `sendBeacon` and `requestUrl`, and pinia's devtools entry points
+  (`setupDevtoolsPlugin`, `__VUE_DEVTOOLS_GLOBAL_HOOK__`, `devtools`) must be absent,
+  because that devtools path is the only thing that reaches the island. The source sweep
+  alone was not enough: flipping the production `NODE_ENV` define brings the devtools
+  code back with a live `fetch` in it and leaves the source sweep green, which is how the
+  bundle census was verified. **What is pinned is the census and that one route, not
+  reachability in general** — a vendor bump that made the island live without adding an
+  XHR or a devtools hook would still pass. A reviewer grepping the bundle will find the
+  string, so it is written down here rather than discovered there.
 - **The Three.js "multiple instances" warning appears on every re-enable, and its claim
   is false.** Three sets a marker on `globalThis` the first time its module initialises;
   Obsidian tears down a disabled plugin's module scope without clearing that marker, so

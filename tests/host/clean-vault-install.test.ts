@@ -273,7 +273,18 @@ describe('the checkpoint #4 checklist names only things that exist', () => {
       ...reportList('checkpoint4:commands'), ...reportList('checkpoint4:settings'),
       ...reportList('checkpoint4:host-controls'), manifest.name,
     ]);
-    const emphasised = [...section.matchAll(/(?<!\*)\*([^*\n]+)\*(?!\*)/g)].map((m) => m[1]!);
+    // ACROSS LINE BREAKS, and that is the whole point of this line. Fix round 1 wrote
+    // `[^*\n]+`, which forbids a newline — so a control name that happened to wrap at
+    // the right margin escaped the guard completely, and TWO of this document's own
+    // names already wrapped that way. A guard whose stated scope is wider than its real
+    // scope is the same overclaim this task exists to avoid, one level in.
+    // A blank line ends emphasis in markdown, so a match spanning one is a stray pair of
+    // asterisks rather than a name, and is dropped. Whitespace is then flattened, so a
+    // wrapped name compares equal to the single-line entry in its list.
+    const emphasised = [...section.matchAll(/(?<!\*)\*([^*]+)\*(?!\*)/g)]
+      .map((m) => m[1]!)
+      .filter((phrase) => !/\n\s*\n/.test(phrase))
+      .map((phrase) => phrase.replace(/\s+/g, ' ').trim());
     // The sweep must have found the real ones, or a convention nobody follows passes.
     expect(emphasised.length, 'no emphasised control names at all — is the convention still used?')
       .toBeGreaterThanOrEqual(5);
