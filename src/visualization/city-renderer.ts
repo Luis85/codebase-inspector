@@ -18,7 +18,7 @@
 // `document`, `requestAnimationFrame`, `setInterval`, `ResizeObserver`,
 // `IntersectionObserver` or DOM `instanceof` anywhere in src/visualization/.
 import {
-  AmbientLight, Color, DirectionalLight, Raycaster, Scene, Timer, Vector2, WebGLRenderer,
+  Color, Raycaster, Scene, Timer, Vector2, WebGLRenderer,
 } from 'three';
 import type { Object3D } from 'three';
 import type { CameraBookmark } from '../domain/model';
@@ -28,43 +28,17 @@ import type {
 } from './renderer-port';
 import { createScheduler } from './render-scheduler';
 import { createCameraRig, ORBIT_RADIANS_PER_CSS_PX } from './camera-rig';
-import { buildCity, lotRadius, type CityMeshes } from './instanced-city';
+import { buildCity, districtRadius, lotRadius, type CityMeshes } from './instanced-city';
 import { createPicking, type CanvasPoint } from './picking';
 import { createLabelOverlay } from './label-overlay';
 import { disposeObject3D, disposeRenderer } from './disposal';
+import { createSceneLights } from './scene-lighting';
 
-// LIGHTING. r155/r165 removed useLegacyLights and physicallyCorrectLights, so
-// intensities are physically correct now and any value authored before r155 is wrong by
-// exactly a factor of pi. Each is therefore written literally as `<value> * Math.PI`.
-//
-// The BASE numbers are chosen, not inherited. MeshStandardMaterial's diffuse response
-// is irradiance * albedo / pi, so an AmbientLight of `a * pi` contributes `a * albedo`
-// and a DirectionalLight of `d * pi` contributes `dotNL * d * albedo`. With the sun at
-// SUN_DIRECTION the largest dot product an axis-aligned box face can have is that
-// direction's largest normalised component, 2/sqrt(6) ~ 0.8165. So for the brightest
-// albedo a theme can hand us (1.0) the most-lit face lands at:
-//
-//   plan  0.6 / 1.2   ->  1.5798   clipped
-//   brief 0.55 / 1.1  ->  1.4481   clipped — the brief's values do NOT fix the
-//                                  blown-out white the task-S spike photographed
-//   these 0.3  / 0.8  ->  0.9532
-//
-// (1.65 and 1.8 are the dotNL = 1 upper bounds — unattainable on a box lit from this
-// direction, and NOT the figures above. Both are quoted here so a future reader can
-// tell which number answers which question.)
-//
-// Staying under 1 is the floor, not the point. The point is that `new Color(hex)`
-// converts sRGB -> working, so a mid-grey theme colour arrives at linear ~0.216 and its
-// most-lit face renders at ~0.205 linear ~ sRGB 0.49 — the brightest face REPRODUCES
-// THE PALETTE COLOUR almost exactly, which is what makes a category legible as the
-// colour the legend shows. The shaded sides land at ~0.63 and ~0.30 of albedo, so a
-// building still reads as a solid. tests/component/renderer-contract asserts that budget
-// arithmetically, because nothing else catches a wrong intensity.
-export const AMBIENT_BASE = 0.3;
-export const DIRECTIONAL_BASE = 0.8;
-export const SUN_DIRECTION: readonly [number, number, number] = [1, 2, 1];
-const AMBIENT_INTENSITY = AMBIENT_BASE * Math.PI;
-const DIRECTIONAL_INTENSITY = DIRECTIONAL_BASE * Math.PI;
+// LIGHTING constants/setup live in scene-lighting.ts (task 6 fix round 1 — this file
+// was at the 400-line cap and the district-focus fix needed room). Re-exported so
+// tests/unit/visualization-rules.test.ts's existing `await import('.../city-renderer')`
+// keeps resolving them without needing to know they moved.
+export { AMBIENT_BASE, DIRECTIONAL_BASE, SUN_DIRECTION } from './scene-lighting';
 
 const MAX_PIXEL_RATIO = 2;
 const FOCUS_CONTEXT = 3;                // how much room a focused lot keeps around it
@@ -128,12 +102,7 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
   mountEl.appendChild(canvas);
 
   const scene = new Scene();
-  // Ambient light is neutral white and carries no category colour: CityPalette has no
-  // ambient member — it is the seven fields of spec 4.2 and nothing more. Category
-  // colour arrives per instance through setColorAt (instanced-city.ts).
-  const ambient = new AmbientLight(0xffffff, AMBIENT_INTENSITY);
-  const sun = new DirectionalLight(0xffffff, DIRECTIONAL_INTENSITY);
-  sun.position.set(SUN_DIRECTION[0], SUN_DIRECTION[1], SUN_DIRECTION[2]);
+  const { ambient, sun } = createSceneLights();
   scene.add(ambient, sun);
 
   let city: CityMeshes | null = null;
@@ -311,10 +280,20 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
     setCamera(bookmark: CameraBookmark): void { rig.setCamera(bookmark); scheduler.invalidate(); },
     nudgeCamera(delta): void { rig.nudge(delta); },
 
+    // Task 6 fix round 1: completes the frozen `focus(entityId)` contract for a
+    // DIRECTORY id, which CodebaseFileList.vue's group-focus button (C07's
+    // `directoryFocusRequested`) now sends here. A lot is tried first — unchanged
+    // behaviour, unchanged framing, for every existing FILE caller (CameraControls'
+    // own Focus-on-selection, FileInspector's) — and only when no lot matches is the
+    // id tried as a district's own directoryId, framing on the district's ground
+    // extent (districtRadius) rather than a lot's dimensions. Neither id space
+    // overlaps the other (entity-id.ts's NUL-joined identity encodes `kind`), so this
+    // can never pick the wrong one.
     focus(entityId: EntityId): void {
       const lot = city?.lotOf(entityId);
-      if (!lot) return;
-      rig.focusOn(lot.center, lotRadius(lot) * FOCUS_CONTEXT);
+      if (lot) { rig.focusOn(lot.center, lotRadius(lot) * FOCUS_CONTEXT); return; }
+      const district = city?.districtOf(entityId);
+      if (district) rig.focusOn(district.center, districtRadius(district) * FOCUS_CONTEXT);
     },
 
     fit(): void { hasFitted = true; rig.fit(); },

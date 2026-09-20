@@ -21,7 +21,7 @@ import {
   MeshStandardMaterial, Quaternion, Vector3,
 } from 'three';
 import type { Object3D } from 'three';
-import type { CityLot, LayoutResult } from '../domain/layout/types';
+import type { CityDistrict, CityLot, LayoutResult } from '../domain/layout/types';
 import type { CityPalette, EntityId } from './renderer-port';
 import { separatedFrom } from './color';
 import { disposeObject3D } from './disposal';
@@ -43,6 +43,11 @@ export interface CityMeshes {
   readonly instanceCount: number;
   entityAt(mesh: Object3D, instanceId: number): EntityId | null;
   lotOf(entityId: EntityId): CityLot | null;
+  /** Task 6 fix round 1 (C07's `directoryFocusRequested`): the SAME shape as `lotOf`,
+   *  keyed by `CityDistrict.directoryId` instead of a lot's `entityId` — a district is
+   *  never a raycast target and never selectable, but `focus()` (city-renderer.ts)
+   *  needs somewhere to resolve a directory id TO, and this is that map. */
+  districtOf(entityId: EntityId): CityDistrict | null;
   setColors(palette: CityPalette): void;
   setSelection(entityId: EntityId | null): void;
   setFilter(matching: ReadonlySet<EntityId> | null): void;
@@ -83,6 +88,16 @@ function yieldToHost(win: Window): Promise<void> {
 
 export function lotRadius(lot: CityLot): number {
   return Math.hypot(lot.dimensions[0], lot.dimensions[1], lot.dimensions[2]) / 2;
+}
+
+/** Task 6 fix round 1: `lotRadius`'s counterpart for a district. A district's own
+ *  geometry (districts.ts) is a flat ground rectangle — `extent` is `[width,
+ *  footprintZ]`, with no height member at all (`DISTRICT_SLAB_HEIGHT` below is a
+ *  fixed visual thickness, not part of the district's own shape) — so this is half
+ *  the rectangle's diagonal, the 2D analogue of `lotRadius`'s half-3D-diagonal,
+ *  rather than reusing `lotRadius` against a synthesised third dimension. */
+export function districtRadius(district: CityDistrict): number {
+  return Math.hypot(district.extent[0], district.extent[1]) / 2;
 }
 
 function districtBorderGeometry(layout: LayoutResult): BufferGeometry {
@@ -145,6 +160,14 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
     [measured.uuid, measuredLots], [markers.uuid, unavailableLots],
   ]);
   const byEntity = new Map<EntityId, CityLot>();
+  // Task 6 fix round 1: every district, keyed by its own directoryId — `districtOf`'s
+  // backing map. Built once per layout, from `layout.districts` alone (already fully
+  // known here, unlike the lots below which are still being placed chunk by chunk),
+  // so a district resolves the instant the city exists rather than only once its
+  // files have finished placing.
+  const byDistrict = new Map<EntityId, CityDistrict>(
+    layout.districts.map((district) => [district.directoryId, district]),
+  );
 
   const matrix = new Matrix4();
   const noRotation = new Quaternion();
@@ -292,6 +315,7 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
 
     entityAt: (mesh: Object3D, instanceId: number) => byMesh.get(mesh.uuid)?.[instanceId]?.entityId ?? null,
     lotOf: (entityId: EntityId) => byEntity.get(entityId) ?? null,
+    districtOf: (entityId: EntityId) => byDistrict.get(entityId) ?? null,
 
     setColors(next: CityPalette): void { palette = next; repaint(); },
     setSelection(entityId: EntityId | null): void { selected = entityId; applySelection(); },

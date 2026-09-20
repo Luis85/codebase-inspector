@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { setTimeout as scheduleTimeout } from 'node:timers';
 import type { Object3D } from 'three';
 import type { LayoutResult } from '../../src/domain/layout/types';
-import type { CityPalette } from '../../src/visualization/renderer-port';
+import type { CityPalette, CityRendererPort } from '../../src/visualization/renderer-port';
 import { CATEGORY_IDS } from '../../src/domain/classify';
 
 // createCityRenderer's happy path needs a real WebGL2 context, which no environment
@@ -54,6 +54,11 @@ function fakeElement(): HTMLCanvasElement {
     // createDiv, in the mount element's own document.
     setCssStyles: vi.fn(),
     createDiv: vi.fn(() => fakeElement()),
+    // Task 6 fix round 1: the district-focus tests below drive a REAL `setLayout()`,
+    // which reaches label-overlay.ts's `setDistricts()` — unexercised by every test
+    // above this point, none of which calls `setLayout` at all — and that calls
+    // `el.createSpan(...)` on each label div, Obsidian's own ambient extension.
+    createSpan: vi.fn(() => fakeElement()),
     getContext: vi.fn(() => ({ getExtension: () => null })),
   } as unknown as HTMLCanvasElement;
 }
@@ -227,5 +232,67 @@ describe('selection encoding: outline plus locator', () => {
     const locator = city!.root.getObjectByName('ci-selection-locator');
     expect(city!.pickTargets).not.toContain(locator);
     city!.dispose();
+  });
+});
+
+// Task 6 fix round 1: C07's `directoryFocusRequested` (CodebaseFileList.vue's group-
+// focus button) sends a DIRECTORY id here. Before this fix, `focus(entityId)` resolved
+// only through `city.lotOf`, built from `layout.lots` (files) alone — a directory id
+// was never in that map, so the call found nothing and moved the camera nowhere,
+// silently. This drives the REAL port (createCityRenderer), not CityMeshes directly,
+// because the fallback lives in city-renderer.ts's own `focus()`, one layer above
+// CityMeshes.
+function districtFocusLayoutFixture(): LayoutResult {
+  const fileId = 'repo\0file\0src/a.ts';
+  const districtId = 'repo\0directory\0src';
+  return {
+    snapshotId: 's3', layoutVersion: '1',
+    lots: [
+      { entityId: fileId, directoryId: districtId,
+        center: [0, 1, 0], dimensions: [2, 2, 2], colorKey: CATEGORY_IDS[0], metricState: 'measured' },
+    ],
+    // Centered well away from the origin (DEFAULT_CAMERA's own target) and from the
+    // lot above, so a camera that never actually moved cannot pass this by accident.
+    districts: [{
+      directoryId: districtId, parentId: null, name: 'src', depth: 0,
+      center: [10, 0, 6], extent: [8, 6], labelAnchor: [10, 0.2, 6], aggregated: false,
+    }],
+    bounds: { min: [0, 0, 0], max: [14, 2, 9] },
+    scale: { metricId: 'physical-lines', name: 'Physical lines', cap: 1000, unit: 'lines', clampedCount: 0 },
+  };
+}
+
+/** Real timers for buildCity's yield (same reason `realTimerWin` above exists), PLUS
+ *  the DOM/localStorage shape `createCityRenderer` itself needs from `win` (this
+ *  file's own `fakeWin()`) — no existing helper in this file combines both, because no
+ *  existing test drives a full `port.setLayout()` through the real port. */
+async function mountedDistrictFocusPort(): Promise<{ port: CityRendererPort; districtId: string }> {
+  const { createCityRenderer } = await import('../../src/visualization/city-renderer');
+  const win = {
+    ...fakeWin(),
+    setTimeout: (fn: () => void, ms?: number) => scheduleTimeout(fn, ms),
+  } as unknown as Window;
+  const mountEl = fakeElement() as unknown as HTMLElement;
+  const port = createCityRenderer(mountEl, win, vi.fn());
+  const layout = districtFocusLayoutFixture();
+  const controller = new AbortController();
+  await port.setLayout(layout, { generation: 1, signal: controller.signal });
+  return { port, districtId: layout.districts[0]!.directoryId };
+}
+
+describe('directory focus: focus() completes for a district id (task 6 fix round 1)', () => {
+  it('moves the camera to the district\'s own center when passed its directoryId', async () => {
+    const { port, districtId } = await mountedDistrictFocusPort();
+    expect(port.getCamera().target).not.toEqual([10, 0, 6]);   // sanity: not already there
+    port.focus(districtId);
+    // getCamera() reports the LOGICAL destination (renderer-port.ts's own contract
+    // note), not a mid-tween value, so this is exact rather than eventually-consistent.
+    expect(port.getCamera().target).toEqual([10, 0, 6]);
+  });
+
+  it('still focuses a FILE the same as before — the district fallback never shadows it', async () => {
+    const { port } = await mountedDistrictFocusPort();
+    port.focus('repo\0file\0src/a.ts');
+    expect(port.getCamera().target).toEqual([0, 1, 0]);
   });
 });
