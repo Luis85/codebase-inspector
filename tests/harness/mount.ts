@@ -1,4 +1,4 @@
-import { createApp, nextTick, shallowRef, type ShallowRef } from 'vue';
+import { createApp, nextTick, shallowRef, watch, type ShallowRef } from 'vue';
 import { createPinia } from 'pinia';
 import App from '../../src/ui/App.vue';
 import { createCityRenderer } from '../../src/visualization/city-renderer';
@@ -59,12 +59,30 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
 
   app.mount(root);
 
+  // Fix round 1: mirrors src/host/city-view.ts's own `watch(cityRendererHandle, ...)`
+  // (the ONLY production initial-paint path — see instanced-city.ts:16-17's "materials
+  // keep Three's own default white" until the first setColors). Without this the
+  // harness never called setColors at all: CityViewport's `onMounted -> nextTick ->
+  // applySize()` chain assigns `handle.value` asynchronously, one tick after this
+  // synchronous `app.mount()` call returns, so registering the watch here — still
+  // synchronously, still before that tick runs — catches the ref's first assignment
+  // the same way city-view.ts's does. `watch()` needs no `immediate: true` for that:
+  // it fires on the CHANGE this tick produces, not on a value already present.
+  // Never stopped: the harness page just navigates away between shots, unlike
+  // city-view.ts's `unwatchRendererForColors`, which has a real view lifecycle to
+  // unwind.
+  watch(handle, (renderer) => {
+    renderer?.setColors(readPalette(root));
+  });
+
   const store = useCityStore();
   store.setCity(harnessSnapshot(), harnessLayout());
 
   applyScreenState(store, options.screen);
 
-  // The renderer re-reads its palette on Obsidian's `css-change`; here, on ours.
+  // The renderer re-reads its palette on Obsidian's `css-change`; here, on ours. This
+  // is a SEPARATE path from the watch above — that one paints the FIRST time a
+  // renderer exists; this one repaints on a later theme change within the same page.
   window.addEventListener(HARNESS_THEME_EVENT, () => {
     handle.value?.setColors(readPalette(root));
   });

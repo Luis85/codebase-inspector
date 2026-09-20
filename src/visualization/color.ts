@@ -56,7 +56,13 @@ function bytesToHex([r, g, b]: readonly [number, number, number]): string {
 // couple of points apart — exactly backwards from which one needs the fix. Working on
 // the encoded bytes keeps the metric roughly linear across the range these palette
 // values actually occupy, so one minDelta threshold means the same thing in both themes.
-export function relativeLuminance(hex: string): number {
+//
+// This is NOT WCAG relative luminance, on purpose, and must not be reached for as one.
+// WCAG's term of art is the gamma-LINEARIZED quantity; this is the gamma-ENCODED one.
+// Anything computing a WCAG contrast RATIO (e.g. a future accessibility check reading
+// real Obsidian theme pairs) needs that linearized formula instead — using this
+// function there would produce a ratio that looks plausible and is wrong, silently.
+export function encodedLuma(hex: string): number {
   const [r, g, b] = hexToBytes(hex);
   return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 }
@@ -76,17 +82,17 @@ const DEFAULT_MIN_DELTA = 0.06;
 
 /**
  * Guarantees `surface` reads as separated from `ground` by at least `minDelta` of
- * relativeLuminance, moving AWAY from ground (never in a fixed lighten/darken
- * direction) and clamping at black/white. Already-separated input passes through
- * unchanged — the host's own colours are not ours to overrule when they work.
+ * encodedLuma, moving AWAY from ground (never in a fixed lighten/darken direction) and
+ * clamping at black/white. Already-separated input passes through unchanged — the
+ * host's own colours are not ours to overrule when they work.
  *
  * Used to keep the district slab visible against the page background in every theme
  * (F3): CityPalette.districtSurface and CityPalette.background are both host tokens
  * that can legitimately land within a point of each other in a light theme.
  */
 export function separatedFrom(surface: string, ground: string, minDelta = DEFAULT_MIN_DELTA): string {
-  const surfaceLum = relativeLuminance(surface);
-  const groundLum = relativeLuminance(ground);
+  const surfaceLum = encodedLuma(surface);
+  const groundLum = encodedLuma(ground);
   const delta = Math.abs(surfaceLum - groundLum);
   if (delta >= minDelta) return surface;
 

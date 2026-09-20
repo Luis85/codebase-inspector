@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cssColorToSrgbBytes, relativeLuminance, separatedFrom } from '../../src/visualization/color';
+import { cssColorToSrgbBytes, encodedLuma, separatedFrom } from '../../src/visualization/color';
 
 // A hand-rolled double standing in for a real 1x1 canvas 2D context: `fill` maps the
 // exact CSS string a real browser would resolve to the sRGB bytes it would produce.
@@ -71,14 +71,14 @@ describe('separatedFrom', () => {
     // point or two of each other, and the plate disappears.
     const out = separatedFrom('#fcfcfd', '#ffffff');
     expect(out).not.toBe('#fcfcfd');
-    expect(relativeLuminance(out)).toBeLessThan(relativeLuminance('#ffffff'));
+    expect(encodedLuma(out)).toBeLessThan(encodedLuma('#ffffff'));
   });
 
   it('moves AWAY from the ground rather than in a fixed direction', () => {
     // A fixed "darken by n" would be right in light and wrong in dark, which is the
     // shape of bug that makes one theme look deliberate and the other look broken.
-    expect(relativeLuminance(separatedFrom('#101010', '#0a0a0a'))).toBeGreaterThan(relativeLuminance('#101010'));
-    expect(relativeLuminance(separatedFrom('#f0f0f0', '#f6f6f6'))).toBeLessThan(relativeLuminance('#f0f0f0'));
+    expect(encodedLuma(separatedFrom('#101010', '#0a0a0a'))).toBeGreaterThan(encodedLuma('#101010'));
+    expect(encodedLuma(separatedFrom('#f0f0f0', '#f6f6f6'))).toBeLessThan(encodedLuma('#f0f0f0'));
   });
 
   it('returns a value the GPU path already accepts', () => {
