@@ -1,0 +1,17 @@
+/* The harness's own chrome only. It restates nothing obsidian.css already says, and
+   it never styles anything inside .codebase-inspector-root — the whole point is to
+   look at the plugin's own sheet doing its job. */
+body { margin: 0; }
+.ci-harness-leaf {
+  /* A workspace leaf's own box. Obsidian's .view-content is height:100% inside a
+     definite-height flex column, which is what makes the plugin's own `height: 100%`
+     resolve; the harness has to supply the same definite height or the stage chain
+     behaves differently here than in the host — and the height chain is precisely
+     where this branch has already been bitten. */
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+.ci-harness-leaf > .codebase-inspector-root { flex: 1 1 auto; min-height: 0; }

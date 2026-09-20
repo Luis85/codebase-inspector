@@ -56,7 +56,8 @@ export default defineConfig({
                 // added later as tests/acceptance/foo.test.ts would otherwise be collected by
                 // NO project and silently never run -- the quietest possible way to lose a test.
                 include: ['tests/component/**/*.test.ts', 'tests/acceptance/**/*.{test,steps}.ts',
-                          'tests/benchmarks/**/*.test.ts', ...JSDOM_HOST_TESTS] } },
+                          'tests/benchmarks/**/*.test.ts', 'tests/harness/**/*.test.ts',
+                          ...JSDOM_HOST_TESTS] } },
     ],
   },
 });
