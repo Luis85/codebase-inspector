@@ -144,6 +144,40 @@ export function formatFailedRefreshNotice(message: string): string {
   return `Scan failed: ${message} The previous snapshot is unchanged and still shown.`;
 }
 
+/** Task 7 (F8, ruling P3): the S05 mockup composes the canvas with a header -- an
+ *  eyebrow, a title, a subtitle naming the counts, and a badge -- and the spec's
+ *  rank-6 precedence grants a mockup authority over WHAT IS PRESENT even where no
+ *  prose repeats it. `Codebase city` and `Read-only snapshot` are reproduced from
+ *  that mockup (docs/concept/design/mockups/s05-city.png) verbatim; grepped against
+ *  interactions/04-microcopy.md and NEITHER has a COPY id there -- the catalogue
+ *  covers states and outcomes, not a panel's own heading or a status badge. Task 12
+ *  pins these two by test; they are catalogue-absent but mockup-sourced, which is a
+ *  different provenance from the two exports directly below. */
+export const COPY_CITY_HEADER_TITLE = 'Codebase city';
+export const COPY_CITY_HEADER_BADGE = 'Read-only snapshot';
+
+/** Same grep, same absence of a COPY id, but a DIFFERENT provenance from the two
+ *  exports above: neither the eyebrow nor the subtitle is quoted anywhere in prose,
+ *  mockup included, as literal required copy -- S05's own screenshot shows one
+ *  example of each ("STRUCTURE · PHYSICAL INVENTORY" over "144 files grouped into 6
+ *  directory districts") but foundations/03 is explicit that the mockup's own visual
+ *  presentation (case, size) is not binding. Authored fresh here, in the catalogue's
+ *  factual, action-oriented voice: the eyebrow mirrors the mockup's own wording
+ *  case-normalised (styles.css applies the visual capitalisation via
+ *  `text-transform`, so a screen reader hears words, not a shout -- foundations/03
+ *  also asks that all-caps be reserved for short, low-frequency category labels,
+ *  which this is). Task 12 must NOT try to pin these two the same way it pins the
+ *  pair above -- they carry no catalogue id and no mockup-verbatim obligation either. */
+export const COPY_CITY_HEADER_EYEBROW = 'Structure · Physical inventory';
+
+/** Both counts are the caller's own `store.layout.lots.length` /
+ *  `store.layout.districts.length` -- never re-derived or re-counted here. The
+ *  footer (task 8, next) states the same two numbers; a single formatter reading a
+ *  single source (the layout) is what keeps them from being able to disagree. */
+export function formatCityHeaderSubtitle(fileCount: number, districtCount: number): string {
+  return `${fileCount} file${fileCount === 1 ? '' : 's'} grouped into ${districtCount} directory district${districtCount === 1 ? '' : 's'}`;
+}
+
 /** Task 9 fix round 2, item 4 (Minor fold): `city-view.ts` emitted this exact
  *  string from two separate call sites (`publishLayout`'s two catch blocks),
  *  neither with a COPY id and neither named by round 1's item 9. Not in the

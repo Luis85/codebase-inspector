@@ -440,6 +440,67 @@
   padding: var(--ci-space-3);
 }
 
+/* --- CityHeader (Task 7, F8/P3) ------------------------------------------------ */
+/* A fixed-height row in `.ci-app__stage-column`'s column flex (App.vue): no
+   `flex-grow`/`flex-shrink`, so it never competes with CityViewport's
+   `flex: 1 1 auto; min-height: 0` for the column's leftover space -- the exact
+   defect the stage-height chain (tests/component/stage-height.test.ts) exists to
+   keep from happening again. Cross-axis `align-items: stretch` (the column's own
+   default) is what gives it the column's full width with no explicit width here. */
+:where(.codebase-inspector-root) .ci-city-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ci-space-3);
+  flex: 0 0 auto;
+}
+:where(.codebase-inspector-root) .ci-city-header__text {
+  min-width: 0;
+}
+/* foundations/03's "section label 11-12 px" band, reused for the eyebrow -- the
+   short, low-frequency category label the same doc's all-caps exception is for.
+   The capitalisation is applied here, in CSS, rather than baked into the string in
+   copy.ts, so a screen reader still hears ordinary words. */
+:where(.codebase-inspector-root) .ci-city-header__eyebrow {
+  margin: 0;
+  font-size: var(--font-ui-smaller, 0.8em);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ci-text-muted);
+}
+/* Deliberately NOT foundations/03's 22-26 px "page title" band -- task-7-brief.md
+   step 3 is explicit that this is a section title inside a leaf, and the mockup's
+   own (larger) caption size is not an instruction (foundations/03: "not an
+   instruction to make important product copy 9 px", read the other direction).
+   Sized one step above the panel titles this view already ships
+   (`.ci-inspector__title`/`.ci-file-list__title`, both 1em) since this title names
+   the city those panels sit ALONGSIDE, matching the <h2>-over-<h3> outline the
+   template comment explains. */
+:where(.codebase-inspector-root) .ci-city-header__title {
+  margin: var(--ci-space-1) 0 0;
+  font-size: 1.2em;
+  font-weight: 600;
+}
+/* foundations/03's "readable secondary text 12 px" band. */
+:where(.codebase-inspector-root) .ci-city-header__subtitle {
+  margin: var(--ci-space-1) 0 0;
+  font-size: var(--font-ui-small, 0.85em);
+  color: var(--ci-text-muted);
+}
+/* Layout tokens: "compact status badge 4 px" radius. Not a button (see the
+   template's own comment) -- no M113 recipe, no PLUGIN_SKINNED_BUTTONS entry. */
+:where(.codebase-inspector-root) .ci-city-header__badge {
+  flex: 0 0 auto;
+  padding: var(--ci-space-1) var(--ci-space-2);
+  border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-small);
+  background: var(--ci-panel);
+  color: var(--ci-text-muted);
+  font-size: var(--font-ui-smaller, 0.8em);
+  white-space: nowrap;
+}
+
 /* --- CityViewport (C08) ------------------------------------------------------ */
 :where(.codebase-inspector-root) .ci-viewport {
   position: relative;

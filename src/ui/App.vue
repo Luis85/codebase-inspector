@@ -25,6 +25,7 @@ import { DRAWER_MAX_INLINE_SIZE, MIN_INLINE_SIZE } from './responsive';
 import { contentBoxInlineSize, narrowContainer } from './container-box';
 import { COPY_02 } from './copy';
 import AppToolbar from './components/AppToolbar.vue';
+import CityHeader from './components/CityHeader.vue';
 import CodebaseFileList from './components/CodebaseFileList.vue';
 import CityViewport from './components/CityViewport.vue';
 import CameraControls from './components/CameraControls.vue';
@@ -317,6 +318,11 @@ defineExpose({ rendererHost });
         <CodebaseFileList class="ci-app__list" />
       </div>
       <div class="ci-app__stage-column">
+        <!-- Task 7 (F8, ruling P3): S05's own canvas header -- eyebrow, title,
+             subtitle, "Read-only snapshot" badge -- above the stage. A fixed-height
+             row: CityViewport below keeps `flex: 1 1 auto; min-height: 0` and is
+             what actually absorbs the column's leftover space. -->
+        <CityHeader />
         <!-- Task 10 fix round 1 (ruling M75): NOT mounted in list mode. Spec 5.2
              says the list-first fallback "creates no WebGL context at all", spec
              4.2 says "in 'list' mode no renderer exists", and browsers cap live
