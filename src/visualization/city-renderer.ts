@@ -251,7 +251,10 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
     if (palette) next.setColors(palette);
     next.setFilter(filter);
     next.setSelection(selection);
-    overlay.setDistricts(source.districts);
+    // CityDistrict is frozen (no fileCount field) — derived here and passed alongside.
+    const fileCounts = new Map<EntityId, number>();
+    for (const lot of source.lots) fileCounts.set(lot.directoryId, (fileCounts.get(lot.directoryId) ?? 0) + 1);
+    overlay.setDistricts(source.districts, fileCounts);
     if (palette) overlay.setColors(palette);
     rig.setBounds(source.bounds);
     if (!hasFitted) { hasFitted = true; rig.fit(); }    // the FIRST layout frames itself

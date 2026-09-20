@@ -17,10 +17,11 @@
 import { Vector3 } from 'three';
 import type { Camera } from 'three';
 import type { CityDistrict } from '../domain/layout/types';
+import type { EntityId } from '../domain/entity-id';
 import type { CityPalette } from './renderer-port';
 
 export interface LabelOverlay {
-  setDistricts(districts: readonly CityDistrict[]): void;
+  setDistricts(districts: readonly CityDistrict[], fileCounts: ReadonlyMap<EntityId, number>): void;
   setColors(palette: CityPalette): void;
   setVisible(visible: boolean): void;
   /** Repositioned on render — the labels follow the camera, they do not animate. */
@@ -52,16 +53,34 @@ interface LabelRecord {
   anchor: Vector3;
   /** Ground footprint in WORLD units, for the budget above. */
   extent: readonly [number, number];
+  /** `extent[0] * extent[1]`, computed once at setDistricts() time so `records` can be
+   *  sorted by district size there — the collision pass below (F1) then visits records
+   *  in that fixed, area-descending order every frame, rather than an order that
+   *  depends on how the caller happened to list its districts. */
+  area: number;
   /** Phase 2c, I3 — the last values written, so a frame that changes nothing writes
    *  nothing. `update()` ran on EVERY drawn frame and wrote `el.hidden` plus two style
    *  properties for EVERY label unconditionally: ~28,000 style mutations a second during
    *  a drag on the real tree, every one of them on the layout path. */
   shown: boolean;
   transform: string;
+  /** F1's collision pass needs each label's rendered CSS-px size to test for overlap.
+   *  `offsetWidth`/`offsetHeight` force layout, exactly the read I3 removed from the
+   *  per-frame path — so this is measured at most ONCE per record, lazily, on the first
+   *  frame the label is shown, and reused every frame after. The label's text is fixed
+   *  at creation (setDistricts always rebuilds every element, never mutates one in
+   *  place), so a single measurement stays correct for the record's whole lifetime. */
+  size: { width: number; height: number } | null;
 }
 
 const UNIT_X = new Vector3(1, 0, 0);
 const UNIT_Z = new Vector3(0, 0, 1);
+
+interface ScreenRect { left: number; right: number; top: number; bottom: number }
+
+function rectsOverlap(a: ScreenRect, b: ScreenRect): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
 
 export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
   const root = mountEl.createDiv({
@@ -78,6 +97,9 @@ export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
   // Scratch vectors for the per-frame scale measurement below, allocated once.
   const originNdc = new Vector3();
   const axisNdc = new Vector3();
+  // F1's collision pass, allocated once and cleared (not reallocated) every frame —
+  // the same allocate-once discipline as the scratch vectors above.
+  const acceptedRects: ScreenRect[] = [];
 
   /** CSS px per world unit along a world axis. An orthographic projection is affine, so
    *  one axis's screen length is the same everywhere in the frame and can be measured
@@ -97,10 +119,19 @@ export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
   }
 
   return {
-    setDistricts(districts: readonly CityDistrict[]): void {
+    setDistricts(districts: readonly CityDistrict[], fileCounts: ReadonlyMap<EntityId, number>): void {
       clear();
-      for (const district of districts) {
-        const el = root.createDiv({ cls: 'ci-city-labels__label', text: district.name });
+      // F1: sorted once here, descending by ground area, so the collision pass in
+      // update() always gives the LARGEST of two colliding districts the label — a
+      // stable priority that does not depend on the caller's own iteration order.
+      const sorted = [...districts].sort(
+        (a, b) => (b.extent[0] * b.extent[1]) - (a.extent[0] * a.extent[1]),
+      );
+      for (const district of sorted) {
+        const el = root.createDiv({ cls: 'ci-city-labels__label' });
+        el.createSpan({ cls: 'ci-city-labels__name', text: district.name });
+        const count = fileCounts.get(district.directoryId) ?? 0;
+        el.createSpan({ cls: 'ci-city-labels__count', text: count === 1 ? '1 file' : `${count} files` });
         // The centring half of the transform is re-applied per frame alongside the
         // position (one property instead of three), so it is not set here.
         el.setCssStyles({ position: 'absolute', whiteSpace: 'nowrap' });
@@ -109,8 +140,10 @@ export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
           el,
           anchor: new Vector3(district.labelAnchor[0], district.labelAnchor[1], district.labelAnchor[2]),
           extent: district.extent,
+          area: district.extent[0] * district.extent[1],
           shown: false,
           transform: '',
+          size: null,
         });
       }
     },
@@ -128,6 +161,13 @@ export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
       if (!visible || cssWidth <= 0 || cssHeight <= 0) return;
       const pxX = pxPerUnit(UNIT_X, camera, cssWidth, cssHeight);
       const pxZ = pxPerUnit(UNIT_Z, camera, cssWidth, cssHeight);
+      // F1: rebuilt fresh every frame, not carried over — a collision is a property of
+      // the CURRENT camera, and a label suppressed one frame must reappear the moment
+      // the districts no longer overlap on screen (self-revealing, same as M103).
+      acceptedRects.length = 0;
+      // `records` is already area-descending (sorted once in setDistricts), so visiting
+      // it in order and keeping the first label to claim each patch of screen is enough
+      // to always prefer the larger district — no separate sort or priority lookup here.
       for (const record of records) {
         projected.copy(record.anchor).project(camera);
         const onScreen = Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1
@@ -136,7 +176,23 @@ export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
         // must also be big enough on screen to carry its own name.
         const legible = Math.min(record.extent[0] * pxX, record.extent[1] * pxZ)
           >= MIN_DISTRICT_FOOTPRINT_CSS_PX;
-        const show = onScreen && legible;
+        let show = onScreen && legible;
+        const x = ((projected.x + 1) / 2) * cssWidth;
+        const y = ((1 - projected.y) / 2) * cssHeight;
+        if (show) {
+          if (!record.size) {
+            record.size = { width: record.el.offsetWidth, height: record.el.offsetHeight };
+          }
+          const rect: ScreenRect = {
+            left: x - record.size.width / 2, right: x + record.size.width / 2,
+            top: y - record.size.height / 2, bottom: y + record.size.height / 2,
+          };
+          if (acceptedRects.some((accepted) => rectsOverlap(accepted, rect))) {
+            show = false;   // F1: yields to the higher-priority (larger) label it hit
+          } else {
+            acceptedRects.push(rect);
+          }
+        }
         if (record.shown !== show) {
           record.shown = show;
           record.el.hidden = !show;
@@ -145,8 +201,6 @@ export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
         // I3: ONE property, and a transform rather than left/top — `left`/`top` on an
         // absolutely positioned element are on the layout path where a transform is not.
         // The centring translate rides along in the same value.
-        const x = ((projected.x + 1) / 2) * cssWidth;
-        const y = ((1 - projected.y) / 2) * cssHeight;
         const transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`;
         if (record.transform === transform) continue;   // the dirty check
         record.transform = transform;

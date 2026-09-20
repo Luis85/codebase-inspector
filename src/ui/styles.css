@@ -365,12 +365,27 @@
    on the overlay root and inherited here, so it must not be declared — everything that
    makes them legible over an arbitrary district colour must be. */
 :where(.codebase-inspector-root) .ci-city-labels__label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: var(--ci-space-1) var(--ci-space-2);
+  border-radius: var(--ci-radius-small);
+  /* The chip's own ground. `--ci-panel` over an arbitrary district colour, with the
+     border carrying the edge — foundations/03 prefers borders and spacing over
+     layered shadows, and a shadow here would sit on the canvas's compositing path. */
+  background: var(--ci-panel);
+  border: 1px solid var(--ci-border);
   font-size: var(--font-ui-smaller, 0.8em);
   font-weight: 600;
   letter-spacing: 0.02em;
   text-shadow:
     0 0 3px var(--ci-surface),
     0 1px 2px var(--ci-surface);
+}
+:where(.codebase-inspector-root) .ci-city-labels__count {
+  font-weight: 400;
+  opacity: 0.75;
 }
 :where(.codebase-inspector-root) .ci-viewport__notice {
   position: absolute;

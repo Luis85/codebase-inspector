@@ -244,7 +244,11 @@ describe('disposal', () => {
 
     const labels = [...h.mount.querySelectorAll('.ci-city-labels__label')];
     expect(labels).toHaveLength(2);
-    expect(labels.map((el) => el.textContent)).toEqual(['src', 'tests']);
+    // F1: each label is a chip of TWO spans now (name, file count), not a bare text
+    // node — layoutWithTwoDistricts()'s two lots both belong to the 'src' district.
+    expect(labels.map((el) => el.querySelector('.ci-city-labels__name')?.textContent)).toEqual(['src', 'tests']);
+    expect(labels.map((el) => el.querySelector('.ci-city-labels__count')?.textContent))
+      .toEqual(['2 files', '0 files']);
   });
 
   it('I7: culls the labels that are off screen, and only those', async () => {
