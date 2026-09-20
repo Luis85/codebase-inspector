@@ -3,26 +3,34 @@
 // cross-profile late-result repair.
 //
 // Every filesystem assertion here runs against a REAL temporary directory through the
-// real Node adapter and the real walker -- never a fake tree. Split from
-// evidence-steps.ts for the tests/** 450-line cap; the two share scan-harness.ts.
+// real Node adapter and the real walker -- never a fake tree. The cross-profile repair
+// is the one exception and says why in its own comment: it needs two real CityViews and
+// a walk it can hold open mid-flight, so it uses the fake port through the same
+// `gatedPort` wrapper, which drives the SAME `walkTree` generator the real adapter does.
+// Split from evidence-steps.ts for the tests/** 450-line cap; the two share
+// scan-harness.ts.
 import { expect } from 'vitest';
 import { readFile, symlink } from 'node:fs/promises';
 import { join, relative, resolve, sep } from 'node:path';
+import { nextTick } from 'vue';
 import { createCancellationToken } from '../../../src/application/scan-coordinator';
-import { mayPublish } from '../../../src/application/run-state';
 import { collectInventory } from '../../../src/application/inventory-collector';
 import { defaultExclusionsFor } from '../../../src/host/scan-flow';
 import { createRealNodePort } from '../../fixtures/real-node-port';
+import { createFakeSourceFileSystem } from '../../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../../fixtures/clock';
 import { makeTempTree, hashTree } from '../../fixtures/temp-tree';
 import {
-  FIXTURE, approvalFor, harnessOf, listTree, makeScanHarness, runningIdentity, runningRunId, scopeFor,
+  FIXTURE, approvalFor, gatedPort, listTree, makeGate, scopeFor,
 } from '../scan-harness';
+import { makeViewHarness, rows } from '../view-harness';
 import { put, take } from '../world';
 import type { StepTable } from '../feature-runner';
 import type { World } from '../world';
-import type { AnalysisScope, CodebaseSnapshot } from '../../../src/domain/model';
-import type { RunIdentity } from '../../../src/application/run-state';
+import type { Gate } from '../scan-harness';
+import type { ViewHarness } from '../view-harness';
+import type { CityView } from '../../../src/host/city-view';
+import type { CodebaseProfile, CodebaseSnapshot } from '../../../src/domain/model';
 import type { FileFingerprint } from '../../fixtures/temp-tree';
 
 export const sourceSteps: StepTable<World> = {
@@ -222,58 +230,133 @@ export const sourceSteps: StepTable<World> = {
   },
 
   // ---- REPAIR 3: the cross-profile late result --------------------------------------
+  //
+  // REWRITTEN IN FIX ROUND 1. The first version of these steps evaluated `mayPublish(...)`
+  // directly and asserted its answer. That proved the PREDICATE, not the product: the
+  // reviewer disabled the production guard outright (`scan-coordinator.ts` ->
+  // `if (false && !mayPublish(...))`) and the whole acceptance suite stayed green,
+  // because nothing in the scenario ever delivered a result to anything. That is this
+  // branch's own defect class arriving inside the artefact meant to be immune to it, and
+  // the fix is to deliver a REAL late result and assert it is not published.
+  //
+  // WHAT "CROSS-PROFILE" MEANS IN THIS ARCHITECTURE, and why the delivery happens where
+  // it does. `ScanCoordinator` is ONE PER CityView (city-view.ts), and `SCAN_STARTED`
+  // no-ops while a run is running or cancelling -- so within a single coordinator a
+  // second profile cannot begin behind the first's back, and the PROFILE component of
+  // `mayPublish`'s identity tuple is unreachable by construction (scan-coordinator.ts
+  // says so itself, at length; the reviewer confirmed it independently). The place a
+  // profile-A result really can reach a profile-B surface is the MULTI-LEAF delivery
+  // path: `city-view.ts`'s own `onLifecycleChange` calls `reconcileEveryView`, which
+  // offers every open leaf the completed snapshot, and `view-reconciliation.ts` is what
+  // refuses it for a leaf on a different profile. That refusal is production code, with
+  // a production caller, reachable by any user with two leaves open -- and it is what
+  // these steps now exercise end to end, from `view.startScan()` through the real
+  // modal-free refresh path, the real coordinator, the real collector and the real
+  // reconciliation fan-out.
   'a scan is running for profile "A"': async (world) => {
-    const harness = await makeScanHarness(world);
-    const scope = scopeFor(harness.root);
-    put(world, 'scope', scope);
-    harness.gate.arm();
-    put(world, 'promise-A', harness.coordinator.start(approvalFor('profile-A', scope), scope));
-    await Promise.resolve();
-    put(world, 'runA', runningRunId(harness));
+    const gate = makeGate();
+    // NOT `exclusions: []`: `resolveOrCreateProfile` treats an empty list as ruling
+    // M44's migration trigger and fills it with the defaults, which would then diverge
+    // from the snapshot's recorded scope and send `runRefresh` into the scope modal.
+    const scope = { exclusions: ['.git'], maxFileBytes: 5_000_000 };
+    const profile = (profileId: string): CodebaseProfile => (
+      { profileId, name: profileId, bindingId: null, ...scope }
+    );
+    const { port: fake, root } = createFakeSourceFileSystem({
+      'src/a.ts': 'export const a = 1;\n',
+      'src/b.ts': 'export const b = 2;\n',
+      'README.md': '# fixture\n',
+    });
+    const harness = makeViewHarness(world, {
+      port: gatedPort(fake, gate),
+      profiles: [profile('profile-A'), profile('profile-B')],
+      // The retained snapshot's recorded scope is what a REFRESH re-approves against, so
+      // it has to name a root this port can actually walk -- and it has to fingerprint
+      // identically to the profile's own scope, or `runRefresh` diverges into the scope
+      // modal instead of scanning (ruling M57).
+      patchSnapshot: (snapshot) => ({ ...snapshot, scope: { ...snapshot.scope, rootPath: root, ...scope } }),
+    });
+    put(world, 'view', harness);
+    put(world, 'gate', gate);
+    const viewA = await harness.open('profile-A', 3);
+    put(world, 'leafA', viewA);
+
+    gate.arm();
+    // The REAL entry point, the one the scan-codebase command reaches. With a retained
+    // snapshot whose scope has not diverged, `runRefresh` opens no modal at all: it
+    // self-mints an approval against the stored scope and starts the coordinator.
+    put(world, 'scan-A', viewA.startScan());
+    for (let i = 0; i < 500 && !viewA.isScanRunning(); i += 1) await Promise.resolve();
+    expect(viewA.isScanRunning(), 'profile A never actually started scanning').toBe(true);
   },
 
   'the user switches the active profile to "B"': async (world) => {
-    const harness = harnessOf(world);
-    const scope = take<AnalysisScope>(world, 'scope');
-    // A switch while a scan is in flight is REFUSED outright, first: SCAN_STARTED is a
-    // no-op while running, so profile B cannot begin behind profile A's back.
-    await harness.coordinator.start(approvalFor('profile-B', scope), scope);
-    expect(harness.coordinator.getLifecycle().approval?.profileId).toBe('profile-A');
-    // So the switch does what the product does: it stops profile A's run, then starts
-    // profile B's, which completes and becomes what the view shows.
-    harness.coordinator.cancel(take<string>(world, 'runA'));
-    harness.gate.open();
-    await take<Promise<void>>(world, 'promise-A');
-    await harness.coordinator.start(approvalFor('profile-B', scope), scope);
-    expect(harness.coordinator.state.status).toBe('complete');
-    put(world, 'snapshot-B', harness.displayedSnapshotId);
+    const harness = take<ViewHarness>(world, 'view');
+    const viewA = take<CityView>(world, 'leafA');
+    // A switch INSIDE the running leaf is refused outright -- `withScanGuard` returns
+    // while a run is in flight, so profile B cannot begin behind profile A's back. The
+    // first of the two production guards this scenario covers.
+    await viewA.selectCodebase();
+    expect(viewA.isScanRunning(), 'a second scan started behind the first').toBe(true);
+    expect(document.querySelector('.modal-container'), 'a consent modal opened mid-scan').toBeNull();
+
+    // So the switch is what it is in a per-leaf design: the leaf the user is now working
+    // in is a DIFFERENT leaf, on profile B, with its own retained snapshot and its own
+    // selection.
+    const viewB = await harness.open('profile-B', 4);
+    put(world, 'leafB', viewB);
+    rows(viewB)[1]!.click();
+    await nextTick();
+    expect(viewB.contentEl.querySelector('.ci-file-list__row--selected'), 'nothing selected in leaf B')
+      .not.toBeNull();
+    put(world, 'B-before', {
+      state: viewB.getState(),
+      paths: rows(viewB).map((r) => r.textContent.trim()),
+      notices: harness.notices().length,
+    });
   },
 
-  'profile "A"\'s scan completes': (world) => {
-    const harness = harnessOf(world);
-    const profileA = runningIdentity(harness, 'profile-A');
-    // Deliberately given a HIGHER generation than anything profile B issued: a rule
-    // that compared generations alone, or runIds alone, would publish this.
-    put(world, 'late', { ...profileA.identity, generation: 99 });
+  'profile "A"\'s scan completes': async (world) => {
+    const harness = take<ViewHarness>(world, 'view');
+    take<Gate>(world, 'gate').open();
+    await take<Promise<void>>(world, 'scan-A');
+    const viewA = take<CityView>(world, 'leafA');
+    // LIVENESS, asserted before any absence: profile A's run really did complete and
+    // really did publish into ITS OWN leaf. Without this, the two "unchanged" assertions
+    // below would pass just as well against a scan that never ran at all.
+    expect(viewA.isScanRunning()).toBe(false);
+    const publishedId = viewA.getState().snapshotId as string | null;
+    expect(publishedId, 'profile A published nothing at all').not.toBe('snap-profile-A');
+    expect(publishedId).not.toBeNull();
+    expect(harness.store.get(publishedId!)!.repositoryId).toBe('profile-A');
+    put(world, 'published-A', publishedId);
   },
 
   'nothing is published': (world) => {
-    const harness = harnessOf(world);
-    const profileB = runningIdentity(harness, 'profile-B');
-    const late = take<RunIdentity>(world, 'late');
-    expect(late.profileId).toBe('profile-A');
-    expect(profileB.identity.profileId).toBe('profile-B');
-    // Judged against the state the coordinator ACTUALLY held while profile B was
-    // running -- the moment a cross-profile late result would have to be refused.
-    expect(mayPublish(late, profileB.identity, profileB.state.run)).toBe(false);
-    expect(harness.completions).toBe(1);
+    const harness = take<ViewHarness>(world, 'view');
+    const viewB = take<CityView>(world, 'leafB');
+    const before = take<{ state: Record<string, unknown>; paths: string[]; notices: number }>(world, 'B-before');
+    // A real snapshot for profile A was offered to EVERY open leaf (reconcileEveryView).
+    // Leaf B is on profile B, so view-reconciliation.ts refuses it: nothing published
+    // there, nothing deselected, nothing said.
+    expect(viewB.getState().snapshotId).toBe(before.state.snapshotId);
+    expect(viewB.getState().selectedEntityId).toBe(before.state.selectedEntityId);
+    expect(rows(viewB).map((r) => r.textContent.trim())).toEqual(before.paths);
+    expect(viewB.contentEl.querySelector('.ci-file-list__row--selected')).not.toBeNull();
+    expect(harness.notices().length, 'leaf B was told something about another profile scan')
+      .toBe(before.notices);
+    // …and leaf B never ran anything of its own.
+    expect(viewB.isScanRunning()).toBe(false);
   },
 
   'profile "B"\'s snapshot is unchanged': (world) => {
-    const harness = harnessOf(world);
-    const snapshotId = take<string>(world, 'snapshot-B');
-    expect(harness.displayedSnapshotId).toBe(snapshotId);
-    expect(harness.store.get(snapshotId)!.repositoryId).toBe('profile-B');
-    expect(harness.coordinator.getLifecycle().publishedSnapshotId).toBe(snapshotId);
+    const harness = take<ViewHarness>(world, 'view');
+    const retained = harness.store.get('snap-profile-B');
+    expect(retained, 'profile B snapshot left the store').not.toBeNull();
+    expect(retained!.repositoryId).toBe('profile-B');
+    // Distinct objects, distinct ids: profile A's published snapshot did not become
+    // profile B's, and profile B's did not become profile A's.
+    expect(take<string>(world, 'published-A')).not.toBe('snap-profile-B');
+    expect(harness.store.get(take<string>(world, 'published-A'))!.repositoryId).toBe('profile-A');
   },
 };

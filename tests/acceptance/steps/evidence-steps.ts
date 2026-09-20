@@ -90,7 +90,11 @@ export const evidenceSteps: StepTable<World> = {
     const promise = harness.coordinator.start(approvalFor('profile-A', scope), scope);
     await Promise.resolve();
     put(world, 'runA', runningRunId(harness));
-    put(world, 'identity-A', identityOf(harness.coordinator.getLifecycle()));
+    // Read from the SUBSCRIPTION's own record, never `coordinator.getLifecycle()`
+    // (review M9): that accessor has no production caller at all, and a test suite
+    // propping up a dead surface is how dead code starts looking live. `subscribe` is
+    // how the host actually learns the lifecycle, so it is how this reads it.
+    put(world, 'identity-A', identityOf(harness.lifecycles.at(-1)!));
     harness.coordinator.cancel(take<string>(world, 'runA'));
     harness.gate.open();
     await promise;
@@ -115,7 +119,7 @@ export const evidenceSteps: StepTable<World> = {
 
   'run A does not replace the published snapshot or run B': async (world) => {
     const harness = harnessOf(world);
-    const live = harness.coordinator.getLifecycle();
+    const live = harness.lifecycles.at(-1)!;     // the subscription's record, not getLifecycle()
     expect(live.run.status).toBe('running');
     expect(mayPublish(take<RunIdentity>(world, 'late'), identityOf(live), live.run)).toBe(false);
     harness.gate.open();
@@ -123,7 +127,7 @@ export const evidenceSteps: StepTable<World> = {
     expect(harness.coordinator.state.status).toBe('complete');
     // Run B published, and run A never did: exactly one completion, and it is B's.
     expect(harness.completions).toBe(1);
-    expect(harness.coordinator.getLifecycle().publishedSnapshotId).toBe(harness.displayedSnapshotId);
+    expect(harness.lifecycles.at(-1)!.publishedSnapshotId).toBe(harness.displayedSnapshotId);
   },
 
   // ---- Reject approval after root or scope changes ---------------------------------

@@ -4,7 +4,7 @@
 // a full-tree diff proves the collector never touches the inspected project.
 import { afterEach, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { collectInventory } from '../../src/application/inventory-collector';
@@ -109,6 +109,15 @@ describe('no-source-writes proof', () => {
   it('changes nothing in a 1,000-file tree with the plugin already installed', async () => {
     const manifest = ensureFullScaleFixture();
     expect(manifest.sourceFiles).toBe(1000);
+    // Review M7: the generator falls back to a `/* no dist build present */` stand-in
+    // when `dist/` is missing, and the fixture is CACHED by marker -- so a cache written
+    // before any build would leave this proof running against placeholders while still
+    // reporting "with the plugin already installed". The real bundle is ~760 kB;
+    // anything under 100 kB is the stand-in, and this proof is then not what it says.
+    const installed = join(FULL_SCALE_ROOT, '.obsidian', 'plugins', 'codebase-inspector', 'main.js');
+    expect(statSync(installed).size,
+      'the fixture carries a placeholder, not this plugin: regenerate it after `npm run build`')
+      .toBeGreaterThan(100_000);
     const before = await hashTree(FULL_SCALE_ROOT);
 
     const scope: AnalysisScope = {

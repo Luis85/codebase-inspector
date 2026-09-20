@@ -52,7 +52,10 @@ export default defineConfig({
                 // Node's own APIs (real temp trees, hashing, the real filesystem port)
                 // are fully available under vitest's jsdom environment, so the scenarios
                 // and benchmark stages that need a real disk lose nothing by being here.
-                include: ['tests/component/**/*.test.ts', 'tests/acceptance/**/*.steps.ts',
+                // `{test,steps}` for acceptance, not `*.steps.ts` alone (review M3): a file
+                // added later as tests/acceptance/foo.test.ts would otherwise be collected by
+                // NO project and silently never run -- the quietest possible way to lose a test.
+                include: ['tests/component/**/*.test.ts', 'tests/acceptance/**/*.{test,steps}.ts',
                           'tests/benchmarks/**/*.test.ts', ...JSDOM_HOST_TESTS] } },
     ],
   },

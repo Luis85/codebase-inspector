@@ -16,6 +16,66 @@ from `tests/benchmarks/city-benchmark.test.ts`, which writes
 
 ---
 
+## GATE STATUS — READ THIS BEFORE CITING THIS DOCUMENT
+
+| Gate | Status |
+|---|---|
+| **G2** — source safety and scope | **CLOSED** by the evidence below |
+| **G3** — evidence truth | **CLOSED** by the evidence below |
+| **G4** — lifecycle and accessibility | **lifecycle half CLOSED; ACCESSIBILITY HALF OPEN** |
+| **G5** — performance | **CLOSED for structure, OPEN for real-host timing** (the numbers below are not GPU measurements) |
+| **G7** — accessibility | **OPEN** |
+| **G8** — testing coverage | **CLOSED**, with the accessibility layer recorded as partly run |
+
+### G4's accessibility half and G7 are OPEN pending a human checkpoint
+
+**No downstream task may cite this document, or
+`2026-09-17-wp01-accessibility-matrix.md`, as evidence that accessibility is gated.**
+Task 13 is a release gate that cites this document; this block exists so it cannot cite
+an unperformed row as a passing one.
+
+Task 12 ran as an automated session with no screen reader, no human eyes, no browser
+zoom and no third-party theme. Ten of the matrix's fourteen rows are therefore **NOT
+PERFORMED**, in whole or in part. They are answered at **checkpoint #4**, and these are
+exactly the rows outstanding:
+
+1. Keyboard-only: complete the scripted demo without a mouse
+2. Screen reader: NVDA on Windows
+3. 200% text zoom: no clipping, labels scale as text
+4. Focus visibility — the *visible* half (focus order is machine-checked)
+5. Dark theme — contrast, **including the two shipped claims themselves**: they render
+   inside `.ci-snapshot-status`, whose `color: var(--ci-text-muted)` is the
+   lowest-contrast token on the surface (review M5). No CSS was added for them, to
+   stay out of ruling M113's specificity fight; whether a factual safety claim should
+   sit in the muted token is a judgement for a human looking at it
+6. Light theme — contrast, same claim caveat
+7. One third-party theme (name it when done) — **schedule this first**: ruling M113's
+   `:where(.codebase-inspector-root)` arrangement contributes zero specificity and has
+   never met a theme that fights it
+8. Non-drag single-pointer equivalence — the *reachable at a real pointer size* half
+   (the 11 controls themselves are machine-checked)
+9. Reduced motion — the *visibly jumps rather than tweens* half (the command is
+   machine-checked)
+10. Long Unicode paths — the *wraps or truncates legibly* half, and the tooltip case,
+    which is covered at no layer
+11. Host shortcuts are not captured while the city lacks focus
+12. Focus is preserved after a refresh
+13. Tooltip and overlay DOM belong to the correct window — in a real pop-out
+
+What **is** closed, and may be cited: the structural half. Roving tabindex with exactly
+one row in the tab order, one polite live region with an assertive path only for a
+blocking failure, the canvas as one named focusable region with an `aria-hidden`
+untabbable canvas inside it, a single-pointer alternative for all eleven dragging
+gestures, focus return from both modals taken from `activeDocument`, and cross-window DOM
+ownership enforced by `no-restricted-globals` and exercised against a genuinely separate
+jsdom realm. Each is named with its test in the matrix.
+
+A second reading this block is meant to prevent: "the structure is in place" is not "the
+product is accessible". Contrast, focus-ring visibility, zoom reflow and screen-reader
+output are all unverified, and every one of them is a thing a user experiences directly.
+
+---
+
 ## G2 — Source safety and scope
 
 ### Boundary
@@ -208,6 +268,11 @@ is absent from `src/ui/copy.ts` by policy, with its own note in that file.
 
 ## G4 — Lifecycle and accessibility
 
+> **The LIFECYCLE half of G4 is closed by the evidence in this section. The
+> ACCESSIBILITY half of G4, and G7 entirely, are OPEN pending a human
+> checkpoint — see the GATE STATUS block at the top of this document for the
+> thirteen outstanding rows and where they are answered.**
+
 ### Checkpoint #3, by row
 
 Checkpoint #3 was **closed by the user** at branch `49f47e3` with "this looks better
@@ -312,8 +377,20 @@ and no measurement was taken there.
 | Normalization (`validateSnapshot`) | 27.7 ms | 39.4 ms | — |
 | Layout (`computeLayout`) | 22.7 ms | 32.6 ms | — |
 | First paint after snapshot available | 48.8 ms | 153.8 ms | within 3 s — met, but **not on a GPU** |
-| Interaction p95 (command → draw call) | 1.58 ms | 0.75 ms | at or below ~33 ms — met, but **not a display frame time** |
-| Cleanup (`dispose()`) | 0.82 ms | 0.49 ms | — |
+| Interaction p95 (command → draw call) | 1.58 ms | 0.75 ms | **below this harness's measurement resolution — no verdict** |
+| Cleanup (`dispose()`) | 0.82 ms | 0.49 ms | **below this harness's measurement resolution — no verdict** |
+
+**The interaction and cleanup rows are noise, and are marked so rather than read as
+results** (review M6). Both go *down* as the data goes *up* — five times the lots, half
+the time — which is not a plausible measurement of anything. The benign explanation is
+real: with `WebGLRenderer` doubled, `render()` is a counter increment and `dispose()` is
+dominated by fixed cost, so both stages sit under the timer's useful range. There is also
+a residual ordering effect the per-fixture warm-up does not remove: `describe.each` runs
+the 5,000-file case second, in the same worker, against an already-warm module graph.
+**Neither row supports "at or below ~33 ms" and neither is claimed to.** The other four
+stages scale monotonically with the data and are trustworthy as *relative* figures for
+this harness. Real interaction frame time needs the real host; see the reference-hardware
+block above.
 
 The scan figures are the honest cost of ruling M108's **sequential** walk, and they are
 the number the open speed-versus-cancellation question is about. They are real: a real
@@ -362,20 +439,71 @@ the benchmark and the disposal suites consume. No instrumentation was added besi
 
 ## G8 — Testing coverage — WHICH LAYERS ACTUALLY RAN
 
-Counts from `npm run verify` at this commit: **88 files, 936 tests, 935 passed,
+Counts from `npx vitest run` per directory, at commit `HEAD` of task 12 fix round 1:
+**89 files, 943 tests, 942 passed,
 1 skipped.**
 
-| Layer | Ran | Count | Notes |
-|---|---|---|---|
-| Unit | yes | 451 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below) |
-| Contract | yes | 40 | **one suite, two implementations** — `tests/contracts/source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift |
-| Integration (real temp dirs) | yes | 24 + 1 skipped | walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase. The skip is the file-symlink environment gate |
-| Component (jsdom) | yes | 295 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal |
-| Acceptance (21 + 3 repairs) | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
-| Accessibility | **partly** | see the matrix | jsdom rows ran; **every manual row is NOT PERFORMED** — `2026-09-17-wp01-accessibility-matrix.md` names each one individually |
-| Benchmark | yes | 5 | reference hardware recorded above; **not a GPU measurement**, and the document says so in the same table as the numbers |
+**These numbers are partly machine-checked, and the boundary is stated rather than
+implied.** `tests/unit/gate-evidence.test.ts` asserts that the table below names *every*
+layer that exists and *no* layer that does not, that each row's FILE count matches disk,
+and that the per-layer test counts SUM to the total above. It deliberately does **not**
+derive the per-layer test counts themselves: vitest exposes no whole-suite tally to a
+test inside that suite, and static `it(` counting is wrong here by construction — the
+acceptance runner generates 24 tests from one loop and `describe.each` multiplies the
+benchmark's. Those figures are transcribed from the command named in each row and are
+pinned by their sum. Reproduce any row with `npx vitest run <directory>`.
 
-### Two honesty notes about the suite itself
+*(Both errors this table shipped with in the first round — an omitted `tests/host/**`
+layer, and a total that predated three tests added in the same commit — are now
+impossible to make silently.)*
+
+<!-- g8:table:start -->
+
+| Layer | Directory | Files | Ran | Tests | Notes |
+|---|---|---|---|---|---|
+| Unit | `tests/unit/**` | 39 | yes | 455 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
+| Contract | `tests/contracts/**` | 2 | yes | 40 | **one suite, two implementations** — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift |
+| Integration (real temp dirs) | `tests/integration/**` | 8 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
+| Component (jsdom) | `tests/component/**` | 29 | yes | 298 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal |
+| Host (Obsidian doubles) | `tests/host/**` | 9 | yes | 94 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output. **This is the layer the rest of this document cites nine times** |
+| Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
+| Benchmark | `tests/benchmarks/**` | 1 | yes | 5 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers |
+
+<!-- g8:table:end -->
+
+| Layer | Ran | Notes |
+|---|---|---|
+| Accessibility | **partly — G4/G7 remain OPEN** | the jsdom rows ran and are listed in `2026-09-17-wp01-accessibility-matrix.md`; **every manual row is NOT PERFORMED.** This layer has no test-count row above because it is not a directory of tests — it is a checklist a human has not yet worked. See the G4/G7 status block at the top of this document |
+
+### Three honesty notes about the suite itself
+
+**One guard in `ScanCoordinator` is unreachable by construction, and no test can kill
+it.** `scan-coordinator.ts`'s `if (!mayPublish(resultIdentity, currentIdentity, …))` —
+the identity-tuple check that refuses a late result — cannot fail within a single
+coordinator in WP-01's design, and therefore nothing in the suite distinguishes a
+coordinator that consults it from one that ignores it. Disabling it outright
+(`if (false && !mayPublish(…))`) leaves all 26 acceptance tests and all 42 run-lifecycle
+tests green. That was true before fix round 1 and it is still true after it.
+
+The reason is structural, not a coverage gap. `SCAN_STARTED` no-ops while a run is
+running or cancelling, and one `ScanCoordinator` is constructed per `CityView`, so while
+`start()` is awaiting its collector the lifecycle can only be *running* or *cancelling*
+for that same run — and the `cancelling` case is caught by the two `wasCancelled` checks
+above it, with no `await` between the second of them and the guard. Every component of
+the identity tuple therefore matches by the time the guard runs. The file says so itself,
+at length, and the reviewer verified it independently.
+
+It is kept, not removed: it is spec §7's rule written down at the point of publication,
+and the moment more than one coordinator can race for one profile it stops being
+redundant. But it is defence in depth, **it is not what makes cross-profile publication
+safe today**, and a reader must not take its presence as evidence that the property is
+tested. What IS tested, end to end and killed by mutation, is the guard that really does
+the work: `view-reconciliation.ts`'s profile check, reached through `city-view.ts`'s own
+`reconcileEveryView` fan-out — see the acceptance scenario "Reject late result
+publication across profiles", and `tests/acceptance/steps/source-steps.ts`'s own comment
+for the full reasoning. Removing that check reddens the scenario immediately.
+
+
 
 **Stylesheet-as-contract tests strip CSS comments.** A test of this kind on this branch
 once passed with its own defect reinstated, because a CSS comment quoting
@@ -387,8 +515,11 @@ stylesheet-reading test.
 **`npm run analyze` is a review list, not a pass/fail gate, and it is not part of
 `npm run verify`.** It runs `fallow dead-code src` — scoped to `src/` deliberately,
 because question 1 of this branch's own dead-surface sweep is literally "does anything in
-`src/` — not `tests/` — call this?". Current result (7 unused exports, 1 unused type, 1
-unused class member, 1 duplicate export pair, 1 circular dependency):
+`src/` — not `tests/` — call this?". **Accepted baseline at this commit: 11 findings** — 7 unused exports, 1 unused type,
+1 unused class member, 1 duplicate export pair, 1 circular dependency. The count is
+recorded here (review M4) precisely because this gate exits non-zero permanently by
+design: without a baseline, a TWELFTH finding is indistinguishable from the eleven
+already assessed. Each one:
 
 | Finding | Assessment |
 |---|---|
@@ -398,6 +529,16 @@ unused class member, 1 duplicate export pair, 1 circular dependency):
 | `renderer-port.ts` `EntityId` duplicating `entity-id.ts` | both are inside frozen §4.2/§4.1 contracts. Accepted. |
 | `city-view.ts → leaf-registry.ts → city-view.ts` cycle | pre-existing and structural (the registry reaches views; views ask the registry to reconcile siblings). Not touched by task 12. |
 | **`ScanCoordinator.getLifecycle`** | **a genuine zero-caller surface.** Nothing in `src/` *or* `tests/` called it before this task. It is an inert accessor, not a fake feature, so it is not instance 10 of the branch's defect class — but it is dead code, it is outside task 12's file ownership, and it is **reported rather than removed**. |
+
+**`analyze` fetches its tool at run time, deliberately.** `npx --yes fallow@3.27.0`
+pins the exact version but is not a devDependency, so the gate needs network and
+resolves outside `package-lock.json`'s integrity guarantees (review M4). That is a
+real trade and it was made knowingly: fallow ships per-platform prebuilt binaries, so
+adding it would put an optional-dependency matrix and a large download into every
+`npm ci` on every platform, for a tool this project runs occasionally and never in
+CI's critical path. The version pin is what keeps the RESULT reproducible. If the
+user would rather pay the install cost for lockfile integrity, the change is one line
+in `package.json` plus a lockfile update.
 
 The COPY catalogue duplication this gate first surfaced (15 unused exports) is fixed:
 COPY-03…COPY-07 and COPY-09 now come from `src/ui/copy.ts` instead of being retyped in

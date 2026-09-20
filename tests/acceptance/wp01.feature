@@ -13,7 +13,13 @@
 #     and missing from the original.
 #   * "Theme change while a city is open" -- likewise required and missing.
 #   * The late-result scenario RESTORED to its cross-profile form, which is what §7
-#     actually requires. The original's same-coordinator supersession form is KEPT as
+#     actually requires -- and delivered as a REAL late result through two real leaves,
+#     not as a call to `mayPublish` (fix round 1). ScanCoordinator's own identity-tuple
+#     guard is unreachable by construction in WP-01's one-coordinator-per-leaf design,
+#     so no test can kill it; the guard that really refuses a cross-profile result is
+#     view-reconciliation.ts's, and that one IS killed by mutation. See
+#     steps/source-steps.ts and the gate-evidence document for the full reasoning.
+#     The original's same-coordinator supersession form is KEPT as
 #     well (scenario 10) rather than overwritten: it is a real §7 invariant with live
 #     coverage on this branch, and dropping it to make room for the restoration would
 #     lose it. The restoration is scenario 24.
@@ -72,7 +78,8 @@ Feature: Inspect a structural city without losing evidence or user context
     Then the saved 3D bookmark is restored
 
   Scenario: Dragging does not select on release
-    Given a canvas with pointer intent wired to the real picking module
+    Given an inventory snapshot is visible in the city
+    And a file is selected from the file list
     When I drag the canvas beyond the click threshold
     Then the camera changes
     And releasing the pointer does not select another file

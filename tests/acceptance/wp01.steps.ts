@@ -67,6 +67,7 @@ vi.mock('../../src/visualization/city-renderer', async (importOriginal) => {
 const { assertNoUnusedSteps, mergeSteps, parseFeature, runFeature } = await import('./feature-runner');
 const { makeWorld, teardownWorld } = await import('./world');
 const { uiSteps } = await import('./steps/ui-steps');
+const { consentSteps } = await import('./steps/consent-steps');
 const { evidenceSteps } = await import('./steps/evidence-steps');
 const { sourceSteps } = await import('./steps/source-steps');
 const { lifecycleSteps } = await import('./steps/lifecycle-steps');
@@ -74,7 +75,7 @@ const { lifecycleSteps } = await import('./steps/lifecycle-steps');
 export const webglInstances = webgl.instances;
 
 const feature = parseFeature(featureSource);
-const steps = mergeSteps(uiSteps, evidenceSteps, sourceSteps, lifecycleSteps);
+const steps = mergeSteps(uiSteps, consentSteps, evidenceSteps, sourceSteps, lifecycleSteps);
 
 /** The 21 scenarios of docs/concept/design/wp01-review/validation/production-acceptance.feature,
  *  by name. Listed here so a scenario cannot be quietly dropped or renamed out of the

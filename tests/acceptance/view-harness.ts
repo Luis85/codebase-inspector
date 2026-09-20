@@ -18,11 +18,13 @@ import type { World, RendererCall } from './world';
 import type { CityViewDeps } from '../../src/host/city-view';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
 import type { SourceFileSystemPort } from '../../src/application/ports/source-filesystem-port';
-import type { CodebaseProfile } from '../../src/domain/model';
+import type { CodebaseProfile, CodebaseSnapshot } from '../../src/domain/model';
 
 export interface ViewHarness {
   deps: CityViewDeps;
   port: SourceFileSystemPort;
+  store: InMemorySnapshotStore;
+  notices: () => string[];
   app: { workspace: Record<string, unknown>; vault: Record<string, unknown> };
   plugin: unknown;
   views: CityView[];
@@ -30,14 +32,32 @@ export interface ViewHarness {
   open(profileId: string, files: number): Promise<CityView>;
 }
 
-function makeProfileStoreDouble(): ProfileStore {
-  const profiles: CodebaseProfile[] = [];
+export interface ViewHarnessOptions {
+  /** Overrides the filesystem every view in this harness scans through -- so a
+   *  scenario can hold a real run open mid-walk (see `gatedPort` in scan-harness.ts).
+   *  Defaults to a small fake tree. */
+  port?: SourceFileSystemPort;
+  /** Profiles the store already holds, so `resolveOrCreateProfile` finds one rather
+   *  than minting a default. A refresh only skips the scope modal when the profile's
+   *  own scope fingerprints identically to the retained snapshot's, so a scenario that
+   *  wants a modal-free refresh seeds a matching profile here. */
+  profiles?: readonly CodebaseProfile[];
+  /** Patches the snapshot `open()` plants, e.g. to point its recorded `scope.rootPath`
+   *  at the root the supplied port can actually walk. */
+  patchSnapshot?: (snapshot: CodebaseSnapshot) => CodebaseSnapshot;
+}
+
+function makeProfileStoreDouble(seed: readonly CodebaseProfile[]): ProfileStore {
+  const profiles: CodebaseProfile[] = [...seed];
   return {
     list: vi.fn(async () => [...profiles]),
     get: vi.fn(async (id: string) => profiles.find((p) => p.profileId === id) ?? null),
     save: vi.fn(async (p: CodebaseProfile) => { profiles.push(p); }),
     remove: vi.fn(async () => {}),
-    update: vi.fn(async () => {}),
+    update: vi.fn(async (id: string, mutate: (current: CodebaseProfile) => CodebaseProfile) => {
+      const index = profiles.findIndex((p) => p.profileId === id);
+      if (index >= 0) profiles[index] = mutate(profiles[index]!);
+    }),
   };
 }
 
@@ -48,11 +68,11 @@ export function sizeStage(view: CityView, width = 1000, height = 700): void {
   Object.defineProperty(stage!, 'clientHeight', { value: height, configurable: true });
 }
 
-export function makeViewHarness(world: World): ViewHarness {
+export function makeViewHarness(world: World, options: ViewHarnessOptions = {}): ViewHarness {
   const snapshotStore = new InMemorySnapshotStore(createFixedClock());
-  const { port } = createFakeSourceFileSystem({ 'src/a.ts': 'export const a = 1;\n' });
+  const port = options.port ?? createFakeSourceFileSystem({ 'src/a.ts': 'export const a = 1;\n' }).port;
   const deps: CityViewDeps = {
-    profileStore: makeProfileStoreDouble(), getFilesystem: () => port,
+    profileStore: makeProfileStoreDouble(options.profiles ?? []), getFilesystem: () => port,
     snapshotStore, clock: createFixedClock(),
   };
   const cssChange: (() => void)[] = [];
@@ -68,9 +88,13 @@ export function makeViewHarness(world: World): ViewHarness {
   };
   const plugin = { app, addCommand: vi.fn(), registerView: vi.fn() };
   const harness: ViewHarness = {
-    deps, port, app, plugin, views, cssChange,
+    deps, port, app, plugin, views, cssChange, store: snapshotStore,
+    // Real `Notice` DOM (tests/mocks/obsidian.ts appends a queryable `.notice`), which
+    // is how a scenario tells "the user was told something" from "nothing happened".
+    notices: () => Array.from(document.querySelectorAll('.notice')).map((n) => n.textContent ?? ''),
     async open(profileId: string, files: number): Promise<CityView> {
-      snapshotStore.put({ ...buildSnapshotFixture({ files, directories: 2, repositoryId: profileId }), snapshotId: `snap-${profileId}` });
+      const base = { ...buildSnapshotFixture({ files, directories: 2, repositoryId: profileId }), snapshotId: `snap-${profileId}` };
+      snapshotStore.put(options.patchSnapshot ? options.patchSnapshot(base) : base);
       const view = new CityView({ width: 1000, height: 700 } as never, plugin as never, deps);
       await view.setState({ ...defaultCityViewState(), profileId, snapshotId: `snap-${profileId}` }, {} as never);
       await view.onOpen();
