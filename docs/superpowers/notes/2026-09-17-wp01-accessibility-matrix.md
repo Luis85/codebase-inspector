@@ -78,7 +78,7 @@ Every count stated above is **derived from the table itself** by
 `tests/unit/evidence-numbers.test.ts` and `tests/unit/gate-evidence.test.ts`: the total,
 the open count, the fully-PASSED count and the half-passed count. A stale value reddens a
 test wherever in this file it is written — and so does a value that disagrees with
-`2026-09-17-wp01-gate-evidence.md` — **provided it is written in one of the two shapes the
+`2026-09-17-wp01-gate-evidence.md` — **provided it is written in one of the four shapes the
 guard reads.** Those shapes, and what falls outside them, are named in
 `2026-09-17-wp01-gate-evidence.md`'s own Numbers block. The boundary is stated rather than
 implied because half of this guard was inert for a whole fix round while being described
@@ -101,8 +101,10 @@ the eleven were present, which is a weaker thing than this sentence used to clai
 
 This block exists because the open-row count was found wrong three separate times, each
 time in a place the previous fix had not looked. If you add a sentence to this file that
-states one of these counts **in one of the two shapes, with asterisk emphasis**, you do not
-need to update anything: the guard will tell you if you got it wrong. If you state it some
-other way, it will not — every way a count can slip past both sweeps is listed, in full and
+states one of these counts **in one of the four shapes, with asterisk emphasis**, you do
+not need to update anything: the guard will tell you if you got it wrong. Four, not two:
+the fully-PASSED and half-passed counts are swept in their own shapes as of task 13's
+final fix wave, so a new sentence about either of them **is** now caught here. If you state
+a count some other way, it will not — every way a count can slip past both sweeps is listed, in full and
 lettered, in `2026-09-17-wp01-gate-evidence.md`'s Numbers block, and each applies to this
 file exactly as it applies to that one.

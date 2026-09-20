@@ -109,12 +109,15 @@ section, where that gap is stated rather than closed.
   point can raycast outside the frustum and pick an off-screen building.
 - **Three more surfaces with no production caller, recorded rather than removed.**
   `ScanCoordinator.getLifecycle()` is named below; the final whole-branch review added
-  two. `parseEntityId` (`src/domain/entity-id.ts`) has zero callers in `src/` — only
-  tests use it — and `CityRendererPort.getCamera()` (`src/visualization/renderer-port.ts`)
-  has none at all. `getCamera` is a **frozen §4.2 member and must not be removed**; unlike
-  `getDiagnostics` and `debugLoseContext` it was never disclosed as instrumentation, and it
-  is disclosed here now. Neither is visible to `npm run analyze`, for the reason recorded
-  under that gate below.
+  two, and **both are dead in `src/` while tests do use them** — which is exactly why
+  neither is visible to `npm run analyze` (see that gate below). `parseEntityId`
+  (`src/domain/entity-id.ts`) is called only by tests. `CityRendererPort.getCamera()`
+  (`src/visualization/renderer-port.ts`) has **no production caller**: `city-renderer.ts`
+  IMPLEMENTS the member, delegating to the rig's own internal `getCamera`, and nothing in
+  `src/` calls it through the port; `tests/component/canvas-camera.test.ts` and
+  `camera-restore.test.ts` do. `getCamera` is a **frozen §4.2 member and must not be
+  removed**; unlike `getDiagnostics` and `debugLoseContext` it was never disclosed as
+  instrumentation, and it is disclosed here now.
 - **No COPY literal is pinned to the design catalogue by any test.** The microcopy in
   `src/ui/copy.ts` is transcribed character-for-character from
   `docs/concept/design/interactions/04-microcopy.md`, and nothing compares the two: a test
@@ -225,6 +228,12 @@ Whether a factual safety claim belongs in the muted token is for a human looking
   is deliberate, and the baseline is what makes a twelfth finding visible. It also
   fetches its tool at run time (`npx --yes fallow@3.27.0`), so it needs network and
   resolves outside the lockfile's integrity guarantees.
+  **And it does not answer this branch's question 1**, which the gate-evidence document
+  used to say it did. Scoping the scan to `src/` does not stop fallow resolving CONSUMERS
+  in `tests/`, so an export that only tests use is not reported — `parseEntityId` and
+  `COPY_10` are the worked examples. What it reports is exported symbols with no consumer
+  anywhere it can resolve one. *Does anything in `src/` — not `tests/` — call this?* is
+  answered by review, not by tooling, and nothing standing implements it.
 - **Ruling M118 — the `mayPublish` supersession guard is unreachable by construction**
   and stays. The argument rests on exactly two legs: `SCAN_STARTED` no-ops while a run is
   running or cancelling, and there is no yield point between the second cancellation

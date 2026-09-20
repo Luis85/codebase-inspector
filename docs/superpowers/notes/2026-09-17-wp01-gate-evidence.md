@@ -686,12 +686,12 @@ swept, and a reader should not treat them as measured.
 This block exists because the same count was found wrong three separate times, each in a
 place the previous fix had not read. The guard enumerates the *wrong values* rather than
 the *known sites*, so a figure written into a section nobody has thought of fails — **as
-long as it is written in one of two shapes.** The boundary is stated here rather than left
+long as it is written in one of the four shapes named below.** The boundary is stated here rather than left
 to be discovered, because the previous version of this paragraph claimed no boundary at
 all while half the mechanism it described was inert.
 
 **Shape 1 — "N of the 14".** Reserved, by the matrix's own convention, for claims about
-OPEN rows. Any spelling, any emphasis, either document, anywhere.
+OPEN rows. Any spelling, any emphasis, any of the four documents, anywhere.
 
 **Shape 2 — the open count immediately beside an openness word:** "…outstanding rows",
 "…rows remain open", "…remains open" and their close neighbours. Adjacency is the point:
@@ -730,13 +730,16 @@ named because it is the one case where a wrong number is *skipped* rather than r
 **(c) A count written with underscore emphasis.** Both sweeps read these documents with
 asterisks and backticks stripped and nothing else, so a bolded numeral and a bare one are
 the same string to them — but an underscore-emphasised one is not, and is invisible to
-both. Neither document uses underscore emphasis for anything today (the only underscores in
-either file are inside identifiers), and that convention is the whole of the mitigation.
-**Use asterisks for emphasis in these two files.**
+both. None of the four documents uses underscore emphasis for anything today (the only
+underscores in them are inside identifiers), and that convention is the whole of the
+mitigation. **Use asterisks for emphasis in all four of these files.**
 
-**Every letter above applies to all four counts, not just the open one** — (a) a
-restatement in none of the four shapes, (b) a pairing with a wrong total, and (c)
-underscore emphasis are each as invisible for "fully PASSED" as for "N of the 14".
+**(a) and (c) apply to all four counts, not just the open one**: a restatement in none of
+the four shapes, and underscore emphasis, are each as invisible for "fully PASSED" as for
+"N of the 14". **(b) does NOT** — it is an artefact of shape 1 carrying a total the sweep
+has to recognise, and shapes 3 and 4 carry no total at all, so a site matching either of
+them is read whatever numbers sit around it. An earlier version of this sentence said all
+three applied to all four, contradicting (b) six lines above it.
 
 **State these counts in one of the four shapes, with asterisk emphasis, against the
 matrix's own total**, and the guard will tell you when you get one wrong. If you find another way to
