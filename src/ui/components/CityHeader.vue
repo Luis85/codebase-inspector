@@ -29,6 +29,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useCityStore } from '../stores/city-store';
+import { countDirectoryDistricts } from '../../domain/layout/districts';
 import {
   COPY_CITY_HEADER_TITLE, COPY_CITY_HEADER_BADGE, COPY_CITY_HEADER_EYEBROW, formatCityHeaderSubtitle,
 } from '../copy';
@@ -40,22 +41,16 @@ const store = useCityStore();
 // same numbers, and two counts kept in separate places are two counts that can
 // disagree"). `lots` are one per FILE (never a directory or the repository root).
 //
-// `districts`, unfiltered, is NOT "directory districts": buildDistrictLayout
-// (src/domain/layout/districts.ts, collectResults) always pushes ONE district for
-// the repository root itself first (depth 0, `entity.kind === 'repository'`),
-// before the real subdirectories (depth >= 1). Verified directly: a 6-directory
-// fixture produces `layout.districts.length === 7`, districts[0] named after the
-// repository. The brief's own worked example ("144 files grouped into 6 directory
-// districts") only holds once that synthetic root entry is excluded -- a repo root
-// is not itself a directory a user asked to see districted. `depth > 0` is exact
-// and needs no entity-kind lookup: buildNode assigns depth 0 to the single root
-// call and increments for every real child, so there is never a second depth-0
-// entry to accidentally keep or a real district to accidentally drop.
+// Task 7 fix round 2: the "directory districts" count itself moved to
+// `countDirectoryDistricts` (src/domain/layout/districts.ts) -- which districts are
+// directory districts is a fact about the LAYOUT, not about how this subtitle words
+// it, and the footer (task 8) must state the same number without re-deriving the
+// off-by-one fix independently. See that function's own comment for why the raw
+// `districts.length` over-counts by one (the repository root's own district).
 const subtitle = computed(() => {
   const layout = store.layout;
   if (!layout) return '';
-  const directoryDistrictCount = layout.districts.filter((d) => d.depth > 0).length;
-  return formatCityHeaderSubtitle(layout.lots.length, directoryDistrictCount);
+  return formatCityHeaderSubtitle(layout.lots.length, countDirectoryDistricts(layout.districts));
 });
 </script>
 

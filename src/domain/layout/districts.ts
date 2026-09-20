@@ -352,3 +352,32 @@ export function buildDistrictLayout(
   collectResults(node, 0, 0, null, cap, out);
   return out;
 }
+
+/** Task 7 fix round 2: WHICH districts are directory districts, as a fact about the
+ *  layout — not about how a header or a footer words it. `collectResults` above
+ *  always pushes ONE district for the repository root itself first (depth 0,
+ *  `entity.kind === 'repository'`), ahead of the real subdirectories (depth >= 1).
+ *  Reproduced live (task 7): `buildDistrictLayout` over a 6-directory fixture
+ *  (`buildSnapshotFixture({ files: 144, directories: 6 })`) produces
+ *  `districts.length === 7`, `districts[0]` named after the repository — the raw
+ *  length over-counts "directory districts" by exactly one.
+ *
+ *  `depth > 0` is exact and needs no entity-kind lookup: `buildNode` assigns depth 0
+ *  to the single root call and increments for every real child, so there is never a
+ *  second depth-0 entry to accidentally keep or a real district to accidentally
+ *  drop. The frozen `CityDistrict` contract (types.ts) has no `kind`/`isRoot` field;
+ *  `parentId !== null` is an equivalent test but no more direct than this one.
+ *
+ *  This is the ONLY place that needs the exclusion. `instanced-city.ts` deliberately
+ *  keeps reading the UNFILTERED `districts.length` / `districts` array, because the
+ *  root's own ground slab is real geometry that must still be drawn.
+ *  `CodebaseFileList.vue`'s own per-district grouping already excludes the empty
+ *  root incidentally (it groups the FILES it has, and the root never holds one
+ *  directly once every file has a real parent directory) without needing this
+ *  filter — do not apply it there either. `CityHeader.vue` (task 7) and the footer
+ *  (task 8) are the two callers that must both derive "how many directory districts"
+ *  from THIS function, so they cannot independently get the off-by-one wrong in two
+ *  different ways. */
+export function countDirectoryDistricts(districts: readonly CityDistrict[]): number {
+  return districts.filter((d) => d.depth > 0).length;
+}
