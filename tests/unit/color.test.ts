@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cssColorToSrgbBytes } from '../../src/visualization/color';
+import { cssColorToSrgbBytes, relativeLuminance, separatedFrom } from '../../src/visualization/color';
 
 // A hand-rolled double standing in for a real 1x1 canvas 2D context: `fill` maps the
 // exact CSS string a real browser would resolve to the sRGB bytes it would produce.
@@ -56,5 +56,36 @@ describe('cssColorToSrgbBytes', () => {
     const spy = vi.spyOn(win.document, 'createElement');
     cssColorToSrgbBytes(win, '#ffffff');
     expect(spy).toHaveBeenCalledWith('canvas');
+  });
+});
+
+describe('separatedFrom', () => {
+  it('leaves a surface alone when it is already separated from its ground', () => {
+    // Dark theme: a slab a few points off its ground is faint but present, and the
+    // host's own choice is not ours to overrule when it is working.
+    expect(separatedFrom('#2a2a2e', '#151518')).toBe('#2a2a2e');
+  });
+
+  it('lightens a near-white surface away from a white ground', () => {
+    // F3, light theme: --background-secondary and --background-primary land within a
+    // point or two of each other, and the plate disappears.
+    const out = separatedFrom('#fcfcfd', '#ffffff');
+    expect(out).not.toBe('#fcfcfd');
+    expect(relativeLuminance(out)).toBeLessThan(relativeLuminance('#ffffff'));
+  });
+
+  it('moves AWAY from the ground rather than in a fixed direction', () => {
+    // A fixed "darken by n" would be right in light and wrong in dark, which is the
+    // shape of bug that makes one theme look deliberate and the other look broken.
+    expect(relativeLuminance(separatedFrom('#101010', '#0a0a0a'))).toBeGreaterThan(relativeLuminance('#101010'));
+    expect(relativeLuminance(separatedFrom('#f0f0f0', '#f6f6f6'))).toBeLessThan(relativeLuminance('#f0f0f0'));
+  });
+
+  it('returns a value the GPU path already accepts', () => {
+    // A1: colours cross into WebGL through cssColorToSrgbBytes and nowhere else. A
+    // return value that function cannot parse would fall back to neutral grey, which
+    // looks like this task working and is not.
+    const out = separatedFrom('#fcfcfd', '#ffffff');
+    expect(out).toMatch(/^#[0-9a-f]{6}$/);
   });
 });

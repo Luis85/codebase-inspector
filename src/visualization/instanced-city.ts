@@ -23,6 +23,7 @@ import {
 import type { Object3D } from 'three';
 import type { CityLot, LayoutResult } from '../domain/layout/types';
 import type { CityPalette, EntityId } from './renderer-port';
+import { separatedFrom } from './color';
 import { disposeObject3D } from './disposal';
 
 /** r186 gave Object3D a dispose(). A subclass that overrides it MUST call
@@ -204,7 +205,11 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
     if (!palette) return;
     paintInstances(measured, measuredLots, palette);
     paintInstances(markers, unavailableLots, palette);
-    slabMaterial.color = new Color(palette.districtSurface);
+    // F3: districtSurface and background are both host tokens that can legitimately
+    // land within a point of each other in a light theme, leaving the slab invisible
+    // against the page. separatedFrom guarantees a visible edge without a new palette
+    // member (ruling A1) — it returns an already-separated surface unchanged.
+    slabMaterial.color = new Color(separatedFrom(palette.districtSurface, palette.background));
     borderMaterial.color = new Color(palette.districtBorder);
     selectionMaterial.color = new Color(palette.selection);
     // markerMaterial's colour is deliberately NEVER set. three's color_vertex does
