@@ -5,8 +5,11 @@ the whole point of this table: a matrix that reports "pass" without saying who o
 checked is worth nothing.
 
 > **G4's accessibility half and G7 are OPEN. This matrix is NOT a passing gate and
-> must not be cited as one.** Ten of the fourteen rows below are NOT PERFORMED, in
-> whole or in part; they are answered at **checkpoint #4**. The GATE STATUS block
+> must not be cited as one.** **13** of the matrix's **14** rows are NOT PERFORMED,
+> in whole or in part; they are answered at **checkpoint #4**. Exactly one row is
+> fully PASSED. (That count is DERIVED from this table by
+> `tests/unit/gate-evidence.test.ts`, not retyped: a row counts as closed only if
+> its Result cell begins `**PASSED`, because half a row is not a gate.) The GATE STATUS block
 > at the top of `2026-09-17-wp01-gate-evidence.md` lists exactly which rows are
 > outstanding and which structural findings may be cited.
 
@@ -20,6 +23,8 @@ check; the "How" column is the instruction for that person.
 
 Legend: **jsdom** = asserted by a test in this repository, listed by file. **manual** =
 requires a human in the real Obsidian host. **NOT PERFORMED** = nobody has done it yet.
+
+<!-- a11y:table:start -->
 
 | Check | How | Result |
 |---|---|---|
@@ -37,6 +42,8 @@ requires a human in the real Obsidian host. **NOT PERFORMED** = nobody has done 
 | Host shortcuts are not captured while the city lacks focus | manual | **NOT PERFORMED** in the real host. Strong adjacent evidence at jsdom: camera keys act only when `event.target` is the stage element itself; Ctrl/Meta/Alt combinations and composing input are ignored so a same-key host shortcut is never shadowed; no host-wide hotkey is registered (commands exist, hotkeys do not) (`tests/component/camera-controls.test.ts`); the shell's Escape listener acts only when this view owns focus, so two open leaves do not cross-talk (`src/ui/App.vue`, acceptance "Keyboard input belongs to the sibling note"). **What is missing is a human typing in a Markdown note beside a city and confirming Obsidian's own shortcuts still fire.** |
 | Focus is preserved after a refresh | manual | **NOT PERFORMED.** Adjacent: acceptance "Select a file without moving the camera" asserts focus stays on the activated row through selection, and reconciliation after a new snapshot clears a removed selection without moving focus to a different row by index (acceptance "Reconcile a file removed from the next snapshot"). Neither is a refresh-with-focus-held test in a real host. |
 | Tooltip and overlay DOM belong to the correct window | manual | **NOT PERFORMED** in the real host. Adjacent, and unusually strong for a cross-window concern: `tests/host/window-migration.test.ts` runs against a **genuinely separate `jsdom` realm** (a second `JSDOM` instance with its own constructors) and a real `adoptNode`, and asserts that every DOM node is created in the NEW window, that `node.instanceOf(T)` is used instead of `instanceof`, that the palette and reduced-motion preference are re-read there, that the `ResizeObserver` is rebuilt from the new window and that the Escape shortcut moves to the new document. `no-restricted-globals` makes a bare `window`/`document` a lint error in `src/ui/**` and `src/visualization/**`. **What is missing is a human dragging a leaf into a pop-out and hovering a building.** |
+
+<!-- a11y:table:end -->
 
 ---
 

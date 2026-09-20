@@ -35,9 +35,11 @@ Task 13 is a release gate that cites this document; this block exists so it cann
 an unperformed row as a passing one.
 
 Task 12 ran as an automated session with no screen reader, no human eyes, no browser
-zoom and no third-party theme. Ten of the matrix's fourteen rows are therefore **NOT
-PERFORMED**, in whole or in part. They are answered at **checkpoint #4**, and these are
-exactly the rows outstanding:
+zoom and no third-party theme. **13** of the matrix's **14** rows are therefore **NOT
+PERFORMED**, in whole or in part; exactly one is fully PASSED. They are answered at
+**checkpoint #4**, and these are exactly the rows outstanding:
+
+<!-- a11y:open:start -->
 
 1. Keyboard-only: complete the scripted demo without a mouse
 2. Screen reader: NVDA on Windows
@@ -61,6 +63,8 @@ exactly the rows outstanding:
 11. Host shortcuts are not captured while the city lacks focus
 12. Focus is preserved after a refresh
 13. Tooltip and overlay DOM belong to the correct window — in a real pop-out
+
+<!-- a11y:open:end -->
 
 What **is** closed, and may be cited: the structural half. Roving tabindex with exactly
 one row in the tab order, one polite live region with an assertive path only for a
@@ -440,7 +444,7 @@ the benchmark and the disposal suites consume. No instrumentation was added besi
 ## G8 — Testing coverage — WHICH LAYERS ACTUALLY RAN
 
 Counts from `npx vitest run` per directory, at commit `HEAD` of task 12 fix round 1:
-**89 files, 943 tests, 942 passed,
+**89 files, 950 tests, 949 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -453,15 +457,21 @@ acceptance runner generates 24 tests from one loop and `describe.each` multiplie
 benchmark's. Those figures are transcribed from the command named in each row and are
 pinned by their sum. Reproduce any row with `npx vitest run <directory>`.
 
-*(Both errors this table shipped with in the first round — an omitted `tests/host/**`
-layer, and a total that predated three tests added in the same commit — are now
-impossible to make silently.)*
+*What the guard makes impossible, precisely:* a missing or phantom layer (the error
+that actually happened), a wrong FILE count, an added or removed test FILE, and a
+half-updated table where one row or the heading is edited without the other. *What it
+does NOT catch:* a UNIFORMLY stale transcription — adding one `it()` to an existing
+file moves the suite from 950 to 951 while the rows still sum to the stated 950, and
+the guard stays green. That is exactly how the first round's three missing tests were
+added (one scope-modal, two snapshot-status, all in existing files), so it is named as
+the residual rather than described as solved. Re-take the counts with the command
+above whenever tests are added.
 
 <!-- g8:table:start -->
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 39 | yes | 455 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
+| Unit | `tests/unit/**` | 39 | yes | 462 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
 | Contract | `tests/contracts/**` | 2 | yes | 40 | **one suite, two implementations** — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift |
 | Integration (real temp dirs) | `tests/integration/**` | 8 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
 | Component (jsdom) | `tests/component/**` | 29 | yes | 298 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal |
@@ -485,13 +495,33 @@ coordinator that consults it from one that ignores it. Disabling it outright
 (`if (false && !mayPublish(…))`) leaves all 26 acceptance tests and all 42 run-lifecycle
 tests green. That was true before fix round 1 and it is still true after it.
 
-The reason is structural, not a coverage gap. `SCAN_STARTED` no-ops while a run is
-running or cancelling, and one `ScanCoordinator` is constructed per `CityView`, so while
-`start()` is awaiting its collector the lifecycle can only be *running* or *cancelling*
-for that same run — and the `cancelling` case is caught by the two `wasCancelled` checks
-above it, with no `await` between the second of them and the guard. Every component of
-the identity tuple therefore matches by the time the guard runs. The file says so itself,
-at length, and the reviewer verified it independently.
+The reason is structural, not a coverage gap, and it rests on **exactly two legs** — the
+re-review corrected an earlier, larger statement of this, and the correction matters
+because a smaller argument is a more fragile one:
+
+- **(a) `SCAN_STARTED` no-ops while a run is running or cancelling**, so no second run can
+  become current while this one is in flight, and both identities derive from the same
+  stored approval. *Pinned behaviourally* by `tests/unit/run-state.test.ts`'s "treats a
+  duplicate start during a run as a no-op" — break it and a test reddens.
+- **(b) There is no yield point** between the second `wasCancelled` check and the guard:
+  `validateSnapshot` is pure and synchronous and the identity construction between them
+  is too, so nothing can advance the lifecycle in between. *Pinned by
+  `tests/unit/gate-evidence.test.ts`'s yield-point tripwire* (fix round 2) — which strips
+  `//` comments before scanning, because this branch has already shipped a
+  source-as-contract test that passed with its own defect reinstated when a comment
+  truncated the parsed region.
+
+"One `ScanCoordinator` per `CityView`" is **not** a third leg and must not be cited as
+one: a second coordinator describes its own run, so `mayPublish` correctly returns *true*
+and that run publishes into its own leaf — which is right, because the SnapshotStore is
+keyed by `snapshotId` and nothing is overwritten.
+
+**The tripwire is not coverage.** It does not test that publication is refused; it tests
+that the reason we say publication cannot *need* refusing is still true. When it fails,
+exactly one of two things must happen: an acceptance test that kills the guard, or a
+correction to this note, `tests/acceptance/wp01.feature`'s header and
+`tests/acceptance/steps/source-steps.ts`'s comment. Deleting the tripwire is not one of
+the two.
 
 It is kept, not removed: it is spec §7's rule written down at the point of publication,
 and the moment more than one coordinator can race for one profile it stops being
