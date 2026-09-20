@@ -101,6 +101,8 @@ the eleven were present, which is a weaker thing than this sentence used to clai
 
 This block exists because the open-row count was found wrong three separate times, each
 time in a place the previous fix had not looked. If you add a sentence to this file that
-states one of these counts **in one of the two shapes**, you do not need to update
-anything: the guard will tell you if you got it wrong. If you state it some other way, it
-will not — so use one of the shapes.
+states one of these counts **in one of the two shapes, with asterisk emphasis**, you do not
+need to update anything: the guard will tell you if you got it wrong. If you state it some
+other way, it will not — every way a count can slip past both sweeps is listed, in full and
+lettered, in `2026-09-17-wp01-gate-evidence.md`'s Numbers block, and each applies to this
+file exactly as it applies to that one.

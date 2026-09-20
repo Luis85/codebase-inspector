@@ -669,8 +669,32 @@ the sweep will not vet a number separated from what it counts by an intervening 
 because this document says "Four questions remain open" about something else entirely,
 and a sweep that reddens on a true sentence gets deleted.
 
-**What still escapes, named:** a restatement using neither shape — the same fact, the same
-words, reordered so the numeral no longer sits beside either anchor. A re-review
-demonstrated exactly that and it is not fixed by more phrases; it is the reason the
-convention above exists. **State these counts in one of the two shapes**, and the guard
-will tell you when you get one wrong.
+**What still escapes, named.** Lettered and listed in full, so that a reader of this block
+— task 13's release gate among them — can see the edge of the guarantee rather than infer
+it from silence. (No count of them is given here on purpose: a tally beside an enumeration
+is exactly the kind of retyped figure this document keeps getting wrong, and this one is
+not derived by anything.) Each is a **silent skip**: the sweep does not recognise the
+sentence as a claim at all, so it neither reads the number nor reports that it declined to.
+
+**(a) A restatement in neither shape.** The same fact, in the same words, reordered so the
+numeral no longer sits beside either anchor. A re-review demonstrated exactly that. It is
+not fixed by adding more phrases; it is the reason the convention above exists.
+
+**(b) A restatement that gets the TOTAL wrong.** The positive sweep reads the *second*
+number first, and treats a figure that is not the matrix's own total as "not a claim about
+this matrix" — so it skips the sentence rather than failing on it. Every negative family is
+built around the true total, so none of them covers the case either. A sentence pairing any
+open count with a wrong total therefore passes both sweeps in silence. This is narrow: the
+total moves only when the table moves, and the table is what both sweeps derive from. It is
+named because it is the one case where a wrong number is *skipped* rather than read.
+
+**(c) A count written with underscore emphasis.** Both sweeps read these documents with
+asterisks and backticks stripped and nothing else, so a bolded numeral and a bare one are
+the same string to them — but an underscore-emphasised one is not, and is invisible to
+both. Neither document uses underscore emphasis for anything today (the only underscores in
+either file are inside identifiers), and that convention is the whole of the mitigation.
+**Use asterisks for emphasis in these two files.**
+
+**State these counts in one of the two shapes, with asterisk emphasis, against the matrix's
+own total**, and the guard will tell you when you get one wrong. If you find another way to
+escape it, add it to this list — the list being complete is what makes it useful.
