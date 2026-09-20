@@ -11,6 +11,7 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "verify": "npm run typecheck && npm run lint:fast && npm run lint && npm run test && npm run build",
+    "analyze": "npx --yes fallow@3.27.0 dead-code src",
     "install:vault": "node --env-file-if-exists=.env scripts/install-to-vault.mjs"
   },
   "dependencies": {

@@ -7,6 +7,9 @@ import type { App } from 'obsidian';
 import type { CodebaseProfile } from '../../domain/model';
 import type { SourceFileSystemPort } from '../../application/ports/source-filesystem-port';
 import { isContained, normalizeAbsolutePath, normalizeRelativePath } from '../../domain/path-safety';
+// The ONE catalogue, not a second copy of the same sentence -- see scope-modal.ts's
+// own note (task 12, carried finding 3).
+import { COPY_03 } from '../../ui/copy';
 
 export type SourceMode = 'vault' | 'vault-folder' | 'external';
 
@@ -25,7 +28,6 @@ export interface SourceModalOptions {
   filesystem: SourceFileSystemPort;
 }
 
-const COPY_03 = 'Read a local codebase outside this vault.';
 const ABSOLUTE_PATH = /^(?:[A-Za-z]:[\\/]|\/)/;
 
 /** `relativeNormalized` has already passed through normalizeRelativePath (task 2),

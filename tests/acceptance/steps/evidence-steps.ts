@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { CANCELLED_BANNER, identityOf, mayPublish } from '../../../src/application/run-state';
 import { isApprovalValid } from '../../../src/application/approval';
 import { openScopeModal } from '../../../src/host/modals/scope-modal';
+import { COPY_10 } from '../../../src/ui/copy';
 import { approvalFor, harnessOf, makeScanHarness, runningRunId, scopeFor } from '../scan-harness';
 import { put, take } from '../world';
 import type { StepTable } from '../feature-runner';
@@ -63,9 +64,17 @@ export const evidenceSteps: StepTable<World> = {
   'the interface distinguishes cancellation from analysis findings': (world) => {
     const harness = harnessOf(world);
     const notice = harness.notices.at(-1) ?? '';
-    // COPY-10: the incomplete result was DISCARDED, and the retained snapshot is named.
+    // COPY-10, ASSEMBLED AND CHECKED AGAINST THE CATALOGUE ENTRY ITSELF. The shipped
+    // sentence is built in two halves (run-state.ts's CANCELLED_BANNER plus
+    // lifecycle-notices.ts's retained-snapshot suffix) because the second half is
+    // omitted entirely when there is no retained snapshot to name -- a single template
+    // string cannot express that. Comparing the assembled result to COPY_10 with
+    // {time} substituted is what stops the two halves drifting from the catalogue,
+    // and it is the only consumer COPY_10 has (task 12, carried finding 3).
+    const retained = harness.store.get(take<string>(world, 'snapshot-A'))!;
+    const time = new Date(retained.providerRun.capturedAt).toLocaleTimeString();
+    expect(notice).toBe(COPY_10.replace('{time}', time));
     expect(notice).toContain(CANCELLED_BANNER);
-    expect(notice).toContain('is unchanged');
     // It is not dressed up as a result: no count, no finding, no partial-measurement
     // language anywhere in it.
     expect(notice).not.toMatch(/finding|measurements cover/i);

@@ -6,6 +6,7 @@
 import { Modal } from 'obsidian';
 import type { App } from 'obsidian';
 import { approve } from '../../application/approval';
+import { COPY_04, COPY_05, COPY_06, COPY_07 } from '../../ui/copy';
 import { scopeValidationReasons } from '../../domain/validator';
 import type { Clock } from '../../application/ports/clock';
 import type { AnalysisScope, ApprovedInventoryRun, CodebaseProfile } from '../../domain/model';
@@ -34,13 +35,13 @@ export interface ScopeApproval {
   scope: AnalysisScope;
 }
 
-// COPY-04..07, docs/concept/design/interactions/04-microcopy.md, character for
-// character (task-7-context.md section 3; adopted by spec 5.2).
-const COPY_04 = 'Review scope and read access';
-const COPY_05 = 'Source text and file metadata are read. No project scripts, dependency '
-  + 'installation, or source writes are performed.';
-const COPY_06 = 'I approve read access to this directory for this scan.';
-const COPY_07 = 'Scan codebase';
+// COPY-04..07 come from the ONE catalogue (src/ui/copy.ts), not a second copy of the
+// same four sentences. Task 12, carried finding 3 (task-12-context.md §2.3): they were
+// duplicated BY VALUE here, which is why seven COPY_* exports read as unused -- the
+// last review compared all five duplicated strings programmatically and found them
+// identical, so this is a dedupe and not a bug fix. `copy.ts` is a plain module of
+// string constants with no Vue, DOM or renderer dependency, so importing it from
+// src/host costs the bundle nothing it was not already paying.
 
 /** Host-boundary default: openScopeModal's own signature is exactly (app, selection),
  *  as the brief specifies, so there is no third parameter for a caller to inject a

@@ -13,6 +13,7 @@
 // checkCallback is for.
 import type { Plugin } from 'obsidian';
 import { CITY_VIEW_TYPE, CityView } from './city-view';
+import { COPY_09 } from '../ui/copy';
 
 /** Always opens a NEW city tab (ruling M9, review round 2). Multiple leaves are a
  *  first-class WP-01 capability, not an edge case: spec 4.4 says "the factory may run
@@ -52,7 +53,9 @@ export function registerCommands(plugin: Plugin): void {
 
   plugin.addCommand({
     id: 'cancel-scan',
-    name: 'Cancel scan',
+    // COPY-09, from the ONE catalogue (task 12, carried finding 3): the command's
+    // palette name IS the cancel label the microcopy catalogue defines.
+    name: COPY_09,
     // Ruling M36: hidden from the palette unless the active view actually has a run
     // to cancel -- superseding M6 for THIS command only (spec §5 requires the three
     // commands to be registered, not permanently visible; scan-codebase stays
