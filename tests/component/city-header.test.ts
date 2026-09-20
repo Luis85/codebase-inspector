@@ -43,8 +43,13 @@ describe('CityHeader.vue', () => {
   });
 
   it('says "1 directory district", not "1 directory districts"', () => {
+    // Fix round 1: `toContain('1 directory district')` cannot fail on wrong
+    // pluralization -- 'district' is a substring of 'districts', so an
+    // always-pluralized implementation satisfied it too (mutation-verified: see
+    // task-7-report.md's Fix round 1 section). Pinning the whole string, matching
+    // the neighbouring `toBe` above, is what actually anchors the missing 's'.
     const wrapper = mountWithStore({ files: 3, directories: 1 });
-    expect(wrapper.find('.ci-city-header__subtitle').text()).toContain('1 directory district');
+    expect(wrapper.find('.ci-city-header__subtitle').text()).toBe('3 files grouped into 1 directory district');
   });
 
   it('carries the read-only claim as a badge', () => {
