@@ -22,6 +22,7 @@ import { provideInspectorOpener } from './drawer-focus';
 import { countPartialRead, deriveViewSurfaceState } from './view-surface';
 import { escapeIntent } from './interaction/escape-intent';
 import { DRAWER_MAX_INLINE_SIZE, MIN_INLINE_SIZE } from './responsive';
+import { contentBoxInlineSize, narrowContainer } from './container-box';
 import { COPY_02 } from './copy';
 import FileSearch from './components/FileSearch.vue';
 import CodebaseFileList from './components/CodebaseFileList.vue';
@@ -77,15 +78,6 @@ const narrowDrawer = ref(false);
 interface WinBearing { win?: Window }
 interface DocBearing { doc?: Document }
 
-// The SAME 820 CSS px container-query threshold styles.css uses (spec 5.2):
-// measured on the `.codebase-inspector-root` ancestor when one exists (the real
-// host), falling back to this component's own root otherwise (a standalone
-// mount, same fallback FileSearch.vue's own focus-containment check already
-// uses) — never a bare `window`/viewport measurement, which a CONTAINER query
-// does not track.
-function narrowContainer(el: HTMLElement): Element {
-  return el.closest('.codebase-inspector-root') ?? el;
-}
 // Phase 2 fix wave, I2 (Important): spec 5.2 says "below a hard floor of 320 CSS px
 // inline size the view renders LIST-FIRST and creates no WebGL context at all", and
 // only the second half shipped -- CityViewport disposed the renderer, but viewMode
@@ -107,7 +99,10 @@ const forcedListByFloor = ref(false);
 function updateResponsiveLayout(): void {
   const el = rootEl.value;
   if (!el) return;
-  const width = narrowContainer(el).getBoundingClientRect().width;
+  // Ruling M97, reopened: the CONTENT box, which is what `container-type: inline-size`
+  // compares -- `getBoundingClientRect()` is the BORDER box and Obsidian's own
+  // `.view-content` padding makes the two differ by 24 px. See container-box.ts.
+  const width = contentBoxInlineSize(narrowContainer(el));
   narrowDrawer.value = width < DRAWER_MAX_INLINE_SIZE;
   // Re-review round 2 (R1, Important): at or above the threshold the Files overlay
   // STOPS EXISTING -- styles.css makes the list a permanent column and hides the
