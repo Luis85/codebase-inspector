@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
+import { setTimeout as scheduleTimeout } from 'node:timers';
+import type { Object3D } from 'three';
+import type { LayoutResult } from '../../src/domain/layout/types';
+import type { CityPalette } from '../../src/visualization/renderer-port';
+import { CATEGORY_IDS } from '../../src/domain/classify';
 
 // createCityRenderer's happy path needs a real WebGL2 context, which no environment
 // available to this test suite provides (verified directly against jsdom while
@@ -97,5 +102,130 @@ describe('createCityRenderer', () => {
     const mountEl = fakeElement() as unknown as HTMLElement;
     const port = createCityRenderer(mountEl, fakeWin(), vi.fn());
     expect(() => { port.dispose(); }).not.toThrow();
+  });
+});
+
+// Task 4. foundations/03: "A selected building receives a high-contrast outline PLUS a
+// locator marker." Tested against buildCity/CityMeshes directly, not through the full
+// port: CityMeshes.root is the one place the live scene graph is reachable by name —
+// CityRendererPort deliberately exposes no such accessor (spec 4.2's own boundary), and
+// buildCity itself touches no WebGL, so none of the FakeWebGLRenderer machinery above is
+// needed here.
+function selectionLayoutFixture(): LayoutResult {
+  const entityId = 'repo\0file\0src/tall.ts';
+  return {
+    snapshotId: 's1', layoutVersion: '1',
+    lots: [
+      { entityId, directoryId: 'repo\0directory\0src',
+        center: [0, 3, 0], dimensions: [2, 6, 2], colorKey: CATEGORY_IDS[0], metricState: 'measured' },
+      { entityId: 'repo\0file\0src/short.ts', directoryId: 'repo\0directory\0src',
+        center: [4, 1, 0], dimensions: [2, 2, 2], colorKey: CATEGORY_IDS[0], metricState: 'measured' },
+    ],
+    districts: [{
+      directoryId: 'repo\0directory\0src', parentId: null, name: 'src', depth: 0,
+      center: [0, 0, 0], extent: [12, 12], labelAnchor: [0, 0.2, 0], aggregated: false,
+    }],
+    // The tall lot (height 6) is the tallest thing in bounds (max y 6): a locator that
+    // only clears ITS OWN roof, not the skyline's, would still fail to be a beacon.
+    bounds: { min: [-6, 0, -6], max: [6, 6, 6] },
+    scale: { metricId: 'physical-lines', name: 'Physical lines', cap: 1000, unit: 'lines', clampedCount: 0 },
+  };
+}
+
+function selectionPaletteFixture(): CityPalette {
+  const categories = Object.fromEntries(CATEGORY_IDS.map((id) => [id, '#4c8bf5'])) as CityPalette['categories'];
+  return {
+    background: '#1e1e1e', districtSurface: '#2a2a2a', districtBorder: '#3a3a3a',
+    labelText: '#dddddd', selection: '#ffb020', unavailable: '#808080', categories,
+  };
+}
+
+// buildCity yields between chunks via `win.setTimeout` (instanced-city.ts's
+// `yieldToHost`) — a stub that never invokes its callback (as this file's own fakeWin()
+// above deliberately is, for the tests that never call setLayout) would hang this await
+// forever. Node's real global timer is enough; no DOM is needed for buildCity itself.
+// Imported from 'node:timers' as a renamed LOCAL binding, not the bare global: this is
+// a node-environment test file (vitest.config.ts) with no `window` to satisfy
+// obsidianmd/prefer-window-timers, and `globalThis.setTimeout` trips
+// obsidianmd/no-global-this right back. A local import binding is neither — the rule's
+// own "only flag global references, not local functions" carve-out applies here.
+// yieldToHost never calls win.clearTimeout, so this double has none.
+function realTimerWin(): Window {
+  return { setTimeout: (fn: () => void, ms?: number) => scheduleTimeout(fn, ms) } as unknown as Window;
+}
+
+// Dynamic, not static: this file's `vi.mock('three', ...)` factory above references
+// FakeWebGLRenderer, a class declared further down THIS file. A static top-level import
+// of instanced-city.ts (which imports 'three') would run before that class declaration
+// is reached and hit its TDZ — exactly what every other src import in this file already
+// avoids by importing inside the test body instead.
+async function buildTestCity(layout: LayoutResult): ReturnType<
+  typeof import('../../src/visualization/instanced-city').buildCity
+> {
+  const { buildCity } = await import('../../src/visualization/instanced-city');
+  return buildCity(layout, { win: realTimerWin(), superseded: () => false });
+}
+
+describe('selection encoding: outline plus locator', () => {
+  it('draws both halves of the selection encoding', async () => {
+    const layout = selectionLayoutFixture();
+    const city = await buildTestCity(layout);
+    expect(city).not.toBeNull();
+    city!.setColors(selectionPaletteFixture());
+    city!.setSelection(layout.lots[0]!.entityId);
+    // foundations/03: two objects, because an outline alone vanishes the moment the
+    // building is occluded, and a marker alone does not say WHICH building.
+    expect(city!.root.getObjectByName('ci-selection-outline')).toBeDefined();
+    expect(city!.root.getObjectByName('ci-selection-locator')).toBeDefined();
+    city!.dispose();
+  });
+
+  it('keeps the locator legible with no camera-mode input at all — interactions/03: top-down removes height cues, and CityMeshes has no camera awareness to lose them through', async () => {
+    const layout = selectionLayoutFixture();
+    const city = await buildTestCity(layout);
+    city!.setColors(selectionPaletteFixture());
+    city!.setSelection(layout.lots[0]!.entityId);
+    const locator = city!.root.getObjectByName('ci-selection-locator') as Object3D;
+    // Camera mode ('3d' | 'top') lives entirely in camera-rig.ts / city-renderer.ts —
+    // instanced-city.ts never receives it (renderer-port.ts's own contract notes: the
+    // renderer owns the camera, the scene it builds does not). So the ONLY way this
+    // object could fail to read top-down is if it were never wired to selection at all,
+    // which is exactly what this asserts.
+    expect(locator.visible).toBe(true);
+    city!.dispose();
+  });
+
+  it('deselecting hides the locator along with the outline', async () => {
+    const layout = selectionLayoutFixture();
+    const city = await buildTestCity(layout);
+    city!.setColors(selectionPaletteFixture());
+    city!.setSelection(layout.lots[0]!.entityId);
+    city!.setSelection(null);
+    expect((city!.root.getObjectByName('ci-selection-outline') as Object3D).visible).toBe(false);
+    expect((city!.root.getObjectByName('ci-selection-locator') as Object3D).visible).toBe(false);
+    city!.dispose();
+  });
+
+  it('colours the locator from palette.selection, and only palette.selection (ruling A1: no eleventh palette member)', async () => {
+    const layout = selectionLayoutFixture();
+    const city = await buildTestCity(layout);
+    city!.setColors(selectionPaletteFixture());
+    city!.setSelection(layout.lots[0]!.entityId);
+    const locator = city!.root.getObjectByName('ci-selection-locator') as unknown as
+      { material: { color: { getHexString: () => string } } };
+    // '#ffb020' round-trips through Color -> getHexString losslessly (no float32
+    // instance-colour precision loss in play here, unlike the instanced buildings).
+    expect(locator.material.color.getHexString()).toBe('ffb020');
+    city!.dispose();
+  });
+
+  it('never adds the locator to a pick target (instanced-city.ts:39 — file lots only)', async () => {
+    const layout = selectionLayoutFixture();
+    const city = await buildTestCity(layout);
+    city!.setColors(selectionPaletteFixture());
+    city!.setSelection(layout.lots[0]!.entityId);
+    const locator = city!.root.getObjectByName('ci-selection-locator');
+    expect(city!.pickTargets).not.toContain(locator);
+    city!.dispose();
   });
 });

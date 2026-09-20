@@ -17,7 +17,7 @@
 // setColors() the moment a renderer exists, so nothing is drawn uncoloured in practice.
 import {
   BoxGeometry, BufferGeometry, Color, EdgesGeometry, Float32BufferAttribute, Group,
-  InstancedMesh, LineBasicMaterial, LineSegments, Matrix4, MeshBasicMaterial,
+  InstancedMesh, LineBasicMaterial, LineSegments, Matrix4, Mesh, MeshBasicMaterial,
   MeshStandardMaterial, Quaternion, Vector3,
 } from 'three';
 import type { Object3D } from 'three';
@@ -62,6 +62,17 @@ const DIM_MIX = 0.82;              // how far a filtered-out lot moves toward th
 const SELECTION_INFLATE = 1.06;
 const BUILDING_ROUGHNESS = 0.85;   // matte: a rough dielectric keeps the specular lobe
 const BUILDING_METALNESS = 0;      // broad and dim, so lighting stays inside its budget
+
+// foundations/03: "a high-contrast outline PLUS a locator marker" — the outline is the
+// EdgesGeometry box below; this is the locator's own shape. Width is a FRACTION of the
+// selected lot's own footprint (so it never swallows a small building), height is a
+// FRACTION of the whole layout's own vertical span (so it clears the tallest neighbour
+// in the city, not just the selected building's own roof) — the exact thing a locator
+// exists for: interactions/03's top-down camera removes height cues, and a beacon that
+// only pokes above ITS OWN building would still be lost behind a taller one next door.
+const LOCATOR_WIDTH_FRACTION = 0.3;
+const LOCATOR_CLEARANCE = 1.25;
+const LOCATOR_MIN_SPAN = 1;         // guards a degenerate layout (every lot the same height)
 
 /** A MACROtask, not a microtask: a microtask still runs inside the same click, and the
  *  task-S spike measured a 160 ms click-handler violation plus a 37 ms forced reflow
@@ -115,6 +126,11 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
   const slabMaterial = new MeshStandardMaterial({ roughness: 1, metalness: 0 });
   const borderMaterial = new LineBasicMaterial();
   const selectionMaterial = new LineBasicMaterial({ depthTest: false, transparent: true });
+  // Filled and translucent, not wireframe: the outline reads as "this shape", the
+  // locator reads as "over here" — a distinct affordance, not a second outline. Both
+  // share the outline's depthTest:false/high renderOrder treatment so BOTH halves of
+  // the encoding survive being occluded by a taller neighbour, not just one of them.
+  const locatorMaterial = new MeshBasicMaterial({ transparent: true, opacity: 0.35, depthTest: false });
 
   const measured = new InstancedMesh(boxGeometry, buildingMaterial, Math.max(measuredLots.length, 1));
   const markers = new InstancedMesh(boxGeometry, markerMaterial, Math.max(unavailableLots.length, 1));
@@ -148,11 +164,22 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
   borders.frustumCulled = false;
 
   const selectionOutline = new LineSegments(new EdgesGeometry(boxGeometry), selectionMaterial);
+  selectionOutline.name = 'ci-selection-outline';
   selectionOutline.renderOrder = 20;
   selectionOutline.visible = false;
   selectionOutline.frustumCulled = false;
 
-  root.add(slabs, borders, measured, markers, selectionOutline);
+  // Reuses the SAME shared unit boxGeometry every InstancedMesh above already uses
+  // (scaled per-object via its own matrix/scale, exactly like them) — no new geometry,
+  // so disposeObject3D's geometry Set collects and frees it exactly once either way.
+  const selectionLocator = new Mesh(boxGeometry, locatorMaterial);
+  selectionLocator.name = 'ci-selection-locator';
+  selectionLocator.renderOrder = 21;
+  selectionLocator.visible = false;
+  selectionLocator.frustumCulled = false;
+
+  // Never pushed into pickTargets below: picking raycasts file lots only (spec 5.2).
+  root.add(slabs, borders, measured, markers, selectionOutline, selectionLocator);
 
   async function place(lots: readonly CityLot[], mesh: InstancedMesh): Promise<boolean> {
     for (let i = 0; i < lots.length; i++) {
@@ -185,6 +212,12 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
   let matching: ReadonlySet<EntityId> | null = null;
   let disposed = false;
 
+  // The whole layout's own vertical span, computed once from the same bounds the
+  // camera rig fits to — not the selected lot's own height, which is the difference
+  // between a beacon that clears the SKYLINE and one that only clears its own roof.
+  const locatorHeight = Math.max(layout.bounds.max[1] - layout.bounds.min[1], LOCATOR_MIN_SPAN)
+    * LOCATOR_CLEARANCE;
+
   function paintInstances(mesh: InstancedMesh, lots: readonly CityLot[], current: CityPalette): void {
     const background = new Color(current.background);
     for (let i = 0; i < lots.length; i++) {
@@ -212,6 +245,9 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
     slabMaterial.color = new Color(separatedFrom(palette.districtSurface, palette.background));
     borderMaterial.color = new Color(palette.districtBorder);
     selectionMaterial.color = new Color(palette.selection);
+    // Ruling A1: no eleventh palette member. The locator takes its colour from the
+    // SAME token the outline does — one selection colour, two objects.
+    locatorMaterial.color = new Color(palette.selection);
     // markerMaterial's colour is deliberately NEVER set. three's color_vertex does
     // `vColor.rgb *= instanceColor.rgb` and color_fragment does `diffuseColor *= vColor`
     // starting from material.color, so what renders is the PRODUCT of the two channels.
@@ -225,7 +261,9 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
 
   function applySelection(): void {
     const lot = selected === null ? undefined : byEntity.get(selected);
-    selectionOutline.visible = lot !== undefined;
+    const visible = lot !== undefined;
+    selectionOutline.visible = visible;
+    selectionLocator.visible = visible;
     if (!lot) return;
     selectionOutline.position.set(lot.center[0], lot.center[1], lot.center[2]);
     selectionOutline.scale.set(
@@ -233,6 +271,13 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
       lot.dimensions[1] * SELECTION_INFLATE,
       lot.dimensions[2] * SELECTION_INFLATE,
     );
+    // Rooted at the lot's own base and rising LOCATOR_CLEARANCE times the whole city's
+    // vertical span from there — tall enough to clear any neighbour, whatever its own
+    // height, which is what makes this a LOCATOR rather than a second outline.
+    const width = Math.min(lot.dimensions[0], lot.dimensions[2]) * LOCATOR_WIDTH_FRACTION;
+    const base = lot.center[1] - lot.dimensions[1] / 2;
+    selectionLocator.position.set(lot.center[0], base + locatorHeight / 2, lot.center[2]);
+    selectionLocator.scale.set(width, locatorHeight, width);
   }
 
   return {
