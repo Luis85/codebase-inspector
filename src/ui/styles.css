@@ -244,18 +244,67 @@
    bounded by construction, which is what removes the `min-width: auto` flex-blowout the
    diagnosis flagged as unverifiable without a real browser: the question stops mattering
    rather than being answered. */
-:where(.codebase-inspector-root) .ci-file-list__row {
+/* Checkpoint #3 item 4 -- THE SPECIFICITY RULE, stated once here and pinned by
+   tests/unit/host-cascade.test.ts.
+
+   `:where()` contributes ZERO specificity, deliberately: spec 4.4 says so, and it is what
+   lets a user's own snippet override us without `!important`. It also meant this rule
+   computed at (0,1,0) while the shipped obsidian.asar styles our native <button> rows at
+
+     button                      { height: var(--input-height); white-space: nowrap;
+                                   display: inline-flex; justify-content: center; }   (0,0,1)
+     button:not(.clickable-icon) { background-color: var(--interactive-normal);
+                                   box-shadow: var(--input-shadow); }                 (0,1,1)
+
+   with `--input-height: 30px`. So `overflow-wrap: anywhere` was INERT (nothing overrode
+   `white-space: nowrap`, which suppresses wrapping outright), `text-align: left` was dead
+   (a flex container places its text by `justify-content`, which centred an unshrinkable
+   line and clipped it at BOTH ends), every row was pinned to 30px -- feeding defects 5/6
+   their 32,610px -- and the selected row's highlight never painted.
+
+   The rule: keep the `:where()` scope, and raise a rule that must beat an Obsidian default
+   ONLY by adding the same element TYPE selector Obsidian's own rule uses -- `button` here
+   -- never a second class and never an id. That is exactly (0,1,1): equal to
+   `button:not(.clickable-icon)` and resolved our way because a plugin's styles.css is
+   appended after app.css, and still strictly below `.codebase-inspector-root
+   .ci-file-list__row` (0,2,0), the way a user scopes a snippet to a plugin view. NO
+   specificity exists strictly between those two, so this is the only choice that both
+   beats the host and loses to the user. Against a bare type selector (0,0,1) -- height,
+   white-space, display -- a class already wins and nothing needed raising: the properties
+   simply had to be declared. */
+:where(.codebase-inspector-root) button.ci-file-list__row {
   width: 100%;
+  /* Undoes `display: inline-flex` + `justify-content: center`, which is what turned a long
+     path into one unshrinkable centred flex item overflowing both ends. As a block box the
+     path is ordinary inline content again, so `text-align` and `overflow-wrap` both apply. */
+  display: block;
+  /* Undoes `white-space: nowrap`. Without this the line below does nothing at all. */
+  white-space: normal;
   overflow-wrap: anywhere;
+  /* Undoes `height: var(--input-height)`, so a wrapped row is as tall as its own content
+     instead of 30px with the rest clipped. */
+  height: auto;
   text-align: left;
   padding: var(--ci-space-2) var(--ci-space-3);
   border: none;
   background: transparent;
+  box-shadow: none;
   color: var(--ci-text);
   cursor: pointer;
   border-radius: var(--ci-radius-small);
 }
-:where(.codebase-inspector-root) .ci-file-list__row--selected {
+/* Obsidian's `button:hover` is (0,1,1) inside `@media (hover: hover)`, and the row's own
+   `background: transparent` above now ties it and wins on document order -- which would
+   leave the list with no hover affordance at all. This restores one, and it is the only
+   rule here that goes past (0,2,0): overriding a hover state means writing a hover
+   selector, so a user snippet still reaches it on equal terms. */
+:where(.codebase-inspector-root) button.ci-file-list__row:hover {
+  background: var(--ci-panel);
+}
+/* The `--selected:hover` pair is not redundant: the hover rule above is (0,2,1) and would
+   otherwise repaint a SELECTED row on hover, losing the very highlight this restores. */
+:where(.codebase-inspector-root) button.ci-file-list__row--selected,
+:where(.codebase-inspector-root) button.ci-file-list__row--selected:hover {
   background: var(--ci-action);
   color: var(--ci-on-action);
 }
