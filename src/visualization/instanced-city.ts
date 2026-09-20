@@ -72,7 +72,6 @@ const BUILDING_METALNESS = 0;      // broad and dim, so lighting stays inside it
 // only pokes above ITS OWN building would still be lost behind a taller one next door.
 const LOCATOR_WIDTH_FRACTION = 0.3;
 const LOCATOR_CLEARANCE = 1.25;
-const LOCATOR_MIN_SPAN = 1;         // guards a degenerate layout (every lot the same height)
 
 /** A MACROtask, not a microtask: a microtask still runs inside the same click, and the
  *  task-S spike measured a 160 ms click-handler violation plus a 37 ms forced reflow
@@ -215,8 +214,14 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
   // The whole layout's own vertical span, computed once from the same bounds the
   // camera rig fits to — not the selected lot's own height, which is the difference
   // between a beacon that clears the SKYLINE and one that only clears its own roof.
-  const locatorHeight = Math.max(layout.bounds.max[1] - layout.bounds.min[1], LOCATOR_MIN_SPAN)
-    * LOCATOR_CLEARANCE;
+  // No zero-span guard: heightFor (scale.ts) floors every lot, measured or not, at 8,
+  // and computeBounds (layout.ts) seeds ys with a ground-level 0 and pushes each lot's
+  // own top, so bounds.max[1] can only equal bounds.min[1] (0) when layout.lots is
+  // EMPTY — and applySelection's `if (!lot) return` guard already means an empty
+  // layout never reaches the code below that consumes this value (there is nothing
+  // byEntity could ever resolve `selected` to). A clamp here would be a guard with no
+  // reachable trigger (ruling M114).
+  const locatorHeight = (layout.bounds.max[1] - layout.bounds.min[1]) * LOCATOR_CLEARANCE;
 
   function paintInstances(mesh: InstancedMesh, lots: readonly CityLot[], current: CityPalette): void {
     const background = new Color(current.background);
