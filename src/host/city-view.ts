@@ -212,6 +212,9 @@ export class CityView extends ItemView {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- see comment above: vue-tsc, not eslint's type-aware linting, is the accurate check here
     this.vueApp = createApp(RootComponent);
     this.vueApp.provide('onSelectCodebase', () => { void this.selectCodebase(); });
+    // Task 5 (F7): the toolbar's Scan control, provided like `onSelectCodebase` above
+    // and calling the SAME method the 'scan-codebase' palette command calls.
+    this.vueApp.provide('onScanRequested', () => { void this.startScan(); });
     // Task 9 fix round 2, item 1 (ruling M68): the shared handle AND the real
     // factory, both provided at the APP level, BEFORE mount — `CityViewport`
     // is the only thing that ever WRITES the handle or calls the factory;

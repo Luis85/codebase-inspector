@@ -241,6 +241,32 @@
   }
 }
 
+/* --- Toolbar scan (C02) ------------------------------------------------------- */
+/* Task 5 (F7). M113: `button` added for the same reason as `.ci-app__mode-toggle`
+   above -- ties Obsidian's own `button` rule at (0,1,1) instead of losing to it, so
+   our `background`/`color`/`box-shadow` apply instead of `--interactive-normal`. */
+:where(.codebase-inspector-root) button.ci-toolbar__scan {
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-3);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+/* Raising the base rule to (0,1,1) also ties Obsidian's own `button:hover` -- without
+   this explicit copy the control would have no hover affordance at all, exactly the
+   defect three other controls on this branch already shipped (M113's own warning). */
+:where(.codebase-inspector-root) button.ci-toolbar__scan:hover {
+  background: var(--ci-raised);
+}
+:where(.codebase-inspector-root) button.ci-toolbar__scan:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* --- FileSearch (C06) -------------------------------------------------------- */
 :where(.codebase-inspector-root) .ci-search__input {
   width: 100%;

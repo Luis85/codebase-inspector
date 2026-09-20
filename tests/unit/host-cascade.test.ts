@@ -187,6 +187,7 @@ const PLUGIN_SKINNED_BUTTONS = [
   '.ci-app__drawer-close',
   '.ci-welcome__action',
   '.ci-camera-controls button',  // already compliant; asserted so it cannot regress
+  '.ci-toolbar__scan',           // Task 5 (F7): the toolbar's own Scan control
 ];
 
 /** `@media (hover: hover) { button:hover { ... } }` -- a media query changes no specificity. */

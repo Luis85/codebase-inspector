@@ -304,6 +304,30 @@ describe('CityView', () => {
     document.querySelectorAll('.modal-container').forEach((el) => { el.remove(); });
   });
 
+  // Task 5 (F7): the toolbar's own Scan control (App.vue's `.ci-toolbar__scan`) must
+  // reach a user through the SAME consent chain the command palette's 'scan-codebase'
+  // entry already uses (commands.ts: `view.startScan()`) -- never a direct
+  // `coordinator.start()` call, which would be the renderer obtaining authority to
+  // read paths on its own. Real host wiring, not a component double: this is
+  // `startScan()`'s actual first-scan branch (no `state.snapshotId` yet), so seeing
+  // the source modal here proves the click reached `startScan()` itself.
+  it('clicking the toolbar Scan control runs the full consent chain (startScan)', async () => {
+    const deps = makeDepsDouble({ profileStore: makeProfileStoreDouble([
+      { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 },
+    ]) });
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
+    await view.onOpen();
+
+    const button = view.contentEl.querySelector<HTMLButtonElement>('.ci-toolbar__scan')!;
+    button.click();
+    const modal = await waitForModal();
+    expect(modal.textContent).toContain('Select a codebase');
+
+    modal.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
+    await Promise.resolve();
+    document.querySelectorAll('.modal-container').forEach((el) => { el.remove(); });
+  });
+
   // "selectCodebase vs startScan (ruling M46)" moved to
   // tests/host/city-view-scan-modes.test.ts (task 11 fix round 1, item 0: this file
   // was at the tests/** 450-line cap).

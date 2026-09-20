@@ -24,7 +24,7 @@ import { escapeIntent } from './interaction/escape-intent';
 import { DRAWER_MAX_INLINE_SIZE, MIN_INLINE_SIZE } from './responsive';
 import { contentBoxInlineSize, narrowContainer } from './container-box';
 import { COPY_02 } from './copy';
-import FileSearch from './components/FileSearch.vue';
+import AppToolbar from './components/AppToolbar.vue';
 import CodebaseFileList from './components/CodebaseFileList.vue';
 import CityViewport from './components/CityViewport.vue';
 import CameraControls from './components/CameraControls.vue';
@@ -276,43 +276,12 @@ defineExpose({ rendererHost });
     ref="rootEl"
     class="ci-app"
   >
-    <div class="ci-app__toolbar">
-      <FileSearch />
-      <!-- Task 9 fix round 1, item 3 (Important): list mode is the FALLBACK, not
-           the default (spec 5.2), but must stay genuinely reachable both ways —
-           `returnFromList()` had no caller at all before this. Always visible,
-           never hidden by viewMode itself, or leaving list mode would be
-           unreachable again the moment it is entered. -->
-      <button
-        v-if="store.viewMode !== 'list'"
-        type="button"
-        aria-label="List view"
-        class="ci-app__mode-toggle"
-        @click="store.setViewMode('list')"
-      >
-        List view
-      </button>
-      <button
-        v-else
-        type="button"
-        aria-label="Return to city view"
-        class="ci-app__mode-toggle"
-        @click="store.returnFromList()"
-      >
-        Return to city view
-      </button>
-      <!-- Task 9 fix round 1, item 7: the Files drawer's OPENER — only meaningful
-           below 820px (styles.css hides it above that via the container query),
-           but always in the DOM so it is reachable the moment the leaf narrows. -->
-      <button
-        type="button"
-        aria-label="Files"
-        class="ci-app__mode-toggle ci-app__drawer-opener"
-        @click="openFilesDrawer"
-      >
-        Files
-      </button>
-    </div>
+    <!-- Task 5 (F7): the toolbar itself (search, Scan, mode toggle, Files opener) now
+         lives in AppToolbar.vue -- extracted, not rewritten, to keep this file under
+         the 400-line src/** budget (task-5-brief.md step 4). `openFilesDrawer` stays
+         here: it is shell-level state (`filesDrawerOpen`/`filesDrawerOpener`, item 7's
+         own one-overlay-at-a-time rule), not the toolbar's own concern. -->
+    <AppToolbar @open-files-drawer="openFilesDrawer" />
     <!-- Phase 2c, I4: COPY-30. `city-store`'s `banner` getter had no production reader,
          so the string never reached a user. Spec line 913 adopts COPY-30 and spec 5.2
          requires a filter-hidden selection be "EXPLAINED ..., never silently replaced" —
