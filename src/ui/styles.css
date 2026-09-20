@@ -69,7 +69,21 @@
   gap: var(--ci-space-3);
   padding: var(--ci-space-4);
   box-sizing: border-box;
-  min-height: 100%;
+  /* Checkpoint #3 defects 5 and 6, ONE declaration. This was `min-height: 100%`, and
+     `min-height` NEVER makes a height DEFINITE -- the fact this branch established
+     during the ResizeObserver-ratchet work about the stage, equally true of the list the
+     whole time. With an indefinite height here, `.ci-app__body`'s row flex line takes its
+     cross size from its TALLEST ITEM instead of its container: 1,087 file-list rows fixed
+     at 30px each by Obsidian's own `button { height: var(--input-height) }` made the line
+     ~32,610px, `.ci-app__list`'s `overflow-y: auto` never received a constrained box so
+     it never scrolled, and the stage was stretched to the same ~32,500px and handed it
+     unclamped to `setSize()`. The DOM labels then landed at `cssHeight / 2` ~= 16,250px
+     while the GL drawing buffer clamped at 16384 -- labels in the middle, city at the top.
+     `height: 100%` resolves because Obsidian's own `.workspace-leaf-content .view-content`
+     is `height: 100%` inside a definite-height flex column (verified in the shipped
+     obsidian.asar), so our containing block's height is definite. Pinned by
+     tests/component/stage-height.test.ts. */
+  height: 100%;
 }
 :where(.codebase-inspector-root) .ci-app__toolbar {
   display: flex;
