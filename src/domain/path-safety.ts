@@ -24,6 +24,56 @@ export function normalizeRelativePath(value: string): string {
   return path;
 }
 
+/** The ABSOLUTE counterpart of `normalizeRelativePath`, for the one place a user types
+ *  an absolute path: the source modal's external mode (task-12-context.md §2, carried
+ *  finding 1). `C:\\Projects\\..\\Windows\\System32` was accepted AND DISPLAYED as the
+ *  root being approved, while the walk -- correctly contained, verified independently
+ *  twice -- would read `C:\\Windows\\System32`. That is a consent-display defect: the
+ *  screen named a directory that is not the one that gets read, which is the one thing
+ *  a consent artefact may never do.
+ *
+ *  Pure and syntactic: it resolves `.` and `..` textually and touches no filesystem
+ *  (src/domain may not), so it says what the path MEANS, never whether it exists --
+ *  that remains the single `stat()` the modal already performs afterwards. A `..` that
+ *  would climb above the root THROWS rather than being clamped away: clamping would
+ *  quietly turn one path into a different, valid-looking one, which is the same class
+ *  of lie this function exists to stop. The input's own separator style is preserved,
+ *  so a Windows path stays a Windows path in `data.json` and on screen (the same
+ *  reasoning as `joinVaultPath`'s in source-modal.ts). */
+export function normalizeAbsolutePath(value: string): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_PATH_LENGTH) {
+    throw new Error(`An absolute path must be a non-empty string of at most ${MAX_PATH_LENGTH} characters.`);
+  }
+  if (CONTROL_CHARS.test(value)) {
+    throw new Error('An absolute path must not contain control characters.');
+  }
+  const posix = value.replace(/\\/g, '/');
+  const unc = /^(?:\\\\|\/\/)/.test(value);
+  const drive = /^[A-Za-z]:/.exec(posix)?.[0] ?? null;
+  // A drive letter makes it a Windows path whatever separator was typed: emitting
+  // `C:/Projects/app` would persist exactly the MIXED-separator root `joinVaultPath`
+  // (source-modal.ts, fix round 6) already had to be fixed for once.
+  const sep = drive !== null || value.includes('\\') ? '\\' : '/';
+  const rooted = drive !== null || posix.startsWith('/');
+  if (!rooted) {
+    throw new Error('That path must be absolute — a path relative to something else cannot be read reliably.');
+  }
+  const body = drive !== null ? posix.slice(drive.length) : posix;
+  const resolved: string[] = [];
+  for (const part of body.split('/')) {
+    if (part === '' || part === '.') continue;
+    if (part === '..') {
+      if (resolved.length === 0) throw new Error('That path climbs above the root: it names nothing readable.');
+      resolved.pop();
+      continue;
+    }
+    resolved.push(part);
+  }
+  const tail = resolved.join(sep);
+  if (drive !== null) return `${drive}${sep}${tail}`;
+  return `${unc ? sep + sep : sep}${tail}`;
+}
+
 /** One EXCLUSION line, which is a relative path and nothing more (fix wave item 1, M1).
  *
  *  Deliberately stricter than `normalizeRelativePath` alone, and deliberately NOT folded

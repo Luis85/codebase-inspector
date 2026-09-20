@@ -59,6 +59,18 @@ function cancelButton(): HTMLButtonElement {
   return modalRoot().querySelector<HTMLButtonElement>('[data-action="cancel"]')!;
 }
 
+/** A port whose `stat` reports any path as a real directory: these tests are about what
+ *  `computeResolvedRoot` PRODUCES, not about exercising the fake tree (the same reason
+ *  the mixed-separator test above overrides `stat`). */
+function alwaysADirectory(): SourceFileSystemPort {
+  const { port } = createFakeSourceFileSystem({});
+  return {
+    ...port,
+    stat: async () => (
+      { exists: true, isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 }),
+  };
+}
+
 describe('source modal (C03)', () => {
   it('offers exactly three source modes', () => {
     void openSourceModal(makeApp(), { profile: makeProfile(), filesystem: createFakeSourceFileSystem({}).port });
@@ -282,5 +294,90 @@ describe('source modal (C03)', () => {
     } finally {
       restore();
     }
+  });
+
+  // ---- Task 12, carried finding 1 (task-12-context.md §2.1) --------------------------
+  // The external mode accepted AND DISPLAYED an unnormalised path as the consent root:
+  // `C:\\Projects\\..\\Windows\\System32` was shown to the user as the directory they
+  // were approving, while the walk -- correctly contained, verified independently twice
+  // -- would read `C:\\Windows\\System32`. A consent screen naming a directory that is not
+  // the one that gets read is a consent defect even when containment is sound.
+  async function chooseExternal(typed: string): Promise<{ selection: unknown; alert: string }> {
+    const promise = openSourceModal(makeApp(), { profile: makeProfile(), filesystem: alwaysADirectory() });
+    selectMode('external');
+    const input = modalRoot().querySelector<HTMLInputElement>('[data-field="external-path"]')!;
+    input.value = typed;
+    input.dispatchEvent(new Event('input'));
+    continueButton().click();
+    await Promise.resolve();
+    await Promise.resolve();
+    // Read through `document`, never `modalRoot()`: on the SUCCESS path the modal has
+    // already closed itself, and modalRoot() throws when nothing is open.
+    const alert = document.querySelector('.modal-container [role="alert"]')?.textContent ?? '';
+    if (document.querySelector('.modal-container')) cancelButton().click();
+    return { selection: await promise, alert };
+  }
+
+  it('approves the NORMALISED external root, so the consent screen names what will be read', async () => {
+    const { selection } = await chooseExternal('C:\\Projects\\..\\Windows\\System32');
+    expect(selection).not.toBeNull();
+    expect((selection as { resolvedRoot: string }).resolvedRoot).toBe('C:\\Windows\\System32');
+  });
+
+  it('normalises a POSIX external root the same way', async () => {
+    const { selection } = await chooseExternal('/home/user/../root/project/./src');
+    expect((selection as { resolvedRoot: string }).resolvedRoot).toBe('/home/root/project/src');
+  });
+
+  it('refuses an external path that climbs above the root, with a visible reason', async () => {
+    const { selection, alert } = await chooseExternal('C:\\..\\elsewhere');
+    expect(selection).toBeNull();
+    expect(alert).toMatch(/above the root/i);
+  });
+
+  // ---- Deferred minor #18 (task-12-context.md §2.2) ----------------------------------
+  // No test typed an absolute path, a drive-letter path or a bare `..` into the
+  // VAULT-FOLDER field. The behaviour was verified correct by a reviewer executing it;
+  // this is the missing coverage, so a regression is caught by the suite rather than by
+  // somebody happening to try it again.
+  async function chooseVaultFolder(typed: string): Promise<{ selection: unknown; alert: string; log: readonly string[] }> {
+    const { port } = createFakeSourceFileSystem({ 'sub/a.ts': 'x' });
+    const promise = openSourceModal(
+      makeApp(new FileSystemAdapter('/fake-root')), { profile: makeProfile(), filesystem: port });
+    selectMode('vault-folder');
+    const input = modalRoot().querySelector<HTMLInputElement>('[data-field="vault-folder-path"]')!;
+    input.value = typed;
+    input.dispatchEvent(new Event('input'));
+    continueButton().click();
+    await Promise.resolve();
+    await Promise.resolve();
+    const alert = document.querySelector('.modal-container [role="alert"]')?.textContent ?? '';
+    if (document.querySelector('.modal-container')) cancelButton().click();
+    return { selection: await promise, alert, log: port.readLog() };
+  }
+
+  it('refuses an ABSOLUTE path typed into the vault-folder field', async () => {
+    for (const typed of ['/etc/passwd', 'C:\\Windows\\System32', 'C:/Windows']) {
+      const { selection, alert, log } = await chooseVaultFolder(typed);
+      expect(selection, typed).toBeNull();
+      expect(alert, typed).toMatch(/absolute|drive letter/i);
+      // Rejected BEFORE any filesystem call: nothing outside the vault was even stat-ed.
+      expect(log, typed).toEqual([]);
+    }
+  });
+
+  it('refuses a bare .. and a .. escape typed into the vault-folder field', async () => {
+    for (const typed of ['..', '../..', '..\\..\\Users\\Public', 'sub/../..']) {
+      const { selection, alert, log } = await chooseVaultFolder(typed);
+      expect(selection, typed).toBeNull();
+      expect(alert, typed).toMatch(/\. or \.\. segments/);
+      expect(log, typed).toEqual([]);
+    }
+  });
+
+  it('refuses a . segment too, so "inside this vault" stays literally true', async () => {
+    const { selection, alert } = await chooseVaultFolder('./sub');
+    expect(selection).toBeNull();
+    expect(alert).toMatch(/\. or \.\. segments/);
   });
 });

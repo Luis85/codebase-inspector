@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isContained, normalizeRelativePath } from '../../src/domain/path-safety';
+import { isContained, normalizeAbsolutePath, normalizeRelativePath } from '../../src/domain/path-safety';
 
 describe('normalizeRelativePath', () => {
   it('normalises Windows relative separators', () => {
@@ -86,5 +86,53 @@ describe('isContained', () => {
   it('prefix collision is rejected under BOTH case modes', () => {
     expect(isContained('C:\\Projects\\app', 'C:\\Projects\\app-evil\\a.ts', { caseSensitive: true })).toBe(false);
     expect(isContained('C:\\Projects\\app', 'C:\\Projects\\app-evil\\a.ts', { caseSensitive: false })).toBe(false);
+  });
+});
+
+// Task 12, carried finding 1 (task-12-context.md §2.1): `source-modal.ts`'s external
+// mode accepted and DISPLAYED an unnormalised path as the consent root -- the walk
+// itself is correctly contained (verified independently, twice), so this is a
+// consent-DISPLAY defect: the screen named a directory that is not the one that would
+// be read. Normalising here, in the domain, is what lets the modal show the root it
+// will actually walk.
+describe('normalizeAbsolutePath', () => {
+  it('collapses .. so the displayed root is the one that will be walked', () => {
+    expect(normalizeAbsolutePath('C:\\Projects\\..\\Windows\\System32')).toBe('C:\\Windows\\System32');
+    expect(normalizeAbsolutePath('/home/user/../root/secret')).toBe('/home/root/secret');
+  });
+
+  it('collapses . segments and duplicate separators', () => {
+    expect(normalizeAbsolutePath('C:\\Projects\\.\\app\\\\src')).toBe('C:\\Projects\\app\\src');
+    expect(normalizeAbsolutePath('/home//user/./project')).toBe('/home/user/project');
+  });
+
+  it('keeps the input separator style, so a Windows path stays a Windows path', () => {
+    expect(normalizeAbsolutePath('C:/Projects/app')).toBe('C:\\Projects\\app');
+    expect(normalizeAbsolutePath('C:\\Projects\\app')).toBe('C:\\Projects\\app');
+    expect(normalizeAbsolutePath('/home/user')).toBe('/home/user');
+  });
+
+  it('returns a bare drive root and a bare POSIX root unchanged', () => {
+    expect(normalizeAbsolutePath('C:\\')).toBe('C:\\');
+    expect(normalizeAbsolutePath('/')).toBe('/');
+  });
+
+  it('preserves a UNC prefix', () => {
+    expect(normalizeAbsolutePath('\\\\server\\share\\a\\..\\b')).toBe('\\\\server\\share\\b');
+  });
+
+  it('rejects a relative path -- this mode is documented as absolute', () => {
+    expect(() => normalizeAbsolutePath('Projects/app')).toThrow(/absolute/i);
+    expect(() => normalizeAbsolutePath('')).toThrow();
+  });
+
+  it('rejects a .. that would escape above the root, rather than silently clamping', () => {
+    expect(() => normalizeAbsolutePath('C:\\..\\elsewhere')).toThrow(/above the root/i);
+    expect(() => normalizeAbsolutePath('/../etc')).toThrow(/above the root/i);
+  });
+
+  it('rejects control characters and over-long input, exactly as the relative form does', () => {
+    expect(() => normalizeAbsolutePath('/home/user/a\u0000b')).toThrow(/control characters/i);
+    expect(() => normalizeAbsolutePath(`/${'x'.repeat(1100)}`)).toThrow(/1024/);
   });
 });

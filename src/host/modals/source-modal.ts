@@ -6,7 +6,7 @@ import { FileSystemAdapter, Modal, Platform } from 'obsidian';
 import type { App } from 'obsidian';
 import type { CodebaseProfile } from '../../domain/model';
 import type { SourceFileSystemPort } from '../../application/ports/source-filesystem-port';
-import { isContained, normalizeRelativePath } from '../../domain/path-safety';
+import { isContained, normalizeAbsolutePath, normalizeRelativePath } from '../../domain/path-safety';
 
 export type SourceMode = 'vault' | 'vault-folder' | 'external';
 
@@ -195,7 +195,21 @@ class SourceModal extends Modal {
       this.setError('Enter an absolute path — a path relative to something else cannot be read reliably.');
       return null;
     }
-    return external;
+    // Task 12, carried finding 1 (task-12-context.md §2.1): this used to `return
+    // external` verbatim, so `C:\Projects\..\Windows\System32` was DISPLAYED on the
+    // scope screen as the directory being approved while the walk -- correctly
+    // contained, verified independently twice -- would read `C:\Windows\System32`. A
+    // consent artefact naming a directory that is not the one that gets read is a
+    // consent defect even when containment is sound, and it is the resolvedRoot that
+    // is persisted and fingerprinted. normalizeAbsolutePath is purely syntactic (it
+    // touches no filesystem, which src/domain may not); existence is still decided by
+    // the single stat() below, exactly as before.
+    try {
+      return normalizeAbsolutePath(external);
+    } catch (e) {
+      this.setError(e instanceof Error ? e.message : 'That path is not valid.');
+      return null;
+    }
   }
 
   /** The ONLY filesystem call this modal ever makes (ruling M31): one stat() to
