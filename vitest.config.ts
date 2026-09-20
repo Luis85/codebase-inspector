@@ -38,12 +38,22 @@ export default defineConfig({
       { resolve: { alias: { obsidian: obsidianMock } },
         plugins: [vue()],
         test: { name: 'node', environment: 'node',
-                include: ['tests/{unit,contracts,integration,host,acceptance,benchmarks}/**/*.test.ts'],
+                include: ['tests/{unit,contracts,integration,host}/**/*.test.ts'],
                 exclude: JSDOM_HOST_TESTS } },
       { resolve: { alias: { obsidian: obsidianMock } },
         plugins: [vue()],
         test: { name: 'jsdom', environment: 'jsdom',
-                include: ['tests/component/**/*.test.ts', ...JSDOM_HOST_TESTS] } },
+                // tests/acceptance/** and tests/benchmarks/** (task 12) were listed under
+                // the 'node' project above before either existed. They belong here: an
+                // acceptance scenario drives the real components, the real modals and the
+                // real CityView through the DOM (task-12-context.md §0 -- "a step that
+                // drives a store action is not a scenario"), and the benchmark measures
+                // first paint, interaction and cleanup, none of which exist without one.
+                // Node's own APIs (real temp trees, hashing, the real filesystem port)
+                // are fully available under vitest's jsdom environment, so the scenarios
+                // and benchmark stages that need a real disk lose nothing by being here.
+                include: ['tests/component/**/*.test.ts', 'tests/acceptance/**/*.steps.ts',
+                          'tests/benchmarks/**/*.test.ts', ...JSDOM_HOST_TESTS] } },
     ],
   },
 });
