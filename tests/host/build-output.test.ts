@@ -55,6 +55,29 @@ describe('dist/', () => {
     expect(main).toMatch(/require\(["']obsidian["']\)/);
   });
 
+  // Task 13 (the release gate). A clean vault has no node_modules, no lockfile and no
+  // package manager: whatever the bundle asks the host to `require()` at load time must
+  // be something Obsidian itself injects. `obsidian` is; anything else is a plugin that
+  // fails to enable in exactly the vault this release is verified in. assert-bundle.mjs
+  // already refuses Node BUILT-INS specifically — this is the complete set, so an
+  // ordinary dependency added to vite.config.ts's `external` list (where it looks
+  // harmless) is caught too. `window.require(...)` is excluded by the same reasoning as
+  // in assert-bundle.mjs: that is node-access.ts asking the host, spec §4.4's one
+  // sanctioned route, not the bundler's own externalised import.
+  it('asks the host to require NOTHING but obsidian, because a clean vault resolves nothing else', () => {
+    const specifiers = [...main.matchAll(/(?:([A-Za-z_$][\w$]*)\s*\.\s*)?require\(\s*(["'`])([^"'`]+)\2\s*\)/g)]
+      .filter((m) => m[1] !== 'window')
+      .map((m) => m[3]!);
+    expect([...new Set(specifiers)].sort()).toEqual(['obsidian']);
+  });
+
+  it('ships the repository manifest byte for byte', () => {
+    // The installed folder name must equal the manifest id or onExternalSettingsChange
+    // never fires, and every id/name/version assertion made about manifest.json is only
+    // about the SHIPPED plugin if copy-manifest.mjs put that same file in dist/.
+    expect(readFileSync(dist + 'manifest.json')).toEqual(readFileSync(root + 'manifest.json'));
+  });
+
   // Fix wave item 2 (I1, Important): this whole suite used to assert against a bundle
   // nobody ships. `execSync('npm run build')` from inside Vitest inherited NODE_ENV=test,
   // which flips Vite's own mode, which drives `import.meta.env.DEV` -- so

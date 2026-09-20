@@ -55,16 +55,25 @@ import { join, resolve } from 'node:path';
 const DOCS = resolve(process.cwd(), 'docs', 'superpowers', 'notes');
 const MATRIX = join(DOCS, '2026-09-17-wp01-accessibility-matrix.md');
 const EVIDENCE = join(DOCS, '2026-09-17-wp01-gate-evidence.md');
+// Task 13's two release documents. They restate the matrix's counts, and a release
+// record is the worst place for a stale one, so they are swept exactly as the other two
+// are — positively at every site, and negatively against every value the count is not.
+const REPORT = join(DOCS, '2026-09-17-wp01-implementation-report.md');
+const LIMITATIONS = join(DOCS, '2026-09-17-wp01-limitations.md');
 const FEATURE = resolve(process.cwd(), 'tests', 'acceptance', 'wp01.feature');
 
-/** Both documents, each with markdown emphasis and code ticks removed, so a claim reads
- *  the same to this sweep whether or not somebody bolded it. "**13** of the matrix's
- *  **14** rows" and "13 of the 14 rows" must be the same string to a guard whose whole
- *  job is to find a stale value wherever it is written. */
+/** Every document that states one of these counts, each with markdown emphasis and code
+ *  ticks removed, so a claim reads the same to this sweep whether or not somebody bolded
+ *  it. "**13** of the matrix's **14** rows" and "13 of the 14 rows" must be the same
+ *  string to a guard whose whole job is to find a stale value wherever it is written.
+ *  The matrix stays FIRST: the fully-passed/half-passed breakdown is the matrix's own
+ *  sentence and is read from this list's head. */
 function documents(): { name: string; text: string }[] {
   return [
     { name: 'the accessibility matrix', text: readFileSync(MATRIX, 'utf8') },
     { name: 'the gate evidence document', text: readFileSync(EVIDENCE, 'utf8') },
+    { name: 'the implementation report', text: readFileSync(REPORT, 'utf8') },
+    { name: 'the limitations document', text: readFileSync(LIMITATIONS, 'utf8') },
   ].map(({ name, text }) => ({ name, text: text.replace(/[*`]/g, '') }));
 }
 
@@ -309,6 +318,26 @@ describe('the evidence documents keep their own arithmetic', () => {
     const table = /\| Contract \| `tests\/contracts\/\*\*` \| \d+ \| yes \| (\d+) \|/.exec(readFileSync(EVIDENCE, 'utf8'));
     expect(table, 'the G8 contract row is no longer parseable').not.toBeNull();
     expect(Number(table![1]), 'one suite, two implementations').toBe(obligations * 2);
+  });
+
+  it('sweeps the RELEASE documents too, and each one gives the sweep something to bite', () => {
+    // Task 13 adds two documents that restate the matrix's counts — the implementation
+    // report and the limitations document — and a release record is the worst possible
+    // place for the stale count this file exists to prevent. They are swept exactly as
+    // the other two are, which is only worth anything if each document actually states
+    // the figure in a shape the sweep reads: a file the sweep cannot find a claim in is
+    // a file the sweep is not guarding, and it would pass in silence.
+    const { total, open } = matrixCounts();
+    const names = documents().map((d) => d.name);
+    expect(names).toContain('the implementation report');
+    expect(names).toContain('the limitations document');
+    for (const { name, text } of documents()) {
+      const sites = [...text.replace(/\s+/g, ' ')
+        .matchAll(new RegExp(`(\\d{1,2})\\s+of\\s+(?:the\\s+)?(?:matrix's\\s+)?${total}\\b`, 'g'))];
+      expect(sites.length, `${name} states the open-row count nowhere the sweep can read it`)
+        .toBeGreaterThanOrEqual(1);
+      for (const site of sites) expect(Number(site[1]), `${name}: "${site[0]}"`).toBe(open);
+    }
   });
 
   it('declares, in both documents, which of its numbers are NOT derived', () => {

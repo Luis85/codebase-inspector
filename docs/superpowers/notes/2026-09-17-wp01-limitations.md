@@ -1,0 +1,281 @@
+# WP-01 limitations
+
+What this increment does not do, does not know, and has not checked. Written at the
+release gate (task 13) so that the record ships with the software rather than after it.
+
+Everything below is either carried forward from spec §11, recorded by tasks S–12, or
+ruled on during this cycle. Where an item was answered, the answer is here; where it was
+**not**, it says **NOT ANSWERED** in those words rather than being quietly left out.
+
+Companion documents, both cited throughout: `2026-09-17-wp01-gate-evidence.md` (the
+G2/G3/G4/G5/G8 record) and `2026-09-17-wp01-accessibility-matrix.md` (the fourteen-row
+matrix). This document adds nothing to them; it says what they do not cover.
+
+---
+
+## Measured, and what it means
+
+**Reference hardware and runtime** (from the G5 block in the gate-evidence document,
+cited rather than re-derived):
+
+| | |
+|---|---|
+| CPU | Intel(R) Core(TM) Ultra 9 185H |
+| GPU | NVIDIA RTX 1000 Ada Generation Laptop GPU (Intel Arc Pro Graphics also present) |
+| OS | Microsoft Windows 11 Pro 10.0.26200 |
+| Runtime actually measured | Node v24.15.0 + jsdom under vitest, `WebGLRenderer` **doubled** |
+| Obsidian | **not exercised by these numbers** |
+| Electron / Chrome | **deliberately empty — nobody measured it** |
+
+| Stage | 1,000 files | 5,000 files |
+|---|---|---|
+| Scan (sequential walk) | 2,914 ms | 13,399 ms |
+| Normalization (`validateSnapshot`) | 27.7 ms | 39.4 ms |
+| Layout (`computeLayout`) | 22.7 ms | 32.6 ms |
+| First paint after snapshot available | 48.8 ms | 153.8 ms |
+| Interaction p95 (command → draw call) | 1.58 ms | 0.75 ms |
+| Cleanup (`dispose()`) | 0.82 ms | 0.49 ms |
+
+**These are initial targets, not claims, and they are NOT GPU figures.** jsdom resolves
+no WebGL2 context, so `WebGLRenderer` is doubled: "first paint" is the time from
+`setLayout` to the **first draw call issued**, not a frame on a display, and
+"interaction" is command-to-draw latency, not frame time. The interaction and cleanup
+rows go *down* as the data goes *up*; both sit below this harness's measurement
+resolution and neither supports any verdict.
+
+**The Electron/Chrome row is empty on purpose.** The figure that would matter comes from
+the user's own host — Obsidian **1.13.7**, Electron **39.6.0**, Chrome
+**142.0.7444.265** — and no measurement was taken there. It must not be filled in from
+the **1.12.4** install on the development machine.
+
+Adjacent figures worth having, same source: the development vault takes roughly 62–77 s
+for 39,805 files; validate + layout is about **280 ms** of synchronous
+renderer-thread work at 40,000 files; and `computeLayout` on a real 1,087-file tree is
+**9 ms**.
+
+**Three Obsidian versions are in play and a claim must say which one it rests on:**
+**1.12.4** installed on the development machine, **1.13.1** the types package this
+repository compiles against, **1.13.7** the user's host. `minAppVersion` is declared as
+**1.13.0** and has been tested on *none* of them — see the implementation report's G1
+section, where that gap is stated rather than closed.
+
+---
+
+## Known limitations
+
+- **Snapshots are IN-MEMORY ONLY.** Durable history is WP-05. Reopening a view shows the
+  retained in-memory state marked with its age ("Snapshot retained from …") and never
+  silently authorises a new scan. An Obsidian restart ends that retention; nothing is
+  written to disk.
+- **No analyzer, no findings, no coverage, no dependency relations, no runtime
+  evidence.** One provider ships, `builtin-inventory`, and the validator rejects any
+  snapshot claiming another.
+- **No note writing, no snapshot comparison.**
+- **No source-opening or open-in-editor action.** External process execution is an
+  unresolved policy question and the boundary is frozen: the plugin never installs,
+  downloads or updates any executable.
+- **No lens parameter on the city viewport.**
+- **Symbolic links and junctions are never followed**; they are reported as skipped,
+  with a reason. The **directory-junction** case is verified against a real junction
+  pointing out of an approved root. The plain **file-symlink** case is *not* verified on
+  this machine: Windows Developer Mode is off, so creating a file symlink fails `EPERM`
+  before the assertion is reached. That is the suite's one skipped test and it is an
+  environment gate, not a gap in the code.
+- **The height cap is derived per snapshot**, so a file's rendered height depends on
+  unrelated files and can change between refreshes. The raw values are always in the
+  inspector.
+- **The 820 CSS px collapse threshold is provisional.** Checkpoint #3 did not itemise it.
+  What checkpoint #3 *did* produce at this layout: three defects the user reported and
+  saw fixed — indefinite stage height, file-list row wrapping and wheel zoom — closed
+  with "this looks better now. proceed" and a screenshot. Whether 820 px is the right
+  number in a sidebar and in a pop-out is **NOT ANSWERED**.
+- **The snapshot size ceiling is a hard failure, not a degradation.** The validator
+  rejects a snapshot above 200,000 entities + observations, which is roughly 65,000
+  in-scope files. The development vault sits at about 61% of that. A larger root fails
+  the **whole scan** rather than degrading.
+- **There is no include list.** The scope model is a root plus exclusions — a denylist —
+  so "scan only `src` and `test`" is not expressible.
+- **The FNV-1a hash under-invalidates.** Ruling M58 left the 32-bit hash at both call
+  sites. Two different inputs can collide, and a colliding change is not seen as a
+  change. Recorded as a property, not fixed.
+- **An exclusion containing `*` or `?` persisted before ruling M62** is accepted on read
+  and **matches nothing** until the user next passes it through an input surface, which
+  now refuses it with a visible reason. There is no glob support anywhere in the walk.
+- **`CityViewport`'s self-reconstruction has no attempt cap.** A context that is lost
+  repeatedly is reconstructed repeatedly.
+- **`root-unavailable` is a spec §7 state with no producer.** It exists in the state
+  vocabulary and nothing emits it.
+- **An edge drag takes no `setPointerCapture`** (ruling M95), so an unclamped canvas
+  point can raycast outside the frustum and pick an off-screen building.
+- **`ScanCoordinator.getLifecycle()` is dead code** — zero callers in `src/` or
+  `tests/`. Assessed as an inert accessor rather than a fake feature, reported rather
+  than removed, and it still ships in the bundle.
+- **The shipped bundle contains an unreachable FileSaver island.** Pinia's own
+  `dist/pinia.js` is the single entry its `exports` map offers (there is no production
+  variant to select), and although the devtools code that uses it is eliminated by the
+  production `NODE_ENV` define, a small download helper survives tree-shaking and
+  carries two `XMLHttpRequest` constructions. It is a closed island: its only caller is
+  itself, verified by counting every reference to each of its symbols in
+  `dist/main.js`. Nothing in `src/` reaches any network API at all, which is what the
+  README's no-network statement rests on and what
+  `tests/host/clean-vault-install.test.ts` sweeps for — but a reviewer grepping the
+  bundle will find the string, so it is written down here rather than discovered there.
+- **The Three.js "multiple instances" warning appears on every re-enable, and its claim
+  is false.** Three sets a marker on `globalThis` the first time its module initialises;
+  Obsidian tears down a disabled plugin's module scope without clearing that marker, so
+  the next enable sees a marker it set itself. One instance re-initialising. It is
+  disclosed rather than suppressed, deliberately: suppressing it would also hide a real
+  double-bundling defect if one ever occurred.
+- **Nothing in the last several rounds was seen in a browser.** The stage-height fix,
+  the file-list row rendering and the selected-row highlight all rest on a cascade read
+  out of the shipped `obsidian.asar`. The user's retest was positive but was not
+  itemised row by row.
+
+---
+
+## Accessibility — the half nobody has checked
+
+**G4's accessibility half and G7 are OPEN.** **13** of the matrix's **14** rows are
+**NOT PERFORMED**, in whole or in part; exactly **1** row is fully PASSED and **4** more
+have a PASSED jsdom half with an unperformed manual half. No screen reader, no
+keyboard-only run of the demo, no 200% zoom, no dark/light/third-party theme, no
+host-shortcut non-capture check. The rows are enumerated in the GATE STATUS block of
+`2026-09-17-wp01-gate-evidence.md`; they are answered at checkpoint #4 and until then
+**this document, the implementation report and the matrix may not be cited as evidence
+that accessibility is gated.**
+
+Two of those rows carry a known hazard rather than merely an absence:
+
+- **The third-party theme row matters most.** Ruling M113 shipped a specificity scheme —
+  our rules sit inside `:where(.codebase-inspector-root)`, which contributes zero
+  specificity, so five controls were raised to `button.ci-…` at (0,1,1) to beat
+  Obsidian's own element rules. It has **never met a theme that fights it.** Schedule it
+  first.
+- **`.ci-search__input` is deliberately left host-styled** (ruling M116). Obsidian skins
+  a form field across five states, so raising only the base rule would make the field
+  change palette under the pointer. A tripwire test blocks the naive fix. A full re-skin
+  is a design decision for the user, not a defect to fix quietly.
+
+And one contrast question that is a judgement rather than a measurement: the two shipped
+claims ("Read-only source access", "Source remains unchanged.") render inside
+`.ci-snapshot-status`, whose `color: var(--ci-text-muted)` is the lowest-contrast token
+on that surface. No CSS was added for them, to stay out of M113's specificity fight.
+Whether a factual safety claim belongs in the muted token is for a human looking at it.
+
+---
+
+## Decisions that are the user's, not ours
+
+- **Ruling M108 — the scan is sequential by choice.** Bounded concurrency measured about
+  **4×** faster (1,342 → 335 ms on the same fixture) but opens up to *N−1* files *after*
+  a cancel, and those reads enter the read log, which is the G2 evidence surface. Four
+  gate tests pin the current behaviour. If the speed is taken, "no excluded path is ever
+  opened" survives but "a cancelled run opens nothing further" does not. **This is a
+  trade for the user to make**, not a defect.
+- **Whether the city feels too small** at a wide (~1,876 px) leaf: the panel caps moved
+  the stage from 1,280 px to 1,140 px there.
+- **The new hover contrast on three controls.** `--ci-raised` had no consumer before
+  this cycle and sits close to the surrounding surface in the default themes.
+- **The checkpoint-#3 sections the user never itemised** — multiple leaves, independent
+  selection, command reveal, disable/re-enable, theme switching and pop-out migration.
+  Automated coverage exists for each and is named in the gate-evidence document; a human
+  confirmation does not.
+
+---
+
+## Tooling and gates that are deliberately not green
+
+- **`npm run analyze` exits non-zero and is expected to.** The accepted baseline is
+  **11** findings — test-facing exported constants, the `node-access` seam, an unused
+  type named by frozen §4.1, a duplicate `EntityId` spanning two frozen contracts, and a
+  pre-existing `city-view ↔ leaf-registry` cycle. It is a **review list, not a gate**,
+  which is why it sits outside `npm run verify`, and **nobody tuned it to green** — that
+  is deliberate, and the baseline is what makes a twelfth finding visible. It also
+  fetches its tool at run time (`npx --yes fallow@3.27.0`), so it needs network and
+  resolves outside the lockfile's integrity guarantees.
+- **Ruling M118 — the `mayPublish` supersession guard is unreachable by construction**
+  and stays. The argument rests on exactly two legs: `SCAN_STARTED` no-ops while a run is
+  running or cancelling, and there is no yield point between the second cancellation
+  check and the guard. Leg one is pinned behaviourally; leg two is pinned by a
+  source-as-contract tripwire. **The tripwire is not coverage** — it tests that the
+  reason we say publication cannot need refusing is still true, and nothing in the suite
+  distinguishes a coordinator that consults the guard from one that ignores it.
+- **The gate-evidence "Numbers in this document" block is reviewed, not machine-checked,
+  for completeness.** Its lettered residual list — a restatement in neither guarded
+  shape, a restatement pairing a count with the wrong total, and a count written with
+  underscore emphasis — is prose. **If the sweep regexes in
+  `tests/unit/evidence-numbers.test.ts` ever change, that list must be re-examined**,
+  because nothing will tell you it has gone stale.
+- **Two `eslint-disable` lines and one `@ts-expect-error`** exist in the whole tree, each
+  with a written reason. No lint rule is weakened anywhere.
+
+---
+
+## Open questions carried forward from spec §11
+
+- **Whether a loaded view reverts to `DeferredView` when hidden.** **NOT ANSWERED.** It
+  was owed to the spike report, carried to checkpoint #3 and not itemised there. If it
+  does revert, `onClose` runs on tab switch and part of task 11's pause work is moot; if
+  it does not, a long session accumulates one live WebGL context per city tab ever
+  shown. Only a real host answers it. Carried to checkpoint #4.
+- **Whether the WebGL context survives pop-out migration.** **NOT ANSWERED** by a human;
+  pop-out migration was not itemised at checkpoint #3. It is a **performance** question
+  only, because the view disposes and reconstructs rather than migrating a context —
+  which is exercised against a genuinely separate jsdom realm, but never in a real
+  pop-out.
+- **Ordering of `setState` relative to `onOpen` on workspace restore.** Established at
+  task 3 as a question the implementation does not need to answer: `setState()` does one
+  thing — validate and store — and the welcome shell renders the same either way, so
+  **whichever order the host uses, the result is identical**. Task 3 could not observe
+  the real order in a host and did not claim to. The official statement still does not
+  exist.
+- **r187 will make `WebGLRenderer` use `WeakRef` and `FinalizationRegistry`
+  internally**, which could interact with strict-disposal-on-close. Re-test at upgrade
+  time.
+- **The Three.js migration wiki OMITS r186's CommonJS deprecation entirely** — it is
+  documented only in the GitHub release notes and visible in the published tarball.
+  Treat that wiki page as incomplete for r186 when upgrading.
+- **Visual regression against the design mockups.** r181 changed PBR energy conservation
+  and indirect specular, so any reference screenshot taken against an older Three.js
+  needs retaking. Magnitude unmeasured.
+- **The design package's Three.js and Obsidian citations** (`[T1]`–`[T4]`, `[O1]`–`[O2]`)
+  use non-canonical URL forms, which suggests they were constructed rather than fetched.
+  Still to be re-fetched, `[T4]` in particular.
+- **Whether the community directory's build verification accepts a `dist/` output.**
+  Irrelevant until submission is a goal, and submission is not a goal here.
+- **Whether external process execution is permitted by policy.** No official text either
+  way. WP-02's concern; the boundary is frozen for WP-01.
+
+Items spec §11 listed as open that this increment **closed**, so the list does not carry
+them twice: whether `getSettingDefinitions()` can express a dynamic per-profile list
+(yes — the whole settings surface is declarative; see
+`2026-09-17-setting-definitions-verification.md`), whether Three.js 0.186.0 behaves
+inside Obsidian (yes, at the spike and since), and whether a renderer reconstructed from
+a `CameraBookmark` and a `LayoutResult` lands where it left off (task 10's bookmark
+round-trip).
+
+---
+
+## Numbers in this document
+
+Read this before quoting a figure from here.
+
+**DERIVED — a stale value reddens a test.** The accessibility row counts above (the
+total, the open count, the fully-PASSED count and the half-passed count) are swept by
+`tests/unit/evidence-numbers.test.ts`, which reads this file exactly as it reads
+`2026-09-17-wp01-gate-evidence.md` and `2026-09-17-wp01-accessibility-matrix.md`:
+positively at every site that states one, and negatively against every value they are
+not. The same boundary applies here as there — the sweep reads two shapes, "N of the
+14" and the open count immediately beside an openness word, and **asterisk emphasis
+only**. The lettered list of what still escapes it lives in the gate-evidence
+document's own Numbers block and applies to this file identically.
+
+**TRANSCRIBED — reproduce with the command named beside them in the gate-evidence
+document; no test can check these.** Every benchmark figure, the adjacent scan timings,
+the snapshot ceiling, the concurrency comparison and the `npm run analyze` total of 11.
+They are cited from `2026-09-17-wp01-gate-evidence.md` and from task 12's benchmark run,
+which writes its results outside this repository by design.
+
+**NEITHER — prose.** Version numbers, spec section numbers, ruling numbers, dates, CSS
+pixel thresholds and the specificity pairs `(0,1,1)`/`(0,2,0)` are identifiers and
+design values, not measurements. They are not swept.

@@ -448,7 +448,7 @@ Counts from `npx vitest run` per directory. **No round or commit label**: a labe
 naming a round goes stale every round, and the guard below now forces these figures
 to be current rather than asking a reader to trust a date. Re-take with the same
 command whenever tests are added.
-**90 files, 960 tests, 959 passed,
+**91 files, 976 tests, 975 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -478,11 +478,11 @@ above whenever tests are added.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 40 | yes | 472 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
+| Unit | `tests/unit/**` | 40 | yes | 473 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
 | Contract | `tests/contracts/**` | 2 | yes | 40 | **one suite, two implementations** — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift |
 | Integration (real temp dirs) | `tests/integration/**` | 8 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
 | Component (jsdom) | `tests/component/**` | 29 | yes | 298 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal |
-| Host (Obsidian doubles) | `tests/host/**` | 9 | yes | 94 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output. **This is the layer the rest of this document leans on most heavily** |
+| Host (Obsidian doubles) | `tests/host/**` | 10 | yes | 109 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
 | Benchmark | `tests/benchmarks/**` | 1 | yes | 5 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers |
 
@@ -602,12 +602,18 @@ claims come back out.
 
 ## Numbers in this document
 
-Read this before quoting a figure from here. The counts in this document are of three
-kinds, and which kind a number is decides how much weight it will bear.
+Read this before quoting a figure from here. Every count in this document falls into one
+of the kinds enumerated below, and which kind a number is decides how much weight it will
+bear. (The kinds are not tallied in this sentence on purpose: a hand-typed count beside
+an enumeration is the exact defect this document has been corrected for four times, and
+nothing derives a tally of this one.)
 
 **DERIVED — a stale value reddens a test.** `tests/unit/evidence-numbers.test.ts` and
-`tests/unit/gate-evidence.test.ts` read this file and the accessibility matrix and check
-these against the suite and against the matrix itself:
+`tests/unit/gate-evidence.test.ts` read this file and the accessibility matrix — and,
+since task 13, the two release documents `2026-09-17-wp01-implementation-report.md` and
+`2026-09-17-wp01-limitations.md`, which restate these counts and are swept exactly as
+these two are, each required to state the figure somewhere the sweep can read it — and
+check these against the suite and against the matrix itself:
 
 - the accessibility row counts, **everywhere either document states them in one of the two
   shapes the guard reads** — the total, the open count, the fully-PASSED count and the
@@ -615,6 +621,10 @@ these against the suite and against the matrix itself:
   not. The two shapes, and what falls outside them, are named at the end of this block;
 - the length of the GATE STATUS outstanding-rows enumeration, against the open count;
 - the G8 layer set, and each layer's **file** count, against `tests/` on disk;
+- the G8 table's own text, against the copy of it in the implementation report —
+  `tests/host/clean-vault-install.test.ts` asserts the two slices are identical, so the
+  copy cannot drift from this original even though the per-layer counts inside it are
+  transcribed;
 - the sum of the G8 table's per-layer test counts, against the total in its heading;
 - the G8 heading's **passed/skipped split**, against the test total in the same heading —
   the split must add up, or one of the two was retyped without the other;
