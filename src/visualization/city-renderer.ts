@@ -206,8 +206,6 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
 
   const picking = createPicking({
     win, canvas, hitTest, isActive,
-    // The view's single focusable, named region (spec 4.2) is the element we mount into.
-    focusRoot: mountEl,
     onPick: (entityId) => {
       if (layout) onEvent({ type: 'entity-picked', entityId, snapshotId: layout.snapshotId });
     },

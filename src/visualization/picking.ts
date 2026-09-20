@@ -31,11 +31,6 @@ export interface CanvasPoint { x: number; y: number }
 export interface PickingOptions {
   win: Window;
   canvas: HTMLCanvasElement;
-  /** The view's single focusable, named region (spec 4.2) — the element the canvas is
-   *  mounted into. Read ONLY to answer "is this canvas focused or engaged", which is the
-   *  gate the handoff puts on the wheel; no listener is attached to it and nothing about
-   *  focus is changed from here (the VIEW owns focus). */
-  focusRoot: HTMLElement;
   /** Canvas-relative point -> the entity under it, or null. The only raycast. */
   hitTest: (point: CanvasPoint) => EntityId | null;
   onPick: (entityId: EntityId) => void;
@@ -54,15 +49,6 @@ interface Gesture { startX: number; startY: number; lastX: number; lastY: number
 export function createPicking(options: PickingOptions): Picking {
   const { win, canvas } = options;
   let gesture: Gesture | null = null;
-  /** Phase 2c, ruling M104. The handoff says "Wheel over FOCUSED/ENGAGED canvas | Dolly |
-   *  Bound zoom; LET TEXT/LIST SCROLLING REMAIN NORMAL"
-   *  (docs/concept/design/interactions/01-core-interactions.md:17). The wheel handler
-   *  used to fire on bare hover AND `preventDefault()` unconditionally, so the pointer
-   *  merely crossing the canvas on its way somewhere else ate the leaf's scroll entirely.
-   *  Engagement is a press inside the canvas, and it ends when the pointer leaves —
-   *  focus inside the view's own region counts too, so tabbing to the stage and using
-   *  the wheel works without a click. */
-  let pressedHere = false;
   let dwell: ReturnType<Window['setTimeout']> | null = null;
   let hovered: EntityId | null = null;
   let disposed = false;
@@ -91,18 +77,9 @@ export function createPicking(options: PickingOptions): Picking {
 
   function endGesture(): void { gesture = null; }
 
-  /** Focused OR engaged, per the handoff row above. A live gesture counts: a drag that
-   *  began on the canvas is as engaged as anything can be. */
-  function isEngaged(): boolean {
-    if (gesture !== null || pressedHere) return true;
-    const active = win.document.activeElement;
-    return active !== null && options.focusRoot.contains(active);
-  }
-
   const onPointerDown = (event: Event): void => {
     const pointer = event as PointerEvent;
     if (!options.isActive()) return;
-    pressedHere = true;
     clearDwell();
     gesture = {
       startX: pointer.clientX, startY: pointer.clientY,
@@ -154,7 +131,6 @@ export function createPicking(options: PickingOptions): Picking {
   const onPointerLeave = (): void => {
     clearDwell();
     endGesture();
-    pressedHere = false;
     if (hovered === null) return;         // nothing was hovered: nothing changed
     hovered = null;
     options.onHover(null, null);          // immediately, not after the dwell
@@ -163,9 +139,23 @@ export function createPicking(options: PickingOptions): Picking {
   const onWheel = (event: Event): void => {
     const wheel = event as WheelEvent;
     if (!options.isActive()) return;
-    // The gate comes BEFORE preventDefault, which is the whole point: an unengaged
-    // canvas must let the event through so the leaf scrolls normally.
-    if (!isEngaged()) return;
+    // Checkpoint #3 defect 7. This used to be gated on `isEngaged()` -- a prior press
+    // inside the canvas, or focus inside the view's region (ruling M104). `pressedHere`
+    // was set on pointerdown and cleared on pointerleave, so hover-and-scroll did
+    // NOTHING while click-then-scroll worked, and nobody clicks a 3D view before
+    // scrolling it: "Zoom in / zoom out with the mousewheel does not work either".
+    //
+    // The handoff row M104 cited reads "| Wheel over focused/engaged canvas | Dolly |
+    // Bound zoom; let text/list scrolling remain normal |"
+    // (docs/concept/design/interactions/01-core-interactions.md:17). Its Result column is
+    // unconditional and its caveat names TEXT AND LIST surfaces, not the canvas. This
+    // listener is bound to the CANVAS, so a wheel event only arrives here when the
+    // pointer is over it -- hover IS the "over the canvas" condition the row names.
+    //
+    // The leaf scroll M104 was protecting only existed because `.ci-app` had an
+    // indefinite height and grew to ~32,500px (defects 5/6). With that fixed the file
+    // list scrolls INTERNALLY, so the caveat is delivered structurally: the list scrolls
+    // under a pointer over the list, the canvas dollies under a pointer over the canvas.
     wheel.preventDefault();
     const unit = wheel.deltaMode === 1 ? 16 : wheel.deltaMode === 2 ? canvas.getBoundingClientRect().height : 1;
     const delta = Math.min(WHEEL_CLAMP, Math.max(-WHEEL_CLAMP, wheel.deltaY * unit));

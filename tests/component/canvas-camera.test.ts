@@ -162,15 +162,33 @@ describe('the canvas input path reaching the camera', () => {
       expect(factor).toBeLessThan(0.95);
     });
 
-    it('does NOT zoom or swallow the scroll on a bare hover', () => {
-      // "let text/list scrolling remain normal": the pointer merely crossing the canvas
-      // must not eat the leaf's scroll. preventDefault() on an unengaged canvas is what
-      // made a scroll over the city stop the pane scrolling at all.
+    // Checkpoint #3 defect 7 -- DISCLOSED REVERSAL of M104's engagement gate, and the
+    // two assertions below are the exact ones M104 inverted. The user reported "Zoom in /
+    // zoom out with the mousewheel does not work either", and the cause was this gate:
+    // `pressedHere` is set on pointerdown and cleared on pointerleave, so HOVER-AND-SCROLL
+    // did nothing while CLICK-THEN-SCROLL worked. Nobody scrolls a 3D view by clicking it
+    // first, so the gate's production trigger was an action the user has no reason to
+    // perform -- a correct citation is not a correct behaviour.
+    //
+    // The handoff row M104 cited (docs/concept/design/interactions/01-core-interactions.md:17)
+    // reads "| Wheel over focused/engaged canvas | Dolly | Bound zoom; let text/list
+    // scrolling remain normal |". Its Result column is unconditional, and its caveat names
+    // TEXT AND LIST surfaces -- not the canvas. The listener is bound to the CANVAS, and a
+    // wheel event can only be dispatched there when the pointer is over it, so hover IS the
+    // "over the canvas" condition the row names.
+    //
+    // And the caveat is now delivered structurally rather than traded away. The scroll this
+    // gate was protecting was the LEAF's, and the leaf only scrolled because `.ci-app` was
+    // ~32,500px tall -- defect 5. That is fixed in the preceding commit: the list now has a
+    // constrained box and scrolls INTERNALLY, so a wheel over the list reaches the list's
+    // own scroller and a wheel over the canvas dollies. This change is therefore ORDER-
+    // DEPENDENT on the height fix and must not be cherry-picked ahead of it.
+    it('zooms on a BARE HOVER -- no click first, which is what defect 7 was', () => {
       const before = port.getCamera().zoom;
       const wheel = notch();
       canvas.dispatchEvent(wheel);
-      expect(port.getCamera().zoom).toBe(before);
-      expect(wheel.defaultPrevented).toBe(false);
+      expect(port.getCamera().zoom).toBeLessThan(before);
+      expect(wheel.defaultPrevented).toBe(true);
     });
 
     it('DOES zoom, and suppresses the scroll, once the canvas is engaged', () => {
@@ -182,9 +200,10 @@ describe('the canvas input path reaching the camera', () => {
       expect(wheel.defaultPrevented).toBe(true);
     });
 
-    it('counts FOCUS as engagement, so the keyboard route works without a click', () => {
+    it('still zooms for the keyboard route, where focus is on the stage', () => {
       // The stage is the view's single focusable, named region (spec 4.2); the canvas
       // inside it is aria-hidden and untabbable. Tabbing to the stage must be enough.
+      // Kept verbatim from M104 so relaxing the gate cannot silently regress this path.
       mount.tabIndex = 0;
       mount.focus();
       const before = port.getCamera().zoom;
@@ -192,15 +211,19 @@ describe('the canvas input path reaching the camera', () => {
       expect(port.getCamera().zoom).toBeLessThan(before);
     });
 
-    it('disengages when the pointer leaves, so a later stray wheel scrolls the leaf', () => {
-      engage();
+    it('keeps zooming after the pointer has left and come back', () => {
+      // M104's replacement for this case asserted the opposite ("a later stray wheel
+      // scrolls the leaf"), which is exactly the state a user lands in: `pointerleave`
+      // cleared `pressedHere` and every subsequent hover-scroll was dead. There is no
+      // engagement state left to lose, so a wheel over the canvas is a wheel over the
+      // canvas however the pointer got there.
       canvas.dispatchEvent(pointerEvent('pointerleave', 400, 300));
       mount.blur();
       const before = port.getCamera().zoom;
       const wheel = notch();
       canvas.dispatchEvent(wheel);
-      expect(port.getCamera().zoom).toBe(before);
-      expect(wheel.defaultPrevented).toBe(false);
+      expect(port.getCamera().zoom).toBeLessThan(before);
+      expect(wheel.defaultPrevented).toBe(true);
     });
   });
 

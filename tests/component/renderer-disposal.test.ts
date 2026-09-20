@@ -299,10 +299,10 @@ describe('disposal', () => {
     } as unknown as Window;
 
     const picking = createPicking({
-      // Phase 2c, ruling M104: `focusRoot` is the view's own focusable region, read only
-      // to answer "is this canvas focused or engaged" for the wheel gate. This suite is
-      // about listener registration and removal, so a bare element is enough.
-      win, canvas, focusRoot: document.body.createDiv(),
+      // Checkpoint #3 defect 7 retired `focusRoot`: it existed ONLY to answer "is this
+      // canvas focused or engaged" for the wheel gate, and with the gate gone nothing
+      // read it. An option nobody reads is the shape this branch keeps paying for.
+      win, canvas,
       hitTest: () => null, onPick: () => {}, onHover: () => {},
       onOrbit: () => {}, onPan: () => {}, onZoom: () => {}, isActive: () => true,
     });
