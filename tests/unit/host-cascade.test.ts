@@ -150,3 +150,131 @@ describe('item 4: the row must beat Obsidian`s bare-button defaults', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------------------
+// THE SWEEP, LANDED. The row above was the first instance; these are the rest of them.
+//
+// Four more of our rules declare a `border`, a `background` and a `color` on a native
+// element -- they intend to replace Obsidian's button skin outright -- and three of them
+// were losing the same (0,1,0)-vs-(0,1,1) fight the row was. The fourth,
+// `.ci-camera-controls button`, was already written as `<class> <type>` and was already
+// winning, which is where the recipe came from in the first place.
+//
+// `.ci-welcome__action` is the worst of them: it declares `background: var(--ci-action)`,
+// the ACCENT, for the COPY-02 primary call to action, and `button:not(.clickable-icon)`
+// repainted it `--interactive-normal`. The one primary button in the view rendered as an
+// ordinary grey one.
+//
+// Three consequences per button, all from the same asar rules quoted at the top:
+//   * `background-color: var(--interactive-normal)`  (0,1,1)  beat our `background`;
+//   * `box-shadow: var(--input-shadow)`              (0,1,1)  painted under our own border,
+//     and we declared no `box-shadow` at all to stop it;
+//   * `color: var(--text-color)`                     (0,1,1)  beat our `color` -- benignly,
+//     since `--text-color` and `--ci-text` both resolve to `--text-normal`, but a loss.
+//
+// And one consequence of FIXING them, which is why the hover assertion below exists: at
+// (0,1,1) our `background` also ties `button:hover` (0,1,1) and wins on document order, so
+// without a hover rule of our own these controls would lose their hover affordance
+// entirely. `.ci-camera-controls button` had already lost it that way, unnoticed.
+//
+// Focus stays visible throughout: `button { outline: none }` is only (0,0,1), so
+// `:where(.codebase-inspector-root) :focus-visible { outline: 2px solid var(--ci-focus) }`
+// at (0,1,0) still wins. Our `box-shadow: none` does suppress Obsidian's
+// `button:focus-visible` ring, so the focus indicator is our outline rather than two
+// overlapping rings -- deliberate, and the same choice already made for the row.
+const PLUGIN_SKINNED_BUTTONS = [
+  '.ci-app__mode-toggle',        // also carries .ci-app__drawer-opener -- the Files opener
+  '.ci-app__drawer-close',
+  '.ci-welcome__action',
+  '.ci-camera-controls button',  // already compliant; asserted so it cannot regress
+];
+
+/** `@media (hover: hover) { button:hover { ... } }` -- a media query changes no specificity. */
+const OBSIDIAN_BUTTON_HOVER: Specificity = [0, 1, 1];
+
+function ruleForState(selectorPart: string, property: string, hover: boolean): { selector: string; body: string } {
+  const matches = rules().filter((r) => r.selector.includes(selectorPart)
+    && declares(r.body, property)
+    && r.selector.includes(':hover') === hover);
+  const label = hover ? 'hover' : 'base';
+  expect(matches.length, `no ${label} rule declares ${property} for ${selectorPart}`).toBeGreaterThan(0);
+  return matches[0]!;
+}
+
+describe('item 4 sweep: every plugin-skinned button must render the skin it declares', () => {
+  it.each(PLUGIN_SKINNED_BUTTONS)('%s wins its background back', (selectorPart) => {
+    const rule = ruleForState(selectorPart, 'background', false);
+    expect(
+      atLeast(specificityOf(rule.selector), OBSIDIAN_BUTTON_SKIN),
+      `${rule.selector} computes ${specificityOf(rule.selector).join(',')}, which loses to button:not(.clickable-icon)`,
+    ).toBe(true);
+  });
+
+  it.each(PLUGIN_SKINNED_BUTTONS)('%s suppresses the host box-shadow', (selectorPart) => {
+    // Declaring a border and a background but no box-shadow leaves `--input-shadow`
+    // painting under our own border: the host's button skin, half-showing.
+    expect(declares(ruleForState(selectorPart, 'background', false).body, 'box-shadow')).toBe(true);
+  });
+
+  it.each(PLUGIN_SKINNED_BUTTONS)('%s keeps a hover affordance of its own', (selectorPart) => {
+    const rule = ruleForState(selectorPart, 'background', true);
+    expect(atLeast(specificityOf(rule.selector), OBSIDIAN_BUTTON_HOVER)).toBe(true);
+  });
+
+  it.each(PLUGIN_SKINNED_BUTTONS)('%s still loses to a scoped user snippet', (selectorPart) => {
+    const rule = ruleForState(selectorPart, 'background', false);
+    expect(atLeast(specificityOf(rule.selector), SCOPED_USER_SNIPPET)).toBe(false);
+    expect(rule.selector.startsWith(':where(.codebase-inspector-root)')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------------------
+// `.ci-search__input` is the DOCUMENTED REFUSAL, and this is the tripwire that keeps it
+// honest rather than a comment nobody reads.
+//
+// It IS a real loss -- `input[type='text']` (0,1,1) beats our (0,1,0) and takes the
+// background, the border, the border-radius and the horizontal padding (its `padding`
+// SHORTHAND beats our `padding-inline` for the same physical sides). But it is not the
+// same SHAPE of fight as the buttons, and the type-selector recipe alone is the wrong fix,
+// because Obsidian skins a form field across FIVE states rather than one (asar /app.css
+// 7589-7699):
+//
+//   input[type='text']                (0,1,1)  background, border, radius, padding, outline:none
+//   input[type='text']:hover          (0,2,1)  background-color, border-color
+//   input[type='text']:active/:focus  (0,2,1)  border-color
+//   input[type='text']:focus-visible  (0,2,1)  box-shadow -- THE FOCUS RING
+//   input[type='text']::placeholder            placeholder colour
+//
+// Raising only the base rule to (0,1,1) wins the resting state and loses every other one,
+// so the field would change palette under the pointer -- `--background-secondary` at rest,
+// `--background-modifier-form-field-hover` on hover. That is worse than today, where it is
+// consistently Obsidian's own search-field skin: the purpose-built, theme-aware token set
+// for this exact control, and the one every other search box in the app uses. Note also
+// that `outline: none` at (0,1,1) beats our own (0,1,0) focus outline here, so the focus
+// indicator for this control is Obsidian's `:focus-visible` box-shadow ring -- it is
+// present, but it is the host's, and half-re-skinning would put our palette around it.
+//
+// So the invariant is not "we must win" but "ONE OWNER, EVERY STATE". It holds today with
+// the host owning all five, it would hold again after a full re-skin, and it fails the
+// moment someone applies the button recipe here and stops.
+const OBSIDIAN_FORM_FIELD: Specificity = [0, 1, 1];        // input[type='text']
+const OBSIDIAN_FORM_FIELD_STATE: Specificity = [0, 2, 1];  // its :hover / :focus / :focus-visible
+
+describe('item 4 sweep: the search input has ONE owner across all of its states', () => {
+  it('either the host skins it in every state, or we do -- never a mix', () => {
+    const base = rules().find((r) => r.selector.includes('.ci-search__input')
+      && !r.selector.includes(':hover') && declares(r.body, 'background'));
+    expect(base, 'no base rule declares a background for .ci-search__input').toBeDefined();
+    const weOwnTheRestingState = atLeast(specificityOf(base!.selector), OBSIDIAN_FORM_FIELD);
+    const weOwnHover = rules().some((r) => r.selector.includes('.ci-search__input')
+      && r.selector.includes(':hover')
+      && atLeast(specificityOf(r.selector), OBSIDIAN_FORM_FIELD_STATE));
+
+    expect(
+      weOwnHover,
+      weOwnTheRestingState
+        ? 'the base rule now beats input[type=text], so it MUST also beat input[type=text]:hover (0,2,1) or the field changes palette under the pointer'
+        : 'the field is deliberately left to the host in every state; a :hover rule here means that refusal was half-undone',
+    ).toBe(weOwnTheRestingState);
+  });
+});

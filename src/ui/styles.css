@@ -8,6 +8,10 @@
   --ci-text: var(--text-normal);
   --ci-text-muted: var(--text-muted);
   --ci-action: var(--interactive-accent);
+  /* Item 4 sweep: the accent's own hover, aliased the same way --ci-action is. Aliasing an
+     --interactive-* variable into a --ci-* name is what this bridge is for; spec 4.4
+     forbids REDEFINING one, which this does not do. */
+  --ci-action-hover: var(--interactive-accent-hover);
   --ci-on-action: var(--text-on-accent);
   --ci-focus: var(--background-modifier-border-focus, var(--interactive-accent));
   --ci-error: var(--text-error);
@@ -90,15 +94,27 @@
   align-items: center;
   gap: var(--ci-space-2);
 }
-:where(.codebase-inspector-root) .ci-app__mode-toggle {
+/* Item 4 sweep. `button` added for the specificity rule stated at .ci-file-list__row:
+   (0,1,0) -> (0,1,1), which is what `button:not(.clickable-icon)` computes, so our
+   `background` and `color` finally apply instead of `--interactive-normal`. `box-shadow`
+   is declared for the first time because that same rule also paints `--input-shadow`
+   underneath our own border. This class is ALSO the Files drawer opener
+   (App.vue: `class="ci-app__mode-toggle ci-app__drawer-opener"`). */
+:where(.codebase-inspector-root) button.ci-app__mode-toggle {
   min-height: var(--ci-control-min);
   padding-inline: var(--ci-space-3);
   border-radius: var(--ci-radius-control);
   border: 1px solid var(--ci-border);
   background: var(--ci-panel);
+  box-shadow: none;
   color: var(--ci-text);
   cursor: pointer;
   white-space: nowrap;
+}
+/* Our background now ties Obsidian's `button:hover` (0,1,1) and beats it on document
+   order, so without this the control would have no hover affordance at all. */
+:where(.codebase-inspector-root) button.ci-app__mode-toggle:hover {
+  background: var(--ci-raised);
 }
 /* Phase 2c, I4: COPY-30, the filter-hidden-selection explanation (spec 5.2). */
 :where(.codebase-inspector-root) .ci-app__selection-notice {
@@ -140,7 +156,10 @@
   min-height: 0;
   overflow-y: auto;
 }
-:where(.codebase-inspector-root) .ci-app__drawer-close {
+/* Item 4 sweep -- same rule, same two reasons. (The `display: none` copy of this selector
+   inside the >=820px container query stays at (0,1,0): it only has to beat
+   `button { display: inline-flex }`, which is (0,0,1).) */
+:where(.codebase-inspector-root) button.ci-app__drawer-close {
   align-self: flex-end;
   min-height: var(--ci-control-min);
   padding-inline: var(--ci-space-3);
@@ -148,8 +167,12 @@
   border-radius: var(--ci-radius-control);
   border: 1px solid var(--ci-border);
   background: var(--ci-panel);
+  box-shadow: none;
   color: var(--ci-text);
   cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-app__drawer-close:hover {
+  background: var(--ci-raised);
 }
 /* One collapse threshold at 820 CSS px, measured on the leaf via container
    queries (spec 5.2), provisional and contested (re-check at checkpoint #3). At
@@ -365,14 +388,23 @@
   flex-wrap: wrap;
   gap: var(--ci-space-1);
 }
+/* Item 4 sweep. This one was ALREADY `<class> <type>` = (0,1,1) and already winning its
+   background -- it is where the recipe came from. Two things were still missing: the
+   `box-shadow` that stops `--input-shadow` painting under our border, and a hover rule,
+   because beating `button:hover` on order had silently cost these buttons their hover
+   affordance long before this round. */
 :where(.codebase-inspector-root) .ci-camera-controls button {
   min-height: var(--ci-control-min);
   min-width: var(--ci-control-min);
   border-radius: var(--ci-radius-control);
   border: 1px solid var(--ci-border);
   background: var(--ci-panel);
+  box-shadow: none;
   color: var(--ci-text);
   cursor: pointer;
+}
+:where(.codebase-inspector-root) .ci-camera-controls button:hover {
+  background: var(--ci-raised);
 }
 
 /* --- FileInspector (C10) ------------------------------------------------------ */
@@ -445,13 +477,22 @@
    instead — except .ci-welcome__action below, kept deliberately: it is the
    exact selector tests/host/city-view.test.ts (task 8, unmodified this task)
    still uses to find the "Select a codebase" button. Deleted the rest. */
-:where(.codebase-inspector-root) .ci-welcome__action {
+/* Item 4 sweep, and the most visible of the four: this is the COPY-02 primary call to
+   action and it declares the ACCENT, which `button:not(.clickable-icon)` repainted
+   `--interactive-normal` -- so the one primary button in the view rendered as an ordinary
+   grey one. Hover uses the accent's own hover token rather than --ci-raised: a primary
+   action must not drop to a neutral surface under the pointer. */
+:where(.codebase-inspector-root) button.ci-welcome__action {
   align-self: flex-start;
   min-height: var(--ci-control-min);
   padding-inline: var(--ci-space-4);
   border-radius: var(--ci-radius-control);
   border: 1px solid var(--ci-border);
   background: var(--ci-action);
+  box-shadow: none;
   color: var(--ci-on-action);
   cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-welcome__action:hover {
+  background: var(--ci-action-hover);
 }
