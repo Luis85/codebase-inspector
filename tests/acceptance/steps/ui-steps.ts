@@ -18,7 +18,7 @@ import type { Baseline } from '../baseline';
 import type { StepTable } from '../feature-runner';
 import type { World } from '../world';
 import { createPicking } from '../../../src/visualization/picking';
-import { COPY_30, formatCopy11 } from '../../../src/ui/copy';
+import { COPY_30_EXPLANATION, formatCopy11 } from '../../../src/ui/copy';
 
 async function selectFirstRow(world: World): Promise<void> {
   const harness = ui(world);
@@ -103,9 +103,14 @@ export const uiSteps: StepTable<World> = {
 
   'the interface explains the search mismatch': (world) => {
     const harness = ui(world);
-    // COPY-30, the selection-outside-filter notice, AND COPY-11's own count, which is
-    // what tells a reader the snapshot still holds the files the filter hid.
-    expect(harness.container.querySelector('.ci-app__selection-notice')?.textContent).toContain(COPY_30);
+    // COPY-30's own explanation, AND COPY-11's own count, which is what tells a
+    // reader the snapshot still holds the files the filter hid. Task 9 (F13): the
+    // notice's OLD prose tail ("Reveal file or clear selection.") is real controls
+    // now, not text, so only the lead sentence (COPY_30_EXPLANATION) still renders.
+    const notice = harness.container.querySelector('.ci-app__selection-notice');
+    expect(notice?.textContent).toContain(COPY_30_EXPLANATION);
+    expect(notice?.querySelector('.ci-selection-notice__reveal')).not.toBeNull();
+    expect(notice?.querySelector('.ci-selection-notice__clear')).not.toBeNull();
     expect(harness.container.querySelector('.ci-file-list__empty')?.textContent)
       .toContain(formatCopy11(9, 'zzz-no-such-path'));
   },

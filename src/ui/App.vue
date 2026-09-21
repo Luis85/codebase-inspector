@@ -23,7 +23,7 @@ import { countPartialRead, deriveViewSurfaceState } from './view-surface';
 import { escapeIntent } from './interaction/escape-intent';
 import { DRAWER_MAX_INLINE_SIZE, MIN_INLINE_SIZE } from './responsive';
 import { contentBoxInlineSize, narrowContainer } from './container-box';
-import { COPY_02 } from './copy';
+import { COPY_02, COPY_30_EXPLANATION } from './copy';
 import AppToolbar from './components/AppToolbar.vue';
 import CityHeader from './components/CityHeader.vue';
 import CodebaseFileList from './components/CodebaseFileList.vue';
@@ -38,7 +38,9 @@ import AnnouncementRegion from './components/AnnouncementRegion.vue';
 
 const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
 
-provideCityRenderer();
+// Task 9 (F13): captured, not discarded — the notice's own Reveal control (below)
+// issues a renderer command through this SAME shared handle CityViewport writes.
+const cityRenderer = provideCityRenderer();
 provideCityStageEl();
 const inspectorOpenerHandle = provideInspectorOpener();
 
@@ -61,6 +63,16 @@ function openFilesDrawer(event: MouseEvent): void {
 function closeFilesDrawer(): void {
   filesDrawerOpen.value = false;
   filesDrawerOpener.value?.focus();
+}
+
+/** Task 9 (F13): notice's "Reveal file" — re-selects (idempotent) and focuses
+ *  through the renderer, like FileInspector.vue's own Focus button. Never touches
+ *  `store.query`: revealing is not the same action as clearing the search that hid it. */
+function revealSelection(): void {
+  const id = store.selectedEntityId;
+  if (!id) return;
+  store.select(id);
+  cityRenderer.value?.focus(id);
 }
 // The other half of "one overlay at a time": opening the inspector (from
 // CodebaseFileList's own row activation, or a future canvas pick) closes the
@@ -283,19 +295,37 @@ defineExpose({ rendererHost });
          here: it is shell-level state (`filesDrawerOpen`/`filesDrawerOpener`, item 7's
          own one-overlay-at-a-time rule), not the toolbar's own concern. -->
     <AppToolbar @open-files-drawer="openFilesDrawer" />
-    <!-- Phase 2c, I4: COPY-30. `city-store`'s `banner` getter had no production reader,
-         so the string never reached a user. Spec line 913 adopts COPY-30 and spec 5.2
-         requires a filter-hidden selection be "EXPLAINED ..., never silently replaced" —
-         so the bug was the missing surface, not the dead getter. NOT routed through
-         viewSurfaceState/StatusBanner (a single-winner chain; this notice must coexist
-         with whatever else is showing), and not a second live region (AnnouncementRegion
-         owns that — the COPY-14 double-print is why). -->
-    <p
+    <!-- Phase 2c, I4: COPY-30 (spec 5.2: a filter-hidden selection is "EXPLAINED,
+         never silently replaced"). NOT routed through viewSurfaceState/StatusBanner
+         (a single-winner chain; must coexist with whatever else is showing) and not
+         a second live region (AnnouncementRegion owns that). Task 9 (F13): the tail
+         used to be unpressable prose ("Reveal file or clear selection.") — now two
+         real buttons; COPY_30_EXPLANATION is COPY-30's own lead sentence, sliced so
+         the two cannot drift apart. -->
+    <div
       v-if="store.banner"
       class="ci-app__selection-notice"
     >
-      {{ store.banner }}
-    </p>
+      <p class="ci-app__selection-notice-text">
+        {{ COPY_30_EXPLANATION }}
+      </p>
+      <div class="ci-selection-notice__actions">
+        <button
+          type="button"
+          class="ci-selection-notice__reveal"
+          @click="revealSelection"
+        >
+          Reveal file
+        </button>
+        <button
+          type="button"
+          class="ci-selection-notice__clear"
+          @click="store.clearSelection()"
+        >
+          Clear selection
+        </button>
+      </div>
+    </div>
     <div class="ci-app__body">
       <!-- Rendered per the container-query layout (styles.css's 820px threshold),
            never per viewMode: the >=820px layout is "list + canvas + inspector"

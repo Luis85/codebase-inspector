@@ -38,6 +38,15 @@ export const COPY_27 = 'Relative path copied.';
 export const COPY_28 = 'The saved source directory is unavailable on this machine. The stored snapshot can still be inspected.';
 export const COPY_30 = 'The selected file is outside these filters. Reveal file or clear selection.';
 
+/** Task 9 (F13): COPY-30's own lead sentence. The tail ("Reveal file or clear
+ *  selection.") named two actions as PROSE — a user reading it had nothing to press.
+ *  App.vue now ships those two actions as real buttons instead of restating them as
+ *  text, so only the explanation half of COPY-30 still renders as a sentence. Sliced
+ *  out of COPY_30 itself (never retyped) so the catalogue string and what actually
+ *  displays cannot drift apart — `store.banner` (city-store.ts, frozen this task)
+ *  keeps returning the full COPY_30 unchanged for whatever else reads it. */
+export const COPY_30_EXPLANATION = COPY_30.slice(0, COPY_30.indexOf(' Reveal file or clear selection.'));
+
 /** The two factual claims (spec 5.2 and 10). Evidence:
  *  docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md, section G2 -- the boundary
  *  matrix, the whole-tree hash diff (content, size AND mtime) at 1,000 files with the

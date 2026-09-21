@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
@@ -6,11 +6,29 @@ import '../mocks/obsidian';
 import App from '../../src/ui/App.vue';
 import StatusBanner from '../../src/ui/components/StatusBanner.vue';
 import EmptyState from '../../src/ui/components/EmptyState.vue';
-import { COPY_30 } from '../../src/ui/copy';
+import { COPY_30_EXPLANATION } from '../../src/ui/copy';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { CITY_RENDERER_KEY } from '../../src/ui/renderer-handle';
 import type { ViewSurfaceState } from '../../src/ui/view-surface';
+
+/** Same shape as file-inspector.test.ts's own local double (CityRendererPort) —
+ *  each component-test file that needs to assert a renderer command keeps its own
+ *  copy rather than sharing one, the established pattern in this suite. Only
+ *  `focus` is asserted against here (the Reveal control's own job). */
+function makeRendererDouble() {
+  return {
+    setLayout: vi.fn(async () => {}),
+    setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setLabels: vi.fn(),
+    setCameraMode: vi.fn(), setMotion: vi.fn(),
+    getCamera: vi.fn(() => ({ projection: 'orthographic' as const, mode: '3d' as const, position: [0, 0, 0] as [number, number, number], target: [0, 0, 0] as [number, number, number], up: [0, 1, 0] as [number, number, number], zoom: 1 })),
+    setCamera: vi.fn(), nudgeCamera: vi.fn(), focus: vi.fn(), fit: vi.fn(), resize: vi.fn(),
+    pause: vi.fn(), resume: vi.fn(), dispose: vi.fn(),
+    getDiagnostics: vi.fn(() => ({ geometries: 0, textures: 0, programs: 0, drawCalls: 0, instanceCount: 0, lastFrameMs: 0, contextLost: false })),
+    debugLoseContext: vi.fn(),
+  };
+}
 
 function renderBoth(state: ViewSurfaceState): string {
   const banner = mount(StatusBanner, { props: { state } });
@@ -95,8 +113,11 @@ describe('StatusBanner.vue (C16) + EmptyState.vue (C17) — every view-level sta
 //   * 04-microcopy.md:36 (rank-4 handoff) gives it verbatim, for "Selection outside
 //     filter".
 // So the getter is rendered rather than deleted.
-/** A wide (1000 px) leaf with a seeded snapshot — the ordinary three-column case. */
-function mountApp(files: number) {
+/** A wide (1000 px) leaf with a seeded snapshot — the ordinary three-column case.
+ *  `rendererDouble` is optional: most of this file's tests never need to assert a
+ *  renderer command, and App.vue's own `useCityRendererHandle()`-style fallback
+ *  (a local, unshared ref) tolerates a plain `mount()` with nothing provided. */
+function mountApp(files: number, rendererDouble?: ReturnType<typeof makeRendererDouble>) {
   const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
   leaf.getBoundingClientRect = () => ({
     width: 1000, height: 700, top: 0, left: 0, right: 1000, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
@@ -104,7 +125,10 @@ function mountApp(files: number) {
   const store = useCityStore();
   const snapshot = buildSnapshotFixture({ files });
   store.setCity(snapshot, computeLayout(snapshot));
-  return { wrapper: mount(App, { attachTo: leaf }), store };
+  const options = rendererDouble
+    ? { attachTo: leaf, global: { provide: { [CITY_RENDERER_KEY as symbol]: { value: rendererDouble } } } }
+    : { attachTo: leaf };
+  return { wrapper: mount(App, options), store };
 }
 
 describe('I4: COPY-30 reaches the user when the selection is outside the filter', () => {
@@ -117,7 +141,7 @@ describe('I4: COPY-30 reaches the user when the selection is outside the filter'
     store.select(file.id);
     store.setQuery('nothing-matches-this');
     await nextTick();
-    expect(wrapper.text()).toContain(COPY_30);
+    expect(wrapper.text()).toContain(COPY_30_EXPLANATION);
   });
 
   it('says nothing while unfiltered, or while the selection IS among the matches', async () => {
@@ -125,10 +149,55 @@ describe('I4: COPY-30 reaches the user when the selection is outside the filter'
     const file = store.snapshot!.entities.find((e) => e.kind === 'file')!;
     store.select(file.id);
     await nextTick();
-    expect(wrapper.text()).not.toContain(COPY_30);
+    expect(wrapper.text()).not.toContain(COPY_30_EXPLANATION);
 
     store.setQuery(file.path);
     await nextTick();
-    expect(wrapper.text()).not.toContain(COPY_30);
+    expect(wrapper.text()).not.toContain(COPY_30_EXPLANATION);
+  });
+});
+
+// Task 9 (F13): the notice used to name two actions as PROSE — "Reveal file or clear
+// selection." — and a user reading it had nothing to press. These pin the two real
+// controls it becomes, and that they are genuinely separate actions (foundations/04,
+// escape-intent.test.ts's own "clearing a selection is not clearing a search").
+describe('F13: the filter notice becomes two real controls', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  function mountAppWithOutsideSelection(rendererDouble?: ReturnType<typeof makeRendererDouble>) {
+    const mounted = mountApp(3, rendererDouble);
+    const file = mounted.store.snapshot!.entities.find((e) => e.kind === 'file')!;
+    mounted.store.select(file.id);
+    mounted.store.setQuery('main');   // a nonempty query the seeded fixture never matches
+    return { ...mounted, file };
+  }
+
+  it('turns the filter notice into the two actions it names', async () => {
+    const { wrapper } = mountAppWithOutsideSelection();
+    await nextTick();
+    expect(wrapper.find('.ci-selection-notice__reveal').exists()).toBe(true);
+    expect(wrapper.find('.ci-selection-notice__clear').exists()).toBe(true);
+    // The tail COPY_30 used to render as PROSE is gone as literal text — replaced by
+    // the two buttons above, not restated beside them.
+    expect(wrapper.text()).not.toContain('Reveal file or clear selection.');
+  });
+
+  it('clearing selection from the notice keeps the query', async () => {
+    const { wrapper, store } = mountAppWithOutsideSelection();
+    await nextTick();
+    await wrapper.find('.ci-selection-notice__clear').trigger('click');
+    expect(store.selectedEntityId).toBeNull();
+    expect(store.query).toBe('main');
+  });
+
+  it('Reveal re-selects and focuses the file through the renderer, without touching the query', async () => {
+    const rendererDouble = makeRendererDouble();
+    const { wrapper, store, file } = mountAppWithOutsideSelection(rendererDouble);
+    await nextTick();
+    await wrapper.find('.ci-selection-notice__reveal').trigger('click');
+    expect(rendererDouble.focus).toHaveBeenCalledWith(file.id);
+    expect(store.selectedEntityId).toBe(file.id);
+    expect(store.query).toBe('main');
   });
 });

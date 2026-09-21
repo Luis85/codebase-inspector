@@ -116,7 +116,9 @@
 :where(.codebase-inspector-root) button.ci-app__mode-toggle:hover {
   background: var(--ci-raised);
 }
-/* Phase 2c, I4: COPY-30, the filter-hidden-selection explanation (spec 5.2). */
+/* Phase 2c, I4: COPY-30, the filter-hidden-selection explanation (spec 5.2). Task 9
+   (F13): a `<div>` wrapping the explanation and its own two real controls now,
+   never a single `<p>` of unpressable prose. */
 :where(.codebase-inspector-root) .ci-app__selection-notice {
   margin: 0;
   padding: var(--ci-space-2) var(--ci-space-3);
@@ -124,6 +126,38 @@
   border-radius: var(--ci-radius-control);
   background: var(--ci-panel);
   color: var(--ci-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ci-space-2);
+}
+:where(.codebase-inspector-root) .ci-app__selection-notice-text {
+  margin: 0;
+  flex: 1 1 auto;
+}
+:where(.codebase-inspector-root) .ci-selection-notice__actions {
+  display: flex;
+  gap: var(--ci-space-2);
+  flex: 0 0 auto;
+}
+/* M113 -- same recipe as `.ci-file-list__group-focus`: `button.ci-selection-notice__*`
+   is (0,1,1), tying Obsidian's own `button:not(.clickable-icon)` and winning on
+   document order, and still losing to a root-scoped user snippet at (0,2,0). */
+:where(.codebase-inspector-root) button.ci-selection-notice__reveal,
+:where(.codebase-inspector-root) button.ci-selection-notice__clear {
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-2);
+  border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-control);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  font-size: 0.85em;
+  cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-selection-notice__reveal:hover,
+:where(.codebase-inspector-root) button.ci-selection-notice__clear:hover {
+  background: var(--ci-raised);
 }
 :where(.codebase-inspector-root) .ci-app__body {
   display: flex;
@@ -619,6 +653,24 @@
 :where(.codebase-inspector-root) .ci-inspector__title {
   margin: 0;
   font-size: 1em;
+}
+/* Task 9 (F12, C10, foundations/04): "Preserve the full path through wrapping...
+   Do not expose crucial content only in an ellipsis tooltip." `overflow-wrap: anywhere`
+   and NO `text-overflow`/`white-space: nowrap` -- the opposite of an ellipsis, on
+   purpose; see host-cascade.test.ts for the analogous `.ci-file-list__row` fight this
+   element does not have (it is a bare `<p>`, not a native `<button>`, so no Obsidian
+   default contests `white-space` here). */
+:where(.codebase-inspector-root) .ci-inspector__path {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-monospace, monospace);
+  font-size: 0.9em;
+}
+/* C10: "Keep exact raw values and scope." */
+:where(.codebase-inspector-root) .ci-inspector__scope {
+  margin: var(--ci-space-1) 0 0;
+  color: var(--ci-text-muted);
+  font-size: 0.85em;
 }
 :where(.codebase-inspector-root) .ci-inspector__measurements {
   margin: var(--ci-space-2) 0;

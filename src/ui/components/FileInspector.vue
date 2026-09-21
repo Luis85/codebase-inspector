@@ -15,7 +15,7 @@ import { useCityStore } from '../stores/city-store';
 import { useCityRendererHandle } from '../renderer-handle';
 import { useInspectorOpener } from '../drawer-focus';
 import { useClipboard } from '../clipboard';
-import { COPY_27, formatUnavailableReason } from '../copy';
+import { COPY_27, formatSnapshotScopeRoot, formatUnavailableReason } from '../copy';
 import type { Observation } from '../../domain/model';
 
 const store = useCityStore();
@@ -40,6 +40,16 @@ function observationFor(metricId: 'physical-lines' | 'byte-size'): Observation |
 
 const linesObs = computed(() => observationFor('physical-lines'));
 const bytesObs = computed(() => observationFor('byte-size'));
+
+/** Task 9 (F12, C10: "Keep exact raw values and scope"): a line count with no scope
+ *  is a number whose denominator the user cannot check. Redacted to a basename, the
+ *  same way SnapshotStatus.vue's own scope line is (interactions/04-microcopy.md:
+ *  "redact local absolute paths by default") — reusing that formatter rather than a
+ *  second copy of the redaction rule, so the two surfaces cannot disagree about what
+ *  counts as safe to show. */
+const scopeText = computed(() => (
+  store.snapshot ? formatSnapshotScopeRoot(store.snapshot.scope.rootPath) : ''
+));
 
 function focusSelection(): void {
   if (store.selectedEntityId) renderer.value?.focus(store.selectedEntityId);
@@ -87,6 +97,22 @@ async function copyRelativePath(): Promise<void> {
         ×
       </button>
     </div>
+    <!-- Task 9 (F12, C10, foundations/04): the FULL relative path, wrapped rather
+         than ellipsised (foundations/04: "Do not expose crucial content only in an
+         ellipsis tooltip" — the title above stays the short basename for the
+         header's own layout, this is the whole path as real, selectable,
+         accessible text). The existing "Copy relative path" action below is kept
+         alongside it — foundations/04 asks for wrapping AND a copy action, not one
+         or the other. -->
+    <p class="ci-inspector__path">
+      {{ selectedEntity.path }}
+    </p>
+    <!-- C10: "Keep exact raw values and scope." Names the scope the measurements
+         below were taken in, so the raw counts have a denominator a reader can
+         check. -->
+    <p class="ci-inspector__scope">
+      {{ scopeText }}
+    </p>
     <dl class="ci-inspector__measurements">
       <dt>Physical lines</dt>
       <dd v-if="linesObs?.status === 'measured'">

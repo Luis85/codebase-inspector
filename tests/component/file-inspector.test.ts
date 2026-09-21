@@ -111,4 +111,61 @@ describe('FileInspector.vue (C10)', () => {
     expect(store.inspectorOpen).toBe(false);
     expect(store.selectedEntityId).not.toBeNull();
   });
+
+  // Task 9 (F12): C10's own contract says "Keep exact raw values and scope", and
+  // foundations/04 says "Preserve the full path through wrapping, a copy action, and
+  // accessible text. Do not expose crucial content only in an ellipsis tooltip." The
+  // inspector used to show only `selectedEntity.name` (the basename) in its header —
+  // never the full relative path, and never the scope those measurements were taken in.
+  describe('the full path and scope (F12, C10, foundations/04)', () => {
+    it('shows the full path, wrapped, not only the basename', () => {
+      // `directories: 1` (unlike `openWithFile`'s flat default) so `target.path`
+      // ("dir-0/file-0.ts") genuinely differs from `target.name` ("file-0.ts") —
+      // a flat fixture would let a basename-only regression pass this test by
+      // accident, since the two strings would be identical either way.
+      const store = useCityStore();
+      const snapshot = buildSnapshotFixture({ files: 2, directories: 1 });
+      store.setCity(snapshot, computeLayout(snapshot));
+      const target = snapshot.entities.find((e) => e.kind === 'file')!;
+      store.select(target.id);
+      store.openInspector();
+      const wrapper = mountInspector();
+      // `toBe`, not `toContain` — a substring check cannot fail against a basename
+      // that happens to be a suffix of the full path (the hazard note's own shape).
+      expect(wrapper.find('.ci-inspector__path').text()).toBe(target.path);
+      expect(target.path).not.toBe(target.name);
+    });
+
+    it('keeps the full path as accessible text rather than an ellipsis tooltip', () => {
+      // foundations/04: "Do not expose crucial content only in an ellipsis tooltip."
+      openWithFile();
+      const wrapper = mountInspector();
+      const el = wrapper.find('.ci-inspector__path').element as HTMLElement;
+      expect(getComputedStyle(el).textOverflow).not.toBe('ellipsis');
+    });
+
+    it('names the scope the values were measured in, redacted to a basename', () => {
+      // C10: "Keep exact raw values and scope." A line count with no scope is a
+      // number whose denominator the user cannot check. Redacted the same way
+      // SnapshotStatus.vue's own scope line is (interactions/04-microcopy.md:
+      // "redact local absolute paths by default") — `toBe`, not `toContain('root')`,
+      // because `toContain('root')` would pass whether this is correctly redacted to
+      // "Scope: root" or leaks the raw "/fixture/root" (both contain "root").
+      openWithFile();
+      const wrapper = mountInspector();
+      const scope = wrapper.find('.ci-inspector__scope');
+      expect(scope.exists()).toBe(true);
+      expect(scope.text()).toBe('Scope: root');
+      expect(scope.text()).not.toContain('/fixture');
+    });
+
+    it('offers Copy relative path ALONGSIDE the visible path, not instead of it', () => {
+      // foundations/04 asks for wrapping AND a copy action, not one or the other —
+      // the existing Copy action must still be present once the path is shown.
+      openWithFile();
+      const wrapper = mountInspector();
+      expect(wrapper.find('.ci-inspector__path').exists()).toBe(true);
+      expect(wrapper.find('[aria-label="Copy relative path"]').exists()).toBe(true);
+    });
+  });
 });
