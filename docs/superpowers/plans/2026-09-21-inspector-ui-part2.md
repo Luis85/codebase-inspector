@@ -4852,6 +4852,46 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 ---
 
+### Task 12: Overview is the start page (user directive, 2026-09-21; supersedes Part 1 A1)
+
+> Added after plan approval. **Execute it after Task 10 and before Task 11**, so Task 11's evidence counts and `npm run verify` include it.
+
+**Files:**
+- Modify: `src/domain/route-ids.ts`, `src/ui/screens/NoSnapshot.vue`, `src/ui/screens/OverviewScreen.vue`
+- Modify (tests): every test that mounts `App.vue` or a real `CityView` and assumes a fresh leaf shows the city. Each such test seeds route `'city'` explicitly.
+- Test: `tests/unit/route-state.test.ts`, `tests/component/workspace-shell.test.ts`, `tests/component/overview-screen.test.ts`
+- **Do not touch** `src/host/city-view.ts` (399/400) or `src/ui/screens/CityWorkspace.vue`.
+
+**Interfaces:**
+- Produces: `DEFAULT_ROUTE = 'overview'`. A missing or unknown persisted route decodes to `'overview'`, because the existing decode path already falls back to `DEFAULT_ROUTE`; verify it does, and do not add a second fallback.
+- Produces: the "select a codebase" button on Overview and on `NoSnapshot` now calls `store.navigate('city')` and **then** `onSelectCodebase()`. The WP-01 scan states (scanning, failed, partial, …) live only on the city route (Part 1 A8), so the user sees the scan they just started.
+
+- [ ] **Step 1: Write the failing tests.**
+  - In `tests/unit/route-state.test.ts`, change the assertions that expect a default or missing or unknown route to be `'city'` so they expect `'overview'`. Keep the tests that check a *persisted* `'city'` is restored.
+  - In `tests/component/workspace-shell.test.ts`, the test `'opens on the city, rendered inside the shell content area'` becomes `'opens on Overview; the city renders inside the shell content area once navigated'`. Assert that a fresh mount shows `.ci-screen--overview` and no `.ci-app`. Then call `useCityStore().navigate('city')`, `await nextTick()`, and assert `.ci-shell__content .ci-app` exists.
+  - In `tests/component/overview-screen.test.ts`, add: with no snapshot, clicking `.ci-overview__select-source` calls the injected `onSelectCodebase` spy once and leaves `store.route === 'city'`.
+  - Add the same check for `NoSnapshot` in `tests/component/architecture-screen.test.ts`: clicking its `.mod-cta` button navigates to `'city'` and calls the spy.
+- [ ] **Step 2: Run them and confirm they fail.** `npx vitest run tests/unit/route-state.test.ts tests/component/workspace-shell.test.ts tests/component/overview-screen.test.ts tests/component/architecture-screen.test.ts`
+- [ ] **Step 3: Implement.**
+  - In `route-ids.ts`, set `export const DEFAULT_ROUTE: RouteId = 'overview';` and replace its doc comment with: `/** A fresh leaf opens on Overview (user directive 2026-09-21, superseding Part 1 A1). */`.
+  - In `NoSnapshot.vue` and `OverviewScreen.vue`, replace `@click="onSelectCodebase"` with a function that does `store.navigate('city'); onSelectCodebase();`. `NoSnapshot.vue` needs `useCityStore`.
+- [ ] **Step 4: Sweep the suite for city-default assumptions.** Run `npx vitest run tests/component tests/host tests/acceptance tests/integration tests/unit`, ignoring the known `gate-evidence`, `evidence-numbers` and `install-script` failures. For every other test that now fails because a fresh leaf shows Overview instead of the city, seed the city route **in that file's existing setup helper** (one place per file, not per test):
+  - Pinia-mounted `App`: call `useCityStore().navigate('city')` after `setActivePinia` and before `mount`.
+  - Real `CityView` (tests/host, tests/acceptance): seed the route through the same view-state path the test already uses (`setState({ …, route: 'city' })` or the helper's state object).
+
+  Never weaken an assertion. If a failure is anything other than the default-route change, stop and report it. List every file you changed and why in the report.
+- [ ] **Step 5: Run and confirm they pass.** Run the same command again. Only the three known failures may remain. Also run `npm run typecheck && npm run lint:fast && npx eslint src/domain/route-ids.ts src/ui/screens --max-warnings 0`.
+- [ ] **Step 6: Commit.**
+
+```bash
+git add src tests
+git commit -m "feat(ui): Overview is the start page; source selection shows the city's scan states
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+```
+
+---
+
 ## Self-review notes
 
 - **Spec coverage:**

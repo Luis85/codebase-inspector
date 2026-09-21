@@ -155,3 +155,10 @@ dependency, and `CityWorkspace.vue` has no line budget.
 - Finding review, workbench planning and architecture/report export (P13).
 - Any persistence beyond memory.
 - The city-internal minors listed in §5.
+
+## 8. Amendments
+
+- **P14 — Overview is the start page** (user directive, 2026-09-21; supersedes Part 1 A1).
+  - `DEFAULT_ROUTE` becomes `overview`. A fresh leaf, or a missing or unknown persisted route, opens on Overview. A persisted route is still restored.
+  - The "select a codebase" action on Overview and on the other screens' no-snapshot state navigates to the city before it starts source selection. The WP-01 scan states live only on the city route (A8).
+  - Plan Task 12.
