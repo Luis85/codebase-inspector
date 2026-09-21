@@ -12,6 +12,7 @@ export interface FixtureSpec {
   repositoryId?: string;
   completeness?: 'complete' | 'partial';
   warnings?: readonly string[];
+  testFiles?: number;               // the first N files are test files (file-<i>.test.ts)
 }
 
 function makeObservation(entityId: EntityId, metricId: 'physical-lines' | 'byte-size',
@@ -51,7 +52,8 @@ export function buildSnapshotFixture(spec: FixtureSpec): CodebaseSnapshot {
 
   for (let i = 0; i < spec.files; i += 1) {
     const parent = directories.length > 0 ? directories[i % directories.length]! : repositoryEntity;
-    const path = parent === repositoryEntity ? `file-${i}.ts` : `${parent.path}/file-${i}.ts`;
+    const fileName = `file-${i}${i < (spec.testFiles ?? 0) ? '.test' : ''}.ts`;
+    const path = parent === repositoryEntity ? fileName : `${parent.path}/${fileName}`;
     const category = classify(path);
     const fileEntity: CodeEntity = {
       id: makeEntityId(repositoryId, 'file', path),

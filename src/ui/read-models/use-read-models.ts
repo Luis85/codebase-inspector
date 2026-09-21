@@ -13,6 +13,7 @@ import {
 } from './architecture';
 import { buildFileDetail, type FileDetailModel } from './file-detail';
 import { buildQualityModel, type QualityModel } from './findings';
+import { buildTestConfidenceModel, type TestConfidenceModel } from './test-confidence';
 
 /** One stable empty array, so the per-array memo (architectureGraphFor) still hits. */
 const NO_FILES: readonly FileSummary[] = [];
@@ -68,6 +69,15 @@ export function qualityModelFor(files: readonly FileSummary[], dispositions: rea
   return model;
 }
 
+const testsCache = new WeakMap<readonly FileSummary[], { snapshot: CodebaseSnapshot; model: TestConfidenceModel }>();
+export function testConfidenceModelFor(snapshot: CodebaseSnapshot, files: readonly FileSummary[]): TestConfidenceModel {
+  const hit = testsCache.get(files);
+  if (hit && hit.snapshot === snapshot) return hit.model;
+  const model = buildTestConfidenceModel(snapshot, files);
+  testsCache.set(files, { snapshot, model });
+  return model;
+}
+
 /** Screens read models through here only (spec §3.2 rule 1). */
 export function useReadModels() {
   const store = useCityStore();
@@ -80,7 +90,8 @@ export function useReadModels() {
   const architecture = computed(() => architectureModelFor(graph.value, review.rules));
   const fileDetail = computed(() => (store.snapshot ? fileDetailFor(store.snapshot, files.value, store.selectedEntityId) : null));
   const quality = computed(() => qualityModelFor(files.value, review.dispositions));
+  const testConfidence = computed(() => (store.snapshot ? testConfidenceModelFor(store.snapshot, files.value) : null));
   /** A11: the Hotspots screen shows sample values whenever any file's plotted signal does. */
   const filesUseSample = computed(() => files.value.some((f) => isSampleBacked(f.priority) || isSampleBacked(f.complexity)));
-  return { files, overview, citySummary, architecture, fileDetail, quality, filesUseSample };
+  return { files, overview, citySummary, architecture, fileDetail, quality, testConfidence, filesUseSample };
 }

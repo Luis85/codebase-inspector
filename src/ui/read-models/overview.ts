@@ -14,7 +14,8 @@ import {
   INVESTIGATE_LARGEST_DETAIL, INVESTIGATE_MODULE_DETAIL, INVESTIGATE_NO_LINES, NO_FILES_REASON, OVERVIEW_ARCH_CAPTION,
   PROTECT_MODULE_TITLE,
 } from '../inspector-copy';
-import { filesByPriority, moduleLabel, ROOT_MODULE, type FileSummary } from './file-summaries';
+import { filesByPriority, ROOT_MODULE, type FileSummary } from './file-summaries';
+import { moduleCoverage } from './module-coverage';
 
 export const HOTSPOT_THRESHOLD = 65;
 export const HIGH_COMPLEXITY = 30;
@@ -54,23 +55,11 @@ export function trendLabels(capturedAt: string): string[] {
   });
 }
 
-function moduleCoverage(files: readonly FileSummary[]): { name: string; count: number; pct: MetricValue }[] {
-  const groups = new Map<string, FileSummary[]>();
-  for (const f of files) {
-    const g = groups.get(f.module);
-    if (g) g.push(f); else groups.set(f.module, [f]);
-  }
-  return [...groups.entries()].map(([name, fs]) => ({
-    name, count: fs.length,
-    pct: ratioEvidence(sumEvidence(fs.map((f) => f.branchesCovered)), sumEvidence(fs.map((f) => f.branchesTotal))),
-  }));
-}
-
 function investigations(files: readonly FileSummary[]): Investigation[] {
   if (files.length === 0) return [];
   const top = filesByPriority(files)[0]!;
-  const weak = moduleCoverage(files)
-    .sort((a, b) => (a.pct.value ?? Infinity) - (b.pct.value ?? Infinity) || a.name.localeCompare(b.name))[0]!;
+  const weak = [...moduleCoverage(files)]
+    .sort((a, b) => (a.coverage.value ?? Infinity) - (b.coverage.value ?? Infinity) || a.module.localeCompare(b.module))[0]!;
   const largest = files.filter((f) => hasValue(f.lines))
     .sort((a, b) => (b.lines.value ?? 0) - (a.lines.value ?? 0) || a.path.localeCompare(b.path))[0] ?? top;
   return [
@@ -78,8 +67,8 @@ function investigations(files: readonly FileSummary[]): Investigation[] {
       title: INVESTIGATE_HOTSPOT_TITLE(top.name),
       detail: INVESTIGATE_HOTSPOT_DETAIL(formatMetric(top.complexity), formatMetric(top.commits90d), formatMetric(top.branchCoverage, '%')) },
     { id: 'weak-module', icon: 'flask-conical', route: 'tests', entityId: null,
-      title: PROTECT_MODULE_TITLE(moduleLabel(weak.name), weak.name === ROOT_MODULE),
-      detail: INVESTIGATE_MODULE_DETAIL(formatMetric(weak.pct, '%'), weak.count) },
+      title: PROTECT_MODULE_TITLE(weak.label, weak.module === ROOT_MODULE),
+      detail: INVESTIGATE_MODULE_DETAIL(formatMetric(weak.coverage, '%'), weak.files) },
     { id: 'largest-file', icon: 'building-2', route: 'city', entityId: largest.id,
       title: INVESTIGATE_FILE_TITLE(largest.name),
       detail: hasValue(largest.lines) ? INVESTIGATE_LARGEST_DETAIL(formatMetric(largest.lines)) : INVESTIGATE_NO_LINES },

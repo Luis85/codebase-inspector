@@ -286,3 +286,4 @@ export const PALETTE_SHORTCUT_HINT = 'Ctrl K';
 export * from './audit-copy/shared';
 export * from './audit-copy/evolution';
 export * from './audit-copy/quality';
+export * from './audit-copy/tests';
