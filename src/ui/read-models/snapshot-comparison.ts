@@ -3,7 +3,7 @@
 import type { EntityId } from '../../domain/entity-id';
 import type { CodebaseSnapshot } from '../../domain/model';
 import { hasValue, sumEvidence, unknown, type MetricValue } from '../evidence';
-import { COMPARE_LINES_UNKNOWN } from '../inspector-copy';
+import { COMPARE_LINES_UNKNOWN, COMPARE_MODULE_ABSENT } from '../inspector-copy';
 import { groupByModule, moduleLabel, type FileSummary } from './file-summaries';
 
 export interface JournalModule { module: string; files: number; lines: MetricValue }
@@ -21,7 +21,9 @@ export interface SnapshotComparison {
   modules: readonly ModuleDelta[];
 }
 
-const NONE: JournalModule = { module: '', files: 0, lines: unknown(COMPARE_LINES_UNKNOWN) };
+/** A module absent from one side of the comparison: it is not that its lines are
+ *  unknown for some other reason, it simply is not in that snapshot. */
+const NONE: JournalModule = { module: '', files: 0, lines: unknown(COMPARE_MODULE_ABSENT, 'inventory') };
 
 export function journalEntryFor(snapshot: CodebaseSnapshot, files: readonly FileSummary[]): JournalEntry {
   const groups = groupByModule(files);
