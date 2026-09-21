@@ -8,8 +8,8 @@ export const ROUTE_IDS = [
 
 export type RouteId = (typeof ROUTE_IDS)[number];
 
-/** A fresh leaf opens on the city, as WP-01 always did and as the prototype does. */
-export const DEFAULT_ROUTE: RouteId = 'city';
+/** A fresh leaf opens on Overview (user directive 2026-09-21, superseding Part 1 A1). */
+export const DEFAULT_ROUTE: RouteId = 'overview';
 
 export function isRouteId(value: unknown): value is RouteId {
   return typeof value === 'string' && (ROUTE_IDS as readonly string[]).includes(value);

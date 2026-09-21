@@ -36,6 +36,7 @@ import { nextTick } from 'vue';
 import '../mocks/obsidian';
 import { installControllableResizeObserver } from '../mocks/window-harness';
 import App from '../../src/ui/App.vue';
+import { useCityStore } from '../../src/ui/stores/city-store';
 import { DRAWER_MAX_INLINE_SIZE } from '../../src/ui/responsive';
 import { contentBoxInlineSize, narrowContainer } from '../../src/ui/container-box';
 
@@ -53,6 +54,7 @@ describe('M97: the drawer threshold is measured on the box the container query u
 
   beforeEach(() => {
     setActivePinia(createPinia());
+    useCityStore().navigate('city'); // WP-01 city behaviour: a fresh leaf now opens on Overview
     resizeObserver = installControllableResizeObserver();
   });
   afterEach(() => {

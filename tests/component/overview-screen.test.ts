@@ -22,6 +22,16 @@ describe('OverviewScreen', () => {
     expect(w.find('.ci-overview__select-source').exists()).toBe(true);
   });
 
+  it('selecting a codebase goes to the city first, so its scan states are visible', async () => {
+    const store = useCityStore();
+    store.navigate('overview');
+    const onSelectCodebase = vi.fn();
+    const w = mount(OverviewScreen, { global: { provide: { onSelectCodebase } } });
+    await w.find('.ci-overview__select-source').trigger('click');
+    expect(onSelectCodebase).toHaveBeenCalledTimes(1);
+    expect(store.route).toBe('city');
+  });
+
   it('renders the four signal cards, with architecture labelled sample', () => {
     withSnapshot();
     const w = mountOverview();

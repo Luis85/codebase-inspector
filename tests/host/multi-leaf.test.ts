@@ -135,7 +135,7 @@ function makeHarness(): {
 async function openLeafWithSnapshot(h: ReturnType<typeof makeHarness>, repositoryId: string, files: number): Promise<CityView> {
   h.deps.snapshotStore.put(snapshotFor(repositoryId, files));
   const view = new CityView({ width: 1000, height: 700 } as never, h.plugin as never, h.deps);
-  await view.setState({ ...defaultCityViewState(), profileId: repositoryId, snapshotId: `snap-${repositoryId}` }, {} as never);
+  await view.setState({ ...defaultCityViewState(), profileId: repositoryId, snapshotId: `snap-${repositoryId}`, route: 'city' }, {} as never);
   await view.onOpen();
   h.addLeafWithView(view);
   return view;
@@ -279,12 +279,12 @@ describe('sibling-broadcast reconciliation reaches the production path (task 11 
     h.deps.snapshotStore.put({ ...buildSnapshotFixture({ files: 1, repositoryId: 'p1' }), snapshotId: 'snap-p1', scope });
 
     const view1 = new CityView({ width: 1000, height: 700 } as never, h.plugin as never, h.deps);
-    await view1.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 'snap-p1' }, {} as never);
+    await view1.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 'snap-p1', route: 'city' }, {} as never);
     await view1.onOpen();
     h.addLeafWithView(view1);
 
     const view2 = new CityView({ width: 1000, height: 700 } as never, h.plugin as never, h.deps);
-    await view2.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 'snap-p1' }, {} as never);
+    await view2.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 'snap-p1', route: 'city' }, {} as never);
     await view2.onOpen();
     h.addLeafWithView(view2);
 

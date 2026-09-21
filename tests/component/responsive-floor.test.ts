@@ -63,6 +63,7 @@ describe('the 320 px floor renders list-first (I2)', () => {
 
   beforeEach(() => {
     setActivePinia(createPinia());
+    useCityStore().navigate('city'); // WP-01 city behaviour: a fresh leaf now opens on Overview
     resizeObserver = installControllableResizeObserver();
   });
   afterEach(() => {
@@ -170,6 +171,7 @@ describe('a stale-open Files drawer (R1)', () => {
 
   beforeEach(() => {
     setActivePinia(createPinia());
+    useCityStore().navigate('city'); // WP-01 city behaviour: a fresh leaf now opens on Overview
     resizeObserver = installControllableResizeObserver();
   });
   afterEach(() => {

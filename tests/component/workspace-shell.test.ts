@@ -34,10 +34,16 @@ function mountShell(attachTo: HTMLElement = document.body) {
 }
 
 describe('workspace shell', () => {
-  beforeEach(() => { setActivePinia(createPinia()); });
+  // Every other test here drives the city, so the leaf is seeded onto it before mounting.
+  beforeEach(() => { setActivePinia(createPinia()); useCityStore().navigate('city'); });
 
-  it('opens on the city, rendered inside the shell content area', () => {
+  it('opens on Overview; the city renders inside the shell content area once navigated', async () => {
+    setActivePinia(createPinia()); // a genuinely fresh leaf: no seeded route
     const w = mountShell();
+    expect(w.find('.ci-screen--overview').exists()).toBe(true);
+    expect(w.find('.ci-app').exists()).toBe(false);
+    useCityStore().navigate('city');
+    await nextTick();
     expect(w.find('.ci-shell__content .ci-app').exists()).toBe(true);
     w.unmount();
   });

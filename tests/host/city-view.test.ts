@@ -130,6 +130,12 @@ function makeDepsDouble(overrides: Partial<CityViewDeps> = {}): CityViewDeps {
   };
 }
 
+/** Task 12: a fresh leaf opens on Overview; the WP-01 city tests restore the city route. */
+async function openOnCity(view: CityView): Promise<void> {
+  await view.setState({ ...defaultCityViewState(), route: 'city' }, {} as never);
+  await view.onOpen();
+}
+
 describe('CityView', () => {
   beforeEach(() => {
     vi.mocked(createRendererSpy).mockClear();
@@ -164,7 +170,7 @@ describe('CityView', () => {
 
   it('shows the welcome state when no profile exists', async () => {
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
-    await view.onOpen();
+    await openOnCity(view);
     expect(view.contentEl.textContent).toContain('Understand your codebase. Start with its structure.');
     expect(view.contentEl.textContent).toContain('Select a codebase');
     // COPY-20 is WP-02+ and must not leak forward.
@@ -199,11 +205,11 @@ describe('CityView', () => {
   // The search field showing the restored query proves the LIVE store was seeded.
   it('M2: seeds the live store when setState arrives AFTER onOpen', async () => {
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
-    await view.onOpen();
+    await openOnCity(view);
     const input = view.contentEl.querySelector<HTMLInputElement>('.ci-search__input')!;
     expect(input.value).toBe('');
 
-    await view.setState({ ...defaultCityViewState(), query: 'file-0' }, {} as never);
+    await view.setState({ ...defaultCityViewState(), query: 'file-0', route: 'city' }, {} as never);
     await nextTick();
 
     expect(input.value).toBe('file-0');
@@ -211,8 +217,8 @@ describe('CityView', () => {
 
   it('M2: a REJECTED late setState seeds nothing', async () => {
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
-    await view.onOpen();
-    await view.setState({ ...defaultCityViewState(), query: 'file-0', viewMode: 'vr' }, {} as never);
+    await openOnCity(view);
+    await view.setState({ ...defaultCityViewState(), query: 'file-0', viewMode: 'vr', route: 'city' }, {} as never);
     await nextTick();
 
     expect(view.contentEl.querySelector<HTMLInputElement>('.ci-search__input')!.value).toBe('');
@@ -227,7 +233,7 @@ describe('CityView', () => {
   // measured via `tests/mocks/obsidian.ts`'s generous 1000x700 default rect.
   it('unmounts Vue and disposes the renderer in onClose', async () => {
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
-    await view.onOpen();
+    await openOnCity(view);
     await nextTick();   // CityViewport's own construction is deferred one microtask
     expect(createRendererSpy).toHaveBeenCalledTimes(1);
     await view.onClose();
@@ -253,7 +259,7 @@ describe('CityView', () => {
     });
     try {
       const view = new CityView(makeLeafDouble(300) as never, makePluginDouble() as never, makeDepsDouble());
-      await view.onOpen();
+      await openOnCity(view);
       await nextTick();
       await nextTick();   // `available.value = false`'s OWN render flush
       expect(createRendererSpy).not.toHaveBeenCalled();
@@ -289,7 +295,7 @@ describe('CityView', () => {
       { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 },
     ]) });
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
-    await view.onOpen();
+    await openOnCity(view);
 
     const button = view.contentEl.querySelector<HTMLButtonElement>('.ci-welcome__action')!;
     button.click();
@@ -316,7 +322,7 @@ describe('CityView', () => {
       { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 },
     ]) });
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
-    await view.onOpen();
+    await openOnCity(view);
 
     const button = view.contentEl.querySelector<HTMLButtonElement>('.ci-toolbar__scan')!;
     button.click();

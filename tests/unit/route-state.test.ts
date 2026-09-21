@@ -7,9 +7,9 @@ import { pickUiState, seedStoreFromState } from '../../src/host/view-state-sync'
 import { useCityStore } from '../../src/ui/stores/city-store';
 
 describe('route vocabulary', () => {
-  it('lists all 15 prototype routes and defaults to the city', () => {
+  it('lists all 15 prototype routes and defaults to Overview', () => {
     expect(ROUTE_IDS).toHaveLength(15);
-    expect(DEFAULT_ROUTE).toBe('city');
+    expect(DEFAULT_ROUTE).toBe('overview');
   });
 });
 
@@ -30,7 +30,7 @@ describe('view-state route validation', () => {
 describe('city-store navigation', () => {
   beforeEach(() => { setActivePinia(createPinia()); });
   it('starts on the default route', () => {
-    expect(useCityStore().route).toBe('city');
+    expect(useCityStore().route).toBe('overview');
   });
   it('navigates to a known route and ignores an unknown one', () => {
     const store = useCityStore();
@@ -59,9 +59,15 @@ describe('view-state sync carries the route', () => {
   });
   it('seedStoreFromState restores a route, and the default when none was persisted', () => {
     const store = useCityStore();
-    seedStoreFromState(store, { ...defaultCityViewState(), route: 'overview' });
-    expect(store.route).toBe('overview');
-    seedStoreFromState(store, defaultCityViewState());
+    seedStoreFromState(store, { ...defaultCityViewState(), route: 'city' });
     expect(store.route).toBe('city');
+    seedStoreFromState(store, defaultCityViewState());
+    expect(store.route).toBe('overview');
+  });
+  it('an unknown persisted route decodes, then seeds, to Overview through the one existing fallback', () => {
+    const store = useCityStore();
+    store.navigate('city');
+    seedStoreFromState(store, validateCityViewState({ ...defaultCityViewState(), route: 'nope' }));
+    expect(store.route).toBe('overview');
   });
 });

@@ -192,6 +192,7 @@ export async function mountCity(world: World, options: MountOptions = {}): Promi
   // "A snapshot arrives" is a HOST event (city-view.ts's own publishLayout), not a user
   // action -- the one place this file drives a store directly, and deliberately so.
   store.setCity(snapshot, layout);
+  store.navigate('city'); // a fresh leaf opens on Overview (Task 12); these scenarios are the city's
 
   const container = document.body.createDiv({ cls: 'codebase-inspector-root' });
   sizeBox(container, 1000, 800);

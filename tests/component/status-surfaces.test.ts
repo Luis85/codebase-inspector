@@ -123,6 +123,7 @@ function mountApp(files: number, rendererDouble?: ReturnType<typeof makeRenderer
     width: 1000, height: 700, top: 0, left: 0, right: 1000, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
   });
   const store = useCityStore();
+  store.navigate('city'); // WP-01 city behaviour: a fresh leaf now opens on Overview
   const snapshot = buildSnapshotFixture({ files });
   store.setCity(snapshot, computeLayout(snapshot));
   const options = rendererDouble

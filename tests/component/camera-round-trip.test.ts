@@ -62,7 +62,7 @@ async function settle(): Promise<void> {
 
 describe('city -> overview -> city', () => {
   let restoreBoxes: () => void;
-  beforeEach(() => { setActivePinia(createPinia()); restoreBoxes = giveEveryElementABox(); });
+  beforeEach(() => { setActivePinia(createPinia()); useCityStore().navigate('city'); restoreBoxes = giveEveryElementABox(); });
   afterEach(() => { restoreBoxes(); document.body.innerHTML = ''; });
 
   it('keeps the selection and the camera bookmark, and restores the new renderer onto it', async () => {

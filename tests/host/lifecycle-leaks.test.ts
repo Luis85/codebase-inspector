@@ -133,7 +133,7 @@ async function newViewWithSnapshot(deps: CityViewDeps, id = 'p1', files = 1): Pr
   const snapshot: CodebaseSnapshot = { ...buildSnapshotFixture({ files, repositoryId: id }), snapshotId: `snap-${id}` };
   deps.snapshotStore.put(snapshot);
   const view = new CityView({ width: 1000, height: 700 } as never, makePluginDouble() as never, deps);
-  await view.setState({ ...defaultCityViewState(), profileId: id, snapshotId: `snap-${id}` }, {} as never);
+  await view.setState({ ...defaultCityViewState(), profileId: id, snapshotId: `snap-${id}`, route: 'city' }, {} as never);
   await view.onOpen();
   stubStageRect(view, 1000);
   await nextTick();
@@ -170,6 +170,7 @@ describe('no orphans after shutdown', () => {
     const plugin = makePluginDouble();
     const view = new CityView({ width: 1000, height: 700 } as never, plugin as never, makeDeps());
     const migratedSpy = vi.spyOn(view.containerEl, 'onWindowMigrated');
+    await view.setState({ ...defaultCityViewState(), route: 'city' }, {} as never); // Task 12: fresh leaves open on Overview
     await view.onOpen();
     stubStageRect(view, 1000);
     await nextTick();
@@ -277,7 +278,7 @@ describe('no orphans after shutdown', () => {
     const snapshot: CodebaseSnapshot = { ...buildSnapshotFixture({ files: 1, repositoryId: 'p1' }), snapshotId: 'snap-p1' };
     deps.snapshotStore.put(snapshot);
     const view = new CityView({ width: 1000, height: 700 } as never, makePluginDouble() as never, deps);
-    await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 'snap-p1' }, {} as never);
+    await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 'snap-p1', route: 'city' }, {} as never);
     await view.onOpen();
     stubStageRect(view, 0, 0);
     await nextTick();

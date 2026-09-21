@@ -82,7 +82,7 @@ export const lifecycleSteps: StepTable<World> = {
     const first = await harness.open('shared', 4);
     // The SAME snapshot object out of the one shared, in-memory SnapshotStore.
     const second = new CityView({ width: 1000, height: 700 } as never, harness.plugin as never, harness.deps);
-    await second.setState({ ...defaultCityViewState(), profileId: 'shared', snapshotId: 'snap-shared' }, {} as never);
+    await second.setState({ ...defaultCityViewState(), profileId: 'shared', snapshotId: 'snap-shared', route: 'city' }, {} as never);
     await second.onOpen();
     sizeStage(second);
     await nextTick();

@@ -22,12 +22,14 @@ import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import '../mocks/obsidian';
 import App from '../../src/ui/App.vue';
+import { useCityStore } from '../../src/ui/stores/city-store';
 import { useRunStore } from '../../src/ui/stores/run-store';
 import { COPY_07 } from '../../src/ui/copy';
 
 describe('toolbar Scan control (F7)', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    useCityStore().navigate('city'); // WP-01 city behaviour: a fresh leaf now opens on Overview
   });
 
   afterEach(() => {

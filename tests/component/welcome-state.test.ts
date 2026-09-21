@@ -66,6 +66,7 @@ function mountAppWithFactory(factory: CreateCityRenderer) {
 describe('App.vue welcome-state shell', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    useCityStore().navigate('city'); // WP-01 city behaviour: a fresh leaf now opens on Overview
   });
 
   // Several item-7 tests below `attachTo: document.body` (focus only genuinely
@@ -411,6 +412,9 @@ describe('App.vue welcome-state shell', () => {
         const snapshot2 = buildSnapshotFixture({ files: 1 });
         const store1 = useCityStore(pinia1);
         const store2 = useCityStore(pinia2);
+        // Two leaves with their OWN Pinias, outside beforeEach's seeding: both on the city.
+        store1.navigate('city');
+        store2.navigate('city');
         store1.setCity(snapshot1, computeLayout(snapshot1));
         store2.setCity(snapshot2, computeLayout(snapshot2));
         const entity1 = snapshot1.entities.find((e) => e.kind === 'file')!.id;

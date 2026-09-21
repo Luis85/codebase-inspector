@@ -151,7 +151,7 @@ function depsWithSnapshot(): { deps: CityViewDeps; snapshotStore: InMemorySnapsh
 
 async function viewWithSnapshot(deps: CityViewDeps): Promise<CityView> {
   const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
-  await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1' }, {} as never);
+  await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1', route: 'city' }, {} as never);
   await view.onOpen();
   return view;
 }
@@ -164,6 +164,8 @@ async function viewWithSnapshot(deps: CityViewDeps): Promise<CityView> {
  *  stayed passive — the very bug M68 exists to fix), so this gap never mattered
  *  here; `tests/component/city-viewport.test.ts`'s own tests already stub exactly
  *  this, directly on the component. */
+/** Task 12: a fresh leaf opens on Overview; the WP-01 city tests restore the city route. */
+async function openOnCity(view: CityView): Promise<void> { await view.setState({ ...defaultCityViewState(), route: 'city' }, {} as never); await view.onOpen(); }
 function stubStageRect(view: CityView, width: number, height = 700): void {
   const stage = view.contentEl.querySelector<HTMLElement>('[data-ci-role="stage"]');
   if (!stage) throw new Error('test setup: no stage element found');
@@ -202,7 +204,7 @@ describe('CityView wiring: stores, renderer port and theme colors', () => {
   // this fix makes is WHICH path, proven by the setSelection test below.
   it('constructs exactly one renderer — never two owners at once', async () => {
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
-    await view.onOpen();
+    await openOnCity(view);
     stubStageRect(view, 1000);
     await nextTick();   // CityViewport's own construction is deferred one microtask
     expect(createRendererSpy).toHaveBeenCalledTimes(1);
@@ -215,7 +217,7 @@ describe('CityView wiring: stores, renderer port and theme colors', () => {
   // so this load-bearing ordering was completely unguarded.
   it('calls setColors on first renderer construction', async () => {
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
-    await view.onOpen();
+    await openOnCity(view);
     stubStageRect(view, 1000);
     await nextTick();
     await nextTick();   // the watch() callback's own flush, one tick after construction
@@ -228,7 +230,7 @@ describe('CityView wiring: stores, renderer port and theme colors', () => {
   it('calls setColors again on a css-change event', async () => {
     const plugin = makePluginDouble();
     const view = new CityView(makeLeafDouble() as never, plugin as never, makeDepsDouble());
-    await view.onOpen();
+    await openOnCity(view);
     stubStageRect(view, 1000);
     await nextTick();
     await nextTick();   // the watch() callback's own flush, one tick after construction
@@ -299,12 +301,12 @@ describe('CityView wiring: stores, renderer port and theme colors', () => {
     const snapshotStore = new InMemorySnapshotStore(createFixedClock());
     snapshotStore.put(publishedSnapshot());
     const view1 = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble({ snapshotStore }));
-    await view1.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1' }, {} as never);
+    await view1.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1', route: 'city' }, {} as never);
     await view1.onOpen();
     await Promise.resolve();
 
     const view2 = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
-    await view2.onOpen();
+    await openOnCity(view2);
 
     // view2 has no snapshot, so it correctly shows the welcome action (item 4's own
     // priority-order fix, done later in this round, is what keeps this reachable);
@@ -380,7 +382,7 @@ describe('CityViewState <-> live store synchronisation (task 11 fix round 1, ite
     const fileId = makeEntityId('p1', 'file', 'file-0.ts');
     await view.setState({
       ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1',
-      selectedEntityId: fileId, query: 'file-0',
+      selectedEntityId: fileId, query: 'file-0', route: 'city',
     }, {} as never);
     await view.onOpen();
     await nextTick();
@@ -401,6 +403,8 @@ describe('CityViewState <-> live store synchronisation (task 11 fix round 1, ite
     // view would silently force list mode and hide CityViewport entirely.
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, makeDepsDouble());
     await view.onOpen();
+    [...view.contentEl.querySelectorAll<HTMLButtonElement>('.ci-nav__item')].find((b) => b.textContent?.includes('Code city'))!.click();
+    await nextTick(); // Task 12: a fresh leaf opens on Overview; the USER opens the city (no restore)
     stubStageRect(view, 1000);
     await nextTick();
     expect(view.contentEl.querySelector('.ci-viewport')).not.toBeNull();

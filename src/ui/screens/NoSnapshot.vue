@@ -2,8 +2,15 @@
 import { inject } from 'vue';
 import { COPY_02 } from '../copy';
 import { SCREEN_NO_SNAPSHOT } from '../inspector-copy';
+import { useCityStore } from '../stores/city-store';
 
+const store = useCityStore();
 const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
+// The WP-01 scan states live only on the city route, so show it before the scan starts.
+function selectCodebase(): void {
+  store.navigate('city');
+  onSelectCodebase();
+}
 </script>
 
 <template>
@@ -12,7 +19,7 @@ const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
     <button
       type="button"
       class="mod-cta"
-      @click="onSelectCodebase"
+      @click="selectCodebase"
     >
       {{ COPY_02 }}
     </button>

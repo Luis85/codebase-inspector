@@ -136,7 +136,7 @@ async function openViewWithSnapshot(): Promise<{ view: CityView; deps: CityViewD
   const profileStore = makeProfileStoreDouble([{ profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 }]);
   const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock() };
   const view = new CityView({ width: 1000, height: 700 } as never, makePluginDouble() as never, deps);
-  await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1' }, {} as never);
+  await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1', route: 'city' }, {} as never);
   await view.onOpen();
   stubStageRect(view);
   await nextTick();

@@ -96,7 +96,7 @@ export function makeViewHarness(world: World, options: ViewHarnessOptions = {}):
       const base = { ...buildSnapshotFixture({ files, directories: 2, repositoryId: profileId }), snapshotId: `snap-${profileId}` };
       snapshotStore.put(options.patchSnapshot ? options.patchSnapshot(base) : base);
       const view = new CityView({ width: 1000, height: 700 } as never, plugin as never, deps);
-      await view.setState({ ...defaultCityViewState(), profileId, snapshotId: `snap-${profileId}` }, {} as never);
+      await view.setState({ ...defaultCityViewState(), profileId, snapshotId: `snap-${profileId}`, route: 'city' }, {} as never);
       await view.onOpen();
       sizeStage(view);
       await nextTick();

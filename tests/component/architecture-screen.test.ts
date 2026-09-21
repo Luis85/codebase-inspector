@@ -25,6 +25,17 @@ describe('ArchitectureScreen', () => {
     w.unmount();
   });
 
+  it('NoSnapshot selects a codebase on the city, so its scan states are visible', async () => {
+    const store = useCityStore();
+    store.navigate('architecture');
+    const onSelectCodebase = vi.fn();
+    const w = mount(ArchitectureScreen, { attachTo: document.body, global: { provide: { onSelectCodebase } } });
+    await w.find('.ci-no-snapshot .mod-cta').trigger('click');
+    expect(onSelectCodebase).toHaveBeenCalledTimes(1);
+    expect(store.route).toBe('city');
+    w.unmount();
+  });
+
   it('shows collected modules and sample edges, cycles and unknown violations', () => {
     withSnapshot();
     const w = mountArch();

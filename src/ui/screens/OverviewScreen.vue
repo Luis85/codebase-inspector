@@ -29,6 +29,11 @@ import EvidenceCoveragePanel from './overview/EvidenceCoveragePanel.vue';
 const store = useCityStore();
 const { overview } = useReadModels();
 const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
+// The WP-01 scan states live only on the city route, so show it before the scan starts.
+function selectCodebase(): void {
+  store.navigate('city');
+  onSelectCodebase();
+}
 
 // Controller ruling 1: absent evidence is never shown as 0. `cards` is a fixed
 // four-element array (findings/coverage/architecture/hotspots) from buildOverviewModel,
@@ -92,7 +97,7 @@ function openInvestigation(item: Investigation): void {
       <button
         type="button"
         class="mod-cta ci-overview__select-source"
-        @click="onSelectCodebase"
+        @click="selectCodebase"
       >
         {{ COPY_02 }}
       </button>
