@@ -101,3 +101,10 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 |---|---|---|
 | E40 | In the Finding review dialog, the Acknowledge/Reopen toggle and the Save dismissal button use `aria-disabled` while a decision is pending, not `disabled`, and their handlers ignore presses. In a real browser, disabling the focused control drops focus to `<body>`, which escapes the dialog's Tab trap and Escape handling. The store also refuses a second decision. | Low. A sighted user sees no pending state until a style is added (deferred minor). |
 | E41 | The finding filters' "All …" options use the empty string as the `<select>` value and map it back to `null`, because a native select cannot hold `null`. No module is ever named `''`. | None. |
+
+### Task 9
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E42 | Test confidence's sub-components live in `src/ui/screens/test-confidence/`, not the plan's `screens/tests/`. An eslint rule blocks `src` imports from any `**/tests/**` path, to keep test code out of the bundle, and that guard stays as it is. | None. It only changes the path. |
+| E43 | The E10 roving-focus composable is `src/ui/kit/use-roving-index.ts`. HotspotScatter and CoverageMap both use it, and the Hotspots tests pass unchanged. | Low. If the scatter regresses, its old copy can come back. |
