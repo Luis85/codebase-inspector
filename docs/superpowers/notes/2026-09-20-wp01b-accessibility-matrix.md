@@ -191,11 +191,49 @@ view, S10 narrow, S11 fallback) for a control whose skin the theme has overridde
 way `styles.css` did not anticipate.
 
 Independently verified from source, as the reason this is the **highest-value** NOT
-PERFORMED row rather than a formality: every non-`@media`/`@container` rule in
-`src/ui/styles.css` (78 rule blocks) is wrapped in `:where(.codebase-inspector-root)`
-— grepped exhaustively, zero exceptions — which contributes **zero** specificity by
-CSS's own `:where()` semantics, so a theme's own element-level rules are never
-structurally guaranteed to lose. `tests/unit/host-cascade.test.ts` tracks 8 controls
+PERFORMED row rather than a formality: every rule block in `src/ui/styles.css`,
+**83 of them**, is wrapped in `:where(.codebase-inspector-root)` — zero exceptions —
+which contributes **zero** specificity by CSS's own `:where()` semantics, so a theme's
+own element-level rules are never structurally guaranteed to lose. **83, not 78**: an
+earlier draft of this row undercounted with a grep anchored to lines starting exactly
+at column 0, which misses a rule whose selector list continues on a following line
+(e.g. `button.ci-selection-notice__reveal,\n:where(...)...`) and a rule nested inside
+`@media`/`@container`. Corrected and cross-checked two independent ways, both
+reproducible with the commands below (comment-stripped first, since this stylesheet's
+own prose quotes CSS rules and an unstripped comment's braces would end a match early
+— the same reason `tests/unit/host-cascade.test.ts`'s own `rules()` helper strips
+comments before parsing):
+
+```
+node -e "
+const fs = require('fs');
+const css = fs.readFileSync('src/ui/styles.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+const pattern = /([^{}@]+)\{([^{}]*)\}/g;
+let m, total = 0, whereWrapped = 0;
+while ((m = pattern.exec(css)) !== null) {
+  total += 1;
+  if (m[1].trim().includes(':where(')) whereWrapped += 1;
+}
+console.log(total, whereWrapped);
+"
+```
+
+gives `83 83` — every matched rule block (selector text immediately before a `{...}`
+body with no nested braces, so `@media`/`@container` wrappers are excluded and their
+*inner* rules are counted individually, exactly as they render) is `:where()`-wrapped.
+Cross-checked by brace balance, independent of rule-splitting logic entirely:
+`(css.match(/\{/g) || []).length` is 86, matched `}` is also 86 (balanced, so nothing
+was mis-parsed), and exactly 3 of those opens belong to the file's 3 `@media`/
+`@container` wrappers (`@media (prefers-reduced-motion: reduce)`, `@container
+(min-width: 820px)`, `@container (max-width: 819px)`) — `86 - 3 = 83`, the same number
+by a method that never looks at `:where(` at all.
+
+**This disagrees with the reviewer's independently-counted 82 by one**, and that
+disagreement is recorded rather than silently resolved in either direction: both counts
+here were produced by two mutually-corroborating methods (regex block match and raw
+brace-balance arithmetic) against the file at this commit, and both land on 83. Neither
+count found a rule that is *not* `:where()`-wrapped, which is the substantive claim this
+row rests on and is unaffected either way. `tests/unit/host-cascade.test.ts` tracks 8 controls
 deliberately raised to a (0,1,1) selector (`PLUGIN_SKINNED_BUTTONS`:
 `.ci-app__mode-toggle`, `.ci-app__drawer-close`, `.ci-welcome__action`,
 `.ci-camera-controls button`, `.ci-toolbar__scan`, `.ci-file-list__group-focus`,
