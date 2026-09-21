@@ -228,12 +228,13 @@ was mis-parsed), and exactly 3 of those opens belong to the file's 3 `@media`/
 (min-width: 820px)`, `@container (max-width: 819px)`) — `86 - 3 = 83`, the same number
 by a method that never looks at `:where(` at all.
 
-**This disagrees with the reviewer's independently-counted 82 by one**, and that
-disagreement is recorded rather than silently resolved in either direction: both counts
-here were produced by two mutually-corroborating methods (regex block match and raw
-brace-balance arithmetic) against the file at this commit, and both land on 83. Neither
-count found a rule that is *not* `:where()`-wrapped, which is the substantive claim this
-row rests on and is unaffected either way. `tests/unit/host-cascade.test.ts` tracks 8 controls
+**Settled at 83** (whole-branch review, Ruling 37; B2). The reviewer's own count landed
+on 82, one short — this document's two mutually-corroborating methods (regex block match
+and raw brace-balance arithmetic) both land on 83, and the review's final fix wave
+independently re-derived the same number a third way, so the earlier hedge between 82
+and 83 is dropped rather than repeated. Neither count found a rule that is *not*
+`:where()`-wrapped, which is the substantive claim this row rests on and is unaffected
+either way. `tests/unit/host-cascade.test.ts` tracks 8 controls
 deliberately raised to a (0,1,1) selector (`PLUGIN_SKINNED_BUTTONS`:
 `.ci-app__mode-toggle`, `.ci-app__drawer-close`, `.ci-welcome__action`,
 `.ci-camera-controls button`, `.ci-toolbar__scan`, `.ci-file-list__group-focus`,

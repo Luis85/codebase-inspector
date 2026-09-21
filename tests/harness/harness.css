@@ -7,11 +7,21 @@ body { margin: 0; }
      definite-height flex column, which is what makes the plugin's own `height: 100%`
      resolve; the harness has to supply the same definite height or the stage chain
      behaves differently here than in the host — and the height chain is precisely
-     where this branch has already been bitten. */
+     where this branch has already been bitten.
+
+     B6 (whole-branch review): `height: 100vh` here is THE load-bearing declaration —
+     it is what gives `.codebase-inspector-root` (mount.ts adds that class to THIS
+     SAME element, not a child of it) a definite height to resolve `height: 100%`
+     against. A `.ci-harness-leaf > .codebase-inspector-root` child-combinator rule
+     used to sit below this block; it could never match (leaf === root, not
+     leaf-then-child) and was deleted rather than kept as a harmless no-op, because a
+     future reader could mistake it for the mechanism actually supplying the definite
+     height and remove THIS `height: 100vh` believing the child rule "handles it" —
+     which would reintroduce the ~32,000 px runaway this branch already suffered once
+     (tests/component/stage-height.test.ts pins the same invariant in src/ui). */
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100%;
   overflow: hidden;
 }
-.ci-harness-leaf > .codebase-inspector-root { flex: 1 1 auto; min-height: 0; }

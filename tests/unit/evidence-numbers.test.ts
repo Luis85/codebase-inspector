@@ -354,7 +354,19 @@ describe('the evidence documents keep their own arithmetic', () => {
       .toContain(`${word}-obligation suite`);
     const table = /\| Contract \| `tests\/contracts\/\*\*` \| \d+ \| yes \| (\d+) \|/.exec(readFileSync(EVIDENCE, 'utf8'));
     expect(table, 'the G8 contract row is no longer parseable').not.toBeNull();
-    expect(Number(table![1]), 'one suite, two implementations').toBe(obligations * 2);
+    // B3 (whole-branch review): this used to stop at `obligations * 2`, silently
+    // treating the Contract row's Tests cell as covering only the paired port suite
+    // — even though `tests/contracts/` also holds `height-scale.test.ts` (Task 13)
+    // and `microcopy.test.ts` (Task 12), both counted in the row's own FILES column
+    // (4, checked against disk by gate-evidence.test.ts) but never added into TESTS.
+    // That let the cell read a number 8 short of the real directory total with
+    // nothing to notice — the exact "uniformly stale transcription" class this
+    // document's own honesty note says the guard does not catch. Derived in full now,
+    // not partially: the paired suite plus this directory's other two pinned files.
+    const heightScaleTests = itCount('tests/contracts/height-scale.test.ts');
+    const microcopyTests = itCount('tests/contracts/microcopy.test.ts');
+    expect(Number(table![1]), 'one suite (two implementations) plus this directory\'s other two pinned files')
+      .toBe(obligations * 2 + heightScaleTests + microcopyTests);
   });
 
   it('sweeps the RELEASE documents too, and each one gives the sweep something to bite', () => {

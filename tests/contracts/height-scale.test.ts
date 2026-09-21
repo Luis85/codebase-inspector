@@ -139,7 +139,7 @@ describe('height scale: the four properties a substitute scale must preserve (in
     // actually be present, or the loop below checks nothing.
     const collision = byValue.get(60);
     expect(collision?.length).toBe(2);
-    expect(new Set(collision!.map((c) => c.directoryId)).size, 'the two value-42 lots must sit in different districts').toBe(2);
+    expect(new Set(collision!.map((c) => c.directoryId)).size, 'the two value-60 lots must sit in different districts').toBe(2);
 
     for (const [value, entries] of byValue) {
       expect(new Set(entries.map((e) => e.height.toFixed(6))).size, `value ${value} produced more than one height`).toBe(1);

@@ -104,17 +104,19 @@ describe("the label overlay's CSS contract", () => {
   const css = (): string => readFileSync(stylesheet, 'utf8');
 
   function block(selector: string): string {
-    // Plain text extraction rather than a constructed RegExp: the selectors here are
-    // wrapped in :where(...), so only the class part is searched for. The class may
-    // not be immediately followed by `{` in the source — fix round 1 added a
-    // `:not([hidden])` guard onto `.ci-city-labels__label` — so this finds the class
-    // first and then the NEXT `{` after it, rather than requiring the two adjacent.
+    // B4 (whole-branch review): anchored to `selector` immediately followed by its
+    // own rule's `{` — allowing exactly one optional `:not(...)` guard in between
+    // (fix round 1 added `.ci-city-labels__label:not([hidden])`), never "selector
+    // appears somewhere before the NEXT `{`". The un-anchored version failed open: a
+    // selector merely MENTIONED in this file's own prose before an unrelated rule's
+    // `{` would match that unrelated rule's body instead of failing loudly, so a
+    // typo'd or deleted rule could still read as present.
     const source = css();
-    const start = source.indexOf(selector);
-    if (start < 0) return '';
-    const braceStart = source.indexOf('{', start);
-    if (braceStart < 0) return '';
-    return source.slice(start, source.indexOf('}', braceStart));
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = new RegExp(`${escaped}\\s*(:not\\([^)]*\\))?\\s*\\{`).exec(source);
+    if (!match) return '';
+    const braceStart = match.index + match[0].length - 1;
+    return source.slice(match.index, source.indexOf('}', braceStart));
   }
 
   it('positions the stage, which is what the overlay anchors to', () => {

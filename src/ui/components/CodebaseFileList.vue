@@ -15,8 +15,10 @@
   Task 6 (F9/F4): grouped by district (C07's `grouping` input) with a per-group focus
   control (C07's `directoryFocusRequested` event) — this is the ONE place in the
   component that DOES hold a renderer handle, for that one command; it still never
-  touches selection. See `focusDistrict` below for why that command currently has no
-  effect on the real renderer (a Wave 1 gap, out of this task's file ownership).
+  touches selection. See `focusDistrict` below: task 6 fix round 1 closed the
+  production-caller gap that used to make this command a no-op — `focus(entityId)`
+  (city-renderer.ts) now resolves a directory id through `districtOf` and frames the
+  district's own ground extent.
 -->
 <script setup lang="ts">
 import { computed } from 'vue';
@@ -115,17 +117,13 @@ function activate(entityId: EntityId, event: Event): void {
  *  no store field for "which directory is framed" because nothing else needs to read
  *  it back (spec 4.2: the renderer owns the live camera, the store only mirrors it).
  *
- *  PRODUCTION-CALLER SWEEP FINDING (report this, do not silently work around it): the
- *  real renderer's `focus(entityId)` (city-renderer.ts) resolves the id through
- *  `city.lotOf(entityId)`, and `lotOf`'s backing map (instanced-city.ts `byEntity`) is
- *  populated ONLY from `layout.lots` — files, never `layout.districts`. A directory's
- *  own entityId is therefore never in that map, so in the shipped renderer this call
- *  currently finds no lot and returns having moved nothing. The wiring above is
- *  correct and reachable (this button exists, a user can click it, and it issues the
- *  command C07 asks for) but its EFFECT is not, until `instanced-city.ts` also indexes
- *  district entityIds — that file is owned by Wave 1 (`src/visualization/**`), outside
- *  this task's file list (`task-6-brief.md`), and its `focus(entityId)` signature is a
- *  frozen §4.2 contract besides. Raised rather than routed around. */
+ *  Task 6 fix round 1 closed the production-caller gap this used to have: the real
+ *  renderer's `focus(entityId)` (city-renderer.ts) tries `city.lotOf(entityId)` first
+ *  — unchanged behaviour for every existing FILE caller — and, only when that finds
+ *  no lot, tries the id as a district's own directoryId through `city.districtOf`
+ *  (instanced-city.ts's `byDistrict` map), framing the district's ground extent.
+ *  Neither id space overlaps the other (entity-id.ts's NUL-joined identity encodes
+ *  `kind`), so this call now both reaches the renderer and moves the camera. */
 function focusDistrict(directoryId: EntityId): void {
   renderer.value?.focus(directoryId);
 }
