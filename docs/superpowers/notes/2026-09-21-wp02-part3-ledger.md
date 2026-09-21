@@ -93,3 +93,4 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 |---|---|---|
 | E37 | The E23 window card: its value is `sample(sum of the activity series)` with unit " commits", and its caption is `EVOLUTION_CARD_WINDOW_CAPTION(days)` = "Sample commits in the last N days; no author comparisons". | Low. |
 | E38 | Task 7 also adds the copy that Task 12 needs for E14 and E31: `EVOLUTION_COVERAGE_LABEL` (the chart's aria label, which says "sample") and `EVOLUTION_COUPLING_ROW_NOTE` = "Correlation, not a causal dependency". Copy for one screen stays in one file. | None. |
+| E39 | E7 is satisfied by any spelling that keeps the invisible U+FEFF byte out of the file: the backslash-u escape or `String.fromCharCode(0xFEFF)`. Task 7's test uses the latter, because the editing tool kept turning the escape into the real byte. | None. |
