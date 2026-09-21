@@ -13,6 +13,7 @@ import { defineStore } from 'pinia';
 import type { EntityId } from '../../domain/entity-id';
 import type { CameraBookmark, CodebaseSnapshot } from '../../domain/model';
 import type { LayoutResult } from '../../domain/layout/types';
+import { DEFAULT_ROUTE, isRouteId, type RouteId } from '../../domain/route-ids';
 import { COPY_30 } from '../copy';
 
 type ViewMode = '3d' | 'top' | 'list';
@@ -30,6 +31,7 @@ interface CityStoreState {
   previous3dCamera: CameraBookmark | null;
   inspectorOpen: boolean;
   lastSpatialMode: '3d' | 'top';
+  route: RouteId;
 }
 
 function initialState(): CityStoreState {
@@ -50,6 +52,7 @@ function initialState(): CityStoreState {
     previous3dCamera: null,
     inspectorOpen: false,
     lastSpatialMode: '3d',
+    route: DEFAULT_ROUTE,
   };
 }
 
@@ -205,6 +208,13 @@ export const useCityStore = defineStore('city-view', {
      *  list was opened — never unconditionally back to '3d'. */
     returnFromList(): void {
       this.setViewMode(this.lastSpatialMode);
+    },
+
+    /** WP-02: switches the inspector screen. Unknown ids are a no-op, like setViewMode.
+     *  Never touches selection, query, camera or layout — screens share all of them. */
+    navigate(route: RouteId): void {
+      if (!isRouteId(route)) return;
+      this.route = route;
     },
   },
 });

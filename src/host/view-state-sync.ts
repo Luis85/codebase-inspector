@@ -15,6 +15,7 @@
 // own `LifecycleRunStore` interface already gives for the identical choice).
 import type { EntityId } from '../domain/entity-id';
 import type { CameraBookmark, CityViewState } from '../domain/model';
+import { DEFAULT_ROUTE, type RouteId } from '../domain/route-ids';
 
 export interface ViewStateSyncTarget {
   readonly selectedEntityId: EntityId | null;
@@ -23,15 +24,17 @@ export interface ViewStateSyncTarget {
   readonly camera: CameraBookmark | null;
   readonly previous3dCamera: CameraBookmark | null;
   readonly inspectorOpen: boolean;
+  readonly route: RouteId;
   select(entityId: EntityId): void;
   setQuery(query: string): void;
   setCamera(camera: CameraBookmark): void;
   setViewMode(mode: '3d' | 'top' | 'list'): void;
   openInspector(): void;
+  navigate(route: RouteId): void;
 }
 
 type UiSlice = Pick<CityViewState,
-  'selectedEntityId' | 'query' | 'viewMode' | 'camera' | 'previous3dCamera' | 'inspectorOpen'>;
+  'selectedEntityId' | 'query' | 'viewMode' | 'camera' | 'previous3dCamera' | 'inspectorOpen' | 'route'>;
 
 /** Reads the six UI-facing fields off the live store — the exact slice `city-view.ts`
  *  watches to keep `this.state` (and therefore `getState()`) current. A plain
@@ -45,6 +48,7 @@ export function pickUiState(store: ViewStateSyncTarget): UiSlice {
     camera: store.camera,
     previous3dCamera: store.previous3dCamera,
     inspectorOpen: store.inspectorOpen,
+    route: store.route,
   };
 }
 
@@ -65,4 +69,5 @@ export function seedStoreFromState(store: ViewStateSyncTarget, state: CityViewSt
   if (state.query) store.setQuery(state.query);
   store.setViewMode(state.viewMode);
   if (state.inspectorOpen && state.selectedEntityId) store.openInspector();
+  store.navigate(state.route ?? DEFAULT_ROUTE);
 }

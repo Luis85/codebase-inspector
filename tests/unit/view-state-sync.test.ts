@@ -8,6 +8,7 @@ import { defaultCityViewState } from '../../src/host/view-state';
 import { makeEntityId } from '../../src/domain/entity-id';
 import type { ViewStateSyncTarget } from '../../src/host/view-state-sync';
 import type { CameraBookmark, CityViewState } from '../../src/domain/model';
+import type { RouteId } from '../../src/domain/route-ids';
 
 const CAMERA_3D: CameraBookmark = {
   projection: 'orthographic', mode: '3d', position: [1, 2, 3], target: [0, 0, 0], up: [0, 1, 0], zoom: 1.5,
@@ -27,6 +28,7 @@ function makeStoreDouble(): ViewStateSyncTarget & { selectSpy: ReturnType<typeof
   let camera: CameraBookmark | null = null;
   let previous3dCamera: CameraBookmark | null = null;
   let inspectorOpen = false;
+  let route: RouteId = 'city';
   const selectSpy = vi.fn((id: string) => { selectedEntityId = id; });
   return {
     get selectedEntityId() { return selectedEntityId; },
@@ -35,6 +37,7 @@ function makeStoreDouble(): ViewStateSyncTarget & { selectSpy: ReturnType<typeof
     get camera() { return camera; },
     get previous3dCamera() { return previous3dCamera; },
     get inspectorOpen() { return inspectorOpen; },
+    get route() { return route; },
     select: selectSpy,
     setQuery: (q: string) => { query = q; },
     setCamera: (next: CameraBookmark) => {
@@ -43,6 +46,7 @@ function makeStoreDouble(): ViewStateSyncTarget & { selectSpy: ReturnType<typeof
     },
     setViewMode: (mode) => { viewMode = mode; },
     openInspector: () => { if (selectedEntityId) inspectorOpen = true; },
+    navigate: vi.fn((r: RouteId) => { route = r; }),
     selectSpy,
   };
 }
@@ -61,6 +65,7 @@ describe('pickUiState', () => {
       camera: CAMERA_3D,
       previous3dCamera: CAMERA_3D,
       inspectorOpen: false,
+      route: 'city',
     });
   });
 });

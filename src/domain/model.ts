@@ -1,5 +1,6 @@
 import type { CategoryId } from './classify';
 import type { EntityId, EntityKind } from './entity-id';
+import type { RouteId } from './route-ids';
 
 export interface SourceReference { repositoryId: string; path: string }
 
@@ -93,6 +94,8 @@ export interface CityViewState {
   camera: CameraBookmark | null;
   previous3dCamera: CameraBookmark | null;  // load-bearing: without persisting it the
   inspectorOpen: boolean;                   // top<->3D round trip is lost on reload
+  /** WP-02: the inspector screen this leaf shows. Optional so pre-WP-02 view state still validates. */
+  route?: RouteId;
 }
 // There is NO lensId in WP-01.
 

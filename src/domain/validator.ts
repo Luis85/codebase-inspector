@@ -15,6 +15,7 @@
 import { z } from 'zod';
 import { CATEGORY_IDS } from './classify';
 import { normalizeExclusion, normalizeRelativePath } from './path-safety';
+import { ROUTE_IDS } from './route-ids';
 import type { CityViewState, CodebaseProfile, CodebaseSnapshot, LocalBinding } from './model';
 
 export class ValidationError extends Error {
@@ -229,6 +230,9 @@ const cityViewStateSchema = z.object({
   camera: cameraBookmarkSchema.nullable(),
   previous3dCamera: cameraBookmarkSchema.nullable(),
   inspectorOpen: z.boolean(),
+  // WP-02: an out-of-vocabulary route degrades to "no route" instead of discarding the
+  // camera, selection and query persisted alongside it.
+  route: z.enum(ROUTE_IDS).optional().catch(undefined),
 }).strict();
 
 export function validateCityViewState(input: unknown): CityViewState {
