@@ -451,7 +451,7 @@ naming a round goes stale every round, and the guard below now forces these figu
 to be current rather than asking a reader to trust a date. Re-take with the same
 command whenever tests are added.
 
-Counts refreshed 2026-09-21 to the living suite after WP-02 Part 1 (the WP-01 gate
+Counts refreshed 2026-09-21 to the living suite after WP-02 Part 2 (the WP-01 gate
 itself was taken at the counts in git history). Only the derivable figures — the
 per-layer FILE counts and their total, and the `src/` file floor below — were
 refreshed; the per-layer TEST counts stay as transcribed at the WP-01 gate per the
