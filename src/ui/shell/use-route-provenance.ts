@@ -7,7 +7,9 @@ import { useCityStore } from '../stores/city-store';
 
 export function useRouteProvenance(): ComputedRef<boolean> {
   const store = useCityStore();
-  const { overview, citySummary, architecture, fileDetail, quality, testConfidence, dependencies, filesUseSample } = useReadModels();
+  const {
+    overview, citySummary, architecture, fileDetail, quality, testConfidence, dependencies, security, filesUseSample,
+  } = useReadModels();
   return computed(() => {
     if (!store.snapshot) return false;
     switch (store.route) {
@@ -19,6 +21,7 @@ export function useRouteProvenance(): ComputedRef<boolean> {
       case 'quality': return quality.value.usesSample;
       case 'tests': return testConfidence.value?.usesSample ?? false;
       case 'dependencies': return dependencies.value?.usesSample ?? false;
+      case 'security': return security.value.usesSample;
       default: return false;
     }
   });

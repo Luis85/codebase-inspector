@@ -61,10 +61,10 @@ describe('workspace shell', () => {
 
   it('navigates to a placeholder screen and back, unmounting the city', async () => {
     const w = mountShell();
-    await w.findAll('.ci-nav__item').find((b) => b.text().includes('Security'))!.trigger('click');
-    expect(useCityStore().route).toBe('security');
+    await w.findAll('.ci-nav__item').find((b) => b.text().includes('Refactor workbench'))!.trigger('click');
+    expect(useCityStore().route).toBe('workbench');
     expect(w.find('.ci-app').exists()).toBe(false);
-    expect(w.text()).toContain('arrives in Part 3');
+    expect(w.text()).toContain('arrives in Part 4');
     await w.findAll('.ci-nav__item').find((b) => b.text().includes('Code city'))!.trigger('click');
     expect(w.find('.ci-app').exists()).toBe(true);
     w.unmount();

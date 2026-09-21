@@ -43,3 +43,7 @@ export const POLICY_ROWS: readonly { rule: string; value: string }[] = [
   { rule: 'No automatic remediation', value: 'Read-only' },
 ];
 export const REACHABILITY_UNKNOWN = 'unknown';
+export const SECURITY_SOURCES_TITLE = 'Security evidence sources';
+export const SECURITY_SOURCE_LABELS = {
+  advisories: 'Dependency advisories', secrets: 'Secret scanning', runtime: 'Runtime exploitability',
+} as const;

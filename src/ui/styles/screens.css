@@ -323,3 +323,31 @@
 :where(.codebase-inspector-root) .ci-package-dialog__meta dd { margin: 0; overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-package-dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) button.ci-package-dialog__review[aria-disabled="true"] { opacity: 0.6; cursor: default; }
+
+/* Part 3 Task 11: Security screen — advisory list, review checklist and policy table. */
+:where(.codebase-inspector-root) .ci-advisories { list-style: none; margin: calc(-1 * var(--ci-space-4)); padding: 0; }
+:where(.codebase-inspector-root) .ci-advisory { display: flex; align-items: center; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-advisory + .ci-advisory { border-top: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-advisory > .ci-provenance { flex: none; margin-right: var(--ci-space-4); }
+:where(.codebase-inspector-root) button.ci-advisory__open {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: start; gap: var(--ci-space-3);
+  flex: 1 1 auto; min-width: 0; width: 100%; height: auto; padding: var(--ci-space-4); border: none; border-radius: 0;
+  background: transparent; box-shadow: none; color: var(--ci-text); text-align: left; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-advisory__open:hover { background: var(--ci-raised); }
+:where(.codebase-inspector-root) button.ci-advisory__open:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: -2px; }
+:where(.codebase-inspector-root) .ci-advisory__open .ci-icon { color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-advisory__body { display: flex; flex-direction: column; gap: var(--ci-space-1); min-width: 0; }
+:where(.codebase-inspector-root) .ci-advisory__top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-advisory__top code { font-family: var(--ci-font-mono); }
+:where(.codebase-inspector-root) .ci-advisory__name { display: block; font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-advisory__summary { display: block; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-advisory__versions { display: block; color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); }
+
+:where(.codebase-inspector-root) .ci-checklist { display: grid; gap: var(--ci-space-2); margin: 0 0 var(--ci-space-3); padding: 0; list-style: none; }
+:where(.codebase-inspector-root) .ci-checklist li { display: flex; align-items: center; gap: var(--ci-space-2); }
+
+:where(.codebase-inspector-root) .ci-policy { width: 100%; border-collapse: collapse; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-policy th,
+:where(.codebase-inspector-root) .ci-policy td { padding: var(--ci-space-2) var(--ci-space-3); border-bottom: 1px solid var(--ci-border); text-align: left; }
+:where(.codebase-inspector-root) .ci-policy th { color: var(--ci-text-muted); font-weight: normal; }
