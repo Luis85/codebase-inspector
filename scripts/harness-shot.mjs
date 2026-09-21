@@ -70,6 +70,16 @@ export const SHOTS = [
   { id: 'wp02-overview-dark', query: '?screen=s05&theme=dark&route=overview' },
   { id: 'wp02-overview-light', query: '?screen=s05&theme=light&route=overview' },
   { id: 'wp02-overview-narrow-dark', query: '?screen=s10&theme=dark&route=overview&width=700', viewport: { width: 760, height: 900 } },
+  // WP-02 Part 2: compare against docs/concept/prototype/screenshots/{architecture,hotspots,file}-{dark,light}.png.
+  { id: 'wp02-architecture-dark', query: '?screen=s05&theme=dark&route=architecture' },
+  { id: 'wp02-architecture-light', query: '?screen=s05&theme=light&route=architecture' },
+  { id: 'wp02-architecture-narrow-dark', query: '?screen=s10&theme=dark&route=architecture&width=700', viewport: { width: 760, height: 900 } },
+  { id: 'wp02-hotspots-dark', query: '?screen=s05&theme=dark&route=hotspots' },
+  { id: 'wp02-hotspots-light', query: '?screen=s05&theme=light&route=hotspots' },
+  { id: 'wp02-hotspots-narrow-dark', query: '?screen=s10&theme=dark&route=hotspots&width=700', viewport: { width: 760, height: 900 } },
+  { id: 'wp02-file-dark', query: '?screen=s05&theme=dark&route=file&select=first' },
+  { id: 'wp02-file-light', query: '?screen=s05&theme=light&route=file&select=first' },
+  { id: 'wp02-file-narrow-dark', query: '?screen=s10&theme=dark&route=file&select=first&width=700', viewport: { width: 760, height: 900 } },
 ];
 
 async function main() {

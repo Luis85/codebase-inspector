@@ -4,6 +4,7 @@
 //   ?theme=dark|light  which host scheme (default dark)
 //   ?width=<px>        the leaf box's width, for the narrow screen
 //   ?route=<id>        which inspector screen (default: city)
+//   ?select=first|<path>  select a file (for the file route)
 //
 // `installObsidianDomExtensions` is called FIRST, before any other import runs its own
 // top-level code: the harness page has no Obsidian, and the REAL renderer reads
@@ -37,4 +38,6 @@ if (width !== null && /^\d+$/.test(width)) leaf.style.width = `${width}px`;
 const askedRoute = params.get('route');
 const route = isRouteId(askedRoute) ? askedRoute : 'city';
 
-void mountHarness(leaf, { screen, route });
+const select = params.get('select');
+
+void mountHarness(leaf, { screen, route, ...(select ? { select } : {}) });

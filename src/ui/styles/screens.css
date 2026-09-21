@@ -44,9 +44,11 @@
 :where(.codebase-inspector-root) .ci-file-cell { display: flex; flex-direction: column; }
 :where(.codebase-inspector-root) .ci-file-cell__name { font-weight: var(--font-semibold); }
 :where(.codebase-inspector-root) .ci-file-cell__path { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
+/* Task 11: a tint, not Obsidian's `--background-modifier-error` — that token is the
+   solid `--color-red`, the same colour as the text, so the score was unreadable. */
 :where(.codebase-inspector-root) .ci-priority {
-  padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small);
-  color: var(--ci-tone-danger); background: var(--background-modifier-error);
+  padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small); white-space: nowrap;
+  color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent);
 }
 
 /* Task 10: the City screen's own PageHeader and summary cards. */
@@ -203,7 +205,7 @@
 :where(.codebase-inspector-root) .ci-finding { padding: var(--ci-space-3) 0; border-bottom: 1px solid var(--ci-border); }
 :where(.codebase-inspector-root) .ci-finding__head { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; }
 :where(.codebase-inspector-root) .ci-finding__severity { padding: 1px var(--ci-space-2); border-radius: var(--ci-radius-small); font-size: var(--font-ui-smaller, 0.8em); font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-finding__severity--high { color: var(--ci-tone-danger); background: var(--background-modifier-error); }
+:where(.codebase-inspector-root) .ci-finding__severity--high { color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent); }
 :where(.codebase-inspector-root) .ci-finding__severity--medium { color: var(--ci-tone-warning); border: 1px solid var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-finding__severity--low { color: var(--ci-tone-success); border: 1px solid var(--ci-tone-success); }
 :where(.codebase-inspector-root) .ci-finding__id { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }

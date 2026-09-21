@@ -17,6 +17,7 @@ export type ScreenId = 's05' | 's06' | 's07' | 's08' | 's09' | 's10' | 's11';
 export interface HarnessOptions {
   screen: ScreenId;
   route?: RouteId;
+  select?: string;
 }
 
 export async function mountHarness(root: HTMLElement, options: HarnessOptions): Promise<void> {
@@ -81,6 +82,12 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
   store.setCity(harnessSnapshot(), harnessLayout());
 
   applyScreenState(store, options.screen);
+  if (options.select) {
+    const target = options.select === 'first'
+      ? store.layout?.lots[0]?.entityId
+      : store.snapshot?.entities.find((e) => e.kind === 'file' && e.path === options.select)?.id;
+    if (target) store.select(target);
+  }
 
   const route = options.route ?? 'city';
   store.navigate(route);
