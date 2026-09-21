@@ -10,8 +10,8 @@
 // for exactly the round trip this file restores.
 //
 // A narrow structural interface, never `ReturnType<typeof useCityStore>` — this
-// file does not need Pinia's own `defineStore` machinery to name the six fields
-// and five actions it actually touches (the same reasoning lifecycle-notices.ts's
+// file does not need Pinia's own `defineStore` machinery to name the seven fields
+// and six actions it actually touches (the same reasoning lifecycle-notices.ts's
 // own `LifecycleRunStore` interface already gives for the identical choice).
 import type { EntityId } from '../domain/entity-id';
 import type { CameraBookmark, CityViewState } from '../domain/model';
@@ -36,7 +36,7 @@ export interface ViewStateSyncTarget {
 type UiSlice = Pick<CityViewState,
   'selectedEntityId' | 'query' | 'viewMode' | 'camera' | 'previous3dCamera' | 'inspectorOpen' | 'route'>;
 
-/** Reads the six UI-facing fields off the live store — the exact slice `city-view.ts`
+/** Reads the seven UI-facing fields off the live store — the exact slice `city-view.ts`
  *  watches to keep `this.state` (and therefore `getState()`) current. A plain
  *  function, not a class method, so it is trivially unit-testable against the
  *  structural interface above. */
