@@ -56,6 +56,9 @@ function installBoundingRectDefault(): void {
   // this guard flag must not show up in a `for...in` over any element.
   Object.defineProperty(proto, 'ciRectStub', { value: true, enumerable: false });
   Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
+    // The WP-02 shell nav has no layout in jsdom; App-mounting WP-01 tests must see the
+    // city at full leaf width, as before (container-box.ts `cityInlineSize` subtracts it).
+    if (this.classList.contains('ci-shell__nav')) return rectOf(0, 0);
     for (let el: Element | null = this.parentElement; el; el = el.parentElement) {
       if (Object.prototype.hasOwnProperty.call(el, 'getBoundingClientRect')) return el.getBoundingClientRect();
     }

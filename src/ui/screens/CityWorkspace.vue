@@ -218,6 +218,9 @@ function attachResizeObserver(el: HTMLElement): void {
     updateResponsiveLayout();
   });
   resizeObserver.observe(narrowContainer(el));
+  // WP-02: the shell's nav column flipping inline resizes the city's content box but not the leaf.
+  const content = el.closest<HTMLElement>('.ci-shell__content');
+  if (content) resizeObserver.observe(content);
 }
 
 onMounted(() => {

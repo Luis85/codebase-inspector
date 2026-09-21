@@ -6,6 +6,26 @@ import App from '../../src/ui/App.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { cityInlineSize } from '../../src/ui/container-box';
 
+/** A ResizeObserver stand-in that fires only the observers watching a given element, so a
+ *  test can resize the shell's content box WITHOUT the leaf (which is what a nav-inline
+ *  flip does in a real host). installControllableResizeObserver fires every observer. */
+function installTargetedResizeObserver() {
+  const entries: { cb: () => void; targets: Element[] }[] = [];
+  const holder = window as unknown as { ResizeObserver: unknown };
+  const previous = holder.ResizeObserver;
+  holder.ResizeObserver = class {
+    private readonly entry: { cb: () => void; targets: Element[] };
+    constructor(cb: () => void) { this.entry = { cb, targets: [] }; entries.push(this.entry); }
+    observe(target: Element): void { this.entry.targets.push(target); }
+    unobserve(): void {}
+    disconnect(): void { this.entry.targets.length = 0; }
+  };
+  return {
+    resize: (target: Element) => { entries.filter((e) => e.targets.includes(target)).forEach((e) => { e.cb(); }); },
+    restore: () => { holder.ResizeObserver = previous; },
+  };
+}
+
 function mountShell(attachTo: HTMLElement = document.body) {
   return mount(App, {
     attachTo,
@@ -64,6 +84,46 @@ describe('workspace shell', () => {
     expect(document.activeElement).toBe(menu.element);
     w.unmount();
     leaf.remove();
+  });
+
+  it('an App-mounted wide leaf gives the city the full leaf width (the wide, non-hidden path)', async () => {
+    const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
+    leaf.getBoundingClientRect = () => ({ width: 1000 } as DOMRect);
+    const w = mountShell(leaf);
+    await nextTick();
+    expect(w.find('.ci-shell').classes()).toContain('ci-shell--nav-inline');
+    expect(cityInlineSize(w.find<HTMLElement>('.ci-app').element)).toBe(1000);
+    w.unmount();
+    leaf.remove();
+  });
+
+  it('re-measures the city when only the shell content box resizes (nav column flips)', async () => {
+    const ro = installTargetedResizeObserver();
+    try {
+      const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
+      leaf.getBoundingClientRect = () => ({ width: 1000 } as DOMRect);
+      const w = mountShell(leaf);
+      const nav = w.find<HTMLElement>('.ci-shell__nav').element;
+      const content = w.find<HTMLElement>('.ci-shell__content').element;
+      await w.get('[aria-label="Files"]').trigger('click');
+      expect(w.find('.ci-app__list-wrapper--open').exists()).toBe(true);
+
+      // The inline nav takes its column: the city's box is 780 (narrow), the leaf is unchanged.
+      nav.getBoundingClientRect = () => ({ width: 220 } as DOMRect);
+      ro.resize(content);
+      await nextTick();
+      expect(w.find('.ci-app__list-wrapper--open').exists()).toBe(true);
+
+      // The column goes away: the city is wide again, so the narrow-only drawer is retired.
+      nav.getBoundingClientRect = () => ({ width: 0 } as DOMRect);
+      ro.resize(content);
+      await nextTick();
+      expect(w.find('.ci-app__list-wrapper--open').exists()).toBe(false);
+      w.unmount();
+      leaf.remove();
+    } finally {
+      ro.restore();
+    }
   });
 
   it('city width excludes an inline nav column', () => {

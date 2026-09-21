@@ -73,8 +73,6 @@ describe('M97: the drawer threshold is measured on the box the container query u
 
     await wrapper.get('[aria-label="Files"]').trigger('click');
     expect(wrapper.find('.ci-app__list-wrapper--open').exists()).toBe(true);
-    // WP-02 shell: jsdom's rect stub would give an inline nav the leaf's full width; real layout gives the city the rest.
-    wrapper.find<HTMLElement>('.ci-shell__nav').element.getBoundingClientRect = () => ({ width: 0 } as DOMRect);
 
     resizeObserver.trigger();
     await nextTick();

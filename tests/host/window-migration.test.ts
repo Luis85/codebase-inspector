@@ -339,8 +339,6 @@ describe('pop-out migration', () => {
   // constructor means neither is ever re-evaluated in the pop-out.
   it('M3: re-attaches the shell OWN ResizeObserver to the new window', async () => {
     const { view } = await openViewWithSnapshot();
-    // WP-02 shell: jsdom's rect stub would give an inline nav the leaf's full width; real layout gives the city the rest.
-    view.contentEl.querySelector<HTMLElement>('.ci-shell__nav')!.getBoundingClientRect = () => ({ width: 0 } as DOMRect);
     const popout = createPopoutWindow();
     migrateElement(view.containerEl, popout);
     await nextTick();
@@ -364,8 +362,6 @@ describe('pop-out migration', () => {
   // neither the drawer nor the inspector could be closed by keyboard there.
   it('moves the Escape shortcut to the new document after migration', async () => {
     const { view } = await openViewWithSnapshot();
-    // WP-02 shell: jsdom's rect stub would give an inline nav the leaf's full width; real layout gives the city the rest.
-    view.contentEl.querySelector<HTMLElement>('.ci-shell__nav')!.getBoundingClientRect = () => ({ width: 0 } as DOMRect);
     const popout = createPopoutWindow();
 
     const row = view.contentEl.querySelector<HTMLButtonElement>('.ci-file-list__row')!;
