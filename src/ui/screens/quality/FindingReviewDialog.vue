@@ -27,6 +27,7 @@ const dismissing = ref(false);
 const reason = ref('');
 const error = ref('');
 const reasonField = ref<HTMLTextAreaElement | null>(null);
+const toggleButton = ref<HTMLButtonElement | null>(null);
 const busy = computed(() => review.isDispositionPending(props.fingerprint));
 
 /** Records a decision only; no repository suppression is ever written (Q3). E17: the
@@ -45,8 +46,26 @@ async function run(action: () => Promise<unknown>, done: string): Promise<boolea
     return false;
   }
 }
-const acknowledge = () => run(() => review.acknowledge(props.fingerprint, new Date()), FINDING_ACKNOWLEDGED);
-const reopen = () => run(() => review.reopen(props.fingerprint), FINDING_REOPENED);
+/** Fix round 1: ONE button, patched in place as the status changes, so the focus a
+ *  keyboard user put on it survives the decision (a v-if/v-else pair destroyed it and
+ *  focus fell to <body>, outside CiDialog's Tab trap and Escape handler). It is never
+ *  `disabled` while a save is pending either — disabling the focused element drops
+ *  focus too — so it is `aria-disabled` and the handler ignores the press instead. */
+async function toggleDecision(): Promise<void> {
+  const f = finding.value;
+  if (!f || busy.value) return;
+  if (f.status === 'open') await run(() => review.acknowledge(props.fingerprint, new Date()), FINDING_ACKNOWLEDGED);
+  else await run(() => review.reopen(props.fingerprint), FINDING_REOPENED);
+}
+
+/** The dismissal form is about to go, taking the focused control with it: land on the
+ *  decision toggle, which is always there once the form closes. */
+async function closeDismissal(): Promise<void> {
+  dismissing.value = false;
+  reason.value = '';
+  await nextTick();
+  toggleButton.value?.focus();
+}
 
 async function startDismissal(): Promise<void> {
   error.value = '';
@@ -54,19 +73,16 @@ async function startDismissal(): Promise<void> {
   await nextTick();
   reasonField.value?.focus();
 }
-function cancelDismissal(): void {
-  dismissing.value = false;
-  reason.value = '';
+function cancelDismissal(): Promise<void> {
   error.value = '';
+  return closeDismissal();
 }
 async function saveDismissal(): Promise<void> {
+  if (busy.value) return;
   const trimmed = reason.value.trim();
   if (trimmed === '') { error.value = FINDING_DISMISS_REQUIRED; return; }
   if (trimmed.length > DISMISS_REASON_MAX) { error.value = FINDING_DISMISS_TOO_LONG(DISMISS_REASON_MAX); return; }
-  if (await run(() => review.dismiss(props.fingerprint, trimmed, new Date()), FINDING_DISMISSED)) {
-    dismissing.value = false;
-    reason.value = '';
-  }
+  if (await run(() => review.dismiss(props.fingerprint, trimmed, new Date()), FINDING_DISMISSED)) await closeDismissal();
 }
 async function addWorkItem(): Promise<void> {
   const f = finding.value;
@@ -151,6 +167,7 @@ async function addWorkItem(): Promise<void> {
         <div class="ci-finding-dialog__actions">
           <button
             type="button"
+            class="ci-finding-dialog__cancel"
             :disabled="busy"
             @click="cancelDismissal"
           >
@@ -159,7 +176,7 @@ async function addWorkItem(): Promise<void> {
           <button
             type="submit"
             class="mod-cta ci-finding-dialog__save-dismissal"
-            :disabled="busy"
+            :aria-disabled="busy"
           >
             {{ FINDING_DISMISS_SAVE }}
           </button>
@@ -179,22 +196,13 @@ async function addWorkItem(): Promise<void> {
           {{ FINDING_DISMISS }}
         </button>
         <button
-          v-if="finding.status === 'open'"
+          ref="toggleButton"
           type="button"
-          class="ci-finding-dialog__acknowledge"
-          :disabled="busy"
-          @click="acknowledge"
+          :class="finding.status === 'open' ? 'ci-finding-dialog__acknowledge' : 'ci-finding-dialog__reopen'"
+          :aria-disabled="busy"
+          @click="toggleDecision"
         >
-          {{ FINDING_ACKNOWLEDGE }}
-        </button>
-        <button
-          v-else
-          type="button"
-          class="ci-finding-dialog__reopen"
-          :disabled="busy"
-          @click="reopen"
-        >
-          {{ FINDING_REOPEN }}
+          {{ finding.status === 'open' ? FINDING_ACKNOWLEDGE : FINDING_REOPEN }}
         </button>
         <button
           type="button"

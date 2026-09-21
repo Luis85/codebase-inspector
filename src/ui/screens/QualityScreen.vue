@@ -37,6 +37,12 @@ watch(() => quality.value.modules, (modules) => {
   if (module !== null && !modules.some((m) => m.name === module)) filter.value = { ...filter.value, module: null };
 });
 
+/** Fix round 1: a rescan can drop the finding under review. Forget it, so the dialog
+ *  cannot come back on its own when a later snapshot brings the fingerprint back. */
+watch(() => reviewing.value !== null && !quality.value.byFingerprint.has(reviewing.value), (gone) => {
+  if (gone) reviewing.value = null;
+});
+
 function resetFilters(): void {
   filter.value = { ...DEFAULT_QUALITY_FILTER };
 }

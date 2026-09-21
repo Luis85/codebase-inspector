@@ -25,6 +25,10 @@ const liveMessage = ref('');
 /** The fingerprint under review; the dialog is shared with Code quality. */
 const reviewing = ref<string | null>(null);
 watch(() => store.selectedEntityId, () => { liveMessage.value = ''; reviewing.value = null; });
+/** Fix round 1: as on Code quality, a rescan that drops the finding ends the review. */
+watch(() => reviewing.value !== null && !quality.value.byFingerprint.has(reviewing.value), (gone) => {
+  if (gone) reviewing.value = null;
+});
 
 const workItems = computed(() => {
   const id = fileDetail.value?.file.id;

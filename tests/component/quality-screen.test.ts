@@ -17,6 +17,15 @@ function withSnapshot(files = 60, directories = 3) {
   useCityStore().setCity(snap, computeLayout(snap));
 }
 const mountQ = () => mount(QualityScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn() } } });
+/** Fix round 1: a focusable `.ci-shell` around the screen, as App.vue provides, so
+ *  CiDialog's real fallback (focus the shell when the opener is gone) runs. */
+function mountInShell() {
+  const shell = document.body.createDiv({ cls: 'ci-shell' });
+  shell.tabIndex = -1;
+  const w = mount(QualityScreen, { attachTo: shell, global: { provide: { onSelectCodebase: vi.fn() } } });
+  return { w, done: () => { w.unmount(); shell.remove(); } };
+}
+const inDialog = () => document.activeElement?.closest('.ci-finding-dialog') != null;
 const flush = async () => { await Promise.resolve(); await nextTick(); await nextTick(); };
 
 describe('QualityScreen', () => {
@@ -52,14 +61,15 @@ describe('QualityScreen', () => {
     w.unmount();
   });
 
-  it('acknowledging moves the finding out of the Open list; closing lands focus on a row, never the body', async () => {
+  it('acknowledging moves the finding out of the Open list; closing lands focus on a row, never the shell or body', async () => {
     withSnapshot();
-    const w = mountQ();
+    const { w, done } = mountInShell();
     const first = w.findAll('.ci-table__row')[0]!;
+    // Finding ids repeat across files (CX-<module>-<n>); the id plus the file names the row.
+    const identity = first.text();
     (first.element as HTMLElement).focus();
     await first.trigger('click');
-    const dialog = w.find('.ci-finding-dialog');
-    expect(dialog.exists()).toBe(true);
+    expect(w.find('.ci-finding-dialog').exists()).toBe(true);
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
     await flush();
     expect(useReviewStore().dispositions).toHaveLength(1);
@@ -67,7 +77,84 @@ describe('QualityScreen', () => {
     expect(w.find('.ci-quality__live').text()).toBe('Finding acknowledged. No repository suppression was written.');
     await w.find('.ci-finding-dialog__close').trigger('click');
     await flush();
+    const rows = w.findAll('.ci-table__row').map((r) => r.text());
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows).not.toContain(identity);
     expect(document.activeElement?.classList.contains('ci-table__row')).toBe(true);
+    expect(document.activeElement?.classList.contains('ci-shell')).toBe(false);
+    done();
+  });
+
+  it('focus stays inside the dialog after Acknowledge, Reopen and a dismissal save or cancel', async () => {
+    withSnapshot();
+    const { w, done } = mountInShell();
+    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    const ack = w.find('.ci-finding-dialog__acknowledge');
+    (ack.element as HTMLElement).focus();
+    await ack.trigger('click');
+    await flush();
+    expect(w.find('.ci-finding-dialog__reopen').exists()).toBe(true);
+    expect(inDialog()).toBe(true);
+    await w.find('.ci-finding-dialog__reopen').trigger('click');
+    await flush();
+    expect(w.find('.ci-finding-dialog__acknowledge').exists()).toBe(true);
+    expect(inDialog()).toBe(true);
+    await w.find('.ci-finding-dialog__dismiss').trigger('click');
+    await flush();
+    expect(document.activeElement?.tagName).toBe('TEXTAREA');
+    await w.find('.ci-finding-dialog__cancel').trigger('click');
+    await flush();
+    expect(w.find('.ci-finding-dialog textarea').exists()).toBe(false);
+    expect(inDialog()).toBe(true);
+    await w.find('.ci-finding-dialog__dismiss').trigger('click');
+    await w.find('.ci-finding-dialog textarea').setValue('Kept for the plugin API');
+    (w.find('.ci-finding-dialog__save-dismissal').element as HTMLElement).focus();
+    await w.find('.ci-finding-dialog form').trigger('submit');
+    await flush();
+    expect(useReviewStore().dispositions[0]).toMatchObject({ status: 'dismissed' });
+    expect(inDialog()).toBe(true);
+    done();
+  });
+
+  it('a rescan that drops the finding closes the review for good', async () => {
+    const snap = buildSnapshotFixture({ files: 60, directories: 3 });
+    useCityStore().setCity(snap, computeLayout(snap));
+    const w = mountQ();
+    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    expect(w.find('.ci-finding-dialog').exists()).toBe(true);
+    const other = buildSnapshotFixture({ files: 60, directories: 3, repositoryId: 'repo-other' });
+    useCityStore().setCity(other, computeLayout(other));
+    await flush();
+    expect(w.find('.ci-finding-dialog').exists()).toBe(false);
+    useCityStore().setCity(snap, computeLayout(snap));
+    await flush();
+    expect(w.find('.ci-finding-dialog').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('F3: a module that disappears on rescan resets the filter to all modules', async () => {
+    withSnapshot(60, 3);
+    const w = mountQ();
+    await w.find('.ci-finding-filters__module').setValue('dir-2');
+    const before = w.findAll('.ci-table__row');
+    expect(before.length).toBeGreaterThan(0);
+    expect(before.every((r) => r.text().includes('dir-2'))).toBe(true);
+    withSnapshot(60, 2);
+    await flush();
+    expect((w.find('.ci-finding-filters__module').element as HTMLSelectElement).value).toBe('');
+    const after = w.findAll('.ci-table__row');
+    expect(after.length).toBeGreaterThan(0);
+    expect(after.some((r) => r.text().includes('dir-0'))).toBe(true);
+    w.unmount();
+  });
+
+  it('changing a filter shows the first page again', async () => {
+    withSnapshot(400, 4);
+    const w = mountQ();
+    await w.find('.ci-findings-table__more').trigger('click');
+    expect(w.findAll('.ci-table__row')).toHaveLength(200);
+    await w.find('.ci-finding-filters__status').setValue('all');
+    expect(w.findAll('.ci-table__row')).toHaveLength(100);
     w.unmount();
   });
 
