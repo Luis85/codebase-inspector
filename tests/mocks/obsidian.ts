@@ -13,9 +13,12 @@
 // exercise real behaviour.
 //
 // The jsdom GAPS real Obsidian does not have (matchMedia, getBoundingClientRect,
-// canvas contexts) live in ./jsdom-gaps.ts, imported here for its
-// side effects — split out purely for the tests/** 450-line budget.
-import './jsdom-gaps';
+// canvas contexts) live in ./jsdom-gaps.ts, installed by vitest.config.ts's jsdom
+// project `setupFiles` -- NOT imported here. vite.harness.config.ts aliases 'obsidian'
+// to THIS file in a real browser too, and once WP-02's kit/Icon.vue imported `setIcon`
+// the import used to run there, replacing working browser APIs (webgl2 context -> null,
+// every rect -> 1000x700) so the harness city never drew. tests/unit/obsidian-mock-
+// scope.test.ts pins that importing this module patches no DOM prototype.
 
 // Ruling M17 (task-5-context.md section 5): node-access.ts reads `Platform.isDesktopApp`
 // at MODULE LOAD to decide whether to touch `window.require` at all. Under Vitest's

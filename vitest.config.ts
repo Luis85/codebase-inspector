@@ -46,6 +46,10 @@ export default defineConfig({
       { resolve: { alias: { obsidian: obsidianMock } },
         plugins: [vue()],
         test: { name: 'jsdom', environment: 'jsdom',
+                // jsdom's layout/canvas/matchMedia gaps, installed per file here rather
+                // than by tests/mocks/obsidian.ts, which the REAL-browser harness also
+                // loads (see that file's header).
+                setupFiles: ['./tests/mocks/jsdom-gaps.ts'],
                 // tests/acceptance/** and tests/benchmarks/** (task 12) were listed under
                 // the 'node' project above before either existed. They belong here: an
                 // acceptance scenario drives the real components, the real modals and the

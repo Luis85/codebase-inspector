@@ -1,8 +1,9 @@
 // jsdom gaps that real Obsidian does not have. Split out of tests/mocks/obsidian.ts,
 // which sits at the tests/** 450-line budget: these installers are environment
 // stand-ins (matchMedia, getBoundingClientRect, canvas contexts), not
-// emulations of Obsidian's own API, so they are the coherent half to move. Imported for
-// its side effects by obsidian.ts, so every existing importer is unaffected.
+// emulations of Obsidian's own API, so they are the coherent half to move. Installed for
+// EVERY jsdom test file by vitest.config.ts's jsdom-project `setupFiles`; never imported
+// by obsidian.ts, which the browser harness also loads (see that file's header).
 
 // jsdom implements no `window.matchMedia` either (same gap class as above; fix
 // round 2/M68 makes `applyMotionPreference` run on every real mount now). Fixed, silent, non-reduced.

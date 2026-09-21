@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
-// Side-effect import: installs the jsdom gaps (tests/mocks/jsdom-gaps.ts) and the
-// win/doc prototype extensions real Obsidian patches onto HTMLElement.
+// Side-effect import: installs the win/doc prototype extensions real Obsidian patches
+// onto HTMLElement (the jsdom gaps come from the jsdom project's setupFiles).
 import '../mocks/obsidian';
 import { installControllableResizeObserver } from '../mocks/window-harness';
 import App from '../../src/ui/App.vue';
