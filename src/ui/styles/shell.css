@@ -61,3 +61,14 @@
   background: var(--ci-surface); box-shadow: none; color: var(--ci-text-muted); cursor: pointer;
 }
 :where(.codebase-inspector-root) .ci-topbar__search kbd { font-size: var(--font-ui-smaller); }
+
+:where(.codebase-inspector-root) .ci-snapshot-selector select { min-height: var(--ci-control-min); }
+:where(.codebase-inspector-root) .ci-palette { display: flex; flex-direction: column; }
+:where(.codebase-inspector-root) .ci-palette__input { margin: var(--ci-space-3); width: calc(100% - 2 * var(--ci-space-3)); }
+:where(.codebase-inspector-root) .ci-palette__list { list-style: none; margin: 0; padding: 0 0 var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-palette__item {
+  display: flex; align-items: center; gap: var(--ci-space-2); padding: var(--ci-space-2) var(--ci-space-4); cursor: pointer;
+}
+:where(.codebase-inspector-root) .ci-palette__item[aria-selected="true"] { background: var(--ci-raised); }
+:where(.codebase-inspector-root) .ci-palette__detail { margin-left: auto; color: var(--ci-text-faint); font-size: var(--font-ui-smaller); }
+:where(.codebase-inspector-root) .ci-palette__empty { margin: 0; padding: var(--ci-space-4); color: var(--ci-text-muted); }

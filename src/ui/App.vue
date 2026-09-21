@@ -5,7 +5,7 @@
   App directly.
 -->
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import type { RouteId } from '../domain/route-ids';
 import { DRAWER_MAX_INLINE_SIZE } from './responsive';
 import { NO_CODEBASE_LABEL } from './inspector-copy';
@@ -13,6 +13,8 @@ import { useCityStore } from './stores/city-store';
 import { useLeafWidth } from './shell/use-leaf-width';
 import NavColumn from './shell/NavColumn.vue';
 import TopBar from './shell/TopBar.vue';
+import SnapshotSelector from './shell/SnapshotSelector.vue';
+import CommandPalette from './shell/CommandPalette.vue';
 import CityScreen from './screens/CityScreen.vue';
 import PlaceholderScreen from './screens/PlaceholderScreen.vue';
 
@@ -23,7 +25,13 @@ const leafWidth = useLeafWidth(rootEl);
  *  drawer layout, so the city gets the whole leaf — exactly WP-01's behaviour. */
 const navInline = computed(() => leafWidth.value >= DRAWER_MAX_INLINE_SIZE);
 const navOpen = ref(false);
+const paletteOpen = ref(false);
 let navOpener: HTMLElement | null = null;
+
+// Controller ruling (Task 7 review, carried into Task 8): a drawer left open in a
+// narrow leaf must not reappear once the leaf widens past 820px and back — inline
+// nav has its own column, so `navOpen` no longer means anything once it is showing.
+watch(navInline, (inline) => { if (inline) navOpen.value = false; });
 
 const workspaceLabel = computed(() => {
   const root = store.snapshot?.scope.rootPath;
@@ -47,6 +55,15 @@ function navigate(route: RouteId): void {
   if (navOpen.value) closeNav();
 }
 
+/** Ctrl/Cmd+K while focus is anywhere inside THIS leaf (the listener sits on the shell
+ *  root, never the document — two open leaves must not both react). */
+function onShellKeydown(event: KeyboardEvent): void {
+  if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    paletteOpen.value = true;
+  }
+}
+
 interface CityScreenExposed { rendererHost: HTMLElement | null }
 const cityScreen = ref<CityScreenExposed | null>(null);
 const rendererHost = computed(() => cityScreen.value?.rendererHost ?? null);
@@ -58,6 +75,7 @@ defineExpose({ rendererHost });
     ref="rootEl"
     class="ci-shell"
     :class="{ 'ci-shell--nav-inline': navInline, 'ci-shell--nav-open': navOpen && !navInline }"
+    @keydown="onShellKeydown"
   >
     <NavColumn
       :drawer="!navInline"
@@ -68,8 +86,12 @@ defineExpose({ rendererHost });
     <TopBar
       :workspace-label="workspaceLabel"
       @open-nav="openNav()"
-      @open-palette="() => {}"
-    />
+      @open-palette="paletteOpen = true"
+    >
+      <template #snapshot>
+        <SnapshotSelector />
+      </template>
+    </TopBar>
     <main class="ci-shell__content">
       <CityScreen
         v-if="store.route === 'city'"
@@ -80,5 +102,9 @@ defineExpose({ rendererHost });
         :route="store.route"
       />
     </main>
+    <CommandPalette
+      v-if="paletteOpen"
+      @close="paletteOpen = false"
+    />
   </div>
 </template>

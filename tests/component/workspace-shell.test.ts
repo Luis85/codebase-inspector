@@ -86,6 +86,34 @@ describe('workspace shell', () => {
     leaf.remove();
   });
 
+  it('a drawer left open does not reappear once the leaf widens past 820px and back', async () => {
+    // Controller ruling carried from Task 7's review: inline nav has its own column,
+    // so a drawer left open while narrow must not resurface once the leaf goes wide
+    // and back — `navOpen` is reset the moment `navInline` flips true.
+    const ro = installTargetedResizeObserver();
+    try {
+      const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
+      leaf.getBoundingClientRect = () => ({ width: 600 } as DOMRect);
+      const w = mountShell(leaf);
+      await w.find('.ci-topbar__menu').trigger('click');
+      expect(w.find('.ci-shell').classes()).toContain('ci-shell--nav-open');
+
+      leaf.getBoundingClientRect = () => ({ width: 900 } as DOMRect);
+      ro.resize(leaf);
+      await nextTick();
+      expect(w.find('.ci-shell').classes()).not.toContain('ci-shell--nav-open');
+
+      leaf.getBoundingClientRect = () => ({ width: 600 } as DOMRect);
+      ro.resize(leaf);
+      await nextTick();
+      expect(w.find('.ci-shell').classes()).not.toContain('ci-shell--nav-open');
+      w.unmount();
+      leaf.remove();
+    } finally {
+      ro.restore();
+    }
+  });
+
   it('an App-mounted wide leaf gives the city the full leaf width (the wide, non-hidden path)', async () => {
     const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
     leaf.getBoundingClientRect = () => ({ width: 1000 } as DOMRect);
