@@ -4,8 +4,14 @@
 export const MAP_W = 720;
 export const MAP_H = 420;
 const RX = 280;
-const RY = 160;
-const NODE_GAP = 44;
+/** F5: leaves room above and below for a node's box, so none touches the canvas edge. */
+const RY = 140;
+/** F5: a node button's half-size in viewBox units (about 7.5em × two lines at the 720-wide
+ *  canvas, with room for a longer label). Edges are trimmed to this box, not a circle. */
+export const NODE_HALF_W = 60;
+export const NODE_HALF_H = 26;
+/** Clear space between an arrowhead's tip and the node's border. */
+export const NODE_PAD = 3;
 const BEND = 18;
 
 const f = (n: number): string => n.toFixed(1);
@@ -20,17 +26,32 @@ export function nodePositions(names: readonly string[]): NodePos[] {
   });
 }
 
-/** A gently bent path from `a` to `b`, trimmed so the arrowhead stops short of the node.
- *  The bend is to the right of the direction of travel, so a→b and b→a never overlap. */
-export function edgePath(a: NodePos, b: NodePos): string {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
+/** Distance from a node's centre to its box edge along the unit direction (ux, uy),
+ *  plus the pad. */
+function toBoxEdge(ux: number, uy: number): number {
+  const tx = Math.abs(ux) > 1e-9 ? NODE_HALF_W / Math.abs(ux) : Infinity;
+  const ty = Math.abs(uy) > 1e-9 ? NODE_HALF_H / Math.abs(uy) : Infinity;
+  return Math.min(tx, ty) + NODE_PAD;
+}
+
+function unit(dx: number, dy: number): { ux: number; uy: number } {
   const len = Math.hypot(dx, dy) || 1;
-  const ux = dx / len;
-  const uy = dy / len;
-  const x1 = a.x + ux * NODE_GAP; const y1 = a.y + uy * NODE_GAP;
-  const x2 = b.x - ux * NODE_GAP; const y2 = b.y - uy * NODE_GAP;
-  const cx = (x1 + x2) / 2 - uy * BEND; const cy = (y1 + y2) / 2 + ux * BEND;
+  return { ux: dx / len, uy: dy / len };
+}
+
+/** A gently bent path from `a` to `b`. The bend is to the right of the direction of
+ *  travel, so a→b and b→a never overlap. Each end is trimmed to its node's box along the
+ *  curve's own tangent there, so the arrowhead stops at the node's border from any side. */
+export function edgePath(a: NodePos, b: NodePos): string {
+  const d = unit(b.x - a.x, b.y - a.y);
+  const cx = (a.x + b.x) / 2 - d.uy * BEND;
+  const cy = (a.y + b.y) / 2 + d.ux * BEND;
+  const s = unit(cx - a.x, cy - a.y);
+  const e = unit(b.x - cx, b.y - cy);
+  const ts = toBoxEdge(s.ux, s.uy);
+  const te = toBoxEdge(e.ux, e.uy);
+  const x1 = a.x + s.ux * ts; const y1 = a.y + s.uy * ts;
+  const x2 = b.x - e.ux * te; const y2 = b.y - e.uy * te;
   return `M${f(x1)},${f(y1)} Q${f(cx)},${f(cy)} ${f(x2)},${f(y2)}`;
 }
 
