@@ -1,5 +1,13 @@
 // interactions/04-microcopy.md is the catalogue; src/ui/copy.ts is what ships. Nothing
 // bound them, so a string could drift from its own source with nothing able to notice.
+//
+// Fix round 1: the first pass filtered exports by `typeof === 'string'`, which silently
+// dropped every formatter — including three (formatCopy08/11/13, and formatUnavailableReason,
+// which reuses COPY-18's pattern) whose FIXED text is catalogued wording around an
+// interpolated placeholder. A formatter is pinned by deriving the expected text from its
+// own catalogue row (substituting the row's `{placeholder}` tokens with the same values
+// passed to the formatter) rather than retyping the sentence a second time in this file —
+// the catalogue stays the single source, exactly as it does for the plain-string pins.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import * as copy from '../../src/ui/copy';
@@ -35,7 +43,8 @@ const PINNED: ReadonlyArray<readonly [string, string]> = [
 
 // Row anchors: the literal `| COPY-nn |` prefix each pinned id's table row starts
 // with, so a match must land in the row that actually claims that id — not merely
-// anywhere in a ~50-row markdown table.
+// anywhere in a ~50-row markdown table. Shared by the plain-string pins above and the
+// formatter pins below.
 const ROW_ANCHORS = new Map<string, string>([
   ['COPY_01', '| COPY-01 |'],
   ['COPY_02', '| COPY-02 |'],
@@ -51,6 +60,10 @@ const ROW_ANCHORS = new Map<string, string>([
   ['COPY_27', '| COPY-27 |'],
   ['COPY_28', '| COPY-28 |'],
   ['COPY_30', '| COPY-30 |'],
+  ['formatCopy08', '| COPY-08 |'],
+  ['formatCopy11', '| COPY-11 |'],
+  ['formatCopy13', '| COPY-13 |'],
+  ['formatUnavailableReason', '| COPY-18 |'],
 ]);
 
 const catalogueRows = new Map(
@@ -59,6 +72,55 @@ const catalogueRows = new Map(
     .filter((line) => line.startsWith('| COPY-'))
     .map((line) => [line.slice(0, line.indexOf('|', 2) + 1), line] as const),
 );
+
+function ownRow(id: string): string {
+  const anchor = ROW_ANCHORS.get(id);
+  if (anchor === undefined) {
+    throw new Error(`${id}: no row anchor configured in this test`);
+  }
+  const row = catalogueRows.get(anchor);
+  if (row === undefined) {
+    throw new Error(`${id}: no catalogue row found for anchor "${anchor}"`);
+  }
+  return row;
+}
+
+// Formatters whose FIXED text (the part around the `{placeholder}` tokens) is
+// catalogued wording. `actual` is the formatter's real return value for the sample
+// arguments; `substitutions` maps each of the row's own placeholder tokens to the same
+// values used to produce `actual`, so `expected` is derived from the row, never
+// retyped. formatUnavailableReason reuses COPY-18's exact pattern ("Not measured.
+// {reason}") for a core §4.1 unavailable-Observation reason (task-9-brief.md's own
+// "surfaces the REASON" requirement) even though COPY-18's own CONTEXT column
+// ("Unknown metric") names a provider concept out of WP-01 scope per
+// plan-global-constraints.md's curated table — the TEXT PATTERN is reused verbatim
+// rather than the feature, and pinning it is what would catch that pattern drifting.
+const FORMATTER_PINNED: ReadonlyArray<{
+  readonly id: string;
+  readonly actual: string;
+  readonly substitutions: ReadonlyArray<readonly [token: string, value: string]>;
+}> = [
+  {
+    id: 'formatCopy08',
+    actual: copy.formatCopy08(5),
+    substitutions: [['{count}', '5']],
+  },
+  {
+    id: 'formatCopy11',
+    actual: copy.formatCopy11(5, 'auth'),
+    substitutions: [['{count}', '5'], ['{query}', 'auth']],
+  },
+  {
+    id: 'formatCopy13',
+    actual: copy.formatCopy13(3, 7),
+    substitutions: [['{measured}', '3'], ['{included}', '7']],
+  },
+  {
+    id: 'formatUnavailableReason',
+    actual: copy.formatUnavailableReason('metric requires a provider that is not installed'),
+    substitutions: [['{reason}', 'metric requires a provider that is not installed']],
+  },
+];
 
 // Every exported string written for this plugin that does NOT carry a catalogue id,
 // each with a one-line reason. A string here must NOT also appear in PINNED, and vice
@@ -103,28 +165,80 @@ const AUTHORED_FRESH: readonly string[] = [
   'LEGEND_UNKNOWN_MARKER',
 ];
 
+// Formatter exports whose fixed text is NOT catalogued wording, each with a one-line
+// reason. Grepped individually against the catalogue (none matched any row).
+const AUTHORED_FRESH_FORMATTERS: readonly string[] = [
+  // Not catalogued: selection itself has no COPY id (spec 5.2's control-initiated
+  // announcement; what a selected file's measurements ARE is catalogued, selecting it
+  // is not).
+  'formatAnnounceSelected',
+  // Not catalogued: a panel's own heading/count, not a state or outcome.
+  'formatFileListHeader',
+  'formatFileListGroup',
+  // Not catalogued: a control's accessible name, not a state or outcome.
+  'formatDirectoryFocusLabel',
+  // Not catalogued: task-9-context.md finding 3's own retained-snapshot requirement,
+  // layered onto run-state.ts's `Scan failed: {message}` which itself is not a COPY id.
+  'formatFailedRefreshNotice',
+  // Not catalogued: the canvas header's subtitle formatter (task 7); see
+  // COPY_CITY_HEADER_EYEBROW's reason above for the same provenance.
+  'formatCityHeaderSubtitle',
+  // Not catalogued: task 8 (C12) scope-and-count line; reads the same two counts as
+  // formatCityHeaderSubtitle from a single source, but is its own authored sentence.
+  'formatSnapshotScopeCounts',
+  // Not catalogued: implements the catalogue's PROSE RULE ("redact local absolute
+  // paths by default") rather than restating a catalogued sentence — a rule is not a
+  // pinnable template.
+  'formatSnapshotScopeRoot',
+  // Not catalogued: implements the "Units and dates" section's PROSE RULE (date, time
+  // zone, snapshot identity in evidence details), not a templated COPY row.
+  'formatAbsoluteTime',
+];
+
 describe('microcopy catalogue binding', () => {
   it('ships every catalogued string exactly as the catalogue writes it', () => {
     for (const [id, value] of PINNED) {
-      const anchor = ROW_ANCHORS.get(id);
-      if (anchor === undefined) {
-        throw new Error(`${id}: no row anchor configured in this test`);
-      }
-      const row = catalogueRows.get(anchor);
-      if (row === undefined) {
-        throw new Error(`${id}: no catalogue row found for anchor "${anchor}"`);
-      }
-      expect(row, `${id} is not in its own catalogue row (${anchor}) as shipped`).toContain(value);
+      const row = ownRow(id);
+      expect(row, `${id} is not in its own catalogue row as shipped`).toContain(value);
     }
   });
 
-  it('accounts for every exported string, so none is uncatalogued by accident', () => {
-    const exported = Object.entries(copy).filter(([, v]) => typeof v === 'string').map(([k]) => k);
-    const pinnedNames = PINNED.map(([id]) => id);
-    // No export may be claimed by both lists — that would hide a real ambiguity.
-    const overlap = pinnedNames.filter((id) => AUTHORED_FRESH.includes(id));
-    expect(overlap, 'exported names claimed by both PINNED and AUTHORED_FRESH').toEqual([]);
-    const accounted = new Set([...pinnedNames, ...AUTHORED_FRESH]);
-    expect(exported.filter((name) => !accounted.has(name))).toEqual([]);
+  it('ships every catalogued formatter\'s fixed text exactly as the catalogue writes it', () => {
+    for (const { id, actual, substitutions } of FORMATTER_PINNED) {
+      const row = ownRow(id);
+      let expectedFragment = row;
+      for (const [token, value] of substitutions) {
+        expectedFragment = expectedFragment.split(token).join(value);
+      }
+      expect(
+        expectedFragment,
+        `${id}'s own catalogue row, with its placeholders substituted the same way ${id} was called, does not contain what ${id} actually returned`,
+      ).toContain(actual);
+    }
+  });
+
+  it('accounts for every exported string and formatter, so none is uncatalogued by accident', () => {
+    const exportedStrings = Object.entries(copy).filter(([, v]) => typeof v === 'string').map(([k]) => k);
+    const exportedFunctions = Object.entries(copy).filter(([, v]) => typeof v === 'function').map(([k]) => k);
+
+    const pinnedStringNames = PINNED.map(([id]) => id);
+    const pinnedFormatterNames = FORMATTER_PINNED.map(({ id }) => id);
+
+    // No export may be claimed by both lists in its own domain — that would hide a
+    // real ambiguity about which provenance actually applies.
+    expect(
+      pinnedStringNames.filter((id) => AUTHORED_FRESH.includes(id)),
+      'exported strings claimed by both PINNED and AUTHORED_FRESH',
+    ).toEqual([]);
+    expect(
+      pinnedFormatterNames.filter((id) => AUTHORED_FRESH_FORMATTERS.includes(id)),
+      'exported formatters claimed by both FORMATTER_PINNED and AUTHORED_FRESH_FORMATTERS',
+    ).toEqual([]);
+
+    const accountedStrings = new Set([...pinnedStringNames, ...AUTHORED_FRESH]);
+    const accountedFunctions = new Set([...pinnedFormatterNames, ...AUTHORED_FRESH_FORMATTERS]);
+
+    expect(exportedStrings.filter((name) => !accountedStrings.has(name))).toEqual([]);
+    expect(exportedFunctions.filter((name) => !accountedFunctions.has(name))).toEqual([]);
   });
 });
