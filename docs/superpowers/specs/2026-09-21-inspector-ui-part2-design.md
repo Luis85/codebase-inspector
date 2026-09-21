@@ -1,9 +1,9 @@
 ---
 project: codebase-inspector
 title: WP-02 — Inspector UI, Part 2: Architecture, Hotspots, File detail (design)
-status: draft
+status: approved
 date: 2026-09-21
-branch: feat/wp-02-part2 (stacked on feat/wp-01-codebase-city, which contains Part 1)
+branch: feat/wp-02-part2, folded into feat/wp-01-codebase-city (PR #1). Not stacked: approved 2026-09-21, Part 2 lands on the existing PR.
 baseline: e0440c1
 ---
 
