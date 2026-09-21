@@ -43,4 +43,10 @@ describe('sampleTrend', () => {
     expect(sampleTrend('k', 99, 7, 10)).toEqual(sampleTrend('k', 99, 7, 10));
     for (const v of sampleTrend('k', 99, 7, 10)) { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(100); }
   });
+  it('clamps to a caller-given max instead, so a count is not capped at 100', () => {
+    const t = sampleTrend('k', 240, 7, 10, Infinity);
+    expect(t[6]).toBe(240);
+    expect(t.some((v) => v > 100)).toBe(true);
+    for (const v of t) expect(v).toBeGreaterThanOrEqual(0);
+  });
 });

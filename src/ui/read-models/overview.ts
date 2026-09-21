@@ -18,7 +18,12 @@ export interface OverviewCard {
   trend: readonly number[] | null;
   tone: 'warning' | 'success' | 'danger' | 'accent';
 }
-export interface TrendSeries { id: 'coverage' | 'high-complexity'; label: string; points: readonly { label: string; value: number }[] }
+/** `tone` keys the series colour by WHAT it is, not its position: without coverage the
+ *  complexity series is first, and must not take coverage's colour. */
+export interface TrendSeries {
+  id: 'coverage' | 'high-complexity'; label: string; tone: 'success' | 'accent';
+  points: readonly { label: string; value: number }[];
+}
 export interface Investigation { id: string; icon: string; title: string; detail: string; route: RouteId; entityId: EntityId | null }
 export interface EvidenceCoverageRow { id: string; label: string; state: EvidenceState; source: string }
 export interface OverviewModel {
@@ -82,7 +87,7 @@ export function buildOverviewModel(snapshot: CodebaseSnapshot, files: readonly F
 
   const labels = trendLabels(snapshot.providerRun.capturedAt);
   const coverageTrend = coveragePct === null ? null : sampleTrend(`${snapshot.snapshotId}:coverage`, coveragePct, TREND_POINTS, 4);
-  const complexityTrend = sampleTrend(`${snapshot.snapshotId}:complexity`, Math.min(100, highComplexity), TREND_POINTS, 3);
+  const complexityTrend = sampleTrend(`${snapshot.snapshotId}:complexity`, highComplexity, TREND_POINTS, 3, Infinity);
   const toPoints = (values: readonly number[]) => values.map((value, i) => ({ label: labels[i] ?? '', value }));
 
   const cards: OverviewCard[] = [
@@ -101,8 +106,8 @@ export function buildOverviewModel(snapshot: CodebaseSnapshot, files: readonly F
   ];
 
   const series: TrendSeries[] = [
-    ...(coverageTrend ? [{ id: 'coverage' as const, label: 'Branch coverage (%)', points: toPoints(coverageTrend) }] : []),
-    { id: 'high-complexity', label: 'High-complexity files (count)', points: toPoints(complexityTrend) },
+    ...(coverageTrend ? [{ id: 'coverage' as const, label: 'Branch coverage (%)', tone: 'success' as const, points: toPoints(coverageTrend) }] : []),
+    { id: 'high-complexity', label: 'High-complexity files (count)', tone: 'accent', points: toPoints(complexityTrend) },
   ];
 
   const coverage: EvidenceCoverageRow[] = [

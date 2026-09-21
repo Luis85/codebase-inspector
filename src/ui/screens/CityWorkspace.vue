@@ -1,6 +1,6 @@
 <!--
-  C01 — the city composition (WP-02: moved out of App.vue, which is now the inspector shell). Behaviour unchanged.
-  task 9 ships. Still exposes `rendererHost` (CityViewport's own internal stage div,
+  C01 — the city composition (WP-02: moved out of App.vue, which is now the inspector shell).
+  Behaviour unchanged. Still exposes `rendererHost` (CityViewport's own internal stage div,
   forwarded up through its exposed `stageEl`) for tests that mount `App` directly,
   but task 9 fix round 2, item 1 (ruling M68) ended `city-view.ts`'s own read of it:
   CityViewport is now the SINGLE owner of renderer construction, teardown and

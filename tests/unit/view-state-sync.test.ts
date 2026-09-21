@@ -52,7 +52,7 @@ function makeStoreDouble(): ViewStateSyncTarget & { selectSpy: ReturnType<typeof
 }
 
 describe('pickUiState', () => {
-  it('reads exactly the six UI-facing fields off the store', () => {
+  it('reads exactly the seven UI-facing fields off the store', () => {
     const store = makeStoreDouble();
     store.setCamera(CAMERA_3D);
     store.select(makeEntityId('p1', 'file', 'a.ts'));

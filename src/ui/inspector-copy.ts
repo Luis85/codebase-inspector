@@ -8,6 +8,11 @@ export const OVERVIEW_EYEBROW = 'Workspace / Overview';
 export const OVERVIEW_TITLE = 'A clearer picture of your codebase.';
 export const OVERVIEW_SUBTITLE = 'Understand the signals. Follow the evidence. Improve what matters.';
 export const OVERVIEW_VERDICT_TITLE = 'A review is recommended, not a verdict.';
+/** Final review item 6: the verdict sentence, the hotspot table's caption — relocated
+ *  verbatim out of OverviewScreen.vue. */
+export const OVERVIEW_VERDICT_BODY = (hotspots: string, files: number): string =>
+  `${hotspots} change hotspots deserve investigation across ${files} files.`;
+export const OVERVIEW_HOTSPOTS_TABLE_CAPTION = 'Top change hotspots';
 export const OVERVIEW_NO_SNAPSHOT = 'No snapshot yet. Select a codebase and run a scan to see its overview.';
 
 /** Task 9: the Overview screen's own inline button labels and panel titles/subtitles/

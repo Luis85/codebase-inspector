@@ -29,13 +29,14 @@ export function sampleFileSignals(entityId: EntityId): FileSignals {
 }
 
 /** A sample history that ENDS at the real current value, walking backwards by at most
- *  `maxStep` per point, clamped to [0, 100]. */
-export function sampleTrend(seedKey: string, endValue: number, points: number, maxStep: number): number[] {
+ *  `maxStep` per point, clamped to [0, max]. `max` defaults to 100 (a percentage); a
+ *  count passes `Infinity` so it is never capped at 100. */
+export function sampleTrend(seedKey: string, endValue: number, points: number, maxStep: number, max = 100): number[] {
   const r = mulberry32(fnv1a(seedKey));
   const values = [endValue];
   for (let i = 1; i < points; i += 1) {
     const prev = values[0] ?? endValue;
-    const next = Math.min(100, Math.max(0, Math.round(prev - (r() * 2 - 0.8) * maxStep)));
+    const next = Math.min(max, Math.max(0, Math.round(prev - (r() * 2 - 0.8) * maxStep)));
     values.unshift(next);
   }
   return values;

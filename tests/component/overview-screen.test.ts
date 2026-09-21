@@ -55,6 +55,19 @@ describe('OverviewScreen', () => {
     expect(store.selectedEntityId).not.toBeNull();
   });
 
+  it('an investigation that lands on a file in the city opens the inspector, like a hotspot row', async () => {
+    withSnapshot();
+    const store = useCityStore();
+    const w = mountOverview();
+    const toCity = w.findAll('.ci-investigation').find((b) => b.text().startsWith('Inspect'));
+    expect(toCity).toBeDefined();
+    await toCity!.trigger('click');
+    expect(store.route).toBe('city');
+    expect(store.selectedEntityId).not.toBeNull();
+    expect(store.inspectorOpen).toBe(true);
+    expect(store.camera).toBeNull();
+  });
+
   it('lists evidence coverage including unknown sources', () => {
     withSnapshot();
     const text = mountOverview().find('.ci-evidence-coverage').text();

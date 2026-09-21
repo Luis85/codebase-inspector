@@ -34,8 +34,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
-// Side-effect import: installs the jsdom gaps and the win/doc prototype extensions real
-// Obsidian patches onto HTMLElement.
+// Side-effect import: installs the win/doc prototype extensions real Obsidian patches
+// onto HTMLElement (the jsdom gaps come from vitest.config.ts's jsdom `setupFiles`).
 import '../mocks/obsidian';
 import CityViewport from '../../src/ui/components/CityViewport.vue';
 import type { CityRendererEvent, CreateCityRenderer } from '../../src/visualization/renderer-port';

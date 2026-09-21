@@ -75,6 +75,7 @@ defineExpose({ rendererHost });
   <div
     ref="rootEl"
     class="ci-shell"
+    tabindex="-1"
     :class="{ 'ci-shell--nav-inline': navInline, 'ci-shell--nav-open': navOpen && !navInline }"
     @keydown="onShellKeydown"
   >

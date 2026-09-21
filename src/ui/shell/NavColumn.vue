@@ -8,7 +8,7 @@ import { useReviewStore } from '../stores/review-store';
 import { useReadModels } from '../read-models/use-read-models';
 import Icon from '../kit/Icon.vue';
 
-defineProps<{ drawer: boolean; workspaceLabel: string }>();
+const props = defineProps<{ drawer: boolean; workspaceLabel: string }>();
 const emit = defineEmits<{ navigate: [route: RouteId]; close: [] }>();
 
 const store = useCityStore();
@@ -16,13 +16,21 @@ const review = useReviewStore();
 const { overview } = useReadModels();
 const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
 
-const badges = computed<Partial<Record<RouteId, number>>>(() => ({
-  quality: overview.value?.cards.find((c) => c.id === 'findings')?.value.value ?? undefined,
-  workbench: review.workItemCount || undefined,
-}));
+/** Only COLLECTED counts become nav badges: a nav badge carries no Sample label, so a
+ *  sample findings count would read as measured (spec §9 A11 — none are collected in
+ *  Part 1, so the Code quality badge is absent). Work items are real, in-memory. */
+const badges = computed<Partial<Record<RouteId, number>>>(() => {
+  const findings = overview.value?.cards.find((c) => c.id === 'findings')?.value;
+  return {
+    quality: findings?.state === 'collected' ? findings.value : undefined,
+    workbench: review.workItemCount || undefined,
+  };
+});
 
+/** Escape closes the nav only as a DRAWER (spec §9 A12); the inline column leaves the
+ *  press unclaimed so the city's own escape chain still resolves it. */
 function onKeydown(event: KeyboardEvent): void {
-  if (event.key !== 'Escape') return;
+  if (event.key !== 'Escape' || !props.drawer) return;
   event.preventDefault();
   event.stopPropagation();
   emit('close');

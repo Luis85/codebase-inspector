@@ -11,7 +11,8 @@ import {
   OVERVIEW_EYEBROW, OVERVIEW_HOTSPOTS_PANEL_SUBTITLE, OVERVIEW_HOTSPOTS_PANEL_TITLE,
   OVERVIEW_INVESTIGATIONS_PANEL_SUBTITLE, OVERVIEW_INVESTIGATIONS_PANEL_TITLE, OVERVIEW_NO_SNAPSHOT,
   OVERVIEW_SIGNALS_PANEL_FOOTNOTE, OVERVIEW_SIGNALS_PANEL_SUBTITLE, OVERVIEW_SIGNALS_PANEL_TITLE,
-  OVERVIEW_SUBTITLE, OVERVIEW_TITLE, OVERVIEW_VERDICT_TITLE, OVERVIEW_VIEW_EVOLUTION_LABEL,
+  OVERVIEW_HOTSPOTS_TABLE_CAPTION, OVERVIEW_SUBTITLE, OVERVIEW_TITLE, OVERVIEW_VERDICT_BODY,
+  OVERVIEW_VERDICT_TITLE, OVERVIEW_VIEW_EVOLUTION_LABEL,
   SAMPLE_DATA_DETAIL, SAMPLE_DATA_NOTICE,
 } from '../inspector-copy';
 import { COPY_02 } from '../copy';
@@ -52,9 +53,12 @@ function openFile(row: FileSummary): void {
   store.openInspector();
 }
 
+/** Same rule as `openFile`: an investigation that lands on a FILE in the city opens
+ *  the inspector on it, rather than leaving a selection with no visible detail. */
 function openInvestigation(item: Investigation): void {
   if (item.entityId) store.select(item.entityId);
   store.navigate(item.route);
+  if (item.entityId && item.route === 'city') store.openInspector();
 }
 </script>
 
@@ -100,7 +104,7 @@ function openInvestigation(item: Investigation): void {
         :title="OVERVIEW_VERDICT_TITLE"
         :badge="overview.usesSample ? SAMPLE_DATA_NOTICE : undefined"
       >
-        {{ hotspotCountLabel }} change hotspots deserve investigation across {{ overview.fileCount }} files.
+        {{ OVERVIEW_VERDICT_BODY(hotspotCountLabel, overview.fileCount) }}
         {{ overview.usesSample ? SAMPLE_DATA_DETAIL : '' }}
       </Callout>
 
@@ -133,7 +137,7 @@ function openInvestigation(item: Investigation): void {
             </button>
           </template>
           <LineChart
-            label="Signals over time"
+            :label="OVERVIEW_SIGNALS_PANEL_TITLE"
             :series="overview.series"
           />
         </Panel>
@@ -162,7 +166,7 @@ function openInvestigation(item: Investigation): void {
             :columns="columns"
             :rows="overview.hotspots"
             :row-key="(r) => r.id"
-            caption="Top change hotspots"
+            :caption="OVERVIEW_HOTSPOTS_TABLE_CAPTION"
             :initial-sort="{ key: 'priority', dir: 'desc' }"
             @activate="openFile"
           >

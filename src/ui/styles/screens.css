@@ -1,12 +1,17 @@
-/* WP-02 screens. The city screen is a flex column so its PageHeader/cards (Task 10) and
-   the unchanged `.ci-app` share the content height; `.ci-app`'s own `height: 100%`
-   (styles.css, pinned by stage-height.test.ts) is overridden only inside this screen. */
+/* WP-02 screens. The city screen is a flex column holding its PageHeader, the unchanged
+   `.ci-app` and the summary cards (Task 10). `.ci-app`'s own `height: 100%` (styles.css,
+   pinned by stage-height.test.ts) is overridden only inside this screen: the stage keeps
+   the full leaf height, floored at 420px, and never shrinks to share it with the header
+   and cards, which go below the fold — `.ci-shell__content` scrolls. The height stays
+   DEFINITE (a `height`, not only a `min-height` over `height: auto`): an auto height
+   would size the stage row by the file list again, stage-height.test.ts's defect 5.
+   Pinned by tests/unit/city-stage-floor.test.ts. */
 :where(.codebase-inspector-root) .ci-screen {
   display: flex; flex-direction: column; gap: var(--ci-space-5);
   padding: var(--ci-space-6); box-sizing: border-box; min-width: 0;
 }
 :where(.codebase-inspector-root) .ci-screen--city { height: 100%; padding: 0; gap: 0; }
-:where(.codebase-inspector-root) .ci-screen--city > .ci-app { flex: 1 1 0; min-height: 0; height: auto; }
+:where(.codebase-inspector-root) .ci-screen--city > .ci-app { flex: none; min-height: 420px; height: max(420px, 100%); }
 
 /* Task 9: the Overview screen. */
 :where(.codebase-inspector-root) .ci-overview__cards { display: grid; gap: var(--ci-space-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }

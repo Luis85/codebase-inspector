@@ -104,14 +104,18 @@
 :where(.codebase-inspector-root) .ci-line-chart__grid line { stroke: var(--ci-border); stroke-dasharray: 3 4; }
 :where(.codebase-inspector-root) .ci-line-chart__grid text { fill: var(--ci-text-faint); font-size: 11px; }
 :where(.codebase-inspector-root) .ci-line-chart__line { stroke-width: 2; }
-:where(.codebase-inspector-root) .ci-line-chart__line--0 { stroke: var(--ci-tone-success); }
-:where(.codebase-inspector-root) .ci-line-chart__line--1 { stroke: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-line-chart__line--success { stroke: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-line-chart__line--accent { stroke: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-line-chart__line--warning { stroke: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-line-chart__line--danger { stroke: var(--ci-tone-danger); }
 :where(.codebase-inspector-root) .ci-line-chart__legend { display: flex; gap: var(--ci-space-4); color: var(--ci-text-muted); font-size: var(--font-ui-smaller); }
 :where(.codebase-inspector-root) .ci-line-chart__key::before {
   content: ''; display: inline-block; width: 10px; height: 6px; margin-right: var(--ci-space-1); border-radius: 2px;
 }
-:where(.codebase-inspector-root) .ci-line-chart__key--0::before { background: var(--ci-tone-success); }
-:where(.codebase-inspector-root) .ci-line-chart__key--1::before { background: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-line-chart__key--success::before { background: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-line-chart__key--accent::before { background: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-line-chart__key--warning::before { background: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-line-chart__key--danger::before { background: var(--ci-tone-danger); }
 
 :where(.codebase-inspector-root) .ci-dialog__backdrop {
   position: absolute; inset: 0; z-index: 40; display: flex; justify-content: center; align-items: flex-start;

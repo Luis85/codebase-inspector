@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { defineComponent, h, ref } from 'vue';
 import EvidenceTable from '../../src/ui/kit/EvidenceTable.vue';
 import LineChart from '../../src/ui/kit/LineChart.vue';
 import Dialog from '../../src/ui/kit/Dialog.vue';
 import type { TableColumn } from '../../src/ui/kit/table-types';
+// Side-effect import: Obsidian's DOM prototype extensions (`instanceOf`, used by Dialog).
+import '../mocks/obsidian';
+import { createPopoutWindow } from '../mocks/window-harness';
 
 interface Row { id: string; name: string; n: number | null }
 const rows: Row[] = [{ id: 'a', name: 'Alpha', n: 2 }, { id: 'b', name: 'Beta', n: 9 }, { id: 'c', name: 'Gamma', n: null }];
@@ -58,6 +61,14 @@ describe('LineChart', () => {
     expect(w.findAll('path.ci-line-chart__line')).toHaveLength(2);
     expect(w.find('table.visually-hidden').text()).toContain('Jun 15');
   });
+
+  it('colours a series by its own tone, not its position (final review item 5)', () => {
+    const w = mount(LineChart, { props: { label: 'Signals', series: [
+      { id: 'b', label: 'B', tone: 'accent', points: [{ label: 'Jun 01', value: 5 }, { label: 'Jun 15', value: 7 }] },
+    ] } });
+    expect(w.find('path.ci-line-chart__line').classes()).toContain('ci-line-chart__line--accent');
+    expect(w.find('.ci-line-chart__key').classes()).toContain('ci-line-chart__key--accent');
+  });
 });
 
 describe('Dialog', () => {
@@ -65,9 +76,11 @@ describe('Dialog', () => {
   // component name that collides with the native <dialog> HTML element.
   const Host = defineComponent({
     components: { CiDialog: Dialog },
-    setup() { const open = ref(false); return { open }; },
-    template: `<div><button class="opener" @click="open = true">Open</button>
-      <CiDialog v-if="open" label="Palette" @close="open = false"><input class="first"><button class="last">x</button></CiDialog></div>`,
+    // `dropOpenerOnClose` unmounts the opener in the same flush as the dialog — what a
+    // palette navigation does to an opener on the screen it leaves.
+    setup() { const open = ref(false); const showOpener = ref(true); const dropOpenerOnClose = ref(false); return { open, showOpener, dropOpenerOnClose }; },
+    template: `<div class="ci-shell" tabindex="-1"><button v-if="showOpener" class="opener" @click="open = true">Open</button>
+      <CiDialog v-if="open" label="Palette" @close="open = false; showOpener = !dropOpenerOnClose"><input class="first"><button class="last">x</button></CiDialog></div>`,
   });
 
   it('focuses the first control, closes on Escape without letting it bubble, and restores focus', async () => {
@@ -94,4 +107,40 @@ describe('Dialog', () => {
     expect(document.activeElement).toBe(w.find('.first').element);
     w.unmount();
   });
+
+  // Final review item 1: an opener in an Obsidian pop-out is an instance of THAT realm's
+  // HTMLElement, so a plain `instanceof` dropped it and focus was never restored. The
+  // popout harness gives a genuinely foreign-realm element (window-migration.test.ts).
+  it('restores focus to an opener from another window realm', () => {
+    const popout = createPopoutWindow();
+    const foreign = popout.doc.body.createEl('button', { text: 'Opener in the pop-out' });
+    expect(Object.prototype.isPrototypeOf.call(HTMLElement.prototype, foreign)).toBe(false);
+    Object.defineProperty(document, 'activeElement', { get: () => foreign, configurable: true });
+    let w;
+    try {
+      w = mount(Dialog, { props: { label: 'Palette' }, attachTo: document.body });
+    } finally {
+      delete (document as unknown as Record<string, unknown>).activeElement;
+    }
+    w.unmount();
+    expect(popout.doc.activeElement).toBe(foreign);
+    popout.destroy();
+  });
+
+  // Final review item 1: the palette can navigate away and unmount the screen that held
+  // its opener; focus then falls back to the shell root instead of dropping to <body>.
+  it('falls back to the enclosing .ci-shell when the opener is no longer connected', async () => {
+    const w = mount(Host, { attachTo: document.body });
+    (w.vm as unknown as { dropOpenerOnClose: boolean }).dropOpenerOnClose = true;
+    const opener = w.find('.opener');
+    (opener.element as HTMLElement).focus();
+    await opener.trigger('click');
+    await flushPromises();
+    await w.find('[role="dialog"]').trigger('keydown', { key: 'Escape' });
+    expect(w.find('.opener').exists()).toBe(false);
+    expect(document.activeElement).toBe(w.find('.ci-shell').element);
+    w.unmount();
+  });
 });
+
+afterEach(() => { document.body.innerHTML = ''; });

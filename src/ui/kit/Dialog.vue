@@ -14,15 +14,26 @@ function focusables(): HTMLElement[] {
 
 onMounted(async () => {
   const active = panel.value?.ownerDocument.activeElement;
-  returnFocus = active instanceof HTMLElement ? active : null;
+  // `.instanceOf()`, never a plain `instanceof` (spec 4.4's cross-window rule): an opener
+  // in an Obsidian pop-out is an instance of THAT window's HTMLElement, so `instanceof`
+  // is false there and focus was never restored (scope-modal.ts, FileSearch.vue).
+  returnFocus = active?.instanceOf(HTMLElement) ? active : null;
   await nextTick();
   focusables()[0]?.focus();
 });
 
-onBeforeUnmount(() => { returnFocus?.focus(); });
+/** Restores focus to the opener. When the opener is gone (e.g. the palette navigated
+ *  away and the screen that held it unmounted), focus falls back to the shell root
+ *  (App.vue's focusable `.ci-shell`) so it never drops to <body> outside the leaf. */
+onBeforeUnmount(() => {
+  if (returnFocus?.isConnected) { returnFocus.focus(); return; }
+  panel.value?.closest<HTMLElement>('.ci-shell')?.focus();
+});
 
-/** Escape is claimed here (preventDefault + stopPropagation) so the city's document-level
- *  escape chain (CityWorkspace.vue) never also resolves it — spec 5.2's "one layer per press". */
+/** Escape is claimed here so the city's escape chain (CityWorkspace.vue) never also
+ *  resolves it — spec 5.2's "one layer per press". That chain returns early on
+ *  `event.defaultPrevented`; stopPropagation additionally keeps the press from ever
+ *  reaching the document. */
 function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
     event.preventDefault();

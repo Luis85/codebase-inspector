@@ -2,7 +2,10 @@
 import { computed } from 'vue';
 
 interface Point { label: string; value: number }
-interface Series { id: string; label: string; points: readonly Point[] }
+type Tone = 'success' | 'accent' | 'warning' | 'danger';
+/** `tone` keys a series' colour to the series itself; without one, colour falls back to
+ *  position (the first series success, the rest accent). */
+interface Series { id: string; label: string; tone?: Tone; points: readonly Point[] }
 const props = defineProps<{ series: readonly Series[]; label: string }>();
 
 const W = 600; const H = 200; const PAD_L = 32; const PAD_B = 22; const PAD_T = 8;
@@ -13,8 +16,9 @@ const labels = computed(() => props.series[0]?.points.map((p) => p.label) ?? [])
 const x = (i: number, n: number): number => PAD_L + (n > 1 ? (i * (W - PAD_L - 8)) / (n - 1) : 0);
 const y = (v: number): number => PAD_T + (H - PAD_T - PAD_B) * (1 - v / yMax.value);
 
+const toneOf = (s: Series, i: number): Tone => s.tone ?? (i === 0 ? 'success' : 'accent');
 const paths = computed(() => props.series.map((s, si) => ({
-  id: s.id, index: si,
+  id: s.id, tone: toneOf(s, si),
   d: s.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i, s.points.length).toFixed(1)},${y(p.value).toFixed(1)}`).join(' '),
 })));
 </script>
@@ -55,7 +59,7 @@ const paths = computed(() => props.series.map((s, si) => ({
         v-for="p in paths"
         :key="p.id"
         class="ci-line-chart__line"
-        :class="`ci-line-chart__line--${p.index}`"
+        :class="`ci-line-chart__line--${p.tone}`"
         :d="p.d"
         fill="none"
       />
@@ -65,7 +69,7 @@ const paths = computed(() => props.series.map((s, si) => ({
         v-for="(s, i) in series"
         :key="s.id"
         class="ci-line-chart__key"
-        :class="`ci-line-chart__key--${i}`"
+        :class="`ci-line-chart__key--${toneOf(s, i)}`"
       >{{ s.label }}</span>
     </figcaption>
     <table class="visually-hidden">

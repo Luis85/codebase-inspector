@@ -95,6 +95,24 @@ describe('overview model', () => {
     expect(m.investigations).toHaveLength(0);
     expect(m.cards.find((c) => c.id === 'coverage')?.value.state).toBe('unknown');
   });
+
+  // Final review item 5: colour is keyed by series id, so with coverage absent the
+  // complexity series is first yet keeps its own (accent) tone.
+  it('tones each series by what it is, not by its position', () => {
+    expect(model.series.map((s) => [s.id, s.tone])).toEqual([['coverage', 'success'], ['high-complexity', 'accent']]);
+    const empty = buildSnapshotFixture({ files: 0 });
+    const m = buildOverviewModel(empty, fileSummariesFor(empty));
+    expect(m.series.map((s) => [s.id, s.tone])).toEqual([['high-complexity', 'accent']]);
+  });
+
+  it('never caps the high-complexity COUNT series at 100', () => {
+    const big = buildSnapshotFixture({ files: 900, directories: 6 });
+    const bigFiles = fileSummariesFor(big);
+    const count = bigFiles.filter((f) => (f.complexity.value ?? 0) >= 30).length;
+    expect(count).toBeGreaterThan(100);
+    const series = buildOverviewModel(big, bigFiles).series.find((s) => s.id === 'high-complexity');
+    expect(series?.points.at(-1)?.value).toBe(count);
+  });
 });
 
 describe('city summary', () => {

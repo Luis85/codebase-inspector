@@ -8,6 +8,8 @@
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
 }
+/* Focusable only as the Dialog's focus-restore fallback (tabindex="-1"); never tabbable. */
+:where(.codebase-inspector-root) .ci-shell:focus { outline: none; }
 :where(.codebase-inspector-root) .ci-shell--nav-inline { grid-template-columns: var(--ci-nav-width) minmax(0, 1fr); }
 :where(.codebase-inspector-root) .ci-shell__nav { display: none; }
 :where(.codebase-inspector-root) .ci-shell--nav-inline .ci-shell__nav { display: flex; grid-row: 1 / span 2; }
