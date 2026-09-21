@@ -1,6 +1,6 @@
 // fixtures/sample-evolution.ts — Part 3 Q10: SAMPLE commit activity and change coupling.
 // Coupling pairs real files of one module; it is correlation, never an import claim.
-import type { FileSummary } from '../read-models/file-summaries';
+import { groupByModule, type FileSummary } from '../read-models/file-summaries';
 import { fnv1a, mulberry32 } from './seeded-random';
 
 export type ChangeWindow = 30 | 90;
@@ -17,11 +17,7 @@ export interface SampleCoupling { a: FileSummary; b: FileSummary; rate: number; 
 
 /** `ordered` is the caller's priority order; the first `limit` distinct pairs win. */
 export function sampleCoupling(ordered: readonly FileSummary[], limit: number): SampleCoupling[] {
-  const byModule = new Map<string, FileSummary[]>();
-  for (const f of ordered) {
-    const g = byModule.get(f.module);
-    if (g) g.push(f); else byModule.set(f.module, [f]);
-  }
+  const byModule = groupByModule(ordered);
   const seen = new Set<string>();
   const pairs: SampleCoupling[] = [];
   for (const a of ordered) {

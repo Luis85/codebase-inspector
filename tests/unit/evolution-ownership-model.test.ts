@@ -5,6 +5,7 @@ import { journalEntryFor } from '../../src/ui/read-models/snapshot-comparison';
 import { buildEvolutionModel } from '../../src/ui/read-models/evolution';
 import { buildOwnershipModel, stewardshipCsv } from '../../src/ui/read-models/ownership';
 import { sampleCoupling } from '../../src/ui/fixtures/sample-evolution';
+import { SAMPLE_TEAM_LABELS } from '../../src/ui/inspector-copy';
 
 const snap = buildSnapshotFixture({ files: 60, directories: 4 });
 const files = fileSummariesFor(snap);
@@ -72,6 +73,10 @@ describe('ownership model (Part 3 Q11)', () => {
     for (const forbidden of ['author', 'authors', 'person', 'people', 'contributor', 'contributors', 'owner', 'email', 'user']) {
       expect(keys.has(forbidden)).toBe(false);
     }
+  });
+  it('every team label is one of the sample team labels, never a person', () => {
+    expect(m.rows.length).toBeGreaterThan(0);
+    expect(m.rows.every((r) => SAMPLE_TEAM_LABELS.includes(r.team.value!))).toBe(true);
   });
   it('proposes three knowledge-sharing actions for the three most concentrated modules', () => {
     expect(m.actions.map((a) => a.intent)).toEqual(['pairing', 'tests', 'documentation']);
