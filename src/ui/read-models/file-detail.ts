@@ -4,13 +4,13 @@ import type { EntityId } from '../../domain/entity-id';
 import type { CodebaseSnapshot } from '../../domain/model';
 import { collected, formatMetric, hasValue, isSampleBacked, unknown, type MetricValue } from '../evidence';
 import { sampleTrend } from '../fixtures/sample-signals';
-import { sampleFindings, type SampleFinding } from '../fixtures/sample-findings';
+import type { SampleFinding } from '../fixtures/sample-findings';
 import {
   FILE_CARD_COMPLEXITY, FILE_CARD_COMPLEXITY_CAPTION, FILE_CARD_COVERAGE, FILE_CARD_COVERAGE_CAPTION,
   FILE_CARD_DEPENDENTS, FILE_CARD_DEPENDENTS_CAPTION, FILE_CARD_PRIORITY, FILE_CARD_PRIORITY_CAPTION,
-  FILE_HISTORY_COMPLEXITY, FILE_HISTORY_COVERAGE, FINDING_TITLE, NOT_MEASURED_REASON, PRIORITY_SCALE_SUFFIX,
+  FILE_HISTORY_COMPLEXITY, FILE_HISTORY_COVERAGE, NOT_MEASURED_REASON, PRIORITY_SCALE_SUFFIX,
 } from '../inspector-copy';
-import { findingFingerprint } from './findings';
+import { titledFindings } from './findings';
 import { moduleLabel, type FileSummary } from './file-summaries';
 import { TREND_POINTS, trendLabels } from './overview';
 
@@ -68,7 +68,7 @@ export function buildFileDetail(snapshot: CodebaseSnapshot, files: readonly File
     bytes: bytesOf(snapshot, file.id),
     cards,
     findingsCount: file.findings,
-    findings: sampleFindings(file).map((f) => ({ ...f, title: FINDING_TITLE[f.kind], fingerprint: findingFingerprint(file.id, f.id) })),
+    findings: titledFindings(file),
     history,
     usesSample: cards.some((c) => isSampleBacked(c.value)),
   };

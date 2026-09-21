@@ -34,14 +34,21 @@ export function findingFingerprint(fileId: EntityId, findingId: string): string 
   return `${fileId}#${findingId}`;
 }
 
+/** Fold-in: the one place a file's sample findings gain their display title and their
+ *  durable fingerprint — shared by File detail (one file) and Code quality (every file),
+ *  so the two screens can never disagree on either. */
+export function titledFindings(file: FileSummary): FileFinding[] {
+  return sampleFindings(file).map((f) => ({ ...f, title: FINDING_TITLE[f.kind], fingerprint: findingFingerprint(file.id, f.id) }));
+}
+
 type BaseFinding = Omit<QualityFinding, 'status' | 'reason'>;
 const baseCache = new WeakMap<readonly FileSummary[], readonly BaseFinding[]>();
 /** Generated once per files array, in priority order; decisions are merged per call. */
 function baseFindings(files: readonly FileSummary[]): readonly BaseFinding[] {
   let hit = baseCache.get(files);
   if (!hit) {
-    hit = filesByPriority(files).flatMap((file) => sampleFindings(file).map((f) => ({
-      ...f, title: FINDING_TITLE[f.kind], fingerprint: findingFingerprint(file.id, f.id), file, moduleLabel: moduleLabel(file.module),
+    hit = filesByPriority(files).flatMap((file) => titledFindings(file).map((f) => ({
+      ...f, file, moduleLabel: moduleLabel(file.module),
     })));
     baseCache.set(files, hit);
   }

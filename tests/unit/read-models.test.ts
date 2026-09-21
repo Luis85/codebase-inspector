@@ -207,13 +207,21 @@ describe('read-model memoization', () => {
     expect(b.architecture.value).toBe(a.architecture.value);
   });
 
-  // Part 3 Q1-Q3: two callers share one Code quality model per (files, dispositions).
-  it('two callers share one Quality model per (files, dispositions)', () => {
+  // Part 3 Q1-Q3: two callers share one Code quality model per (files, dispositions), and
+  // deciding a finding (which reassigns review.dispositions) rebuilds it for both.
+  it('two callers share one Quality model per (files, dispositions)', async () => {
     const store = useCityStore();
     const snap = buildSnapshotFixture({ files: 20, directories: 2 });
     store.setCity(snap, computeLayout(snap));
     const a = useReadModels();
     const b = useReadModels();
-    expect(a.quality.value).toBe(b.quality.value);
+    const before = a.quality.value;
+    expect(b.quality.value).toBe(before);
+    expect(before.findings.length).toBeGreaterThan(0);
+    const fingerprint = before.findings[0]!.fingerprint;
+    await useReviewStore().acknowledge(fingerprint, new Date());
+    expect(a.quality.value).not.toBe(before);
+    expect(a.quality.value.byFingerprint.get(fingerprint)?.status).toBe('acknowledged');
+    expect(b.quality.value).toBe(a.quality.value);
   });
 });

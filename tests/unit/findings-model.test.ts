@@ -15,6 +15,7 @@ describe('code quality model (Part 3 Q1-Q3)', () => {
     const m = buildQualityModel(files, []);
     const expected = files.reduce((n, f) => n + (f.findings.value ?? 0), 0);
     expect(m.findings).toHaveLength(expected);
+    expect(m.findings.length).toBeGreaterThan(0);
     expect(m.findings.every((f) => f.status === 'open')).toBe(true);
   });
 
@@ -72,7 +73,7 @@ describe('code quality model (Part 3 Q1-Q3)', () => {
   it('exports status and reason; an unknown line is an empty cell with its state', () => {
     const m = buildQualityModel(files, []);
     const f = m.findings[0]!;
-    const [header, row] = findingsCsv([{ ...f, status: 'dismissed', reason: '=cmd' }]).replace('﻿', '').split('\r\n');
+    const [header, row] = findingsCsv([{ ...f, status: 'dismissed', reason: '=cmd' }]).replace('\uFEFF', '').split('\r\n');
     expect(header).toBe('id,path,module,kind,severity,line,line_state,status,reason,provenance');
     expect(row).toContain(",dismissed,'=cmd,sample");
     expect(findingsCsv([{ ...f, line: null }]).split('\r\n')[1]).toContain(',,unknown,');
