@@ -16,12 +16,15 @@ import FileHeader from './file/FileHeader.vue';
 import SourceContextPanel from './file/SourceContextPanel.vue';
 import FileFindingsPanel from './file/FileFindingsPanel.vue';
 import FileWorkItemsPanel from './file/FileWorkItemsPanel.vue';
+import FindingReviewDialog from './quality/FindingReviewDialog.vue';
 
 const store = useCityStore();
 const review = useReviewStore();
-const { fileDetail } = useReadModels();
+const { fileDetail, quality } = useReadModels();
 const liveMessage = ref('');
-watch(() => store.selectedEntityId, () => { liveMessage.value = ''; });
+/** The fingerprint under review; the dialog is shared with Code quality. */
+const reviewing = ref<string | null>(null);
+watch(() => store.selectedEntityId, () => { liveMessage.value = ''; reviewing.value = null; });
 
 const workItems = computed(() => {
   const id = fileDetail.value?.file.id;
@@ -98,6 +101,8 @@ async function addWorkItem(): Promise<void> {
         <FileFindingsPanel
           :findings="fileDetail.findings"
           :count="fileDetail.findingsCount"
+          :statuses="quality.byFingerprint"
+          @review="reviewing = $event"
         />
       </div>
       <div class="ci-file-detail__grid">
@@ -120,6 +125,14 @@ async function addWorkItem(): Promise<void> {
         </Panel>
         <FileWorkItemsPanel :items="workItems" />
       </div>
+      <!-- Already this file's detail: "Open file detail" only closes the dialog. -->
+      <FindingReviewDialog
+        v-if="reviewing"
+        :fingerprint="reviewing"
+        @close="reviewing = null"
+        @open-file="reviewing = null"
+        @announce="liveMessage = $event"
+      />
     </template>
   </div>
 </template>

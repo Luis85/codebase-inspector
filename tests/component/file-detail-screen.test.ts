@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import '../mocks/obsidian';
 import FileDetailScreen from '../../src/ui/screens/FileDetailScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
+import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
@@ -89,6 +91,29 @@ describe('FileDetailScreen', () => {
     await w.find('.ci-source-context__copy').trigger('click');
     await flushPromises();
     expect(w.text()).toContain('Could not copy the path.');
+    w.unmount();
+  });
+
+  it('a finding opens the Finding review dialog for that finding, with its status', async () => {
+    const snap = buildSnapshotFixture({ files: 12, directories: 2 });
+    const store = useCityStore();
+    store.setCity(snap, computeLayout(snap));
+    const finding = useReadModels().quality.value.findings[0]!;
+    store.select(finding.file.id);
+    store.navigate('file');
+    const w = mountFile();
+    const buttons = w.findAll('.ci-finding__review');
+    expect(buttons.length).toBeGreaterThan(0);
+    expect(buttons[0]!.text()).toContain('Open');
+    await buttons[0]!.trigger('click');
+    expect(w.find('.ci-finding-dialog').exists()).toBe(true);
+    expect(w.find('.ci-finding-dialog').text()).toContain(finding.id);
+    await w.find('.ci-finding-dialog__acknowledge').trigger('click');
+    await flushPromises();
+    expect(buttons[0]!.text()).toContain('Acknowledged');
+    await w.find('.ci-finding-dialog__open-file').trigger('click');
+    expect(w.find('.ci-finding-dialog').exists()).toBe(false);
+    expect(store.route).toBe('file');
     w.unmount();
   });
 });
