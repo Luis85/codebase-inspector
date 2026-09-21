@@ -38,4 +38,16 @@ describe('review store', () => {
     expect(store.workItemCount).toBe(0);
     expect(await repo.listWorkItems()).toHaveLength(0);
   });
+
+  it('generates the next ID correctly when repository has gaps in numeric suffixes', async () => {
+    const repo = createInMemoryReviewRepository();
+    await repo.saveWorkItem({ id: 'wi-3', entityId: 'e1', title: 't1', status: 'investigate', createdAt: NOW.toISOString() });
+    await repo.saveWorkItem({ id: 'wi-5', entityId: 'e2', title: 't2', status: 'investigate', createdAt: NOW.toISOString() });
+    const store = useReviewStore();
+    store.setRepository(repo);
+    await store.load();
+    const newItem = await store.addWorkItemForFile('e3', 't3', NOW);
+    expect(newItem?.id).toBe('wi-6');
+    expect(await repo.listWorkItems()).toHaveLength(3);
+  });
 });

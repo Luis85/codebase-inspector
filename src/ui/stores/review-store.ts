@@ -26,7 +26,15 @@ export const useReviewStore = defineStore('review', {
     },
     async load(): Promise<void> {
       this.workItems = await this.repository.listWorkItems();
-      this.nextId = this.workItems.length + 1;
+      let maxId = 0;
+      for (const item of this.workItems) {
+        const match = item.id.match(/^wi-(\d+)$/);
+        if (match?.[1]) {
+          const num = parseInt(match[1], 10);
+          if (num > maxId) maxId = num;
+        }
+      }
+      this.nextId = maxId + 1;
     },
     /** One work item per file; a second request for the same file is refused (null). */
     async addWorkItemForFile(entityId: EntityId, title: string, now: Date): Promise<WorkItem | null> {
