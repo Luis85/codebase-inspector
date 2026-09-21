@@ -325,3 +325,9 @@ export function setActiveDocument(doc: Document): () => void {
   globals.activeDocument = doc;
   return () => { globals.activeDocument = previous; };
 }
+
+/** WP-02: the real setIcon injects a Lucide SVG. Tests and the harness only need to see
+ *  which icon was asked for. */
+export function setIcon(el: HTMLElement, iconId: string): void {
+  el.dataset.icon = iconId;
+}

@@ -164,6 +164,15 @@ export default tseslint.config(
     },
   },
 
+  // WP-02 task 5: src/ui/kit/** is a low-level display-primitive kit (Icon, Callout,
+  // Panel, Sparkline, ...) whose names are deliberately single words, matching common
+  // UI-kit convention and the task brief's own verbatim component names. vue/multi-word-
+  // component-names exists to keep app-level components from colliding with native/
+  // future HTML elements; these are internal, PascalCase-imported kit primitives, never
+  // registered as custom elements, so the collision risk the rule guards against does
+  // not apply here. Scoped to this one directory rather than weakened project-wide.
+  { files: ['src/ui/kit/**/*.vue'], rules: { 'vue/multi-word-component-names': 'off' } },
+
   // Rule 1 — size
   { files: ['src/**/*.{ts,vue}'], rules: { 'max-lines': ['error', 400] } },
   { files: ['tests/**/*.ts'], rules: { 'max-lines': ['error', 450] } },

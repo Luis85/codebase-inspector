@@ -1,0 +1,85 @@
+/* WP-02 token extension. Same bridge rules as styles.css: alias Obsidian variables, never
+   redefine them. Data-viz tones are the only plugin-owned colours. */
+:where(.codebase-inspector-root) {
+  --ci-tone-accent: var(--interactive-accent);
+  --ci-tone-success: var(--color-green, #5fb98a);
+  --ci-tone-warning: var(--color-orange, #d99a5b);
+  --ci-tone-danger: var(--color-red, #d9707a);
+  --ci-sample: var(--color-yellow, #c9a44a);
+  --ci-font-mono: var(--font-monospace);
+  --ci-text-faint: var(--text-faint);
+  --ci-radius-card: 8px;
+  --ci-nav-width: 220px;
+}
+:where(.codebase-inspector-root) .ci-icon { display: inline-flex; width: 16px; height: 16px; color: currentColor; }
+:where(.codebase-inspector-root) .ci-icon svg { width: 16px; height: 16px; }
+
+:where(.codebase-inspector-root) .ci-provenance {
+  display: inline-flex; align-items: center; padding: 1px var(--ci-space-2);
+  border-radius: var(--ci-radius-small); border: 1px solid currentColor;
+  font-size: var(--font-ui-smaller); text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--ci-text-muted);
+}
+:where(.codebase-inspector-root) .ci-provenance--sample { color: var(--ci-sample); }
+:where(.codebase-inspector-root) .ci-provenance--stale,
+:where(.codebase-inspector-root) .ci-provenance--partial { color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-provenance--failed { color: var(--ci-error); }
+
+:where(.codebase-inspector-root) .ci-callout {
+  display: flex; align-items: flex-start; gap: var(--ci-space-3);
+  padding: var(--ci-space-4); border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-card); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-callout--warning { border-color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-callout__body { flex: 1 1 auto; }
+:where(.codebase-inspector-root) .ci-callout__title { margin: 0; font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-callout__text { margin: var(--ci-space-1) 0 0; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-callout__badge {
+  align-self: center; padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small);
+  border: 1px solid var(--ci-sample); color: var(--ci-sample);
+  font-size: var(--font-ui-smaller); text-transform: uppercase; letter-spacing: 0.06em;
+}
+
+:where(.codebase-inspector-root) .ci-page-header {
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--ci-space-4);
+}
+:where(.codebase-inspector-root) .ci-page-header__eyebrow {
+  margin: 0; font-size: var(--font-ui-smaller); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ci-action); font-weight: var(--font-semibold);
+}
+:where(.codebase-inspector-root) .ci-page-header__title { margin: var(--ci-space-2) 0 0; font-size: 1.6em; }
+:where(.codebase-inspector-root) .ci-page-header__subtitle { margin: var(--ci-space-2) 0 0; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-page-header__actions { display: flex; gap: var(--ci-space-2); }
+
+:where(.codebase-inspector-root) .ci-panel {
+  display: flex; flex-direction: column; min-width: 0;
+  border: 1px solid var(--ci-border); border-radius: var(--ci-radius-card); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-panel__header {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: var(--ci-space-3);
+  padding: var(--ci-space-4); border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-panel__title { margin: 0; font-size: 1.05em; }
+:where(.codebase-inspector-root) .ci-panel__subtitle { margin: var(--ci-space-1) 0 0; color: var(--ci-text-muted); font-size: var(--font-ui-small); }
+:where(.codebase-inspector-root) .ci-panel__body { padding: var(--ci-space-4); min-width: 0; }
+:where(.codebase-inspector-root) .ci-panel__footnote {
+  margin: 0; padding: var(--ci-space-3) var(--ci-space-4); border-top: 1px solid var(--ci-border);
+  color: var(--ci-text-faint); font-size: var(--font-ui-smaller);
+}
+
+:where(.codebase-inspector-root) .ci-metric-card {
+  display: flex; flex-direction: column; gap: var(--ci-space-2); min-width: 0;
+  padding: var(--ci-space-4); border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-card); background: var(--ci-panel);
+  --ci-card-tone: var(--ci-tone-accent);
+}
+:where(.codebase-inspector-root) .ci-metric-card--success { --ci-card-tone: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-metric-card--warning { --ci-card-tone: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-metric-card--danger { --ci-card-tone: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-metric-card__label { display: flex; align-items: center; gap: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small); }
+:where(.codebase-inspector-root) .ci-metric-card__row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-metric-card__value { margin: 0; font-size: 2em; font-weight: var(--font-semibold); color: var(--ci-card-tone); }
+:where(.codebase-inspector-root) .ci-metric-card__unit { font-size: 0.5em; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-metric-card__caption,
+:where(.codebase-inspector-root) .ci-metric-card__reason { margin: 0; color: var(--ci-text-faint); font-size: var(--font-ui-smaller); }
+:where(.codebase-inspector-root) .ci-sparkline { width: 80px; height: 28px; stroke: var(--ci-card-tone, var(--ci-tone-accent)); stroke-width: 1.5; }

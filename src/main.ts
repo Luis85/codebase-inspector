@@ -8,6 +8,7 @@ import { createNodeSourceFileSystem } from './adapters/filesystem/node-source-fi
 import { InMemorySnapshotStore } from './adapters/storage/in-memory-snapshot-store';
 import type { Clock } from './application/ports/clock';
 import './ui/styles.css';
+import './ui/styles/kit.css';
 
 // Shared by every CityView: approve()/ScanCoordinator never read the wall clock
 // themselves (src/application/approval.ts's own constraint), so ONE Clock is
