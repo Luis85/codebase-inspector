@@ -8,6 +8,17 @@
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
 }
+/* The inspector owns its whole leaf: the shell's own top bar replaces Obsidian's view
+   header, and the shell runs edge to edge. Scoped by view type (CITY_VIEW_TYPE in
+   src/host/city-view.ts, pinned by tests/unit/leaf-chrome.test.ts) so no other pane
+   changes. (0,3,0) beats Obsidian's `.workspace-leaf-content .view-content` (0,2,0).
+   The tab header keeps close and its context menu. */
+.workspace-leaf-content[data-type="codebase-inspector-city"] > .view-header {
+  display: none;
+}
+.workspace-leaf-content[data-type="codebase-inspector-city"] > .view-content {
+  padding: 0;
+}
 /* Focusable only as the Dialog's focus-restore fallback (tabindex="-1"); never tabbable. */
 :where(.codebase-inspector-root) .ci-shell:focus { outline: none; }
 :where(.codebase-inspector-root) .ci-shell--nav-inline { grid-template-columns: var(--ci-nav-width) minmax(0, 1fr); }
