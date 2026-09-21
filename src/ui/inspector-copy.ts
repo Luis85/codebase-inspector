@@ -162,3 +162,54 @@ export const BOUNDARY_EDGE_VIOLATES = 'This edge breaks a boundary rule.';
 export const BOUNDARY_EDGE_NO_RULE = 'No boundary rule covers this edge.';
 export const BOUNDARY_NONE = 'Select a rule or a matrix cell to inspect it.';
 export const BOUNDARY_ILLUSTRATIVE = 'Illustrative files';
+
+/** Part 2 §2.2: Hotspots screen. */
+export const HOTSPOTS_EYEBROW = 'Explore / Hotspots';
+export const HOTSPOTS_TITLE = 'Focus effort where it can matter.';
+export const HOTSPOTS_SUBTITLE = 'Review files that combine difficult logic, repeated change and weak safety nets.';
+export const HOTSPOTS_HOW_PRIORITY = 'How priority works';
+export const HOTSPOTS_EXPORT = 'Export shortlist';
+export const HOTSPOTS_CSV_FILENAME = 'codebase-hotspots.csv';
+export const HOTSPOTS_SCATTER_TITLE = 'Complexity × change frequency';
+export const HOTSPOTS_SCATTER_SUBTITLE = 'Each dot is one file. Select a dot to inspect its evidence.';
+export const HOTSPOTS_SCATTER_FOOTNOTE = 'Size: source lines (ring: unknown) · Colour: branch coverage · Window: 90 days · Sample signals';
+export const HOTSPOTS_SCATTER_LABEL = 'Files by complexity and commits in the last 90 days';
+export const HOTSPOTS_X_AXIS = 'Commits in the last 90 days →';
+export const HOTSPOTS_Y_AXIS = 'Max. function cognitive complexity →';
+export const HOTSPOTS_QUADRANT_LABEL = 'Complex + frequently changed';
+export const HOTSPOTS_DOT_LABEL = (name: string, complexity: string, commits: string, coverage: string): string =>
+  `${name}: complexity ${complexity}, ${commits} commits, ${coverage} branch coverage`;
+export const HOTSPOTS_BAND_LABEL: Readonly<Record<'low' | 'mid' | 'high' | 'unknown', string>> = {
+  low: '< 60% branch coverage', mid: '60–79%', high: '≥ 80%', unknown: 'Coverage unknown',
+};
+export const HOTSPOTS_MODULE_FILTER = 'Module';
+export const HOTSPOTS_ALL_MODULES = 'All modules';
+export const HOTSPOTS_SHOWING = (n: number, total: number): string => `Showing the ${n} highest-priority of ${total} files.`;
+export const HOTSPOTS_UNPLOTTABLE = (n: number): string => `${n} files lack complexity or commit data and are not plotted.`;
+export const HOTSPOTS_SELECTED = (name: string): string => `Selected: ${name}`;
+export const HOTSPOTS_OPEN_DETAIL = 'Open detail';
+export const HOTSPOTS_SHORTLIST_TITLE = 'Highest review priorities';
+export const HOTSPOTS_SHORTLIST_SUBTITLE = 'Use this as an investigation queue, not an automatic verdict.';
+export const HOTSPOTS_SHORTLIST_DETAIL = (complexity: string, commits: string, coverage: string): string =>
+  `${complexity} complexity · ${commits} commits · ${coverage} covered`;
+export const HOTSPOTS_TABLE_TITLE = 'Hotspot inventory';
+export const HOTSPOTS_TABLE_SUBTITLE = (n: number): string => `${n} files in the selected module scope.`;
+export const HOTSPOTS_FILTER_PLACEHOLDER = 'Filter files…';
+export const HOTSPOTS_SORT_NOTE = 'Sorted by review priority, descending';
+export const HOTSPOTS_NO_RESULTS = 'No files match this filter.';
+export const HOTSPOTS_SHOW_MORE = (n: number): string => `Show ${n} more`;
+export const HOTSPOTS_COL_FILE = 'File';
+export const HOTSPOTS_COL_PRIORITY = 'Priority';
+export const HOTSPOTS_COL_COMPLEXITY = 'Complexity';
+export const HOTSPOTS_COL_COMMITS = 'Commits / 90d';
+export const HOTSPOTS_COL_COVERAGE = 'Branch coverage';
+export const PRIORITY_DIALOG_TITLE = 'How priority works';
+export const PRIORITY_FORMULA = 'min(100, round(100 × (0.42 × complexity/48 + 0.35 × commits90d/44 + 0.23 × (1 − covered/total))))';
+export const PRIORITY_TERMS: readonly { term: string; meaning: string }[] = [
+  { term: 'complexity', meaning: 'Maximum cognitive complexity of any function in the file.' },
+  { term: 'commits90d', meaning: 'Commits that touched the file in the last 90 days.' },
+  { term: 'covered/total', meaning: 'Instrumented branches covered by tests.' },
+];
+export const PRIORITY_CAVEAT = 'A transparent sample heuristic for ordering an investigation. It is not a defect probability, a maintainability index, an industry benchmark or a team-performance score.';
+export const PRIORITY_UNKNOWN_RULE = 'A file missing any of these inputs has an unknown priority. It is never scored as 0.';
+export const DIALOG_CLOSE = 'Close';

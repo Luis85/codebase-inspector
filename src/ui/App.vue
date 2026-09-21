@@ -18,6 +18,7 @@ import CommandPalette from './shell/CommandPalette.vue';
 import CityScreen from './screens/CityScreen.vue';
 import OverviewScreen from './screens/OverviewScreen.vue';
 import ArchitectureScreen from './screens/ArchitectureScreen.vue';
+import HotspotsScreen from './screens/HotspotsScreen.vue';
 import PlaceholderScreen from './screens/PlaceholderScreen.vue';
 
 const store = useCityStore();
@@ -102,6 +103,7 @@ defineExpose({ rendererHost });
       />
       <OverviewScreen v-else-if="store.route === 'overview'" />
       <ArchitectureScreen v-else-if="store.route === 'architecture'" />
+      <HotspotsScreen v-else-if="store.route === 'hotspots'" />
       <PlaceholderScreen
         v-else
         :route="store.route"
