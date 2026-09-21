@@ -11,6 +11,7 @@ import { DRAWER_MAX_INLINE_SIZE } from './responsive';
 import { NO_CODEBASE_LABEL } from './inspector-copy';
 import { useCityStore } from './stores/city-store';
 import { useLeafWidth } from './shell/use-leaf-width';
+import { useJournalFeed } from './shell/use-journal-feed';
 import NavColumn from './shell/NavColumn.vue';
 import TopBar from './shell/TopBar.vue';
 import SnapshotSelector from './shell/SnapshotSelector.vue';
@@ -23,6 +24,7 @@ import FileDetailScreen from './screens/FileDetailScreen.vue';
 import PlaceholderScreen from './screens/PlaceholderScreen.vue';
 
 const store = useCityStore();
+useJournalFeed();
 const rootEl = ref<HTMLElement | null>(null);
 const leafWidth = useLeafWidth(rootEl);
 /** Inline nav only when the leaf is measurably wide. 0 (hidden leaf, jsdom) keeps the

@@ -37,6 +37,17 @@ export function moduleLabel(module: string): string {
   return module === ROOT_MODULE ? ROOT_FILES_LABEL : module;
 }
 
+/** E11: the one grouping loop every module-scoped read model shares (Tasks 3, 5, 7).
+ *  Insertion order — the order files first appear in `files` — not sorted. */
+export function groupByModule(files: readonly FileSummary[]): Map<string, FileSummary[]> {
+  const groups = new Map<string, FileSummary[]>();
+  for (const f of files) {
+    const group = groups.get(f.module);
+    if (group) group.push(f); else groups.set(f.module, [f]);
+  }
+  return groups;
+}
+
 /** The prototype's transparent SAMPLE heuristic (IMPLEMENTATION-HANDOFF.md). Not a defect
  *  probability, maintainability index or benchmark. */
 export function priorityScore(complexity: number, commits90d: number, coveredRatio: number): number {

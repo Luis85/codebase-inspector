@@ -4,7 +4,10 @@ import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import App from '../../src/ui/App.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
+import { useSnapshotJournal } from '../../src/ui/stores/snapshot-journal';
 import { cityInlineSize } from '../../src/ui/container-box';
+import { computeLayout } from '../../src/domain/layout/layout';
+import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
 /** A ResizeObserver stand-in that fires only the observers watching a given element, so a
  *  test can resize the shell's content box WITHOUT the leaf (which is what a nav-inline
@@ -190,6 +193,21 @@ describe('workspace shell', () => {
     } finally {
       ro.restore();
     }
+  });
+
+  it('records each snapshot App shows into the snapshot journal (E4)', async () => {
+    const w = mountShell();
+    const journal = useSnapshotJournal();
+    const first = buildSnapshotFixture({ files: 4, directories: 1 });
+    useCityStore().setCity(first, computeLayout(first));
+    await nextTick();
+    expect(journal.entries).toHaveLength(1);
+
+    const second = { ...buildSnapshotFixture({ files: 5, directories: 1 }), snapshotId: 'second-snapshot' };
+    useCityStore().setCity(second, computeLayout(second));
+    await nextTick();
+    expect(journal.entries).toHaveLength(2);
+    w.unmount();
   });
 
   it('city width excludes an inline nav column', () => {
