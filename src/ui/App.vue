@@ -23,6 +23,7 @@ import ArchitectureScreen from './screens/ArchitectureScreen.vue';
 import HotspotsScreen from './screens/HotspotsScreen.vue';
 import FileDetailScreen from './screens/FileDetailScreen.vue';
 import QualityScreen from './screens/QualityScreen.vue';
+import TestsScreen from './screens/TestsScreen.vue';
 import PlaceholderScreen from './screens/PlaceholderScreen.vue';
 
 const store = useCityStore();
@@ -115,6 +116,7 @@ defineExpose({ rendererHost });
       <HotspotsScreen v-else-if="store.route === 'hotspots'" />
       <FileDetailScreen v-else-if="store.route === 'file'" />
       <QualityScreen v-else-if="store.route === 'quality'" />
+      <TestsScreen v-else-if="store.route === 'tests'" />
       <PlaceholderScreen
         v-else
         :route="store.route"

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import type { EntityId } from '../../../domain/entity-id';
 import { formatMetric } from '../../evidence';
+import { useRovingIndex } from '../../kit/use-roving-index';
 import { CHURN_THRESHOLD, type HotspotPoint, type HotspotsModel } from '../../read-models/hotspots';
 import { HIGH_COMPLEXITY } from '../../read-models/overview';
 import {
@@ -30,33 +31,18 @@ const dotLabel = (p: HotspotPoint): string => HOTSPOTS_DOT_LABEL(
 
 /** Roving tabindex: exactly one dot is a tab stop. Arrows walk the dots in priority
  *  order, Home and End jump, and Enter or Space selects. Selecting never navigates. */
-const active = ref(0);
-watch(() => [props.model.points, props.selectedId] as const, ([points, id]) => {
-  const i = points.findIndex((p) => p.file.id === id);
-  active.value = i >= 0 ? i : Math.min(active.value, Math.max(0, points.length - 1));
-}, { immediate: true });
-
 const svg = ref<SVGSVGElement | null>(null);
-function onKeydown(event: KeyboardEvent): void {
-  const n = props.model.points.length;
-  if (n === 0) return;
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    const p = props.model.points[active.value];
+const { active, onKeydown, setActive } = useRovingIndex({
+  count: () => props.model.points.length,
+  selectedIndex: () => props.model.points.findIndex((p) => p.file.id === props.selectedId),
+  focusAt: (i) => svg.value?.querySelectorAll<SVGElement>('.ci-scatter__dot')[i]?.focus(),
+  activate: (i) => {
+    const p = props.model.points[i];
     if (p) emit('select', p.file.id);
-    return;
-  }
-  const next = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? (active.value + 1) % n
-    : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? (active.value - 1 + n) % n
-      : event.key === 'Home' ? 0
-        : event.key === 'End' ? n - 1 : -1;
-  if (next < 0) return;
-  event.preventDefault();
-  active.value = next;
-  void nextTick(() => svg.value?.querySelectorAll<SVGElement>('.ci-scatter__dot')[next]?.focus());
-}
+  },
+});
 function onDot(i: number, id: EntityId): void {
-  active.value = i;
+  setActive(i);
   emit('select', id);
 }
 </script>

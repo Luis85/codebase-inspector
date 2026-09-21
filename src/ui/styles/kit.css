@@ -147,3 +147,18 @@
 }
 :where(.codebase-inspector-root) .ci-facts dt { color: var(--ci-text-muted); display: flex; gap: var(--ci-space-2); align-items: center; }
 :where(.codebase-inspector-root) .ci-facts dd { margin: 0; overflow-wrap: anywhere; }
+
+/* Part 3 Task 9: MeterList. An unknown value draws no fill, so it never reads as 0. */
+:where(.codebase-inspector-root) .ci-meters { display: flex; flex-direction: column; gap: var(--ci-space-3); list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-meter {
+  display: grid; grid-template-columns: minmax(6em, 1fr) minmax(0, 2fr) max-content; align-items: center; gap: var(--ci-space-3);
+  font-size: var(--font-ui-small, 0.9em);
+}
+:where(.codebase-inspector-root) .ci-meter__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(.codebase-inspector-root) .ci-meter__track { block-size: 6px; border-radius: 3px; background: var(--ci-border); overflow: hidden; }
+:where(.codebase-inspector-root) .ci-meter__fill { block-size: 100%; border-radius: 3px; background: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-meter__fill--success { background: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-meter__fill--warning { background: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-meter__fill--danger { background: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-meter__fill--accent { background: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-meter__value { display: inline-flex; align-items: center; gap: var(--ci-space-2); color: var(--ci-text-muted); font-variant-numeric: tabular-nums; }

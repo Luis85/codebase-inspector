@@ -42,12 +42,14 @@ export const TESTS_PLANNED = 'Tests planned';
 export const TESTS_PLAN_LABEL = (name: string): string => `Plan characterization tests for ${name}`;
 export const TESTS_PLAN_TITLE = (name: string): string => `Characterize ${name} with tests`;
 export const TESTS_PLAN_FAILED = 'Could not add this work item.';
+export const TESTS_PLAN_ADDED = (name: string): string => `Test work item added for ${name}.`;
 export const TESTS_RUNS_TITLE = 'Sample test runs';
 export const TESTS_RUNS_SUBTITLE = (tests: string, passing: string, failing: string): string => `${tests} tests · ${passing} passing · ${failing} failing, per test file.`;
 export const TESTS_RUNS_CAPTION = 'Sample test runs per test file';
 export const TESTS_RUNS_NONE = 'No test files in this inventory, so there are no test runs to show.';
 export const TESTS_COL_TESTS = 'Tests';
 export const TESTS_COL_RESULT = 'Result';
+export const TESTS_COL_MODULE = 'Module';
 export const TESTS_COL_DURATION = 'Duration';
 export const TESTS_RESULT_PASSING = 'Passing';
 export const TESTS_RESULT_FAILING = (n: number): string => `${n} failing`;
@@ -62,3 +64,7 @@ export const CONFIGURE_EVIDENCE = 'Configure evidence';
 export const COVERAGE_BAND_LABEL: Readonly<Record<'low' | 'mid' | 'high' | 'unknown', string>> = {
   low: '< 60%', mid: '60–79%', high: '≥ 80%', unknown: 'Unknown',
 };
+export const TESTS_SOURCES_TITLE = 'Coverage evidence';
+export const TESTS_SOURCE_LABELS = { coverage: 'Branch coverage', runs: 'Test runs', mutation: 'Mutation testing' } as const;
+/** E14: every chart or map label that shows sample data says "sample". */
+export const TESTS_MODULES_LABEL = 'Sample branch coverage by module';

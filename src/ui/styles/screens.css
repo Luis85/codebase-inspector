@@ -253,3 +253,38 @@
 :where(.codebase-inspector-root) button.ci-finding__review:hover { background: var(--ci-raised); }
 :where(.codebase-inspector-root) button.ci-finding__review:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
 :where(.codebase-inspector-root) .ci-finding__review .ci-finding__title { display: block; }
+
+/* Part 3 Task 9: Test confidence, the unknown-evidence state and the evidence-source dialog. */
+:where(.codebase-inspector-root) .ci-coverage { margin: 0; }
+:where(.codebase-inspector-root) .ci-coverage-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(1.75em, 1fr)); gap: 4px; }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile {
+  aspect-ratio: 1; width: 100%; height: auto; min-height: 0; padding: 0; border: none; box-shadow: none;
+  border-radius: var(--ci-radius-small); background: var(--ci-text-faint); cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-coverage-map__tile--low { background: color-mix(in srgb, var(--ci-tone-danger) 55%, transparent); }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile--mid { background: color-mix(in srgb, var(--ci-tone-warning) 55%, transparent); }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile--high { background: color-mix(in srgb, var(--ci-tone-success) 55%, transparent); }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile--unknown { background: var(--ci-text-faint); }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile[aria-pressed="true"] { outline: 2px solid var(--ci-focus); outline-offset: 1px; }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 1px; }
+:where(.codebase-inspector-root) .ci-coverage-gaps__more { margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) button.ci-coverage-gaps__plan[aria-disabled="true"] { opacity: 0.6; cursor: default; }
+:where(.codebase-inspector-root) .ci-chip--danger { border-color: var(--ci-tone-danger); color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-chip--success { border-color: var(--ci-tone-success); color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-tests__duration { display: inline-flex; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-unknown-state {
+  display: flex; flex-direction: column; align-items: center; gap: var(--ci-space-2);
+  padding: var(--ci-space-6) var(--ci-space-4); color: var(--ci-text-muted); text-align: center;
+}
+:where(.codebase-inspector-root) .ci-unknown-state__title { margin: 0; color: var(--ci-text); font-size: var(--font-ui-medium, 1em); }
+:where(.codebase-inspector-root) .ci-unknown-state__body { max-width: 36em; margin: 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-evidence-dialog { display: grid; gap: var(--ci-space-3); max-width: 36em; padding: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-evidence-dialog__title { margin: 0; }
+:where(.codebase-inspector-root) .ci-evidence-dialog__rows { display: grid; gap: var(--ci-space-2); list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-evidence-dialog__row {
+  display: grid; grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr); align-items: center; gap: var(--ci-space-3);
+  padding: var(--ci-space-2) 0; border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-evidence-dialog__source { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-evidence-dialog .ci-hotspots__note { margin: 0; }
+:where(.codebase-inspector-root) .ci-evidence-dialog__actions { display: flex; justify-content: flex-end; }

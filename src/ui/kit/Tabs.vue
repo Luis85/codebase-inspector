@@ -40,6 +40,7 @@ function onKeydown(event: KeyboardEvent): void {
           :id="`${base}-tab-${t.id}`"
           :key="t.id"
           type="button"
+          :data-tab-id="t.id"
           role="tab"
           class="ci-tabs__tab"
           :aria-selected="t.id === model"
