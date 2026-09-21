@@ -1,103 +1,81 @@
-# Codebase Inspector — bundled Three.js interaction demo
+# Codebase Inspector — full interactive UI prototype
 
-**Real Three.js/WebGL rendering. Offline, self-contained HTML. No CDN, dependency installation, account, or server required for the demo.**
+**Version:** 1.0.0  
+**Design language:** English, Obsidian-style desktop workspace, dark and light themes  
+**Evidence:** entirely synthetic; this is not an audit of a real repository.
 
-The demo implements the first city-view interaction slice for Codebase Inspector, the planned Obsidian plugin. It is a browser reference and a reusable rendering module, **not an installed Obsidian plugin or a fallow analyzer**.
+## Open the prototype
 
-## Open the demo
+Open **`index.html`** in a desktop browser. The HTML embeds all application code, styles, icons, and fixture data. It requires no npm installation, web server, CDN, fonts, or internet connection.
 
-Open `standalone.html` in a desktop browser with JavaScript and WebGL 2 enabled. Three.js, the viewer, CSS, icons, and the 144-file synthetic snapshot are included in that single file. Use the actual HTML file in a browser rather than a file-preview pane that prevents scripts from running.
+Open **`gallery.html`** to browse screenshots of every main screen and jump directly into the corresponding interactive view. On a phone, file preview applications may show source or a static preview rather than execute JavaScript; use an actual browser for the interactive application. Desktop use remains the intended plugin target.
 
-Alternatively, keep the extracted folder intact and open `index.html`. It loads its JavaScript and CSS locally. When a browser restricts local files, run the optional loopback-only helper with Node.js 20 or later:
+The separate `codebase-inspector-full-ui.html` supplied with the delivery is identical to `index.html` and can be used without this folder.
 
-```sh
-node serve.mjs
-```
+## What is included
 
-Then open the address printed by the helper. This is an optional static-file server, not an analysis service. Stop it with Ctrl+C. No dependencies need to be installed.
+The app contains **15 main screens** and connected detail/state surfaces:
 
-**Runtime version:** the included library is **Three.js r140 / 0.140.0**, an older MIT-licensed release. It was recovered from an available local distribution and its exact Git blob verified against the upstream release. It is pinned for this offline demo, **not a current production-version recommendation**. See `vendor/PROVENANCE.json`. Upgrade deliberately and revalidate rendering, color management, picking, lifecycle, and context recovery before integration into the production plugin.
-
-## What works
-
-The city uses actual `THREE.WebGLRenderer`, `OrthographicCamera`, `InstancedMesh`, lights, shadows, and raycasting. Directory districts contain individual file buildings. File kind determines color; physical lines or file bytes determine height through a disclosed square-root scale. Exact values stay visible in the inspector.
-
-- Orbit, pan, zoom, fit, top-down view, explicit focus, hover, and real file picking.
-- Search and file-kind filtering without rebuilding the layout; selected nonmatches remain visible and inspectable.
-- Synchronized explorer, selected-file inspector, and HTML inventory.
-- Light/dark themes, labels, shadows, constrained layouts, and scoped keyboard controls.
-- JSON snapshot import/export using an explicit chooser. Invalid imports keep the last valid snapshot.
-- Actual WebGL context-loss test and recovery through the Help dialog. A failure leaves the HTML inventory available.
-- On-demand rendering rather than a permanent animation loop; explicit resource cleanup and per-instance IDs.
-
-The included fixture has **144 files across six directory groups**. These are synthetic measurements, not an inventory or quality report of a real repository. Import your own normalized snapshot using **Load snapshot**; the documented format is in `docs/snapshot-format.md` and `fixtures/minimal.snapshot.json`. Raw fallow JSON is intentionally rejected: an explicit adapter must map its evidence into the application's model.
-
-## Navigation
-
-| Action | Control |
+| Area | Screens |
 |---|---|
-| Select a file without moving the camera | Click/tap a building or choose an explorer entry |
-| Orbit | Primary pointer drag in 3D |
-| Pan | Shift-drag or right-drag; primary drag in top view |
-| Zoom | Wheel after focusing the canvas, or the + / − buttons |
-| Fit city | Fit city button; F with canvas focus |
-| Top view / previous 3D pose | Top / 3D city buttons; T with canvas focus |
-| Focus the selected file | Focus in city button; Enter with canvas focus |
-| Search | Search field; / outside editable controls |
-| Clear selection | Inspector action; Escape with canvas focus |
-| Clear search | Escape in a nonempty search field |
-| Navigate without 3D | Files tab and the equivalent HTML inventory |
+| Explore | Overview, Code city, Architecture, Hotspots |
+| Audit | Code quality, Test confidence, Dependencies, Security, Evolution, Ownership |
+| Act | Refactor workbench, Audit report |
+| Configure | Data & scans, Settings |
+| Cross-cutting | File detail |
 
-The camera uses a small custom controller, **not OrbitControls**. Touch pan/pinch code is included, but real-device gesture behavior remains unverified. Right drag is intercepted only on the canvas. Typing in an input does not trigger camera shortcuts.
+Additional surfaces include the file-inspector drawer, finding-review dialog, dismissal rationale, snapshot comparison, command palette, source wizard, simulated scan progress, provider evidence, rule creation and detail, work-item editing, state import, reset confirmation, help, and missing/stale/failed/empty evidence states.
 
-Selection and camera focus are separate. Closing Details preserves selection. Top view stores and restores the prior 3D camera state. Filter changes never shuffle lots. Nothing automatically executes source code, runs tests, writes to an Obsidian vault, or uploads data.
+## Try a complete review
 
-## Contents
+1. Start in **Code city**. Search for `CostEngine`, select it, and open **Investigate file**. Search dims the city without changing the layout; selection does not reposition the camera.
+2. Open a finding from **File detail**. Acknowledge it, or dismiss it with a reason. The quality screen reflects that decision. No repository suppression is written.
+3. Visit **Architecture**. Select a module, switch to the dependency matrix, and inspect the Domain → Storage cell. Add an intended boundary rule to evaluate against the sample graph.
+4. Add a work item. In **Refactor workbench**, drag it between columns or edit its status. The Verified state requires all verification checks.
+5. Edit the reviewer note and included sections in **Audit report**. Export an actual Markdown file.
 
-| File or folder | Purpose |
-|---|---|
-| `standalone.html` | Complete single-file offline demo |
-| `index.html`, `styles.css`, `demo.bundle.js` | Same demo with local assets separated |
-| `viewer.bundle.js` | Three.js + normalized model + reusable CityViewer; no demo UI |
-| `embed.html` | Small integration example using the bundled viewer |
-| `src/viewer.js` | Authored renderer and camera controller |
-| `src/model.js` | Validation, file kinds, grouping, deterministic layout, filtering |
-| `src/app.js` | Demo host UI; replace this host for Obsidian integration |
-| `src/renderer-contract.d.ts` | Typed API description of the viewer boundary |
-| `src/template.html`, `src/styles.css` | Editable layout and styles |
-| `fixtures/` | Complete synthetic fixture, minimal import, JSON schema |
-| `docs/` | Snapshot, embedding, interaction, and Obsidian handoff documents |
-| `tests/`, `validation/` | Automated checks, recorded results, and limitations |
-| `captures/` | Browser captures of the real WebGL demo |
-| `vendor/` | Exact local library, provenance, and licenses |
+## Working interactions
 
-## Rebuild and test
+The city supports rotation, pan, zoom, explicit focus, reset, selection, color and height metrics, module filters, a map representation, and a keyboard-accessible inventory. All screens share file identities and two deterministic evidence snapshots.
 
-```sh
-node build.mjs
-node --test tests/model.test.cjs
-```
+Other working interactions include finding search/type/severity/status filters; finding disposition; module and matrix inspection; boundary-rule creation; coverage inspection; package search and relationship filters; fictional advisory inspection; history-window selection; refactor creation/edit/delete/drag/drop; report composition; Markdown/CSV/JSON export; validated state import; theme/density/accessibility settings; and keyboard search.
 
-The build uses Node's standard library only and verifies the vendored Three.js Git blob before emitting artifacts. The default fixture is duplicated in `fixtures/demo.snapshot.json` and `src/fixture.js`; keep them synchronized when editing it.
+Preferences, work items, review decisions, custom rules, and report notes are stored in browser `localStorage` **when available**. If browser policy blocks storage, the current session still works; use **Data & scans → Export state** to keep review decisions. Persistence for local-file origins can vary by browser and policy. Import only the provided prototype review-state schema, not native tool reports.
 
-Browser checks require Python, Playwright, Chromium, and—on a headless Linux machine—Xvfb. These are **development/test dependencies, not runtime requirements**. The package does not install them automatically.
+## Important implementation boundary
 
-```sh
-# On a prepared Linux test machine:
-xvfb-run -a -s '-screen 0 1600x1000x24' python tests/browser.py
-# Set CHROMIUM_PATH when Chromium is installed elsewhere.
-```
+**This is a UI prototype for an Obsidian desktop plugin, not a new standalone production application.** The surrounding workspace is simulated. No Obsidian API is called and no plugin files have been modified.
 
-Recorded result: **23 model tests and 37 browser checks passed**, including a 5,000-file scene, real raycasting, and real context loss/restoration. The runtime generated zero network requests in the recorded interaction run. See `validation/README.md` for how these results were obtained and what they do not prove.
+**The city renderer in this artifact is a dependency-free projected Canvas renderer. It is not the existing Three.js implementation.** It exists so the complete UI can be reviewed as one offline HTML file. Preserve the existing production Three.js decision and reuse that implementation through the renderer adapter described in `docs/IMPLEMENTATION-HANDOFF.md` and `docs/contracts.ts`.
 
-## Constraints and next integration step
+The city’s curved connections are illustrative. The separate architecture graph represents the authoritative *sample* module-edge fixture. Do not derive actual dependency claims from the decorative city arcs.
 
-Import limit: 10 MiB / 10,000 files. Explorer population is capped at 600 visible rows and the table at 500; search narrows the results. More than 30 directory groups are aggregated into a visibly named overflow district. Buildings are height-capped at 18 scene units; the inspector always shows the true measurement. These are explicit demo bounds, not production-scale claims.
+## What is simulated or not implemented
 
-The app is written in dependency-light browser JavaScript for this portable demo. The production target remains **Obsidian + TypeScript + Vue 3 + Pinia + Three.js**. Keep the model and viewer boundary; replace the demo host with an ItemView, inject theme values, wire immutable snapshots to a scan coordinator, and implement the renderer lifecycle per leaf. Do not load this UMD browser bundle into the plugin's CommonJS entry unchanged; see `docs/obsidian-integration.md`.
+Source paths in the setup wizard are labels, not filesystem access grants. “Run demo scan” is explicitly simulated. No real repository scanning, executable discovery, fallow execution, report parsing, Obsidian integration, runtime tracing, or package-registry/advisory lookup occurs. The sample `@sample/*` packages, versions, secret pattern, and `DEMO-ADV-*` advisories are fictional.
 
-No complexity, health, coverage, dependency, or deletion-safety claim is inferred from file size or line count. Hardware GPU performance, actual Obsidian behavior, mobile interaction, and screen-reader usability remain to be validated.
+Mutation-test and runtime evidence are shown as **unknown**, not as zero or passing. All displayed source excerpts are synthetic. No source edits, deletes, dependency installations, automatic fixes, or automatic scans occur.
 
-## Licensing
+## Files
 
-Authored demo code: MIT, see `LICENSE`. Three.js: MIT, full license in `vendor/THREE-LICENSE.txt`. SVG icons: Font Awesome Free by Fonticons, Inc., CC BY 4.0; full distribution terms and attribution are in `vendor/FONT-AWESOME-LICENSE.txt`. Only SVG icon shapes are included; no font files are distributed. Icons are embedded into a symbol sprite without using the Font Awesome JavaScript runtime.
+- `index.html`: self-contained interactive application.
+- `gallery.html`: screenshot gallery with direct screen links.
+- `src/`: editable CSS and JavaScript, separated by data, components, city rendering, and application behavior.
+- `docs/SCREEN-SPECIFICATION.md`: each main screen, interactions, states, and image references.
+- `docs/IMPLEMENTATION-HANDOFF.md`: production integration boundaries and sequence.
+- `docs/contracts.ts`: proposed renderer/evidence contracts to reconcile with the existing implementation.
+- `docs/TEST-REPORT.md`: actual checks and test-environment limitations.
+- `screenshots/`: main screens in both themes, dialogs/subviews, and narrow-layout examples.
+- `examples/`: valid prototype evidence and review-state exports.
+- `tests/`: browser test scripts and recorded results.
+- `build.py`: regenerate the single-file HTML after editing `src/`.
+
+## Rebuild
+
+Run `python build.py` from this folder. The build only uses the Python standard library. No JavaScript packages are required. The build also writes a standalone HTML beside the project folder.
+
+## Validation
+
+All 15 routes were rendered in Chromium, in both themes; all main routes were also checked at a narrow 390 × 844 viewport. A 64-check interaction suite passed, including real browser download events, import validation, keyboard search, triage changes, and work-item verification guards. No uncaught JavaScript errors or application network requests were observed.
+
+The environment's managed Chromium blocked `file://` and localhost URL navigation, so browser testing injected the exact HTML with `page.set_content`. Direct local-file launching, native storage persistence across reload, Safari/iOS behavior, assistive-technology use, and real Obsidian integration were **not** validated. See the test report for the precise scope.
