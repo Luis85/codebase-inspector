@@ -84,12 +84,13 @@ const CSV_METRICS: readonly [string, (f: FileSummary) => MetricValue][] = [
 ];
 
 /** P8: every row given. An unknown value is an empty cell whose `_state` column says
- *  why, so absent evidence is never exported as 0. RFC 4180 line endings. */
+ *  why, so absent evidence is never exported as 0. RFC 4180 line endings, and a UTF-8
+ *  byte-order mark (F7) so Excel reads non-ASCII paths. */
 export function hotspotsCsv(rows: readonly FileSummary[]): string {
   const header = ['path', 'module', ...CSV_METRICS.flatMap(([name]) => [name, `${name}_state`])];
   const lines = rows.map((f) => [
     csvCell(f.path), csvCell(moduleLabel(f.module)),
     ...CSV_METRICS.flatMap(([, get]) => { const m = get(f); return [csvCell(m.value), csvCell(m.state)]; }),
   ].join(','));
-  return `${[header.join(','), ...lines].join('\r\n')}\r\n`;
+  return `\uFEFF${[header.join(','), ...lines].join('\r\n')}\r\n`;
 }

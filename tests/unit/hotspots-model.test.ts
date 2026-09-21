@@ -56,8 +56,10 @@ describe('hotspots model', () => {
 describe('hotspots CSV (P8)', () => {
   it('has a header, one CRLF line per row, and a state column per metric', () => {
     const rows = filesOf(3);
-    const lines = hotspotsCsv(rows).split('\r\n');
-    expect(lines[0]).toBe('path,module,priority,priority_state,complexity,complexity_state,commits_90d,commits_90d_state,branch_coverage_pct,branch_coverage_pct_state,lines,lines_state');
+    const csv = hotspotsCsv(rows);
+    expect(csv.startsWith('\uFEFF')).toBe(true);   // F7: a UTF-8 BOM, so Excel reads non-ASCII paths
+    const lines = csv.split('\r\n');
+    expect(lines[0]?.replace(/^\uFEFF/, '')).toBe('path,module,priority,priority_state,complexity,complexity_state,commits_90d,commits_90d_state,branch_coverage_pct,branch_coverage_pct_state,lines,lines_state');
     expect(lines).toHaveLength(rows.length + 2);   // header + rows + trailing empty
     expect(lines.at(-1)).toBe('');
   });

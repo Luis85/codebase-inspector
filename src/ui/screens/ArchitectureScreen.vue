@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
-import { moduleNeighbours } from '../read-models/architecture';
+import { edgeKey, moduleNeighbours } from '../read-models/architecture';
 import { moduleOf } from '../read-models/file-summaries';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
@@ -34,6 +34,7 @@ const store = useCityStore();
 const review = useReviewStore();
 const { architecture, files } = useReadModels();
 const tab = ref('map');
+const root = ref<HTMLElement | null>(null);
 const violationsOnly = ref(false);
 
 /** P12: open on the selected file's module when it is in the graph. Derived once from the
@@ -69,11 +70,22 @@ const illustrative = computed(() => {
 });
 const edgeViolates = computed(() => {
   const e = selectedEdgeModel.value;
-  return e ? architecture.value.violatingEdgeKeys.has(`${e.from}->${e.to}`) : false;
+  return e ? architecture.value.violatingEdgeKeys.has(edgeKey(e.from, e.to)) : false;
 });
 watch(() => architecture.value.rules, (rules) => {
   if (selectedRuleId.value && !rules.some((r) => r.rule.id === selectedRuleId.value)) selectedRuleId.value = null;
 });
+/** F3: a rescan or snapshot switch can drop the selected module; re-derive it so the
+ *  inspector and the rule editor never hold a module the graph no longer has. */
+watch(() => architecture.value.modules, (modules) => {
+  if (!modules.some((m) => m.name === selectedModule.value)) selectedModule.value = initialModule();
+});
+
+function selectModule(name: string): void {
+  selectedModule.value = name;
+  selectedEdge.value = null;
+  selectedRuleId.value = null;
+}
 
 function selectEdge(edge: { from: string; to: string }): void {
   selectedEdge.value = edge;
@@ -83,6 +95,8 @@ function selectEdge(edge: { from: string; to: string }): void {
 function selectRule(id: string): void {
   selectedRuleId.value = id;
   selectedEdge.value = null;
+  const from = architecture.value.rules.find((r) => r.rule.id === id)?.rule.from;
+  if (from !== undefined && architecture.value.modules.some((m) => m.name === from)) selectedModule.value = from;
 }
 function onSaved(id: string): void {
   editorOpen.value = false;
@@ -94,7 +108,13 @@ async function removeRule(id: string): Promise<void> {
     await review.removeRule(id);
   } catch {
     liveMessage.value = RULE_REMOVE_FAILED;
+    return;
   }
+  // F7: the removed row took focus with it; land on the empty state's add button, or the
+  // rules panel, never on the body.
+  await nextTick();
+  const el = root.value;
+  (el?.querySelector<HTMLElement>('.ci-rule-table__empty button') ?? el?.querySelector<HTMLElement>('[role="tabpanel"]'))?.focus();
 }
 
 /** Selection goes through the ONE owner and never moves the camera. */
@@ -105,7 +125,10 @@ function openFile(id: EntityId): void {
 </script>
 
 <template>
-  <div class="ci-screen ci-screen--architecture">
+  <div
+    ref="root"
+    class="ci-screen ci-screen--architecture"
+  >
     <PageHeader
       :eyebrow="ARCH_EYEBROW"
       :title="ARCH_TITLE"
@@ -159,7 +182,7 @@ function openFile(id: EntityId): void {
               :violating="architecture.violatingEdgeKeys"
               :violations-only="violationsOnly"
               :selected="selectedModule"
-              @select="selectedModule = $event"
+              @select="selectModule"
             />
             <DependencyMatrix
               v-else-if="tab === 'matrix'"

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { ModuleSummary } from '../../read-models/architecture';
 import { useReviewStore } from '../../stores/review-store';
 import { useUniqueId } from '../../unique-id';
@@ -14,11 +14,15 @@ const emit = defineEmits<{ close: []; saved: [id: string] }>();
 const review = useReviewStore();
 const base = useUniqueId('ci-rule');
 
-const from = ref(props.initialFrom ?? props.modules[0]?.name ?? '');
+/** F3: never open on a module that is not among the options (a stale selection). */
+const known = props.modules.some((m) => m.name === props.initialFrom);
+const from = ref(known && props.initialFrom !== null ? props.initialFrom : props.modules[0]?.name ?? '');
 const to = ref(props.modules.find((m) => m.name !== from.value)?.name ?? '');
 const rationale = ref('');
 const error = ref('');
 const saving = ref(false);
+/** F4: a refusal describes the pair it was given; changing either module retires it. */
+watch([from, to], () => { error.value = ''; });
 const invalid = computed(() => from.value === '' || to.value === '' || from.value === to.value || rationale.value.trim() === '');
 
 /** Intent only: the rule is recorded through the review port and evaluated against

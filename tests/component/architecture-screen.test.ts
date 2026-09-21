@@ -121,6 +121,31 @@ describe('ArchitectureScreen', () => {
     w.unmount();
   });
 
+  it('a node click clears the boundary selection (F3)', async () => {
+    withSnapshot();
+    const w = mountArch();
+    await w.findAll('[role="tab"]')[1]!.trigger('click');
+    await w.find('.ci-matrix__cell').trigger('click');
+    expect(w.find('.ci-boundary').text()).not.toContain('Select a rule or a matrix cell to inspect it.');
+    await w.findAll('[role="tab"]')[0]!.trigger('click');
+    await w.findAll('.ci-module-map__node')[1]!.trigger('click');
+    expect(w.find('.ci-boundary').text()).toContain('Select a rule or a matrix cell to inspect it.');
+    w.unmount();
+  });
+
+  it('re-derives the selected module when a new snapshot drops it (F3)', async () => {
+    withSnapshot();
+    const w = mountArch();
+    const node = w.findAll('.ci-module-map__node').find((n) => n.find('.ci-module-map__name').text() === 'dir-5')!;
+    await node.trigger('click');
+    expect(w.find('.ci-module-inspector .ci-panel__subtitle').text()).toBe('dir-5');
+    withSnapshot(30, 2);
+    await nextTick();
+    expect(w.find('.ci-module-inspector .ci-panel__subtitle').text()).toBe('dir-0');
+    expect(w.find('.ci-module-map__node--selected .ci-module-map__name').text()).toBe('dir-0');
+    w.unmount();
+  });
+
   it('two mounted maps never share a marker id', () => {
     withSnapshot();
     const a = mountArch(); const b = mountArch();

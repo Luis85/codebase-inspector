@@ -56,6 +56,7 @@ function onKeydown(event: KeyboardEvent): void {
       :id="`${base}-panel`"
       role="tabpanel"
       class="ci-tabs__panel"
+      tabindex="-1"
       :aria-labelledby="`${base}-tab-${model}`"
     >
       <slot />

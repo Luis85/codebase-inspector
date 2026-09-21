@@ -98,7 +98,32 @@ describe('HotspotsScreen', () => {
     const [host, filename, text] = vi.mocked(downloadText).mock.calls[0]!;
     expect(host).toBe(w.find('.ci-screen--hotspots').element);
     expect(filename).toBe('codebase-hotspots.csv');
+    expect(text.startsWith('\uFEFFpath,module,')).toBe(true);
     expect(text.split('\r\n')).toHaveLength(252);
+    w.unmount();
+  });
+
+  it('the Selected live region exists before a selection fills it (F7)', async () => {
+    withSnapshot();
+    const w = mountHot();
+    const status = w.find('.ci-hotspots__selected [role="status"]');
+    expect(status.exists()).toBe(true);
+    expect(status.text()).toBe('');
+    expect(w.find('.ci-hotspots__selected button').exists()).toBe(false);
+    await w.findAll('.ci-scatter__dot')[0]!.trigger('click');
+    expect(w.find('.ci-hotspots__selected [role="status"]').element).toBe(status.element);
+    expect(status.text()).toMatch(/^Selected: /);
+    w.unmount();
+  });
+
+  it('resets a module filter the new snapshot no longer has (F3)', async () => {
+    withSnapshot(40, 3);
+    const w = mountHot();
+    await w.find('.ci-hotspots__module').setValue('dir-2');
+    withSnapshot(40, 2);
+    await nextTick(); await nextTick();
+    expect((w.find('.ci-hotspots__module').element as HTMLSelectElement).selectedIndex).toBe(0);   // All modules
+    expect(w.findAll('.ci-scatter__dot')).toHaveLength(40);
     w.unmount();
   });
 

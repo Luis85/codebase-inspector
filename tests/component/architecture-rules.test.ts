@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import '../mocks/obsidian';
 import ArchitectureScreen from '../../src/ui/screens/ArchitectureScreen.vue';
+import RuleEditor from '../../src/ui/screens/architecture/RuleEditor.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { computeLayout } from '../../src/domain/layout/layout';
@@ -93,6 +94,61 @@ describe('boundary rules', () => {
     await w.find('.ci-rule-editor').trigger('submit');
     await flushPromises();
     expect(w.find('.ci-rule-editor__error').text()).toBe('A rule for these two modules already exists.');
+    w.unmount();
+  });
+
+  it('selecting a rule moves the module inspector to its from-module (F3)', async () => {
+    setup();
+    await useReviewStore().addRule('dir-3', 'dir-1', 'Layering', NOW);
+    const w = mountArch();
+    expect(w.find('.ci-module-inspector .ci-panel__subtitle').text()).toBe('dir-0');
+    await openRulesTab(w);
+    await w.find('.ci-table__row').trigger('click');
+    expect(w.find('.ci-module-inspector .ci-panel__subtitle').text()).toBe('dir-3');
+    w.unmount();
+  });
+
+  it('changing a module after a duplicate refusal clears the message (F4)', async () => {
+    const { free } = setup();
+    await useReviewStore().addRule(free[0], free[1], 'x', NOW);
+    const w = mountArch();
+    await w.find('.ci-page-header__actions button').trigger('click');
+    const [from, to] = w.findAll('.ci-rule-editor select');
+    await from!.setValue(free[0]);
+    await to!.setValue(free[1]);
+    await w.find('.ci-rule-editor textarea').setValue('again');
+    await w.find('.ci-rule-editor').trigger('submit');
+    await flushPromises();
+    expect(w.find('.ci-rule-editor__error').exists()).toBe(true);
+    const other = (to!.findAll('option').map((o) => (o.element as HTMLOptionElement).value))
+      .find((v) => v !== free[0] && v !== free[1])!;
+    await to!.setValue(other);
+    expect(w.find('.ci-rule-editor__error').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('the editor falls back to the first module for an unknown initial module (F3)', () => {
+    const snap = buildSnapshotFixture({ files: 30, directories: 3 });
+    const modules = architectureGraphFor(fileSummariesFor(snap)).modules;
+    const w = mount(RuleEditor, { props: { modules, initialFrom: 'gone' }, attachTo: document.body });
+    const [from, to] = w.findAll('.ci-rule-editor select');
+    expect((from!.element as HTMLSelectElement).value).toBe(modules[0]!.name);
+    expect((to!.element as HTMLSelectElement).value).toBe(modules[1]!.name);
+    w.unmount();
+  });
+
+  it('after removing a rule, focus moves to a sensible target, not the body (F7)', async () => {
+    const { free } = setup();
+    await useReviewStore().addRule(free[0], free[1], 'x', NOW);
+    await useReviewStore().addRule(free[1], free[0], 'y', NOW);
+    const w = mountArch();
+    await openRulesTab(w);
+    await w.find('.ci-rule-table__remove').trigger('click');
+    await flushPromises();
+    expect(document.activeElement).toBe(w.find('[role="tabpanel"]').element);
+    await w.find('.ci-rule-table__remove').trigger('click');
+    await flushPromises();
+    expect(document.activeElement).toBe(w.find('.ci-rule-table__empty button').element);
     w.unmount();
   });
 

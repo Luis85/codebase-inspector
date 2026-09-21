@@ -33,6 +33,10 @@ const moduleSelectId = useUniqueId('ci-hotspots-module');
 const model = computed(() => buildHotspotsModel(files.value, { module: moduleFilter.value, query: query.value }));
 const selected = computed(() => model.value.rows.find((f) => f.id === store.selectedEntityId) ?? null);
 watch([moduleFilter, query], () => { shown.value = TABLE_PAGE; });
+/** F3: a rescan or snapshot switch can drop the filtered module; fall back to all. */
+watch(() => model.value.modules, (modules) => {
+  if (moduleFilter.value !== null && !modules.some((m) => m.name === moduleFilter.value)) moduleFilter.value = null;
+});
 
 /** Selection goes through the ONE owner and never moves the camera. */
 function openFile(id: EntityId): void {
@@ -123,12 +127,11 @@ function exportCsv(): void {
           >
             {{ HOTSPOTS_UNPLOTTABLE(model.unplottable) }}
           </p>
-          <div
-            v-if="selected"
-            class="ci-hotspots__selected"
-          >
-            <span role="status">{{ HOTSPOTS_SELECTED(selected.name) }}</span>
+          <div class="ci-hotspots__selected">
+            <!-- F7: the live region exists before its text changes, so the change is announced. -->
+            <span role="status">{{ selected ? HOTSPOTS_SELECTED(selected.name) : '' }}</span>
             <button
+              v-if="selected"
               type="button"
               @click="openFile(selected.id)"
             >
