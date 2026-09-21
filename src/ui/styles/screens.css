@@ -258,7 +258,7 @@
 :where(.codebase-inspector-root) .ci-coverage { margin: 0; }
 :where(.codebase-inspector-root) .ci-coverage-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(1.75em, 1fr)); gap: 4px; }
 :where(.codebase-inspector-root) button.ci-coverage-map__tile {
-  aspect-ratio: 1; width: 100%; height: auto; min-height: 0; padding: 0; border: none; box-shadow: none;
+  aspect-ratio: 1; inline-size: 100%; block-size: auto; min-block-size: 0; padding: 0; border: none; box-shadow: none;
   border-radius: var(--ci-radius-small); background: var(--ci-text-faint); cursor: pointer;
 }
 :where(.codebase-inspector-root) button.ci-coverage-map__tile--low { background: color-mix(in srgb, var(--ci-tone-danger) 55%, transparent); }
@@ -271,6 +271,7 @@
 :where(.codebase-inspector-root) button.ci-coverage-gaps__plan[aria-disabled="true"] { opacity: 0.6; cursor: default; }
 :where(.codebase-inspector-root) .ci-chip--danger { border-color: var(--ci-tone-danger); color: var(--ci-tone-danger); }
 :where(.codebase-inspector-root) .ci-chip--success { border-color: var(--ci-tone-success); color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-chip--unknown { border-color: var(--ci-border); color: var(--ci-text-faint); }
 :where(.codebase-inspector-root) .ci-tests__duration { display: inline-flex; align-items: center; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-unknown-state {
   display: flex; flex-direction: column; align-items: center; gap: var(--ci-space-2);
@@ -286,5 +287,5 @@
   padding: var(--ci-space-2) 0; border-bottom: 1px solid var(--ci-border);
 }
 :where(.codebase-inspector-root) .ci-evidence-dialog__source { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
-:where(.codebase-inspector-root) .ci-evidence-dialog .ci-hotspots__note { margin: 0; }
+:where(.codebase-inspector-root) .ci-evidence-dialog__note { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
 :where(.codebase-inspector-root) .ci-evidence-dialog__actions { display: flex; justify-content: flex-end; }

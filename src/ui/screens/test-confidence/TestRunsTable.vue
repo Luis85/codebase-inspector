@@ -67,7 +67,7 @@ function result(row: TestRunRow): { text: string; tone: 'unknown' | 'danger' | '
     <template #cell-duration="{ row }">
       <span class="ci-tests__duration">
         {{ hasValue(row.durationMs) ? TESTS_DURATION(row.durationMs.value) : formatMetric(row.durationMs) }}
-        <ProvenanceBadge state="sample" />
+        <ProvenanceBadge :state="row.durationMs.state" />
       </span>
     </template>
   </EvidenceTable>

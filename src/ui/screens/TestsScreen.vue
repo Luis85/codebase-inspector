@@ -55,7 +55,8 @@ const root = ref<HTMLElement | null>(null);
 const moduleSelectId = useUniqueId('ci-tests-module');
 
 const tiles = computed(() => coverageTiles(files.value, moduleFilter.value));
-const selected = computed(() => tiles.value.tiles.find((t) => t.file.id === store.selectedEntityId)?.file ?? null);
+/** Like Hotspots: any selected file, even one the tile cap or module filter hides. */
+const selected = computed(() => files.value.find((f) => f.id === store.selectedEntityId) ?? null);
 /** F3: a rescan or snapshot switch can drop the filtered module; fall back to all. */
 watch(() => testConfidence.value?.moduleOptions ?? [], (options) => {
   if (moduleFilter.value !== null && !options.some((m) => m.name === moduleFilter.value)) moduleFilter.value = null;

@@ -28,7 +28,7 @@ const emit = defineEmits<{ close: [] }>();
           <span class="ci-evidence-dialog__source">{{ row.source }}</span>
         </li>
       </ul>
-      <p class="ci-hotspots__note">
+      <p class="ci-evidence-dialog__note">
         {{ EVIDENCE_DIALOG_READ_ONLY }}
       </p>
       <div class="ci-evidence-dialog__actions">

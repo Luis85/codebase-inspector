@@ -7,7 +7,7 @@ import { useReviewStore } from '../../stores/review-store';
 import type { WorkTarget } from '../../stores/ports/review-repository';
 import {
   SHOW_MORE, TESTS_COL_ACTIONS, TESTS_COL_BRANCHES, TESTS_COL_COMMITS, TESTS_COL_COVERAGE, TESTS_COL_FILE, TESTS_GAPS_CAPTION,
-  TESTS_GAPS_NONE, TESTS_PLAN, TESTS_PLAN_LABEL, TESTS_PLANNED,
+  TESTS_GAPS_NONE, TESTS_PLAN, TESTS_PLAN_LABEL, TESTS_PLANNED, TESTS_PLANNED_LABEL,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
@@ -70,7 +70,7 @@ function plan(f: FileSummary): void {
           <button
             type="button"
             class="ci-coverage-gaps__plan"
-            :aria-label="TESTS_PLAN_LABEL(row.name)"
+            :aria-label="planned(row) ? TESTS_PLANNED_LABEL(row.name) : TESTS_PLAN_LABEL(row.name)"
             :aria-disabled="blocked(row)"
             @click.stop="plan(row)"
             @keydown.stop

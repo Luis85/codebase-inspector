@@ -155,8 +155,8 @@
   font-size: var(--font-ui-small, 0.9em);
 }
 :where(.codebase-inspector-root) .ci-meter__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-:where(.codebase-inspector-root) .ci-meter__track { block-size: 6px; border-radius: 3px; background: var(--ci-border); overflow: hidden; }
-:where(.codebase-inspector-root) .ci-meter__fill { block-size: 100%; border-radius: 3px; background: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-meter__track { block-size: 6px; border-radius: var(--ci-radius-small); background: var(--ci-border); overflow: hidden; }
+:where(.codebase-inspector-root) .ci-meter__fill { block-size: 100%; border-radius: var(--ci-radius-small); background: var(--ci-tone-accent); }
 :where(.codebase-inspector-root) .ci-meter__fill--success { background: var(--ci-tone-success); }
 :where(.codebase-inspector-root) .ci-meter__fill--warning { background: var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-meter__fill--danger { background: var(--ci-tone-danger); }

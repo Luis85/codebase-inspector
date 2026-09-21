@@ -9,6 +9,7 @@ import { downloadText } from '../../src/ui/export/download';
 import TestsScreen from '../../src/ui/screens/TestsScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
+import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
@@ -43,6 +44,7 @@ describe('TestsScreen', () => {
     await w.find('.ci-coverage-map').trigger('keydown', { key: 'ArrowRight' });
     await nextTick();
     expect(tiles()[1]!.attributes('tabindex')).toBe('0');
+    expect(document.activeElement).toBe(tiles()[1]!.element);
     await w.find('.ci-coverage-map').trigger('keydown', { key: 'Enter' });
     expect(store.selectedEntityId).toBe(tiles()[1]!.attributes('data-entity-id'));
     expect(store.route).toBe('tests');
@@ -61,6 +63,31 @@ describe('TestsScreen', () => {
     const item = useReviewStore().workItems[0]!;
     expect(item.intent).toBe('tests');
     expect(item.target.kind).toBe('file');
+    w.unmount();
+  });
+
+  it('the plan button never activates its row, and once planned it stays focused, aria-disabled and inert', async () => {
+    withSnapshot(80);
+    const store = useCityStore();
+    store.navigate('tests');
+    const w = mountT();
+    const plan = () => w.find('.ci-coverage-gaps__plan');
+    const name = plan().attributes('aria-label')!;
+    expect(name.startsWith('Plan tests')).toBe(true);   // WCAG 2.5.3: the name contains the visible label
+    await plan().trigger('keydown', { key: 'Enter' });
+    expect(store.route).toBe('tests');
+    (plan().element as HTMLElement).focus();
+    await plan().trigger('click');
+    await Promise.resolve(); await nextTick();
+    expect(store.route).toBe('tests');
+    expect(useReviewStore().workItems).toHaveLength(1);
+    expect(plan().attributes('aria-disabled')).toBe('true');
+    expect(plan().text()).toBe('Tests planned');
+    expect(plan().attributes('aria-label')!.startsWith('Tests planned')).toBe(true);
+    expect(document.activeElement).toBe(plan().element);
+    await plan().trigger('click');
+    await Promise.resolve(); await nextTick();
+    expect(useReviewStore().workItems).toHaveLength(1);
     w.unmount();
   });
 
@@ -84,12 +111,42 @@ describe('TestsScreen', () => {
     withSnapshot(80);
     const w = mountT();
     await w.find('.ci-tests__evidence').trigger('click');
-    expect(w.find('.ci-evidence-dialog').text()).toContain('Mutation testing');
+    const row = (label: string) => w.findAll('.ci-evidence-dialog__row').find((r) => r.text().includes(label))!;
+    expect(row('Mutation testing').find('.ci-provenance').classes()).toContain('ci-provenance--unknown');
+    expect(row('Test runs').find('.ci-provenance').classes()).toContain('ci-provenance--unknown');
+    expect(row('Test runs').text()).toContain('Not collected');
+    expect(row('Branch coverage').find('.ci-provenance').classes()).toContain('ci-provenance--sample');
     await w.find('.ci-evidence-dialog__close').trigger('click');
     await w.find('.ci-tests__export').trigger('click');
     const [, name, text] = vi.mocked(downloadText).mock.calls[0]!;
     expect(name).toBe('branch-coverage-gaps.csv');
-    expect(text.split('\r\n').length).toBeGreaterThan(2);
+    const gaps = useReadModels().testConfidence.value!.gaps.length;
+    expect(gaps).toBeGreaterThan(0);
+    const trailing = text.endsWith('\r\n') ? 1 : 0;
+    expect(text.split('\r\n')).toHaveLength(gaps + 1 + trailing);
+    w.unmount();
+  });
+
+  it('the selected-file strip names a selected file even when the module filter hides its tile', async () => {
+    withSnapshot(60);
+    const store = useCityStore();
+    const w = mountT();
+    const files = useReadModels().files.value;
+    const other = files.find((f) => f.module !== files[0]!.module)!;
+    await w.find('.ci-tests__module').setValue(files[0]!.module);
+    store.select(other.id);
+    await nextTick();
+    expect(w.find('.ci-hotspots__selected').text()).toContain(other.name);
+    w.unmount();
+  });
+
+  it('the run duration badge shows the value\'s own state', async () => {
+    withSnapshot(20, 3);
+    const w = mountT();
+    await tab(w, 'results').trigger('click');
+    const badges = w.findAll('.ci-tests__duration .ci-provenance');
+    expect(badges.length).toBeGreaterThan(0);
+    expect(badges.every((b) => b.classes().includes('ci-provenance--sample'))).toBe(true);
     w.unmount();
   });
 });

@@ -39,7 +39,9 @@ export const TESTS_COL_COMMITS = 'Commits / 90d';
 export const TESTS_COL_ACTIONS = 'Actions';
 export const TESTS_PLAN = 'Plan tests';
 export const TESTS_PLANNED = 'Tests planned';
-export const TESTS_PLAN_LABEL = (name: string): string => `Plan characterization tests for ${name}`;
+/** WCAG 2.5.3: each accessible name starts with the button's visible text. */
+export const TESTS_PLAN_LABEL = (name: string): string => `Plan tests for ${name}`;
+export const TESTS_PLANNED_LABEL = (name: string): string => `Tests planned for ${name}`;
 export const TESTS_PLAN_TITLE = (name: string): string => `Characterize ${name} with tests`;
 export const TESTS_PLAN_FAILED = 'Could not add this work item.';
 export const TESTS_PLAN_ADDED = (name: string): string => `Test work item added for ${name}.`;
