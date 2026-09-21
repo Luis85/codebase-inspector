@@ -25,11 +25,12 @@ describe('CityScreen', () => {
     expect(w.find('.ci-app').exists()).toBe(true);
   });
 
-  it('shows three summary cards; cycles is unknown, never 0', () => {
+  it('shows three summary cards; cycles is labelled sample, never a bare 0', () => {
     const w = mountCity();
     const cards = w.findAll('.ci-city-summary__card');
     expect(cards).toHaveLength(3);
-    expect(cards[1]!.find('.ci-city-summary__value').text()).toBe('—');
+    expect(cards[1]!.find('.ci-city-summary__value').text()).toMatch(/^\d+$/);
+    expect(cards[1]!.find('.ci-provenance--sample').exists()).toBe(true);
   });
 
   it('a summary card navigates to its screen', async () => {

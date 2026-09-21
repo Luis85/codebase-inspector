@@ -22,12 +22,13 @@ describe('OverviewScreen', () => {
     expect(w.find('.ci-overview__select-source').exists()).toBe(true);
   });
 
-  it('renders the four signal cards, with architecture unknown rather than 0', () => {
+  it('renders the four signal cards, with architecture labelled sample', () => {
     withSnapshot();
     const w = mountOverview();
     const cards = w.findAll('.ci-metric-card');
     expect(cards).toHaveLength(4);
-    expect(cards[2]!.find('.ci-metric-card__value').text()).toBe('—');
+    expect(cards[2]!.find('.ci-metric-card__value').text()).toMatch(/^\d+$/);
+    expect(cards[2]!.find('.ci-provenance--sample').exists()).toBe(true);
   });
 
   it('labels sample data at page level', () => {

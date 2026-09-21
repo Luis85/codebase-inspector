@@ -67,3 +67,15 @@ export const ROOT_FILES_LABEL = 'Root files';
 export const PROTECT_MODULE_TITLE = (label: string, isRoot: boolean): string =>
   (isRoot ? 'Protect the root files' : `Protect the ${label} module`);
 export const OVERVIEW_ARCH_CAPTION = 'Cyclic module groups · sample edges';
+
+/** Part 2 §2.1: Architecture cards and read-model reasons. */
+export const ARCH_CARD_MODULES = 'Modules';
+export const ARCH_CARD_EDGES = 'Sample module edges';
+export const ARCH_CARD_CYCLES = 'Cyclic components';
+export const ARCH_CARD_VIOLATIONS = 'Boundary violations';
+export const ARCH_MODULES_OMITTED_CAPTION = (shown: number): string => `The ${shown} largest are shown in the graph`;
+export const ARCH_EDGES_CAPTION = (imports: string): string => `${imports} import statements · sample edges`;
+export const ARCH_NO_CYCLES_CAPTION = 'No cyclic module groups';
+export const ARCH_NO_RULES_REASON = 'No boundary rules defined.';
+export const ARCH_VIOLATIONS_CAPTION = (failing: number): string => `${failing} failing rule(s) · sample graph`;
+export const RULE_NOT_EVALUATED_REASON = 'A module in this rule is not in the sample graph.';
