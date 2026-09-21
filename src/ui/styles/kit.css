@@ -121,6 +121,14 @@
 :where(.codebase-inspector-root) .ci-line-chart__key--warning::before { background: var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-line-chart__key--danger::before { background: var(--ci-tone-danger); }
 
+/* Part 3 Task 12: BarChart. E13: bars use the accent tone, never Obsidian's variable directly. */
+:where(.codebase-inspector-root) .ci-bar-chart { margin: 0; }
+:where(.codebase-inspector-root) .ci-bar-chart svg { inline-size: 100%; block-size: auto; }
+:where(.codebase-inspector-root) .ci-bar-chart__grid line { stroke: var(--ci-border); stroke-dasharray: 3 3; }
+:where(.codebase-inspector-root) .ci-bar-chart__grid text,
+:where(.codebase-inspector-root) .ci-bar-chart__label { fill: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-bar-chart__bar { fill: color-mix(in srgb, var(--ci-tone-accent) 70%, transparent); }
+
 :where(.codebase-inspector-root) .ci-dialog__backdrop {
   position: absolute; inset: 0; z-index: 40; display: flex; justify-content: center; align-items: flex-start;
   padding-top: 12vh; background: var(--background-modifier-cover);

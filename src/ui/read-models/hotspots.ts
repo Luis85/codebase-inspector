@@ -3,6 +3,7 @@
 // missing either is counted, never drawn at 0.
 import { hasValue, isSampleBacked, type MetricValue } from '../evidence';
 import { type CsvColumn, metricColumns, toCsv } from '../export/csv';
+import { niceMax } from '../kit/chart-scale';
 import { filesByPriority, moduleLabel, type FileSummary } from './file-summaries';
 
 export const MAX_PLOTTED = 400;
@@ -32,8 +33,6 @@ export function coverageBand(m: MetricValue): CoverageBand {
   if (m.value < 60) return 'low';
   return m.value < 80 ? 'mid' : 'high';
 }
-
-const niceMax = (v: number): number => Math.max(10, Math.ceil(v / 10) * 10);
 
 export function buildHotspotsModel(files: readonly FileSummary[], filter: HotspotFilter): HotspotsModel {
   const q = filter.query.trim().toLowerCase();

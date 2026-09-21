@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { NO_VALUE } from '../inspector-copy';
+import { CHART_DATE_HEADER, NO_VALUE } from '../inspector-copy';
 
 interface Point { label: string; value: number }
 type Tone = 'success' | 'accent' | 'warning' | 'danger';
@@ -78,7 +78,7 @@ const paths = computed(() => props.series.map((s, si) => ({
       <thead>
         <tr>
           <th scope="col">
-            Date
+            {{ CHART_DATE_HEADER }}
           </th>
           <th
             v-for="s in series"

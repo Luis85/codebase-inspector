@@ -22,6 +22,8 @@ export function useRouteProvenance(): ComputedRef<boolean> {
       case 'tests': return testConfidence.value?.usesSample ?? false;
       case 'dependencies': return dependencies.value?.usesSample ?? false;
       case 'security': return security.value.usesSample;
+      // Part 3 Q10: activity and coupling are always sample (EvolutionModel.usesSample is `true`).
+      case 'evolution': return true;
       default: return false;
     }
   });

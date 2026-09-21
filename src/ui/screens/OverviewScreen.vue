@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, inject } from 'vue';
+import { computed, inject, ref } from 'vue';
 import type { FileSummary } from '../read-models/file-summaries';
 import type { Investigation } from '../read-models/overview';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
+import { useSnapshotJournal } from '../stores/snapshot-journal';
 import { formatMetric } from '../evidence';
 import {
   OVERVIEW_ALL_HOTSPOTS_LABEL, OVERVIEW_AUDIT_REPORT_LABEL, OVERVIEW_COMPARE_LABEL,
@@ -25,8 +26,11 @@ import EvidenceTable from '../kit/EvidenceTable.vue';
 import type { TableColumn } from '../kit/table-types';
 import InvestigationList from './overview/InvestigationList.vue';
 import EvidenceCoveragePanel from './overview/EvidenceCoveragePanel.vue';
+import SnapshotComparisonDialog from './evolution/SnapshotComparisonDialog.vue';
 
 const store = useCityStore();
+const journal = useSnapshotJournal();
+const comparing = ref(false);
 const { overview } = useReadModels();
 const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
 // The WP-01 scan states live only on the city route, so show it before the scan starts.
@@ -74,9 +78,13 @@ function openInvestigation(item: Investigation): void {
       :subtitle="OVERVIEW_SUBTITLE"
     >
       <template #actions>
+        <!-- Part 3 Q9: shown once the session journal holds two snapshots; opens the
+             comparison in place rather than navigating. -->
         <button
+          v-if="journal.entries.length >= 2"
           type="button"
-          @click="store.navigate('evolution')"
+          class="ci-overview__compare"
+          @click="comparing = true"
         >
           {{ OVERVIEW_COMPARE_LABEL }}
         </button>
@@ -207,5 +215,9 @@ function openInvestigation(item: Investigation): void {
         </Panel>
       </div>
     </template>
+    <SnapshotComparisonDialog
+      v-if="comparing"
+      @close="comparing = false"
+    />
   </div>
 </template>

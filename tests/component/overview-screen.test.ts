@@ -1,14 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import '../mocks/obsidian';
 import OverviewScreen from '../../src/ui/screens/OverviewScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
+import { useSnapshotJournal } from '../../src/ui/stores/snapshot-journal';
+import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
+import { journalEntryFor } from '../../src/ui/read-models/snapshot-comparison';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
 function withSnapshot(files = 30) {
   const snap = buildSnapshotFixture({ files, directories: 3 });
   useCityStore().setCity(snap, computeLayout(snap));
+}
+
+/** Records a first and a second snapshot in the session journal (App.vue's job in the leaf). */
+function withTwoSnapshots() {
+  for (const snap of [buildSnapshotFixture({ files: 20, directories: 3 }), { ...buildSnapshotFixture({ files: 23, directories: 3 }), snapshotId: 'second' }]) {
+    useCityStore().setCity(snap, computeLayout(snap));
+    useSnapshotJournal().record(journalEntryFor(snap, fileSummariesFor(snap)));
+  }
 }
 
 const mountOverview = () => mount(OverviewScreen, { global: { provide: { onSelectCodebase: vi.fn() } } });
@@ -91,5 +103,25 @@ describe('OverviewScreen', () => {
     const w = mountOverview();
     expect(w.text()).not.toContain('0 change hotspots');
     expect(w.find('.ci-callout__text').text()).toContain('— change hotspots');
+  });
+
+  it('with one snapshot in the journal there is no Compare action', () => {
+    withSnapshot();
+    const snap = useCityStore().snapshot!;
+    useSnapshotJournal().record(journalEntryFor(snap, fileSummariesFor(snap)));
+    const w = mountOverview();
+    expect(w.find('.ci-overview__compare').exists()).toBe(false);
+  });
+
+  it('with two snapshots, Compare opens the comparison dialog instead of navigating', async () => {
+    withTwoSnapshots();
+    const store = useCityStore();
+    store.navigate('overview');
+    const w = mount(OverviewScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn() } } });
+    await w.find('.ci-overview__compare').trigger('click');
+    expect(w.find('.ci-compare-dialog').exists()).toBe(true);
+    expect(w.find('.ci-compare-dialog__added').text()).toBe('3');
+    expect(store.route).toBe('overview');
+    w.unmount();
   });
 });

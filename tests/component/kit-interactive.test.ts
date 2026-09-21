@@ -85,6 +85,7 @@ describe('LineChart', () => {
     ] } });
     expect(w.findAll('path.ci-line-chart__line')).toHaveLength(2);
     expect(w.find('table.visually-hidden').text()).toContain('Jun 15');
+    expect(w.find('table.visually-hidden thead th').text()).toBe('Date');
   });
 
   it('colours a series by its own tone, not its position (final review item 5)', () => {

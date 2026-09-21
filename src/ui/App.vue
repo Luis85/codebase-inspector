@@ -26,6 +26,7 @@ import QualityScreen from './screens/QualityScreen.vue';
 import TestsScreen from './screens/TestsScreen.vue';
 import DependenciesScreen from './screens/DependenciesScreen.vue';
 import SecurityScreen from './screens/SecurityScreen.vue';
+import EvolutionScreen from './screens/EvolutionScreen.vue';
 import PlaceholderScreen from './screens/PlaceholderScreen.vue';
 
 const store = useCityStore();
@@ -121,6 +122,7 @@ defineExpose({ rendererHost });
       <TestsScreen v-else-if="store.route === 'tests'" />
       <DependenciesScreen v-else-if="store.route === 'dependencies'" />
       <SecurityScreen v-else-if="store.route === 'security'" />
+      <EvolutionScreen v-else-if="store.route === 'evolution'" />
       <PlaceholderScreen
         v-else
         :route="store.route"

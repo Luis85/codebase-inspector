@@ -7,3 +7,7 @@ export const EVIDENCE_DIALOG_READ_ONLY = 'For these signals the inspector reads 
 export const EVIDENCE_SOURCE_SAMPLE = 'Sample provider';
 export const EVIDENCE_SOURCE_NONE = 'Not collected';
 export const EVIDENCE_SOURCE_INVENTORY = 'Built-in scan';
+// E47: the first column of every chart's visually hidden table fallback.
+export const CHART_DATE_HEADER = 'Date';
+// E13: BarChart's SVG <desc>; the full values are in the table fallback.
+export const CHART_BARS_DESC = (n: number): string => `Bar chart of ${n} ${n === 1 ? 'interval' : 'intervals'}; the values are listed in the table that follows.`;

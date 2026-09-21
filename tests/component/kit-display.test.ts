@@ -5,6 +5,7 @@ import ProvenanceBadge from '../../src/ui/kit/ProvenanceBadge.vue';
 import MetricCard from '../../src/ui/kit/MetricCard.vue';
 import PageHeader from '../../src/ui/kit/PageHeader.vue';
 import Sparkline from '../../src/ui/kit/Sparkline.vue';
+import BarChart from '../../src/ui/kit/BarChart.vue';
 import { collected, sample, unknown } from '../../src/ui/evidence';
 import { ROUTE_IDS } from '../../src/domain/route-ids';
 import { NAV_FOOTER, NAV_SECTIONS, ROUTE_META } from '../../src/ui/routes';
@@ -71,5 +72,30 @@ describe('Sparkline', () => {
     const w = mount(Sparkline, { props: { values: [1, 5, 3], label: 'Coverage trend' } });
     expect(w.find('polyline').attributes('points')?.split(' ')).toHaveLength(3);
     expect(w.find('svg').attributes('aria-label')).toBe('Coverage trend');
+  });
+});
+
+describe('BarChart', () => {
+  const bars = [{ label: 'Jun 01', value: 12 }, { label: 'Jun 08', value: 40 }, { label: 'Jun 15', value: 0 }];
+  it('draws one bar per value, names the SVG by its title and desc, and falls back to a table (E13)', () => {
+    const w = mount(BarChart, { props: { bars, label: 'Sample commits per interval', valueLabel: 'Commits' } });
+    expect(w.findAll('.ci-bar-chart__bar')).toHaveLength(3);
+    const svg = w.find('svg');
+    expect(svg.attributes('role')).toBe('img');
+    const title = svg.find('title');
+    const desc = svg.find('desc');
+    expect(title.text()).toBe('Sample commits per interval');
+    expect(desc.text()).toContain('3');
+    expect(title.attributes('id')).toBeTruthy();
+    expect(desc.attributes('id')).toBeTruthy();
+    expect(svg.attributes('aria-labelledby')).toBe(`${title.attributes('id')} ${desc.attributes('id')}`);
+    const table = w.find('table.visually-hidden');
+    expect(table.findAll('tbody tr')).toHaveLength(3);
+    expect(table.findAll('thead th').map((th) => th.text())).toEqual(['Date', 'Commits']);
+  });
+  it('gives two charts distinct title ids', () => {
+    const a = mount(BarChart, { props: { bars, label: 'A', valueLabel: 'n' } });
+    const b = mount(BarChart, { props: { bars, label: 'B', valueLabel: 'n' } });
+    expect(a.find('title').attributes('id')).not.toBe(b.find('title').attributes('id'));
   });
 });

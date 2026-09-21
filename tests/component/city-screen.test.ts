@@ -1,15 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import '../mocks/obsidian';
 import CityScreen from '../../src/ui/screens/CityScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
+import { useSnapshotJournal } from '../../src/ui/stores/snapshot-journal';
+import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
+import { journalEntryFor } from '../../src/ui/read-models/snapshot-comparison';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
 // Hoisted to module scope (oxlint's consistent-function-scoping): captures nothing
 // from the describe block.
-function mountCity() {
-  return mount(CityScreen, { global: { provide: { onSelectCodebase: vi.fn(), createCityRenderer: null } } });
+function mountCity(attachTo?: HTMLElement) {
+  return mount(CityScreen, { ...(attachTo ? { attachTo } : {}), global: { provide: { onSelectCodebase: vi.fn(), createCityRenderer: null } } });
+}
+function recordCurrent() {
+  const snap = useCityStore().snapshot!;
+  useSnapshotJournal().record(journalEntryFor(snap, fileSummariesFor(snap)));
 }
 
 describe('CityScreen', () => {
@@ -43,5 +51,24 @@ describe('CityScreen', () => {
     const w = mountCity();
     await w.find('.ci-city-screen__inventory').trigger('click');
     expect(useCityStore().viewMode).toBe('list');
+  });
+
+  it('with one snapshot in the journal there is no Compare action', () => {
+    recordCurrent();
+    const w = mountCity();
+    expect(w.find('.ci-city-screen__compare').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('with two snapshots, Compare opens the comparison dialog', async () => {
+    recordCurrent();
+    const next = { ...buildSnapshotFixture({ files: 15 }), snapshotId: 'second' };
+    useCityStore().setCity(next, computeLayout(next));
+    recordCurrent();
+    const w = mountCity(document.body);
+    await w.find('.ci-city-screen__compare').trigger('click');
+    expect(w.find('.ci-compare-dialog').exists()).toBe(true);
+    expect(w.find('.ci-compare-dialog__added').text()).toBe('3');
+    w.unmount();
   });
 });
