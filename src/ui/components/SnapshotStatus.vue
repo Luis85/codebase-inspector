@@ -10,7 +10,7 @@ import { computed, inject, ref } from 'vue';
 import { useCityStore } from '../stores/city-store';
 import { countDirectoryDistricts } from '../../domain/layout/districts';
 import {
-  CLAIM_READ_ONLY_ACCESS, CLAIM_SOURCE_UNCHANGED,
+  CLAIM_READ_ONLY_ACCESS, CLAIM_SOURCE_UNCHANGED, COPY_SNAPSHOT_DETAILS_SUMMARY,
   formatAbsoluteTime, formatSnapshotScopeCounts, formatSnapshotScopeRoot,
 } from '../copy';
 
@@ -121,9 +121,14 @@ const scopeRootText = computed(() => {
          author-origin `display` rule would spring against the browser's own
          `[hidden]` default does not apply here either. -->
     <details class="ci-snapshot-status__details">
-      <summary>Snapshot details</summary>
+      <summary>{{ COPY_SNAPSHOT_DETAILS_SUMMARY }}</summary>
       <p>{{ scopeCountsText }}</p>
-      <p>Captured {{ absoluteTimeText }}. {{ scopeRootText }}</p>
+      <!-- B5 (whole-branch review): `scopeRootText` gets its own element so a test can
+           assert it exactly (`toBe('Scope: root')`) rather than `toContain('root')`,
+           which passes whether the path was correctly redacted or leaked verbatim
+           (both contain "root") — the same tightening file-inspector.test.ts's
+           `.ci-inspector__scope` already does for the identical hazard. -->
+      <p>Captured {{ absoluteTimeText }}. <span class="ci-snapshot-status__scope">{{ scopeRootText }}</span></p>
     </details>
   </div>
 </template>

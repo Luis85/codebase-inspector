@@ -18,6 +18,13 @@ import { Vector3 } from 'three';
 import type { Camera } from 'three';
 import type { CityDistrict } from '../domain/layout/types';
 import type { EntityId } from '../domain/entity-id';
+// A2 (whole-branch review): this used to inline its own '1 file' / `${n} files`
+// ternary, a duplicate of copy.ts's formatFileListGroup with the same rule --
+// identical wording drifting from two definitions with nothing to notice. copy.ts is
+// pure data (no vue/obsidian/DOM import of its own), so reusing it here does not pull
+// a framework into src/visualization/; ESLint's src/visualization boundary rule bans
+// only host/adapters/application/fs/path/node/obsidian/electron, not ui/.
+import { formatFileListGroup } from '../ui/copy';
 import type { CityPalette } from './renderer-port';
 
 export interface LabelOverlay {
@@ -131,7 +138,7 @@ export function createLabelOverlay(mountEl: HTMLElement): LabelOverlay {
         const el = root.createDiv({ cls: 'ci-city-labels__label' });
         el.createSpan({ cls: 'ci-city-labels__name', text: district.name });
         const count = fileCounts.get(district.directoryId) ?? 0;
-        el.createSpan({ cls: 'ci-city-labels__count', text: count === 1 ? '1 file' : `${count} files` });
+        el.createSpan({ cls: 'ci-city-labels__count', text: formatFileListGroup(count) });
         // The centring half of the transform is re-applied per frame alongside the
         // position (one property instead of three), so it is not set here.
         el.setCssStyles({ position: 'absolute', whiteSpace: 'nowrap' });

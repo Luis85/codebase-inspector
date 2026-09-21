@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
@@ -11,6 +13,27 @@ import { classify } from '../../src/domain/classify';
 import { makeEntityId } from '../../src/domain/entity-id';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CodeEntity, CodebaseSnapshot, Observation } from '../../src/domain/model';
+
+// A1 (whole-branch review): the wrap fix (F4) must be pinned against the sheet that
+// actually carries it, not against jsdom's computed style -- jsdom never loads
+// styles.css, so a bare element there computes `overflow-wrap: normal` regardless of
+// what this stylesheet says, and the PRE-FIX value was `anywhere`, never `break-word`,
+// so a test phrased as "is not break-word" cannot fail against either the defect or its
+// fix. This follows the house pattern already used by tests/unit/host-cascade.test.ts,
+// tests/unit/layout-budget.test.ts and tests/component/stage-height.test.ts: read the
+// real sheet, strip comments (their prose quotes CSS and would otherwise end a rule
+// early), and assert against the declared text.
+const stylesheet = readFileSync(resolve(process.cwd(), 'src/ui/styles.css'), 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '');
+
+/** The TOP-LEVEL declaration block for a selector -- never one of the `:hover`/
+ *  `--selected` copies that follow it in the same section. */
+function topLevelStyleRule(selector: string): string {
+  const needle = `:where(.codebase-inspector-root) ${selector} {`;
+  const start = stylesheet.indexOf(needle);
+  expect(start, `${selector} is not declared at the top level of styles.css`).toBeGreaterThan(-1);
+  return stylesheet.slice(start + needle.length, stylesheet.indexOf('}', start));
+}
 
 function makeRendererDouble() {
   return {
@@ -285,19 +308,27 @@ describe('CodebaseFileList.vue (C07)', () => {
 
     it('breaks long paths at a separator, never mid-word', () => {
       // F4: `presentation/views/GeometrySidecarVie` / `w.ts` in the user's own capture.
-      // Weak on its own -- jsdom computes almost nothing here -- paired with a harness
-      // capture at narrow width, which is the real evidence (task-6-report.md).
-      const wrapper = mountList({ paths: ['presentation/views/GeometrySidecarView.ts'] });
-      const row = wrapper.find('.ci-file-list__row');
-      expect(getComputedStyle(row.element).overflowWrap).not.toBe('break-word');
+      // A1 (whole-branch review): jsdom never loads styles.css, so a computed-style
+      // assertion here cannot fail against either the pre-fix `anywhere` value or the
+      // fixed one -- it reads the real declarations from the sheet instead, the same
+      // way host-cascade.test.ts and stage-height.test.ts pin the rest of this fight.
+      const rule = topLevelStyleRule('button.ci-file-list__row');
+      expect(rule).toMatch(/(?<![-\w])overflow-wrap:\s*normal\s*(?:;|$)/);
+      expect(rule).toMatch(/(?<![-\w])word-break:\s*keep-all\s*(?:;|$)/);
     });
 
-    it('renders every path segment with none of its characters dropped or reordered', () => {
-      // The <wbr>-insertion mechanism itself: this is what a jsdom test CAN see, since
-      // `.text()` reads textContent, which a <wbr> never contributes to.
+    it('renders every path segment with none of its characters dropped or reordered, wrapping only at separators', () => {
+      // The <wbr>-insertion mechanism itself: `.text()` reads textContent, which a
+      // <wbr> never contributes to, so the segment text is checked separately from the
+      // break-opportunity count below -- both must hold for F4 to actually be fixed.
       const wrapper = mountList({ paths: ['presentation/views/GeometrySidecarView.ts'] });
       const row = wrapper.find('.ci-file-list__row');
       expect(row.text()).toBe('presentation/views/GeometrySidecarView.ts');
+      // A1: two separators in this path -> exactly two <wbr> break opportunities, one
+      // per non-final segment (CodebaseFileListGroup.vue's `wrapSegments`). Zero <wbr>
+      // elements previously still passed the old textContent-only assertion, which is
+      // the second half of the cannot-fail construct this replaces.
+      expect(row.element.querySelectorAll('wbr').length).toBe(2);
     });
   });
 });

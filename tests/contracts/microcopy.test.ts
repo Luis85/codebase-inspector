@@ -131,6 +131,14 @@ const AUTHORED_FRESH: readonly string[] = [
   // retyped) so it cannot drift from the catalogued sentence it is a fragment of. It
   // carries no catalogue id of its own — COPY-30 is pinned above as the full string.
   'COPY_30_EXPLANATION',
+  // A3 fix (whole-branch review, I3): COPY-30's other half -- the two named actions
+  // ("Reveal file" / "Clear selection") -- derived from COPY_30 itself the same way
+  // COPY_30_EXPLANATION is (never retyped), closing the gap where the explanation
+  // was pinned to COPY_30 but the button labels were hard-coded literals that could
+  // drift from it silently. No catalogue id of their own -- COPY-30 is pinned above
+  // as the full string.
+  'COPY_30_REVEAL_LABEL',
+  'COPY_30_CLEAR_LABEL',
   // Spec 5.2 / 10 factual claims, gated on G2 evidence (gate-evidence.md section G2).
   // Not microcopy-catalogue entries: they are assertions about product behaviour, not
   // a cataloged state/outcome message.
@@ -163,6 +171,15 @@ const AUTHORED_FRESH: readonly string[] = [
   'LEGEND_SELECTION_OUTLINE',
   // C11 + interactions/03: the unknown-metric marker explanation; no catalogue id.
   'LEGEND_UNKNOWN_MARKER',
+  // A2 (whole-branch review, I2): moved out of SnapshotStatus.vue's template, where
+  // it shipped as a literal `<summary>Snapshot details</summary>` outside this
+  // sweep's reach. A disclosure's own label, not a state or outcome; no catalogue id.
+  'COPY_SNAPSHOT_DETAILS_SUMMARY',
+  // A2 (whole-branch review, I2): moved out of CameraControls.vue's template, where
+  // it shipped as a literal `aria-label="Rotate and pan controls"` outside this
+  // sweep's reach. A control's own accessible name, not a state or outcome; no
+  // catalogue id.
+  'COPY_CAMERA_ROTATE_PAN_LABEL',
 ];
 
 // Formatter exports whose fixed text is NOT catalogued wording, each with a one-line

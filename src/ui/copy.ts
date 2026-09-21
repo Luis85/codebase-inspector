@@ -47,6 +47,30 @@ export const COPY_30 = 'The selected file is outside these filters. Reveal file 
  *  keeps returning the full COPY_30 unchanged for whatever else reads it. */
 export const COPY_30_EXPLANATION = COPY_30.slice(0, COPY_30.indexOf(' Reveal file or clear selection.'));
 
+/** A3 fix (whole-branch review, I3): Ruling 30 was half right. It established that
+ *  `COPY_30_EXPLANATION` is genuinely sliced from `COPY_30` so the two cannot drift —
+ *  but the OTHER half of COPY-30, the two named actions themselves, shipped as
+ *  hard-coded literals ("Reveal file" / "Clear selection") at App.vue instead of
+ *  being derived the same way. That meant retitling a button and COPY_30 together
+ *  could leave the sentence and the control disagreeing while COPY_30, the
+ *  microcopy test and the rendered prose all stayed green.
+ *
+ *  Both labels are now DERIVED from COPY_30, not retyped: `tail` is the same
+ *  substring `COPY_30_EXPLANATION` is the complement of ("Reveal file or clear
+ *  selection", period and leading space stripped), split on the catalogue's own
+ *  " or " into its two named actions. The one transform applied is capitalising each
+ *  action's first letter — the catalogue's own mid-sentence casing reads "...or clear
+ *  selection.", lowercase, where a standalone button label conventionally is not;
+ *  the WORDS are still COPY_30's own, nothing here is invented text. */
+function capitalizeFirst(text: string): string {
+  return text.length === 0 ? text : text[0]!.toUpperCase() + text.slice(1);
+}
+const COPY_30_ACTIONS_TAIL = COPY_30
+  .slice(COPY_30.indexOf(' Reveal file or clear selection.') + 1, -1);
+const [COPY_30_REVEAL_RAW, COPY_30_CLEAR_RAW] = COPY_30_ACTIONS_TAIL.split(' or ');
+export const COPY_30_REVEAL_LABEL = capitalizeFirst(COPY_30_REVEAL_RAW!);
+export const COPY_30_CLEAR_LABEL = capitalizeFirst(COPY_30_CLEAR_RAW!);
+
 /** The two factual claims (spec 5.2 and 10). Evidence:
  *  docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md, section G2 -- the boundary
  *  matrix, the whole-tree hash diff (content, size AND mtime) at 1,000 files with the
@@ -126,7 +150,11 @@ export function formatFileListHeader(fileCount: number): string {
 
 /** Task 6: one district group's heading, appended after its name. Not catalogued --
  *  see `formatFileListHeader`. Pluralised because `formatFileListGroup(1)` is a real
- *  case (a district that ends up holding exactly one file). */
+ *  case (a district that ends up holding exactly one file). A2 (whole-branch review,
+ *  I2): also reused by `src/visualization/label-overlay.ts` for the district label
+ *  chip's own file count, which used to duplicate this exact ternary inline -- one
+ *  definition rather than two strings that could drift apart while reading the same
+ *  wording. */
 export function formatFileListGroup(fileCount: number): string {
   return `${fileCount} file${fileCount === 1 ? '' : 's'}`;
 }
@@ -180,9 +208,14 @@ export const COPY_CITY_HEADER_BADGE = 'Read-only snapshot';
 export const COPY_CITY_HEADER_EYEBROW = 'Structure · Physical inventory';
 
 /** Both counts are the caller's own `store.layout.lots.length` /
- *  `store.layout.districts.length` -- never re-derived or re-counted here. The
- *  footer (task 8, next) states the same two numbers; a single formatter reading a
- *  single source (the layout) is what keeps them from being able to disagree. */
+ *  `countDirectoryDistricts(layout.districts)` (src/domain/layout/districts.ts) --
+ *  never re-derived or re-counted here. This comment previously said
+ *  `store.layout.districts.length`; that was F17 -- `districts.length` over-counts by
+ *  one (the repository root's own district) -- and CityHeader.vue has called
+ *  `countDirectoryDistricts` since the fix. Corrected so the comment matches the code
+ *  it describes (whole-branch review, M3). The footer (task 8, next) states the same
+ *  two numbers; a single formatter reading a single source (the layout) is what keeps
+ *  them from being able to disagree. */
 export function formatCityHeaderSubtitle(fileCount: number, districtCount: number): string {
   return `${fileCount} file${fileCount === 1 ? '' : 's'} grouped into ${districtCount} directory district${districtCount === 1 ? '' : 's'}`;
 }
@@ -224,12 +257,18 @@ export const LEGEND_UNKNOWN_MARKER = 'Unknown: a minimum-height lot with a quest
  *  age SnapshotStatus.vue already showed ("12 minutes ago") is unusable as evidence
  *  once someone reopens the view later — this states how much the retained snapshot
  *  covers and how it is divided, reading the SAME two counts CityHeader.vue's own
- *  subtitle does (store.layout.lots.length, countDirectoryDistricts(...)) so the
- *  two surfaces cannot disagree. Deliberately NOT "directory districts" (CityHeader's
- *  own wording, formatCityHeaderSubtitle) — kept to plain "districts" so a
- *  `toContain('N districts')` check here can never be satisfied by a stray substring
- *  of CityHeader's own string (task's own hazard note: 'district' is a substring of
- *  'districts'). Not catalogued; authored fresh. */
+ *  subtitle does (store.layout.lots.length, countDirectoryDistricts(...)) so the two
+ *  surfaces cannot disagree. Deliberately NOT "directory districts" (CityHeader's own
+ *  wording, formatCityHeaderSubtitle) — kept to plain "districts" instead. Corrected
+ *  (whole-branch review, M3): the earlier reason given here was that this wording
+ *  avoids a `toContain` assertion being satisfiable by a stray substring of
+ *  CityHeader's own string, which is product copy shaped to suit a test rather than
+ *  the other way around, and Task 8's own review ruled that reasoning backwards. The
+ *  real justification is the design's own: the S05 mockup uses different wording in
+ *  the footer and the header — "144 included files · 6 districts" in the status bar
+ *  against "144 files grouped into 6 directory districts" in the header panel — so
+ *  this divergence matches the mockup rather than working around a weak assertion.
+ *  Not catalogued; authored fresh. */
 export function formatSnapshotScopeCounts(fileCount: number, districtCount: number): string {
   return `${fileCount} included file${fileCount === 1 ? '' : 's'} across ${districtCount} district${districtCount === 1 ? '' : 's'}`;
 }
@@ -271,3 +310,17 @@ export function formatAbsoluteTime(iso: string, intl: typeof Intl): string {
   }).format(date);
   return `${day} ${month} ${year}, ${time} UTC`;
 }
+
+/** A2 (whole-branch review, I2): SnapshotStatus.vue's `<summary>` for the C12
+ *  evidence disclosure used to be a literal inline `Snapshot details`, outside the
+ *  completeness sweep this file's own catalogue test runs (it walks `Object.entries
+ *  (copy)`, i.e. this file only). Moved here so the sweep covers it for free, and so
+ *  every user-visible string in this view lives in the one place the sweep assumes.
+ *  Not catalogued: a disclosure's own label, not a state or outcome. */
+export const COPY_SNAPSHOT_DETAILS_SUMMARY = 'Snapshot details';
+
+/** A2 (whole-branch review, I2): CameraControls.vue's disclosure toggle used to carry
+ *  a literal inline `aria-label="Rotate and pan controls"`, outside the same sweep for
+ *  the same reason as `COPY_SNAPSHOT_DETAILS_SUMMARY` above. Not catalogued: a
+ *  control's own accessible name, not a state or outcome. */
+export const COPY_CAMERA_ROTATE_PAN_LABEL = 'Rotate and pan controls';

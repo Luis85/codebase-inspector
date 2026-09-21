@@ -114,8 +114,14 @@ describe('SnapshotStatus.vue (C12)', () => {
     const snapshot = buildSnapshotFixture({ files: 2 });
     store.setCity(snapshot, computeLayout(snapshot));
     const wrapper = mount(SnapshotStatus, { global: { provide: { now: twelveMinutesLater } } });
-    const details = wrapper.find('.ci-snapshot-status__details').text();
-    expect(details).toContain('root');
-    expect(details).not.toContain('/fixture/root');
+    // B5 (whole-branch review): `toContain('root')` passes whether this is correctly
+    // redacted to "Scope: root" or leaks the raw "/fixture/root" (both contain
+    // "root") -- the same hazard tests/component/file-inspector.test.ts already
+    // guards against with an exact `toBe`. `scopeRootText` now has its own element
+    // so this test can do the same rather than reading the whole details block.
+    const scope = wrapper.find('.ci-snapshot-status__scope');
+    expect(scope.exists()).toBe(true);
+    expect(scope.text()).toBe('Scope: root');
+    expect(scope.text()).not.toContain('/fixture');
   });
 });

@@ -16,6 +16,7 @@ import { cameraKeyCommand } from '../interaction/keymap';
 import type { CameraKeyCommand } from '../interaction/keymap';
 import { contentBoxInlineSize, narrowContainer } from '../container-box';
 import { DRAWER_MAX_INLINE_SIZE } from '../responsive';
+import { COPY_CAMERA_ROTATE_PAN_LABEL } from '../copy';
 
 const BUTTON_ZOOM_FACTOR = 1.2;
 const BUTTON_ROTATE_STEP = Math.PI / 8;
@@ -248,7 +249,7 @@ onBeforeUnmount(() => {
         type="button"
         class="ci-camera-controls__more"
         :aria-expanded="stepsOpen ? 'true' : 'false'"
-        aria-label="Rotate and pan controls"
+        :aria-label="COPY_CAMERA_ROTATE_PAN_LABEL"
         @click="toggleSteps"
       >
         ⋯

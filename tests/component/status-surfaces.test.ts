@@ -6,7 +6,7 @@ import '../mocks/obsidian';
 import App from '../../src/ui/App.vue';
 import StatusBanner from '../../src/ui/components/StatusBanner.vue';
 import EmptyState from '../../src/ui/components/EmptyState.vue';
-import { COPY_30_EXPLANATION } from '../../src/ui/copy';
+import { COPY_30_CLEAR_LABEL, COPY_30_EXPLANATION, COPY_30_REVEAL_LABEL } from '../../src/ui/copy';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
@@ -176,8 +176,17 @@ describe('F13: the filter notice becomes two real controls', () => {
   it('turns the filter notice into the two actions it names', async () => {
     const { wrapper } = mountAppWithOutsideSelection();
     await nextTick();
-    expect(wrapper.find('.ci-selection-notice__reveal').exists()).toBe(true);
-    expect(wrapper.find('.ci-selection-notice__clear').exists()).toBe(true);
+    const reveal = wrapper.find('.ci-selection-notice__reveal');
+    const clear = wrapper.find('.ci-selection-notice__clear');
+    expect(reveal.exists()).toBe(true);
+    expect(clear.exists()).toBe(true);
+    // A3 fix (whole-branch review, I3): the rendered labels are checked against
+    // COPY_30's own derived exports, not a retyped literal -- Ruling 30 pinned the
+    // explanation half of COPY-30 this way, but left these two buttons hard-coded,
+    // so a retitle of COPY_30 and a button together could previously drift apart
+    // with every existing check (including this describe block) still green.
+    expect(reveal.text()).toBe(COPY_30_REVEAL_LABEL);
+    expect(clear.text()).toBe(COPY_30_CLEAR_LABEL);
     // The tail COPY_30 used to render as PROSE is gone as literal text — replaced by
     // the two buttons above, not restated beside them.
     expect(wrapper.text()).not.toContain('Reveal file or clear selection.');

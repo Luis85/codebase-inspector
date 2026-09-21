@@ -23,7 +23,7 @@ import { countPartialRead, deriveViewSurfaceState } from './view-surface';
 import { escapeIntent } from './interaction/escape-intent';
 import { DRAWER_MAX_INLINE_SIZE, MIN_INLINE_SIZE } from './responsive';
 import { contentBoxInlineSize, narrowContainer } from './container-box';
-import { COPY_02, COPY_30_EXPLANATION } from './copy';
+import { COPY_02, COPY_30_CLEAR_LABEL, COPY_30_EXPLANATION, COPY_30_REVEAL_LABEL } from './copy';
 import AppToolbar from './components/AppToolbar.vue';
 import CodebaseFileList from './components/CodebaseFileList.vue';
 import CityStage from './components/CityStage.vue';
@@ -302,8 +302,10 @@ defineExpose({ rendererHost });
          (a single-winner chain; must coexist with whatever else is showing) and not
          a second live region (AnnouncementRegion owns that). Task 9 (F13): the tail
          used to be unpressable prose ("Reveal file or clear selection.") — now two
-         real buttons; COPY_30_EXPLANATION is COPY-30's own lead sentence, sliced so
-         the two cannot drift apart. -->
+         real buttons. A3 fix (whole-branch review, I3): all three pieces —
+         COPY_30_EXPLANATION and both button labels — are derived from COPY_30 itself,
+         never retyped, so retitling COPY_30 and a button together cannot leave the
+         sentence and the control disagreeing. -->
     <div
       v-if="store.banner"
       class="ci-app__selection-notice"
@@ -317,14 +319,14 @@ defineExpose({ rendererHost });
           class="ci-selection-notice__reveal"
           @click="revealSelection"
         >
-          Reveal file
+          {{ COPY_30_REVEAL_LABEL }}
         </button>
         <button
           type="button"
           class="ci-selection-notice__clear"
           @click="store.clearSelection()"
         >
-          Clear selection
+          {{ COPY_30_CLEAR_LABEL }}
         </button>
       </div>
     </div>
