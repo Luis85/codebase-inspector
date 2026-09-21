@@ -138,6 +138,9 @@ describe('FileInspector.vue (C10)', () => {
       listRules: () => Promise.resolve([]),
       saveRule: () => Promise.resolve(),
       removeRule: () => Promise.resolve(),
+      listDispositions: () => Promise.resolve([]),
+      saveDisposition: () => Promise.resolve(),
+      removeDisposition: () => Promise.resolve(),
     });
     const wrapper = mountInspector();
     await wrapper.find('.ci-inspector__plan-button').trigger('click');
@@ -163,6 +166,9 @@ describe('FileInspector.vue (C10)', () => {
       listRules: () => Promise.resolve([]),
       saveRule: () => Promise.resolve(),
       removeRule: () => Promise.resolve(),
+      listDispositions: () => Promise.resolve([]),
+      saveDisposition: () => Promise.resolve(),
+      removeDisposition: () => Promise.resolve(),
     });
     const wrapper = mountInspector();
     const button = wrapper.find('.ci-inspector__plan-button');

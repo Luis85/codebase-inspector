@@ -31,7 +31,9 @@ describe('review store', () => {
 
   it('loads what the repository already holds, and removes through it', async () => {
     const repo = createInMemoryReviewRepository();
-    await repo.saveWorkItem({ id: 'w1', entityId: 'e9', title: 't', status: 'planned', createdAt: NOW.toISOString() });
+    await repo.saveWorkItem({
+      id: 'w1', target: { kind: 'file', entityId: 'e9' }, intent: 'refactor', title: 't', status: 'planned', createdAt: NOW.toISOString(),
+    });
     const store = useReviewStore();
     store.setRepository(repo);
     await store.load();
@@ -43,8 +45,12 @@ describe('review store', () => {
 
   it('generates the next ID correctly when repository has gaps in numeric suffixes', async () => {
     const repo = createInMemoryReviewRepository();
-    await repo.saveWorkItem({ id: 'wi-3', entityId: 'e1', title: 't1', status: 'investigate', createdAt: NOW.toISOString() });
-    await repo.saveWorkItem({ id: 'wi-5', entityId: 'e2', title: 't2', status: 'investigate', createdAt: NOW.toISOString() });
+    await repo.saveWorkItem({
+      id: 'wi-3', target: { kind: 'file', entityId: 'e1' }, intent: 'refactor', title: 't1', status: 'investigate', createdAt: NOW.toISOString(),
+    });
+    await repo.saveWorkItem({
+      id: 'wi-5', target: { kind: 'file', entityId: 'e2' }, intent: 'refactor', title: 't2', status: 'investigate', createdAt: NOW.toISOString(),
+    });
     const store = useReviewStore();
     store.setRepository(repo);
     await store.load();
@@ -101,6 +107,9 @@ describe('review store', () => {
       listRules: () => Promise.resolve([]),
       saveRule: () => Promise.resolve(),
       removeRule: () => Promise.resolve(),
+      listDispositions: () => Promise.resolve([]),
+      saveDisposition: () => Promise.resolve(),
+      removeDisposition: () => Promise.resolve(),
     });
     const first = store.addWorkItemForFile('e1', 'first', NOW);
     expect(store.isPendingFor('e1')).toBe(true);

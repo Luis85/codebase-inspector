@@ -25,7 +25,7 @@ watch(() => store.selectedEntityId, () => { liveMessage.value = ''; });
 
 const workItems = computed(() => {
   const id = fileDetail.value?.file.id;
-  return id ? review.workItems.filter((w) => w.entityId === id) : [];
+  return id ? review.workItemsForFile(id) : [];
 });
 
 /** P11: back to the city with the same selection. Opening the inspector never moves the
