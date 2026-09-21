@@ -126,3 +126,39 @@ export const ARCH_FACT_IMPORTS = 'Imports';
 export const ARCH_FACT_IMPORTED_BY = 'Imported by';
 export const ARCH_NONE = 'None';
 export const ARCH_TOP_FILES = 'Highest review priority';
+
+/** Part 2 §2.1: boundary rules (P5). */
+export const ARCH_TAB_RULES = 'Boundary rules';
+export const ARCH_ADD_RULE = 'Add boundary rule';
+export const RULE_EDITOR_TITLE = 'Add boundary rule';
+export const RULE_EDITOR_HINT = 'Record an intended boundary. It is evaluated against the sample module edges.';
+export const RULE_EDITOR_FROM = 'Module';
+export const RULE_EDITOR_TO = 'must not import';
+export const RULE_EDITOR_RATIONALE = 'Rationale';
+export const RULE_EDITOR_SAVE = 'Save rule';
+export const RULE_EDITOR_CANCEL = 'Cancel';
+export const RULE_EDITOR_SAME_MODULE = 'Choose two different modules.';
+export const RULE_EDITOR_DUPLICATE = 'A rule for these two modules already exists.';
+export const RULE_EDITOR_FAILED = 'Could not save this rule.';
+export const RULES_EMPTY = 'No boundary rules yet. Add one to compare an intended boundary with the sample edges.';
+export const RULES_TABLE_CAPTION = 'Boundary rules';
+export const RULE_COL_ID = 'Rule';
+export const RULE_COL_RULE = 'Boundary';
+export const RULE_COL_STATUS = 'Status';
+export const RULE_COL_IMPORTS = 'Violating imports';
+export const RULE_COL_ACTIONS = 'Actions';
+export const RULE_SENTENCE = (from: string, to: string): string => `${from} must not import ${to}`;
+export const RULE_STATUS_LABEL: Readonly<Record<'passing' | 'violation' | 'not-evaluated', string>> = {
+  passing: 'Passing', violation: 'Violation', 'not-evaluated': 'Not evaluated',
+};
+export const RULE_REMOVE = 'Remove';
+export const RULE_REMOVE_LABEL = (id: string): string => `Remove rule ${id}`;
+export const RULE_REMOVE_FAILED = 'Could not remove this rule.';
+export const BOUNDARY_INSPECTOR_TITLE = 'Boundary inspector';
+export const BOUNDARY_INSPECTOR_SUBTITLE = 'Intended rule vs. sample evidence.';
+export const BOUNDARY_VIOLATING_IMPORTS = 'Violating imports';
+export const BOUNDARY_EDGE_IMPORTS = (n: string): string => `${n} sample import statements`;
+export const BOUNDARY_EDGE_VIOLATES = 'This edge breaks a boundary rule.';
+export const BOUNDARY_EDGE_NO_RULE = 'No boundary rule covers this edge.';
+export const BOUNDARY_NONE = 'Select a rule or a matrix cell to inspect it.';
+export const BOUNDARY_ILLUSTRATIVE = 'Illustrative files';

@@ -1,30 +1,37 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
 import { moduleNeighbours } from '../read-models/architecture';
 import { moduleOf } from '../read-models/file-summaries';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
+import { useReviewStore } from '../stores/review-store';
 import {
-  ARCH_EYEBROW, ARCH_MAP_FOOTNOTE, ARCH_OMITTED_NOTE, ARCH_SUBTITLE, ARCH_TAB_MAP, ARCH_TAB_MATRIX, ARCH_TITLE,
-  ARCH_VIEWS_LABEL, ARCH_VIOLATIONS_ONLY,
+  ARCH_ADD_RULE, ARCH_EYEBROW, ARCH_MAP_FOOTNOTE, ARCH_OMITTED_NOTE, ARCH_SUBTITLE, ARCH_TAB_MAP, ARCH_TAB_MATRIX,
+  ARCH_TAB_RULES, ARCH_TITLE, ARCH_VIEWS_LABEL, ARCH_VIOLATIONS_ONLY, RULE_REMOVE_FAILED,
 } from '../inspector-copy';
 import type { TabItem } from '../kit/tab-types';
 import PageHeader from '../kit/PageHeader.vue';
 import MetricCard from '../kit/MetricCard.vue';
 import Panel from '../kit/Panel.vue';
 import Tabs from '../kit/Tabs.vue';
+import Icon from '../kit/Icon.vue';
 import NoSnapshot from './NoSnapshot.vue';
 import ModuleMap from './architecture/ModuleMap.vue';
 import DependencyMatrix from './architecture/DependencyMatrix.vue';
 import ModuleInspector from './architecture/ModuleInspector.vue';
+import BoundaryRuleTable from './architecture/BoundaryRuleTable.vue';
+import BoundaryInspector from './architecture/BoundaryInspector.vue';
+import RuleEditor from './architecture/RuleEditor.vue';
 
 const TABS: readonly TabItem[] = [
   { id: 'map', label: ARCH_TAB_MAP },
   { id: 'matrix', label: ARCH_TAB_MATRIX },
+  { id: 'rules', label: ARCH_TAB_RULES },
 ];
 
 const store = useCityStore();
+const review = useReviewStore();
 const { architecture, files } = useReadModels();
 const tab = ref('map');
 const violationsOnly = ref(false);
@@ -44,9 +51,50 @@ const moduleSummary = computed(() => architecture.value.modules.find((m) => m.na
 const neighbours = computed(() => (selectedModule.value
   ? moduleNeighbours(architecture.value, selectedModule.value) : { incoming: [], outgoing: [] }));
 
+const selectedRuleId = ref<string | null>(null);
+const editorOpen = ref(false);
+const liveMessage = ref('');
+const selectedRule = computed(() => architecture.value.rules.find((r) => r.rule.id === selectedRuleId.value) ?? null);
+const selectedEdgeModel = computed(() => {
+  const s = selectedEdge.value;
+  return s ? architecture.value.edges.find((e) => e.from === s.from && e.to === s.to) ?? null : null;
+});
+/** The from-module's highest-priority files, shown only when there ARE imports to
+ *  illustrate: a violating rule, or a selected edge. Labelled sample. */
+const illustrative = computed(() => {
+  const from = selectedRule.value?.rule.from ?? selectedEdgeModel.value?.from ?? null;
+  const shows = selectedRule.value ? selectedRule.value.status === 'violation' : selectedEdgeModel.value !== null;
+  if (!shows || from === null) return [];
+  return architecture.value.modules.find((m) => m.name === from)?.topFiles.slice(0, 3) ?? [];
+});
+const edgeViolates = computed(() => {
+  const e = selectedEdgeModel.value;
+  return e ? architecture.value.violatingEdgeKeys.has(`${e.from}->${e.to}`) : false;
+});
+watch(() => architecture.value.rules, (rules) => {
+  if (selectedRuleId.value && !rules.some((r) => r.rule.id === selectedRuleId.value)) selectedRuleId.value = null;
+});
+
 function selectEdge(edge: { from: string; to: string }): void {
   selectedEdge.value = edge;
+  selectedRuleId.value = null;
   selectedModule.value = edge.from;
+}
+function selectRule(id: string): void {
+  selectedRuleId.value = id;
+  selectedEdge.value = null;
+}
+function onSaved(id: string): void {
+  editorOpen.value = false;
+  tab.value = 'rules';
+  selectRule(id);
+}
+async function removeRule(id: string): Promise<void> {
+  try {
+    await review.removeRule(id);
+  } catch {
+    liveMessage.value = RULE_REMOVE_FAILED;
+  }
 }
 
 /** Selection goes through the ONE owner and never moves the camera. */
@@ -62,7 +110,19 @@ function openFile(id: EntityId): void {
       :eyebrow="ARCH_EYEBROW"
       :title="ARCH_TITLE"
       :subtitle="ARCH_SUBTITLE"
-    />
+    >
+      <template #actions>
+        <button
+          v-if="store.snapshot"
+          type="button"
+          :disabled="architecture.modules.length < 2"
+          @click="editorOpen = true"
+        >
+          <Icon name="plus" />
+          {{ ARCH_ADD_RULE }}
+        </button>
+      </template>
+    </PageHeader>
     <NoSnapshot v-if="!store.snapshot" />
     <template v-else>
       <div class="ci-overview__cards">
@@ -110,6 +170,13 @@ function openFile(id: EntityId): void {
               :selected-edge="selectedEdge"
               @select-edge="selectEdge"
             />
+            <BoundaryRuleTable
+              v-else
+              :rules="architecture.rules"
+              @select="selectRule"
+              @remove="removeRule"
+              @add="editorOpen = true"
+            />
           </Tabs>
           <p
             v-if="architecture.omittedModules > 0"
@@ -119,6 +186,13 @@ function openFile(id: EntityId): void {
           </p>
         </Panel>
         <aside class="ci-architecture__inspectors">
+          <BoundaryInspector
+            :evaluation="selectedRule"
+            :edge="selectedEdgeModel"
+            :violating="edgeViolates"
+            :illustrative="illustrative"
+            @open-file="openFile"
+          />
           <ModuleInspector
             :module="moduleSummary"
             :incoming="neighbours.incoming"
@@ -128,5 +202,18 @@ function openFile(id: EntityId): void {
         </aside>
       </div>
     </template>
+    <p
+      class="visually-hidden"
+      role="status"
+    >
+      {{ liveMessage }}
+    </p>
+    <RuleEditor
+      v-if="editorOpen"
+      :modules="architecture.modules"
+      :initial-from="selectedModule"
+      @close="editorOpen = false"
+      @saved="onSaved"
+    />
   </div>
 </template>

@@ -119,3 +119,18 @@
   color: var(--ci-text); text-align: left; cursor: pointer;
 }
 :where(.codebase-inspector-root) button.ci-module-inspector__file:hover { background: var(--ci-raised); }
+:where(.codebase-inspector-root) .ci-rule-table__empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-3); color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-rule-status { font-weight: var(--font-semibold); margin-right: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-rule-status--violation { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-rule-status--passing { color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-rule-status--not-evaluated { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-boundary__id { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; }
+:where(.codebase-inspector-root) .ci-boundary__rule { margin: var(--ci-space-3) 0 var(--ci-space-1); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-boundary__rationale,
+:where(.codebase-inspector-root) .ci-boundary__empty { margin: 0; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-boundary__count { display: flex; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-rule-editor { display: flex; flex-direction: column; gap: var(--ci-space-2); min-width: min(26em, 80vw); padding: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-rule-editor__title { margin: 0; }
+:where(.codebase-inspector-root) .ci-rule-editor__hint { margin: 0 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-rule-editor__error { margin: 0; color: var(--ci-error); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-rule-editor__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); margin-top: var(--ci-space-3); }
