@@ -80,6 +80,29 @@ export const SHOTS = [
   { id: 'wp02-file-dark', query: '?screen=s05&theme=dark&route=file&select=first' },
   { id: 'wp02-file-light', query: '?screen=s05&theme=light&route=file&select=first' },
   { id: 'wp02-file-narrow-dark', query: '?screen=s10&theme=dark&route=file&select=first&width=700', viewport: { width: 760, height: 900 } },
+  // WP-02 Part 3: compare against docs/concept/prototype/screenshots/{quality,tests,dependencies,security,evolution,ownership}-{dark,light}.png
+  // and the subviews mutation-unknown-dark.png, test-results-dark.png, dependency-path-dark.png.
+  { id: 'wp02-quality-dark', query: '?screen=s05&theme=dark&route=quality' },
+  { id: 'wp02-quality-light', query: '?screen=s05&theme=light&route=quality' },
+  { id: 'wp02-quality-narrow-dark', query: '?screen=s10&theme=dark&route=quality&width=700', viewport: { width: 760, height: 900 } },
+  { id: 'wp02-tests-dark', query: '?screen=s05&theme=dark&route=tests' },
+  { id: 'wp02-tests-light', query: '?screen=s05&theme=light&route=tests' },
+  { id: 'wp02-tests-narrow-dark', query: '?screen=s10&theme=dark&route=tests&width=700', viewport: { width: 760, height: 900 } },
+  { id: 'wp02-tests-mutation-dark', query: '?screen=s05&theme=dark&route=tests&tab=mutation' },
+  { id: 'wp02-tests-results-dark', query: '?screen=s05&theme=dark&route=tests&tab=results' },
+  { id: 'wp02-dependencies-dark', query: '?screen=s05&theme=dark&route=dependencies' },
+  { id: 'wp02-dependencies-light', query: '?screen=s05&theme=light&route=dependencies' },
+  { id: 'wp02-dependencies-narrow-dark', query: '?screen=s10&theme=dark&route=dependencies&width=700', viewport: { width: 760, height: 900 } },
+  { id: 'wp02-dependencies-path-dark', query: '?screen=s05&theme=dark&route=dependencies&tab=path' },
+  { id: 'wp02-security-dark', query: '?screen=s05&theme=dark&route=security' },
+  { id: 'wp02-security-light', query: '?screen=s05&theme=light&route=security' },
+  { id: 'wp02-security-narrow-dark', query: '?screen=s10&theme=dark&route=security&width=700', viewport: { width: 760, height: 900 } },
+  { id: 'wp02-evolution-dark', query: '?screen=s05&theme=dark&route=evolution' },
+  { id: 'wp02-evolution-light', query: '?screen=s05&theme=light&route=evolution' },
+  { id: 'wp02-evolution-narrow-dark', query: '?screen=s10&theme=dark&route=evolution&width=700', viewport: { width: 760, height: 900 } },
+  { id: 'wp02-ownership-dark', query: '?screen=s05&theme=dark&route=ownership' },
+  { id: 'wp02-ownership-light', query: '?screen=s05&theme=light&route=ownership' },
+  { id: 'wp02-ownership-narrow-dark', query: '?screen=s10&theme=dark&route=ownership&width=700', viewport: { width: 760, height: 900 } },
 ];
 
 async function main() {

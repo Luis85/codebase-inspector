@@ -5,6 +5,7 @@
 //   ?width=<px>        the leaf box's width, for the narrow screen
 //   ?route=<id>        which inspector screen (default: city)
 //   ?select=first|<path>  select a file (for the file route)
+//   ?tab=<id>          select a tab on a tabbed screen (after the route)
 //
 // `installObsidianDomExtensions` is called FIRST, before any other import runs its own
 // top-level code: the harness page has no Obsidian, and the REAL renderer reads
@@ -40,4 +41,6 @@ const route = isRouteId(askedRoute) ? askedRoute : 'city';
 
 const select = params.get('select');
 
-void mountHarness(leaf, { screen, route, ...(select ? { select } : {}) });
+void mountHarness(leaf, {
+  screen, route, ...(select ? { select } : {}), ...(params.get('tab') ? { tab: params.get('tab')! } : {}),
+});

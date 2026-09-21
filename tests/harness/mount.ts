@@ -18,6 +18,7 @@ export interface HarnessOptions {
   screen: ScreenId;
   route?: RouteId;
   select?: string;
+  tab?: string;
 }
 
 export async function mountHarness(root: HTMLElement, options: HarnessOptions): Promise<void> {
@@ -95,6 +96,11 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
     // Only the city route creates a renderer; every other screen is plain DOM and is
     // drawn once Vue has flushed.
     await nextTick();
+    if (options.tab) {
+      // Part 3 §4: a headless capture cannot click, so the harness selects the tab.
+      root.querySelector<HTMLElement>(`[role="tab"][data-tab-id="${options.tab}"]`)?.click();
+      await nextTick();
+    }
     document.body.dataset.ciHarnessReady = 'true';
     return;
   }
