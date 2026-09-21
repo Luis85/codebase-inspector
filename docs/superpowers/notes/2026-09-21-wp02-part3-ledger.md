@@ -94,3 +94,10 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 | E37 | The E23 window card: its value is `sample(sum of the activity series)` with unit " commits", and its caption is `EVOLUTION_CARD_WINDOW_CAPTION(days)` = "Sample commits in the last N days; no author comparisons". | Low. |
 | E38 | Task 7 also adds the copy that Task 12 needs for E14 and E31: `EVOLUTION_COVERAGE_LABEL` (the chart's aria label, which says "sample") and `EVOLUTION_COUPLING_ROW_NOTE` = "Correlation, not a causal dependency". Copy for one screen stays in one file. | None. |
 | E39 | E7 is satisfied by any spelling that keeps the invisible U+FEFF byte out of the file: the backslash-u escape or `String.fromCharCode(0xFEFF)`. Task 7's test uses the latter, because the editing tool kept turning the escape into the real byte. | None. |
+
+### Task 8
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E40 | In the Finding review dialog, the Acknowledge/Reopen toggle and the Save dismissal button use `aria-disabled` while a decision is pending, not `disabled`, and their handlers ignore presses. In a real browser, disabling the focused control drops focus to `<body>`, which escapes the dialog's Tab trap and Escape handling. The store also refuses a second decision. | Low. A sighted user sees no pending state until a style is added (deferred minor). |
+| E41 | The finding filters' "All …" options use the empty string as the `<select>` value and map it back to `null`, because a native select cannot hold `null`. No module is ever named `''`. | None. |
