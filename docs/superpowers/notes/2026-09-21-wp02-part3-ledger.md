@@ -86,3 +86,10 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 | E34 | File detail and Code quality build their finding rows through one helper, `titledFindings(file)` in `read-models/findings.ts`, so the two screens cannot disagree on the title or fingerprint. `findings.ts` imports only types from `file-detail.ts`. | None. |
 | E35 | Weighted module coverage lives in a new `read-models/module-coverage.ts` (`moduleCoverage(files): ModuleCoverage[]`, built on `groupByModule`). Overview's weak-module investigation and Test confidence both use it (E11). Overview keeps its own sort and its current output. | Low. The Overview tests pin the weak-module card. |
 | E36 | Test confidence's "Files below 60%" card uses the `alert-triangle` icon, not the plan's `triangle-alert`. It matches the existing uses in `Callout.vue` and `architecture.ts`. | None. It is an icon alias. |
+
+### Task 7
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E37 | The E23 window card: its value is `sample(sum of the activity series)` with unit " commits", and its caption is `EVOLUTION_CARD_WINDOW_CAPTION(days)` = "Sample commits in the last N days; no author comparisons". | Low. |
+| E38 | Task 7 also adds the copy that Task 12 needs for E14 and E31: `EVOLUTION_COVERAGE_LABEL` (the chart's aria label, which says "sample") and `EVOLUTION_COUPLING_ROW_NOTE` = "Correlation, not a causal dependency". Copy for one screen stays in one file. | None. |
