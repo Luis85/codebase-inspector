@@ -85,3 +85,4 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 |---|---|---|
 | E34 | File detail and Code quality build their finding rows through one helper, `titledFindings(file)` in `read-models/findings.ts`, so the two screens cannot disagree on the title or fingerprint. `findings.ts` imports only types from `file-detail.ts`. | None. |
 | E35 | Weighted module coverage lives in a new `read-models/module-coverage.ts` (`moduleCoverage(files): ModuleCoverage[]`, built on `groupByModule`). Overview's weak-module investigation and Test confidence both use it (E11). Overview keeps its own sort and its current output. | Low. The Overview tests pin the weak-module card. |
+| E36 | Test confidence's "Files below 60%" card uses the `alert-triangle` icon, not the plan's `triangle-alert`. It matches the existing uses in `Callout.vue` and `architecture.ts`. | None. It is an icon alias. |
