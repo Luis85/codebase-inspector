@@ -289,3 +289,4 @@ export * from './audit-copy/quality';
 export * from './audit-copy/tests';
 export * from './audit-copy/dependencies';
 export * from './audit-copy/security';
+export * from './audit-copy/ownership';

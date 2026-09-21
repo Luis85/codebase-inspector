@@ -47,12 +47,16 @@ export interface OverviewModel {
   usesSample: boolean;
 }
 
-export function trendLabels(capturedAt: string): string[] {
+export function dateLabels(capturedAt: string, count: number, stepDays: number): string[] {
   const end = new Date(capturedAt).getTime();
-  return Array.from({ length: TREND_POINTS }, (_, i) => {
-    const d = new Date(end - (TREND_POINTS - 1 - i) * TREND_SPACING_DAYS * 86_400_000);
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(end - (count - 1 - i) * stepDays * 86_400_000);
     return `${MONTHS[d.getUTCMonth()] ?? ''} ${String(d.getUTCDate()).padStart(2, '0')}`;
   });
+}
+
+export function trendLabels(capturedAt: string): string[] {
+  return dateLabels(capturedAt, TREND_POINTS, TREND_SPACING_DAYS);
 }
 
 function investigations(files: readonly FileSummary[]): Investigation[] {

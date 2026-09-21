@@ -13,8 +13,12 @@ import {
 } from './architecture';
 import { buildFileDetail, type FileDetailModel } from './file-detail';
 import { buildDependenciesModel, type DependenciesModel } from './dependencies';
+import { buildEvolutionModel, type EvolutionModel } from './evolution';
+import type { ChangeWindow } from '../fixtures/sample-evolution';
 import { buildQualityModel, type QualityModel } from './findings';
+import { buildOwnershipModel, type OwnershipModel } from './ownership';
 import { buildSecurityModel, type SecurityModel } from './security';
+import type { JournalEntry } from './snapshot-comparison';
 import { buildTestConfidenceModel, type TestConfidenceModel } from './test-confidence';
 
 /** One stable empty array, so the per-array memo (architectureGraphFor) still hits. */
@@ -90,6 +94,27 @@ export function dependenciesModelFor(snapshot: CodebaseSnapshot): DependenciesMo
 /** Security has no snapshot-derived input (Part 3 Q7), so it is built once at module load. */
 const SECURITY: SecurityModel = buildSecurityModel();
 
+/** Part 3 Q8-Q10: one Evolution model per (snapshot, journal identity, changeWindow). The
+ *  journal's `entries` array is reassigned on every `record`, so its identity is a valid
+ *  key alongside the files array. */
+const evolutionCache = new WeakMap<readonly FileSummary[], { snapshot: CodebaseSnapshot; journal: readonly JournalEntry[]; changeWindow: ChangeWindow; model: EvolutionModel }>();
+export function evolutionModelFor(
+  snapshot: CodebaseSnapshot, files: readonly FileSummary[], journal: readonly JournalEntry[], changeWindow: ChangeWindow,
+): EvolutionModel {
+  const hit = evolutionCache.get(files);
+  if (hit && hit.snapshot === snapshot && hit.journal === journal && hit.changeWindow === changeWindow) return hit.model;
+  const model = buildEvolutionModel(snapshot, files, journal, changeWindow);
+  evolutionCache.set(files, { snapshot, journal, changeWindow, model });
+  return model;
+}
+
+const ownershipCache = new WeakMap<readonly FileSummary[], OwnershipModel>();
+export function ownershipModelFor(files: readonly FileSummary[]): OwnershipModel {
+  let hit = ownershipCache.get(files);
+  if (!hit) { hit = buildOwnershipModel(files); ownershipCache.set(files, hit); }
+  return hit;
+}
+
 /** Screens read models through here only (spec §3.2 rule 1). */
 export function useReadModels() {
   const store = useCityStore();
@@ -105,7 +130,11 @@ export function useReadModels() {
   const testConfidence = computed(() => (store.snapshot ? testConfidenceModelFor(store.snapshot, files.value) : null));
   const dependencies = computed(() => (store.snapshot ? dependenciesModelFor(store.snapshot) : null));
   const security = computed(() => SECURITY);
+  const ownership = computed(() => ownershipModelFor(files.value));
   /** A11: the Hotspots screen shows sample values whenever any file's plotted signal does. */
   const filesUseSample = computed(() => files.value.some((f) => isSampleBacked(f.priority) || isSampleBacked(f.complexity)));
-  return { files, overview, citySummary, architecture, fileDetail, quality, testConfidence, dependencies, security, filesUseSample };
+  return {
+    files, overview, citySummary, architecture, fileDetail, quality, testConfidence, dependencies, security,
+    ownership, filesUseSample,
+  };
 }

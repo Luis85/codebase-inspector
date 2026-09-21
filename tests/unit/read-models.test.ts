@@ -9,6 +9,8 @@ import { unknown, sample } from '../../src/ui/evidence';
 import { fileSummariesFor, moduleLabel, moduleOf, priorityEvidence, priorityScore } from '../../src/ui/read-models/file-summaries';
 import { buildOverviewModel, HOTSPOT_THRESHOLD } from '../../src/ui/read-models/overview';
 import { buildCitySummary } from '../../src/ui/read-models/city-summary';
+import { evolutionModelFor } from '../../src/ui/read-models/use-read-models';
+import { journalEntryFor } from '../../src/ui/read-models/snapshot-comparison';
 
 describe('file summaries', () => {
   it('derives the module from the first path segment', () => {
@@ -223,5 +225,27 @@ describe('read-model memoization', () => {
     expect(a.quality.value).not.toBe(before);
     expect(a.quality.value.byFingerprint.get(fingerprint)?.status).toBe('acknowledged');
     expect(b.quality.value).toBe(a.quality.value);
+  });
+
+  // Task 7: two callers share one Ownership model per files array.
+  it('two callers share one Ownership model per files array', () => {
+    const store = useCityStore();
+    const snap = buildSnapshotFixture({ files: 20, directories: 2 });
+    store.setCity(snap, computeLayout(snap));
+    const a = useReadModels();
+    const b = useReadModels();
+    expect(a.ownership.value).not.toBeNull();
+    expect(b.ownership.value).toBe(a.ownership.value);
+  });
+
+  // Task 7: evolutionModelFor is memoized per (files, journal, changeWindow), and a
+  // different changeWindow rebuilds it.
+  it('evolutionModelFor returns the same model for identical inputs and a new one when changeWindow changes', () => {
+    const snap = buildSnapshotFixture({ files: 20, directories: 2 });
+    const files = fileSummariesFor(snap);
+    const journal = [journalEntryFor(snap, files)];
+    const first = evolutionModelFor(snap, files, journal, 90);
+    expect(evolutionModelFor(snap, files, journal, 90)).toBe(first);
+    expect(evolutionModelFor(snap, files, journal, 30)).not.toBe(first);
   });
 });
