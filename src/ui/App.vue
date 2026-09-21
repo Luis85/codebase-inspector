@@ -40,6 +40,9 @@ const navInline = computed(() => leafWidth.value >= DRAWER_MAX_INLINE_SIZE);
 const navOpen = ref(false);
 const paletteOpen = ref(false);
 let navOpener: HTMLElement | null = null;
+/** Only a genuine drawer (narrow leaf, open) makes the content behind it `inert`; the
+ *  inline nav shares the layout with the content, so it is never inert. */
+const drawerOpen = computed(() => navOpen.value && !navInline.value);
 
 // Controller ruling (Task 7 review, carried into Task 8): a drawer left open in a
 // narrow leaf must not reappear once the leaf widens past 820px and back — inline
@@ -59,7 +62,10 @@ function openNav(event?: Event): void {
 function closeNav(): void {
   if (!navOpen.value) return;
   navOpen.value = false;
-  navOpener?.focus();
+  // The opener lives behind the drawer; while it is `inert` a real browser refuses it
+  // focus. Clear the state that drives `inert` first, then focus once that has patched
+  // into the DOM (nextTick), so focus lands on an element that can actually take it.
+  void nextTick(() => navOpener?.focus());
 }
 function navigate(route: RouteId): void {
   store.navigate(route);
@@ -86,7 +92,7 @@ defineExpose({ rendererHost });
     ref="rootEl"
     class="ci-shell"
     tabindex="-1"
-    :class="{ 'ci-shell--nav-inline': navInline, 'ci-shell--nav-open': navOpen && !navInline }"
+    :class="{ 'ci-shell--nav-inline': navInline, 'ci-shell--nav-open': drawerOpen }"
     @keydown="onShellKeydown"
   >
     <NavColumn
@@ -96,13 +102,14 @@ defineExpose({ rendererHost });
       @close="closeNav"
     />
     <div
-      v-if="navOpen && !navInline"
+      v-if="drawerOpen"
       class="ci-shell__scrim"
       aria-hidden="true"
       @click="closeNav"
     />
     <TopBar
       :workspace-label="workspaceLabel"
+      :inert="drawerOpen || undefined"
       @open-nav="openNav()"
       @open-palette="paletteOpen = true"
     >
@@ -110,7 +117,10 @@ defineExpose({ rendererHost });
         <SnapshotSelector />
       </template>
     </TopBar>
-    <main class="ci-shell__content">
+    <main
+      class="ci-shell__content"
+      :inert="drawerOpen || undefined"
+    >
       <CityScreen
         v-if="store.route === 'city'"
         ref="cityScreen"

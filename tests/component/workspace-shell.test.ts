@@ -110,6 +110,25 @@ describe('workspace shell', () => {
     leaf.remove();
   });
 
+  it('the content behind the open drawer is inert, and restored focus is not trapped inside it', async () => {
+    const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
+    leaf.getBoundingClientRect = () => ({ width: 600 } as DOMRect);
+    const w = mountShell(leaf);
+    const menu = w.find('.ci-topbar__menu');
+    (menu.element as HTMLElement).focus();
+    await menu.trigger('click');
+    expect(w.find('.ci-topbar').attributes('inert')).toBeDefined();
+    expect(w.find('.ci-shell__content').attributes('inert')).toBeDefined();
+
+    await w.find('.ci-shell__nav').trigger('keydown', { key: 'Escape' });
+    expect(w.find('.ci-topbar').attributes('inert')).toBeUndefined();
+    expect(w.find('.ci-shell__content').attributes('inert')).toBeUndefined();
+    expect(document.activeElement).toBe(menu.element);
+    expect((menu.element as HTMLElement).closest('[inert]')).toBeNull();
+    w.unmount();
+    leaf.remove();
+  });
+
   it('Tab and Shift+Tab wrap inside the open drawer', async () => {
     const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
     leaf.getBoundingClientRect = () => ({ width: 600 } as DOMRect);
@@ -143,6 +162,8 @@ describe('workspace shell', () => {
       ro.resize(leaf);
       await nextTick();
       expect(w.find('.ci-shell').classes()).not.toContain('ci-shell--nav-open');
+      expect(w.find('.ci-topbar').attributes('inert')).toBeUndefined();
+      expect(w.find('.ci-shell__content').attributes('inert')).toBeUndefined();
 
       leaf.getBoundingClientRect = () => ({ width: 600 } as DOMRect);
       ro.resize(leaf);
