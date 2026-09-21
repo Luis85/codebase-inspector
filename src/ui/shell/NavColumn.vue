@@ -27,13 +27,26 @@ const badges = computed<Partial<Record<RouteId, number>>>(() => {
   };
 });
 
-/** Escape closes the nav only as a DRAWER (spec §9 A12); the inline column leaves the
- *  press unclaimed so the city's own escape chain still resolves it. */
+/** A drawer only (spec §9 A12): Escape closes it; Tab and Shift+Tab wrap inside it, so
+ *  focus never reaches the covered content. The inline column claims neither key, so the
+ *  city's own escape chain still resolves Escape. */
 function onKeydown(event: KeyboardEvent): void {
-  if (event.key !== 'Escape' || !props.drawer) return;
-  event.preventDefault();
-  event.stopPropagation();
-  emit('close');
+  if (!props.drawer) return;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    event.stopPropagation();
+    emit('close');
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const nav = event.currentTarget as HTMLElement;
+  const items = [...nav.querySelectorAll<HTMLElement>('button:not([disabled])')];
+  const first = items[0];
+  const last = items[items.length - 1];
+  const active = nav.ownerDocument.activeElement;
+  if (!first || !last) return;
+  if (!event.shiftKey && active === last) { event.preventDefault(); first.focus(); }
+  else if (event.shiftKey && active === first) { event.preventDefault(); last.focus(); }
 }
 </script>
 

@@ -252,3 +252,8 @@ export const WORK_ITEM_STATUS_LABEL: Readonly<Record<'investigate' | 'planned' |
   investigate: 'Investigate', planned: 'Planned', 'in-progress': 'In progress', verified: 'Verified',
 };
 export const INVESTIGATE_FILE_LABEL = 'Investigate file';
+
+/** Part 2 §5: shell strings that were hard-coded in TopBar.vue (unchanged text). */
+export const BREADCRUMB_LABEL = 'Breadcrumb';
+export const BREADCRUMB_ROOT = 'Workspace';
+export const PALETTE_SHORTCUT_HINT = 'Ctrl K';

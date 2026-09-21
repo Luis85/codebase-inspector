@@ -88,6 +88,12 @@ defineExpose({ rendererHost });
       @navigate="navigate"
       @close="closeNav"
     />
+    <div
+      v-if="navOpen && !navInline"
+      class="ci-shell__scrim"
+      aria-hidden="true"
+      @click="closeNav"
+    />
     <TopBar
       :workspace-label="workspaceLabel"
       @open-nav="openNav()"

@@ -86,6 +86,38 @@ describe('workspace shell', () => {
     leaf.remove();
   });
 
+  it('the open drawer has a scrim that closes it on click and restores focus', async () => {
+    const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
+    leaf.getBoundingClientRect = () => ({ width: 600 } as DOMRect);
+    const w = mountShell(leaf);
+    const menu = w.find('.ci-topbar__menu');
+    (menu.element as HTMLElement).focus();
+    await menu.trigger('click');
+    await w.find('.ci-shell__scrim').trigger('click');
+    expect(w.find('.ci-shell').classes()).not.toContain('ci-shell--nav-open');
+    expect(w.find('.ci-shell__scrim').exists()).toBe(false);
+    expect(document.activeElement).toBe(menu.element);
+    w.unmount();
+    leaf.remove();
+  });
+
+  it('Tab and Shift+Tab wrap inside the open drawer', async () => {
+    const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
+    leaf.getBoundingClientRect = () => ({ width: 600 } as DOMRect);
+    const w = mountShell(leaf);
+    await w.find('.ci-topbar__menu').trigger('click');
+    const buttons = w.findAll('.ci-shell__nav button');
+    const first = buttons[0]!.element as HTMLElement;
+    const last = buttons.at(-1)!.element as HTMLElement;
+    last.focus();
+    await w.find('.ci-shell__nav').trigger('keydown', { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+    await w.find('.ci-shell__nav').trigger('keydown', { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    w.unmount();
+    leaf.remove();
+  });
+
   it('a drawer left open does not reappear once the leaf widens past 820px and back', async () => {
     // Controller ruling carried from Task 7's review: inline nav has its own column,
     // so a drawer left open while narrow must not resurface once the leaf goes wide

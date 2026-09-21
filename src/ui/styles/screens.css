@@ -31,7 +31,7 @@
 :where(.codebase-inspector-root) button.ci-investigation:hover { background: var(--ci-raised); }
 :where(.codebase-inspector-root) .ci-investigation__text { display: flex; flex-direction: column; gap: var(--ci-space-1); flex: 1 1 auto; white-space: normal; }
 :where(.codebase-inspector-root) .ci-investigation__title { font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-investigation__detail { color: var(--ci-text-muted); font-size: var(--font-ui-small); }
+:where(.codebase-inspector-root) .ci-investigation__detail { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 
 :where(.codebase-inspector-root) .ci-evidence-coverage { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-3) var(--ci-space-4); margin: 0; }
 :where(.codebase-inspector-root) .ci-evidence-coverage dt { color: var(--ci-text); }
@@ -43,7 +43,7 @@
 
 :where(.codebase-inspector-root) .ci-file-cell { display: flex; flex-direction: column; }
 :where(.codebase-inspector-root) .ci-file-cell__name { font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-file-cell__path { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller); }
+:where(.codebase-inspector-root) .ci-file-cell__path { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
 :where(.codebase-inspector-root) .ci-priority {
   padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small);
   color: var(--ci-tone-danger); background: var(--background-modifier-error);
@@ -64,7 +64,7 @@
 :where(.codebase-inspector-root) .ci-city-summary__value { font-size: 1.5em; font-weight: var(--font-semibold); color: var(--ci-action); }
 :where(.codebase-inspector-root) .ci-city-summary__text { display: flex; flex-direction: column; flex: 1 1 auto; white-space: normal; }
 :where(.codebase-inspector-root) .ci-city-summary__title { display: flex; gap: var(--ci-space-2); align-items: center; font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-city-summary__caption { color: var(--ci-text-muted); font-size: var(--font-ui-smaller); }
+:where(.codebase-inspector-root) .ci-city-summary__caption { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
 
 /* Part 2: Architecture. */
 :where(.codebase-inspector-root) .ci-architecture__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); align-items: start; }
