@@ -32,8 +32,13 @@ function makeRendererDouble() {
 const LABELS = ['Zoom in', 'Zoom out', 'Rotate left', 'Rotate right',
   'Pan up', 'Pan down', 'Pan left', 'Pan right', 'Fit', 'Top', 'Focus'];
 
-function mountControls(rendererDouble: ReturnType<typeof makeRendererDouble>, stageEl: HTMLElement) {
+function mountControls(
+  rendererDouble: ReturnType<typeof makeRendererDouble>,
+  stageEl: HTMLElement,
+  props: { stepsCollapsed?: boolean } = {},
+) {
   return mount(CameraControls, {
+    props,
     global: {
       provide: {
         [CITY_RENDERER_KEY as symbol]: { value: rendererDouble },
@@ -42,6 +47,20 @@ function mountControls(rendererDouble: ReturnType<typeof makeRendererDouble>, st
     },
     attachTo: document.body,
   });
+}
+
+/** Task 10: a real `.codebase-inspector-root` ancestor with a controllable rect --
+ *  `contentBoxInlineSize`/`narrowContainer` (container-box.ts) climb to this exact
+ *  class, the same one App.vue's own `narrowDrawer` measures, so the disclosure's
+ *  auto-default is pinned against the SAME leaf-width signal rather than a second,
+ *  invented one. Returns the STAGE element `mountControls` expects, nested inside
+ *  the root so `.closest('.codebase-inspector-root')` finds it. */
+function stageInRoot(width: number): HTMLElement {
+  const root = document.body.createDiv({ cls: 'codebase-inspector-root' });
+  root.getBoundingClientRect = () => ({
+    width, height: 700, top: 0, left: 0, right: width, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+  });
+  return root.createDiv();
 }
 
 function byLabel(wrapper: ReturnType<typeof mountControls>, label: string) {
@@ -70,9 +89,67 @@ describe('CameraControls.vue (C09) — WCAG 2.5.7', () => {
     // wider than the test. WCAG 2.5.7 is about EVERY dragging gesture having a
     // single-pointer route — a control this list does not know about is exactly the case
     // that has not been thought through.
+    //
+    // Task 10 (F5): now LABELS.length + 1 — the disclosure toggle (`.ci-camera-controls__more`)
+    // is a real, deliberate twelfth control, not an unnoticed regression; it is asserted
+    // by name below rather than folded into LABELS, since it is not itself a camera
+    // gesture WCAG 2.5.7 requires a single-pointer route for.
     expect(wrapper.findAll('button'),
-      'a control exists that LABELS does not name — add it here and to the matrix')
-      .toHaveLength(LABELS.length);
+      'a control exists that neither LABELS nor the disclosure toggle names — add it here and to the matrix')
+      .toHaveLength(LABELS.length + 1);
+    expect(wrapper.find('.ci-camera-controls__more').exists()).toBe(true);
+  });
+
+  // Task 10 (F5): eleven buttons in a full-width row below the stage wrapped to two
+  // rows in a narrow leaf and ate the height the city needs — the fix overlays a
+  // compact group on the canvas itself instead. Anchored against `.ci-viewport`
+  // (superseding ruling: `.ci-app__stage-column`'s own bottom-right corner sits over
+  // MetricLegend, not the canvas, once Task 7's header and Task 8's legend are both
+  // in that column) — CityStage.vue is what makes CameraControls a DOM descendant of
+  // it; this test only pins the class this component itself is responsible for.
+  it('sits over the stage rather than taking a row beneath it', () => {
+    const wrapper = mountControls(rendererDouble, stageEl);
+    expect(wrapper.find('.ci-camera-controls').classes()).toContain('ci-camera-controls--overlay');
+  });
+
+  // foundations/04: a keyboard-only alternative alone is NOT sufficient for the
+  // single-pointer requirement — the pan and rotate STEPS (named for
+  // BUTTON_ROTATE_STEP/BUTTON_PAN_STEP, the increments this file already defines,
+  // unlike BUTTON_ZOOM_FACTOR) are themselves that alternative, so hiding them behind
+  // a disclosure must never remove them — every one must still be reachable by
+  // pointer in a few clicks. `stepsCollapsed: true` is the explicit test seam
+  // (component doc comment): jsdom has no layout engine, so this is how a narrow
+  // leaf's own INITIAL state is exercised without faking a real ResizeObserver round
+  // trip for a number (819px) this component does not itself decide alone.
+  it('keeps every action reachable when the step controls are collapsed', () => {
+    const wrapper = mountControls(rendererDouble, stageEl, { stepsCollapsed: true });
+    expect(byLabel(wrapper, 'Rotate left').exists()).toBe(false);
+    expect(wrapper.findAll('button').length).toBe(6);   // five primaries + the disclosure
+    return wrapper.find('.ci-camera-controls__more').trigger('click').then(() => {
+      expect(wrapper.findAll('button').length).toBe(12);   // eleven actions plus the disclosure
+      for (const label of LABELS) expect(byLabel(wrapper, label).exists(), label).toBe(true);
+    });
+  });
+
+  // Task 10: the auto-default this component computes for itself when no test override
+  // is given — `contentBoxInlineSize(narrowContainer(...))`, the SAME leaf-width
+  // measurement App.vue's own `narrowDrawer` takes, against the SAME 820px number
+  // (DRAWER_MAX_INLINE_SIZE) — one definition of "narrow" for the whole shell, not a
+  // second one invented here. A width of exactly 0 (jsdom's own default, and a
+  // leaf paused behind a sibling tab) is deliberately read as "not yet measurable",
+  // never as "narrow" — see this file's own applyStepsDefault comment.
+  it('defaults the steps OPEN at or above the 820px leaf threshold', () => {
+    const stage = stageInRoot(900);
+    const wrapper = mountControls(rendererDouble, stage);
+    expect(byLabel(wrapper, 'Rotate left').exists()).toBe(true);
+    expect(wrapper.findAll('button').length).toBe(12);
+  });
+
+  it('defaults the steps COLLAPSED below the 820px leaf threshold', () => {
+    const stage = stageInRoot(600);
+    const wrapper = mountControls(rendererDouble, stage);
+    expect(byLabel(wrapper, 'Rotate left').exists()).toBe(false);
+    expect(wrapper.findAll('button').length).toBe(6);
   });
 
   it('drives nudgeCamera with the spec step increments', async () => {
@@ -174,5 +251,31 @@ describe('CameraControls.vue (C09) — WCAG 2.5.7', () => {
     expect(source).not.toContain("from 'obsidian'");
     expect(source).not.toContain('addCommand');
     expect(source).not.toContain('hotkeys');
+  });
+});
+
+// Task 10: the overlay must not swallow a pointer aimed at a building UNDER it —
+// picking raycasts file lots only, and jsdom cannot render the real stacking/hit-
+// testing that would otherwise catch this, so the two declarations that prevent it
+// are pinned directly against the stylesheet, the same way
+// tests/component/stage-height.test.ts already reads styles.css "because the
+// stylesheet is where they are actually decided".
+describe('the overlay does not intercept a pointer aimed at a building (styles.css)', () => {
+  const css = readFileSync(resolve(process.cwd(), 'src/ui/styles.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+
+  function topLevelRule(selector: string): string {
+    const needle = `:where(.codebase-inspector-root) ${selector} {`;
+    const start = css.indexOf(needle);
+    expect(start, `${selector} is not declared at the top level of styles.css`).toBeGreaterThan(-1);
+    return css.slice(start + needle.length, css.indexOf('}', start));
+  }
+
+  it('the container refuses every pointer', () => {
+    expect(topLevelRule('.ci-camera-controls--overlay')).toMatch(/(?<![-\w])pointer-events:\s*none\s*(?:;|$)/);
+  });
+
+  it('every button opts back in', () => {
+    expect(topLevelRule('.ci-camera-controls button')).toMatch(/(?<![-\w])pointer-events:\s*auto\s*(?:;|$)/);
   });
 });

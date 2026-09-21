@@ -615,14 +615,42 @@
 /* --- CameraControls (C09) ---------------------------------------------------- */
 :where(.codebase-inspector-root) .ci-camera-controls {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--ci-space-1);
+}
+/* Task 10 (F5): overlaid on the canvas instead of a full-width row beneath it --
+   CityStage.vue composes this INSIDE CityViewport's own `.ci-viewport`
+   (`position: relative`, see that section below), which is what this anchors
+   against. `pointer-events: none` on the CONTAINER, `auto` back on each button
+   (below) -- foundations/04's picking hazard: an overlay box that swallowed a
+   pointer aimed at a building behind it would defeat raycasting from entirely
+   outside Three, and tests/component/picking.test.ts exists to catch exactly this
+   class of regression. */
+:where(.codebase-inspector-root) .ci-camera-controls--overlay {
+  position: absolute;
+  inset: auto var(--ci-space-3) var(--ci-space-3) auto;
+  pointer-events: none;
+}
+/* The two button groups: the six STEP controls (disclosure, collapsible) above the
+   five always-visible primaries plus the disclosure toggle. Both wrap and
+   right-align independently, so an expanded steps row never drags the primaries
+   row wider than the primaries themselves need. */
+:where(.codebase-inspector-root) .ci-camera-controls__primary,
+:where(.codebase-inspector-root) .ci-camera-controls__steps {
+  display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--ci-space-1);
 }
 /* Item 4 sweep. This one was ALREADY `<class> <type>` = (0,1,1) and already winning its
    background -- it is where the recipe came from. Two things were still missing: the
    `box-shadow` that stops `--input-shadow` painting under our border, and a hover rule,
    because beating `button:hover` on order had silently cost these buttons their hover
-   affordance long before this round. */
+   affordance long before this round. Task 10: also covers the new disclosure toggle
+   (`.ci-camera-controls__more`) -- a plain `<button>` inside `.ci-camera-controls` like
+   every other one here, so it needs no selector of its own in this rule or in
+   tests/unit/host-cascade.test.ts's PLUGIN_SKINNED_BUTTONS sweep. */
 :where(.codebase-inspector-root) .ci-camera-controls button {
   min-height: var(--ci-control-min);
   min-width: var(--ci-control-min);
@@ -632,6 +660,9 @@
   box-shadow: none;
   color: var(--ci-text);
   cursor: pointer;
+  /* The container above is `pointer-events: none`; each button opts back in, so the
+     overlay never intercepts a pointer aimed at a building past its own edges. */
+  pointer-events: auto;
 }
 :where(.codebase-inspector-root) .ci-camera-controls button:hover {
   background: var(--ci-raised);

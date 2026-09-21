@@ -56,7 +56,14 @@ export function narrowContainer(el: HTMLElement): HTMLElement {
 export function contentBoxInlineSize(el: HTMLElement): number {
   const borderBox = el.getBoundingClientRect().width;
   const win = (el as unknown as WinBearing).win;
-  if (!win) return borderBox;
+  // Task 10: CameraControls now reaches this function too, from plain component
+  // setup rather than only from a real App.vue mount -- and several existing test
+  // doubles assign `.win` to a minimal object built for whatever THAT file already
+  // needed (a `ResizeObserver`/`matchMedia` stand-in), never `getComputedStyle`. A
+  // real Window always has it; a `.win` that does not is the same "not a real
+  // host" case the border-box fallback below already exists for, just missing a
+  // different member of the same object.
+  if (!win || typeof win.getComputedStyle !== 'function') return borderBox;
   const style = win.getComputedStyle(el);
   return borderBox
     - px(style.paddingLeft) - px(style.paddingRight)

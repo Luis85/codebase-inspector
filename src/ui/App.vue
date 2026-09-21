@@ -25,12 +25,9 @@ import { DRAWER_MAX_INLINE_SIZE, MIN_INLINE_SIZE } from './responsive';
 import { contentBoxInlineSize, narrowContainer } from './container-box';
 import { COPY_02, COPY_30_EXPLANATION } from './copy';
 import AppToolbar from './components/AppToolbar.vue';
-import CityHeader from './components/CityHeader.vue';
 import CodebaseFileList from './components/CodebaseFileList.vue';
-import CityViewport from './components/CityViewport.vue';
-import CameraControls from './components/CameraControls.vue';
+import CityStage from './components/CityStage.vue';
 import FileInspector from './components/FileInspector.vue';
-import MetricLegend from './components/MetricLegend.vue';
 import SnapshotStatus from './components/SnapshotStatus.vue';
 import StatusBanner from './components/StatusBanner.vue';
 import EmptyState from './components/EmptyState.vue';
@@ -246,8 +243,13 @@ onBeforeUnmount(() => {
   unwireRootMigration = null;
 });
 
-interface CityViewportExposed { stageEl: HTMLElement | null }
-const cityViewportRef = ref<CityViewportExposed | null>(null);
+// Task 10 (F5): CityStage.vue now owns CityHeader/CityViewport/CameraControls/
+// MetricLegend as one extracted unit (see that file's own comment for why), and
+// relays CityViewport's own exposed `stageEl` back up through its own
+// `defineExpose` — this ref reaches the SAME element `cityViewportRef` used to,
+// one hop further away.
+interface CityStageExposed { stageEl: HTMLElement | null }
+const cityStageRef = ref<CityStageExposed | null>(null);
 
 // Task 9 fix round 1, item 4 (Important): renderer/root unavailability are
 // deliberately NEVER wired into this derivation. `view-surface.ts` still SUPPORTS
@@ -280,7 +282,7 @@ const viewSurfaceState = computed(() => deriveViewSurfaceState({
   rootUnavailable: false,
 }));
 
-const rendererHost = computed(() => cityViewportRef.value?.stageEl ?? null);
+const rendererHost = computed(() => cityStageRef.value?.stageEl ?? null);
 defineExpose({ rendererHost });
 </script>
 
@@ -347,34 +349,13 @@ defineExpose({ rendererHost });
         </button>
         <CodebaseFileList class="ci-app__list" />
       </div>
-      <div class="ci-app__stage-column">
-        <!-- Task 7 (F8, ruling P3): S05's own canvas header -- eyebrow, title,
-             subtitle, "Read-only snapshot" badge -- above the stage. A fixed-height
-             row: CityViewport below keeps `flex: 1 1 auto; min-height: 0` and is
-             what actually absorbs the column's leftover space. -->
-        <CityHeader />
-        <!-- Task 10 fix round 1 (ruling M75): NOT mounted in list mode. Spec 5.2
-             says the list-first fallback "creates no WebGL context at all", spec
-             4.2 says "in 'list' mode no renderer exists", and browsers cap live
-             contexts at roughly 8-16 — so leaving a live context behind in the
-             one mode defined as not having one is a real cost, not a formality.
-             The comment that used to stand here justified the opposite from
-             city-view.ts capturing `instance.rendererHost` once and keeping it
-             for the view's lifetime; ruling M68 moved renderer ownership into
-             CityViewport itself, so nothing outside this component holds the
-             stage element any more and `rendererHost` appears nowhere in
-             src/host/. Unmounting disposes the renderer through CityViewport's
-             own onBeforeUnmount, exactly as the 320 px floor already does.
-             `useClipboard` gained a cross-window fallback first: FileInspector is
-             gated on `inspectorOpen`, independent of viewMode, and used to take
-             its Window from the stage handle this unmount nulls. -->
-        <CityViewport
-          v-if="store.viewMode !== 'list'"
-          ref="cityViewportRef"
-        />
-        <CameraControls v-if="store.viewMode !== 'list'" />
-        <MetricLegend />
-      </div>
+      <!-- Task 10 (F5): CityHeader, CityViewport (with CameraControls slotted
+           inside its own `.ci-viewport`) and MetricLegend now live in CityStage.vue
+           -- extracted out of this file, which the brief's own measurement found at
+           its 400-line cap with no headroom left for this task's own markup. See
+           that file's own comment for the full account, including why
+           CameraControls is no longer this column's own direct sibling. -->
+      <CityStage ref="cityStageRef" />
       <FileInspector v-if="store.inspectorOpen" />
     </div>
     <div

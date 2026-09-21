@@ -393,5 +393,8 @@ defineExpose({ stageEl, cityRendererHandle, unavailableReason });
     >
       {{ COPY_14 }}
     </p>
+    <!-- Task 10 (F5, see CityStage.vue): CameraControls slots in here, anchoring
+         `--overlay` against this element's own `position: relative` box. -->
+    <slot />
   </div>
 </template>
