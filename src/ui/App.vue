@@ -9,6 +9,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import type { RouteId } from '../domain/route-ids';
 import { DRAWER_MAX_INLINE_SIZE } from './responsive';
 import { NO_CODEBASE_LABEL } from './inspector-copy';
+import { rootFolderLabel } from './read-models/root-label';
 import { useCityStore } from './stores/city-store';
 import { useLeafWidth } from './shell/use-leaf-width';
 import { useJournalFeed } from './shell/use-journal-feed';
@@ -41,9 +42,7 @@ watch(navInline, (inline) => { if (inline) navOpen.value = false; });
 
 const workspaceLabel = computed(() => {
   const root = store.snapshot?.scope.rootPath;
-  if (!root) return NO_CODEBASE_LABEL;
-  const normalized = root.replace(/\\/g, '/').replace(/\/+$/, '');
-  return normalized.slice(normalized.lastIndexOf('/') + 1) || normalized;
+  return root ? rootFolderLabel(root) : NO_CODEBASE_LABEL;
 });
 
 function openNav(event?: Event): void {

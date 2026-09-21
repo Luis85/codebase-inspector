@@ -12,7 +12,9 @@ import {
   architectureGraphFor, buildArchitectureModel, cyclesValue, type ArchitectureGraph, type ArchitectureModel,
 } from './architecture';
 import { buildFileDetail, type FileDetailModel } from './file-detail';
+import { buildDependenciesModel, type DependenciesModel } from './dependencies';
 import { buildQualityModel, type QualityModel } from './findings';
+import { buildSecurityModel, type SecurityModel } from './security';
 import { buildTestConfidenceModel, type TestConfidenceModel } from './test-confidence';
 
 /** One stable empty array, so the per-array memo (architectureGraphFor) still hits. */
@@ -78,6 +80,16 @@ export function testConfidenceModelFor(snapshot: CodebaseSnapshot, files: readon
   return model;
 }
 
+const dependenciesCache = new WeakMap<CodebaseSnapshot, DependenciesModel>();
+export function dependenciesModelFor(snapshot: CodebaseSnapshot): DependenciesModel {
+  let hit = dependenciesCache.get(snapshot);
+  if (!hit) { hit = buildDependenciesModel(snapshot); dependenciesCache.set(snapshot, hit); }
+  return hit;
+}
+
+/** Security has no snapshot-derived input (Part 3 Q7), so it is built once at module load. */
+const SECURITY: SecurityModel = buildSecurityModel();
+
 /** Screens read models through here only (spec §3.2 rule 1). */
 export function useReadModels() {
   const store = useCityStore();
@@ -91,7 +103,9 @@ export function useReadModels() {
   const fileDetail = computed(() => (store.snapshot ? fileDetailFor(store.snapshot, files.value, store.selectedEntityId) : null));
   const quality = computed(() => qualityModelFor(files.value, review.dispositions));
   const testConfidence = computed(() => (store.snapshot ? testConfidenceModelFor(store.snapshot, files.value) : null));
+  const dependencies = computed(() => (store.snapshot ? dependenciesModelFor(store.snapshot) : null));
+  const security = computed(() => SECURITY);
   /** A11: the Hotspots screen shows sample values whenever any file's plotted signal does. */
   const filesUseSample = computed(() => files.value.some((f) => isSampleBacked(f.priority) || isSampleBacked(f.complexity)));
-  return { files, overview, citySummary, architecture, fileDetail, quality, testConfidence, filesUseSample };
+  return { files, overview, citySummary, architecture, fileDetail, quality, testConfidence, dependencies, security, filesUseSample };
 }
