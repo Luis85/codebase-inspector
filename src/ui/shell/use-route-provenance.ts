@@ -25,7 +25,8 @@ export function useRouteProvenance(): ComputedRef<boolean> {
       case 'security': return security.value.usesSample;
       // Part 3 Q10: activity and coupling are always sample (EvolutionModel.usesSample is `true`).
       case 'evolution': return true;
-      case 'ownership': return ownership.value.usesSample && store.snapshot !== null;
+      // The `!store.snapshot` guard above already covers the null case.
+      case 'ownership': return ownership.value.usesSample;
       default: return false;
     }
   });

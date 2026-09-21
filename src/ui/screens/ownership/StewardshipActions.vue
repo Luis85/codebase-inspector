@@ -45,7 +45,7 @@ function add(a: StewardshipAction): void {
         :aria-disabled="blocked(a)"
         @click="add(a)"
       >
-        <Icon name="plus" />
+        <Icon :name="added(a) ? 'check' : 'plus'" />
         {{ added(a) ? OWNERSHIP_ACTION_ADDED : OWNERSHIP_ACTION_ADD_SHORT }}
       </button>
     </li>

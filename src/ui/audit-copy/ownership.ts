@@ -44,5 +44,7 @@ export const OWNERSHIP_COL_CONCENTRATION = 'Concentration';
 export const OWNERSHIP_COL_CANDIDATES = 'Review candidates';
 export const OWNERSHIP_COL_ACTIONS = 'Actions';
 export const OWNERSHIP_SHOW_IN_CITY = 'Show in city';
-export const OWNERSHIP_SHOW_IN_CITY_LABEL = (m: string): string => `Show the ${m} module in the city`;
+// E52 (WCAG 2.5.3, controller ruling): the accessible name must START WITH the button's
+// own visible text ("Show in city"), so it is a prefix here, not a rephrasing.
+export const OWNERSHIP_SHOW_IN_CITY_LABEL = (m: string): string => `Show in city: ${m}`;
 export const OWNERSHIP_HIDDEN = (n: number): string => `${n} smaller modules are not shown.`;

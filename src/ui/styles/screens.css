@@ -387,7 +387,7 @@
   display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; align-items: start; gap: var(--ci-space-3);
   padding: var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); background: var(--ci-panel);
 }
-:where(.codebase-inspector-root) .ci-steward-action__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+:where(.codebase-inspector-root) .ci-steward-action__text { display: flex; flex-direction: column; gap: var(--ci-space-1); min-width: 0; }
 :where(.codebase-inspector-root) .ci-steward-action__title { font-weight: var(--font-semibold); }
 :where(.codebase-inspector-root) .ci-steward-action__body { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) button.ci-steward-action__add[aria-disabled="true"] { opacity: 0.6; cursor: default; }
