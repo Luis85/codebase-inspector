@@ -215,6 +215,27 @@ describe('QualityScreen', () => {
     w.unmount();
   });
 
+  it('final review I2: Add work item is aria-disabled once pressed, keeps focus and ignores a second press', async () => {
+    withSnapshot();
+    const { w, done } = mountInShell();
+    const spy = vi.spyOn(useReviewStore(), 'addWorkItemForFile');
+    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    const button = w.find('.ci-finding-dialog__work-item');
+    const before = button.text();
+    (button.element as HTMLElement).focus();
+    await button.trigger('click');
+    await flush();
+    expect(button.attributes('disabled')).toBeUndefined();
+    expect(button.attributes('aria-disabled')).toBe('true');
+    expect(button.text()).not.toBe(before);
+    expect(document.activeElement).toBe(button.element);
+    await button.trigger('click');
+    await flush();
+    expect(spy).toHaveBeenCalledOnce();
+    expect(useReviewStore().workItemCount).toBe(1);
+    done();
+  });
+
   it('Open file detail selects the file and navigates there', async () => {
     withSnapshot();
     const w = mountQ();

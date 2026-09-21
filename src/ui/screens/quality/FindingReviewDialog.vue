@@ -84,9 +84,15 @@ async function saveDismissal(): Promise<void> {
   if (trimmed.length > DISMISS_REASON_MAX) { error.value = FINDING_DISMISS_TOO_LONG(DISMISS_REASON_MAX); return; }
   if (await run(() => review.dismiss(props.fingerprint, trimmed, new Date()), FINDING_DISMISSED)) await closeDismissal();
 }
+/** Final review I2 (E40): pressed while focused, so `aria-disabled` + this guard, never
+ *  `disabled`, which would drop focus out of the modal. */
+const workItemBlocked = computed(() => {
+  const f = finding.value;
+  return !f || review.hasWorkItemFor(f.file.id) || review.isPendingFor(f.file.id);
+});
 async function addWorkItem(): Promise<void> {
   const f = finding.value;
-  if (f) await run(() => review.addWorkItemForFile(f.file.id, WORK_ITEM_TITLE(f.file.name), new Date()), FINDING_IN_PLAN);
+  if (f && !workItemBlocked.value) await run(() => review.addWorkItemForFile(f.file.id, WORK_ITEM_TITLE(f.file.name), new Date()), FINDING_IN_PLAN);
 }
 </script>
 
@@ -138,7 +144,7 @@ async function addWorkItem(): Promise<void> {
         <button
           type="button"
           class="ci-finding-dialog__work-item"
-          :disabled="review.hasWorkItemFor(finding.file.id) || review.isPendingFor(finding.file.id)"
+          :aria-disabled="workItemBlocked"
           @click="addWorkItem"
         >
           {{ review.hasWorkItemFor(finding.file.id) ? FINDING_IN_PLAN : FINDING_ADD_WORK_ITEM }}

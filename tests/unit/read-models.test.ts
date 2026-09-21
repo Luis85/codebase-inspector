@@ -209,6 +209,27 @@ describe('read-model memoization', () => {
     expect(b.architecture.value).toBe(a.architecture.value);
   });
 
+  // Final review I1: leaves share the snapshot (and so the graph) but each has its own
+  // review Pinia, whose rule ids restart at AR-001; one leaf never sees another's rules.
+  it('two leaves sharing a graph keep their own Architecture rules and rationale', async () => {
+    const snap = buildSnapshotFixture({ files: 20, directories: 2 });
+    const layout = computeLayout(snap);
+    const leafA = createPinia();
+    const leafB = createPinia();
+    setActivePinia(leafA);
+    useCityStore().setCity(snap, layout);
+    await useReviewStore().addRule('dir-0', 'dir-1', 'rationale A', new Date());
+    const a = useReadModels();
+    expect(a.architecture.value.rules[0]?.rule.rationale).toBe('rationale A');
+    setActivePinia(leafB);
+    useCityStore().setCity(snap, layout);
+    await useReviewStore().addRule('dir-0', 'dir-1', 'rationale B', new Date());
+    const b = useReadModels();
+    expect(b.architecture.value.rules[0]?.rule.id).toBe('AR-001');
+    expect(b.architecture.value.rules[0]?.rule.rationale).toBe('rationale B');
+    expect(a.architecture.value.rules[0]?.rule.rationale).toBe('rationale A');
+  });
+
   // Part 3 Q1-Q3: two callers share one Code quality model per (files, dispositions), and
   // deciding a finding (which reassigns review.dispositions) rebuilds it for both.
   it('two callers share one Quality model per (files, dispositions)', async () => {

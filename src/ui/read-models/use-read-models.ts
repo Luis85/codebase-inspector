@@ -1,4 +1,4 @@
-import { computed } from 'vue';
+import { computed, toRaw } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
 import type { CodebaseSnapshot } from '../../domain/model';
 import { useCityStore } from '../stores/city-store';
@@ -43,16 +43,24 @@ export function overviewModelFor(snapshot: CodebaseSnapshot, files: readonly Fil
   return model;
 }
 
-/** Part 3 §4: one Architecture model per (graph, rule set), shared by every caller. The
- *  rules array is mutated in place by `addRule`, so the key is a signature, not identity. */
-const architectureCache = new WeakMap<ArchitectureGraph, { signature: string; model: ArchitectureModel }>();
-const rulesSignature = (rules: readonly BoundaryRule[]): string => rules.map((r) => `${r.id}:${r.from}>${r.to}`).join('|');
+/** Part 3 §4: one Architecture model per (graph, leaf rule set), shared by every caller in
+ *  that leaf. The graph is shared across leaves (one snapshot store) but each leaf has its
+ *  own review store, whose rule ids restart at AR-001, so the inner key is the leaf's raw
+ *  rules array (final review I1). `addRule` pushes in place, so a signature of every
+ *  rendered rule field guards the hit. */
+type ArchitectureEntry = { signature: string; model: ArchitectureModel };
+const architectureCache = new WeakMap<ArchitectureGraph, WeakMap<object, ArchitectureEntry>>();
+const rulesSignature = (rules: readonly BoundaryRule[]): string =>
+  JSON.stringify(rules.map((r) => [r.id, r.from, r.to, r.rationale, r.createdAt]));
 export function architectureModelFor(graph: ArchitectureGraph, rules: readonly BoundaryRule[]): ArchitectureModel {
   const signature = rulesSignature(rules);
-  const hit = architectureCache.get(graph);
+  let byRules = architectureCache.get(graph);
+  if (!byRules) { byRules = new WeakMap(); architectureCache.set(graph, byRules); }
+  const key: object = toRaw(rules);
+  const hit = byRules.get(key);
   if (hit && hit.signature === signature) return hit.model;
   const model = buildArchitectureModel(graph, rules);
-  architectureCache.set(graph, { signature, model });
+  byRules.set(key, { signature, model });
   return model;
 }
 
