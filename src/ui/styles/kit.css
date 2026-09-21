@@ -103,10 +103,15 @@
 :where(.codebase-inspector-root) .ci-table__row--static:hover,
 :where(.codebase-inspector-root) .ci-table__row--static:focus-visible { background: none; }
 
-:where(.codebase-inspector-root) .ci-line-chart { margin: 0; }
-:where(.codebase-inspector-root) .ci-line-chart svg { width: 100%; height: auto; }
+/* Part 3 Task 15: the first/last axis labels sit on the viewBox edge, so the svg must not
+ * clip them; in a narrow panel the 600-unit viewBox shrinks its text, so the container
+ * query raises the SVG font size to keep axis labels readable. */
+:where(.codebase-inspector-root) .ci-line-chart { margin: 0; container-type: inline-size; }
+:where(.codebase-inspector-root) .ci-line-chart svg { width: 100%; height: auto; overflow: visible; }
 :where(.codebase-inspector-root) .ci-line-chart__grid line { stroke: var(--ci-border); stroke-dasharray: 3 4; }
 :where(.codebase-inspector-root) .ci-line-chart__grid text { fill: var(--ci-text-faint); font-size: 11px; }
+@container (max-width: 599px) { :where(.codebase-inspector-root) .ci-line-chart__grid text { font-size: 13px; } }
+@container (max-width: 479px) { :where(.codebase-inspector-root) .ci-line-chart__grid text { font-size: 18px; } }
 :where(.codebase-inspector-root) .ci-line-chart__line { stroke-width: 2; }
 :where(.codebase-inspector-root) .ci-line-chart__line--success { stroke: var(--ci-tone-success); }
 :where(.codebase-inspector-root) .ci-line-chart__line--accent { stroke: var(--ci-tone-accent); }

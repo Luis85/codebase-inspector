@@ -294,6 +294,9 @@
 /* Part 3 Task 10: Dependencies screen and the Package detail dialog. */
 :where(.codebase-inspector-root) .ci-packages__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-packages__query { flex: 1 1 14em; min-width: 0; }
+/* Task 15: package name on its own line; references and the sample badge beneath it. */
+:where(.codebase-inspector-root) .ci-packages td > code:first-child { display: block; margin-bottom: var(--ci-space-1); }
+:where(.codebase-inspector-root) .ci-packages td > code:first-child + .ci-hotspots__note { margin: 0 var(--ci-space-2) 0 0; }
 :where(.codebase-inspector-root) .ci-manifests { margin: var(--ci-space-4) 0; }
 :where(.codebase-inspector-root) .ci-manifests__title { margin: 0 0 var(--ci-space-2); font-size: var(--font-ui-medium, 1em); }
 :where(.codebase-inspector-root) .ci-manifests__list { display: grid; gap: var(--ci-space-1); margin: 0 0 var(--ci-space-2); padding: 0; list-style: none; }
