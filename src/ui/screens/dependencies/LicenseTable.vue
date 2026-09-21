@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { formatMetric, sample } from '../../evidence';
 import type { LicenseRow } from '../../read-models/dependencies';
 import {
   DEPS_COL_LICENSE, DEPS_COL_PACKAGES, DEPS_COL_RECORDED, DEPS_LICENSES_CAPTION, DEPS_RECORDED_OK, DEPS_RECORDED_REVIEW,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
+import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
 
 defineProps<{ rows: readonly LicenseRow[] }>();
 
@@ -27,7 +29,8 @@ const columns: readonly TableColumn<LicenseRow>[] = [
       {{ row.label }}
     </template>
     <template #cell-packages="{ row }">
-      {{ row.packages }}
+      {{ formatMetric(sample(row.packages)) }}
+      <ProvenanceBadge state="sample" />
     </template>
     <template #cell-recorded="{ row }">
       <span

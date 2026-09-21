@@ -35,6 +35,7 @@ const columns: readonly TableColumn<PackageRow>[] = [
         type="search"
         class="ci-packages__query"
         :placeholder="DEPS_FILTER_QUERY"
+        :aria-label="DEPS_FILTER_QUERY"
       >
       <label
         class="visually-hidden"

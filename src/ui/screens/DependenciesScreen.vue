@@ -6,13 +6,15 @@ import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
 import type { SamplePackage } from '../fixtures/sample-packages';
 import {
-  DEPS_CALLOUT, DEPS_CALLOUT_TITLE, DEPS_EXPORT, DEPS_EYEBROW, DEPS_CSV_FILENAME, DEPS_FOOTNOTE,
-  DEPS_MANIFESTS_NONE, DEPS_MANIFESTS_NOTE, DEPS_MANIFESTS_TITLE, DEPS_SUBTITLE, DEPS_TAB_INVENTORY, DEPS_TAB_LICENSES,
-  DEPS_TAB_PATH, DEPS_TABS_LABEL, DEPS_TITLE, EXPORT_FAILED, SAMPLE_BADGE_DETAIL,
+  DEPS_CALLOUT, DEPS_CALLOUT_TITLE, DEPS_EXPORT, DEPS_EYEBROW, DEPS_CSV_FILENAME, DEPS_FOOTNOTE, DEPS_LICENSES_SUBTITLE,
+  DEPS_LICENSES_TITLE, DEPS_MANIFESTS_NONE, DEPS_MANIFESTS_NOTE, DEPS_MANIFESTS_TITLE, DEPS_PATH_SUBTITLE,
+  DEPS_PATH_TITLE, DEPS_SUBTITLE, DEPS_TAB_INVENTORY, DEPS_TAB_LICENSES, DEPS_TAB_PATH, DEPS_TABS_LABEL, DEPS_TITLE,
+  EXPORT_FAILED, SAMPLE_BADGE_DETAIL,
 } from '../inspector-copy';
 import PageHeader from '../kit/PageHeader.vue';
 import MetricCard from '../kit/MetricCard.vue';
 import Callout from '../kit/Callout.vue';
+import Panel from '../kit/Panel.vue';
 import Tabs from '../kit/Tabs.vue';
 import Icon from '../kit/Icon.vue';
 import type { TabItem } from '../kit/tab-types';
@@ -136,16 +138,24 @@ function exportCsv(): void {
           :rows="filtered"
           @inspect="inspect"
         />
-        <DependencyPath
+        <Panel
           v-else-if="tab === 'path'"
-          :root-label="dependencies.rootLabel"
-          :path="dependencies.path"
-          @inspect="inspect"
-        />
-        <LicenseTable
+          :title="DEPS_PATH_TITLE"
+          :subtitle="DEPS_PATH_SUBTITLE"
+        >
+          <DependencyPath
+            :root-label="dependencies.rootLabel"
+            :path="dependencies.path"
+            @inspect="inspect"
+          />
+        </Panel>
+        <Panel
           v-else
-          :rows="dependencies.licenses"
-        />
+          :title="DEPS_LICENSES_TITLE"
+          :subtitle="DEPS_LICENSES_SUBTITLE"
+        >
+          <LicenseTable :rows="dependencies.licenses" />
+        </Panel>
       </Tabs>
       <p class="ci-hotspots__note">
         {{ DEPS_FOOTNOTE }}

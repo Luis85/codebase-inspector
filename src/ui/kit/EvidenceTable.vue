@@ -15,7 +15,6 @@ const props = withDefaults(defineProps<{
    *  be declared here rather than with a `?? true` fallback in a computed. */
   interactive?: boolean;
 }>(), { initialSort: undefined, limit: undefined, interactive: true });
-const withInteraction = computed(() => props.interactive);
 const emit = defineEmits<{ activate: [row: T] }>();
 
 const sortKey = ref<string | null>(props.initialSort?.key ?? null);
@@ -57,7 +56,7 @@ function onKey(event: KeyboardEvent, row: T): void {
 /** E28/E45: no handler object at all for a non-interactive table, so `v-on` attaches
  *  no click/keydown listener to the row (not merely a handler that ignores the press). */
 function rowListeners(row: T): Record<string, EventListener> {
-  if (!withInteraction.value) return {};
+  if (!props.interactive) return {};
   return { click: () => emit('activate', row), keydown: (evt) => onKey(evt as KeyboardEvent, row) };
 }
 </script>
@@ -92,9 +91,9 @@ function rowListeners(row: T): Record<string, EventListener> {
       <tr
         v-for="row in visible"
         :key="rowKey(row)"
-        :tabindex="withInteraction ? 0 : undefined"
+        :tabindex="interactive ? 0 : undefined"
         class="ci-table__row"
-        :class="{ 'ci-table__row--static': !withInteraction }"
+        :class="{ 'ci-table__row--static': !interactive }"
         v-on="rowListeners(row)"
       >
         <td

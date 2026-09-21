@@ -11,24 +11,28 @@ const relationshipLabel = (pkg: SamplePackage): string => (pkg.relationship === 
 <template>
   <ol class="ci-dep-path">
     <li class="ci-dep-path__step">
-      <span class="ci-dep-path__label">{{ rootLabel }}</span>
+      <div class="ci-dep-path__card">
+        <span class="ci-dep-path__label">{{ rootLabel }}</span>
+      </div>
     </li>
     <li
       v-for="pkg in path"
       :key="pkg.name"
       class="ci-dep-path__step"
     >
-      <span class="ci-dep-path__label">
-        <code>{{ pkg.name }}</code>
-        <span class="ci-hotspots__note">{{ relationshipLabel(pkg) }} · <code>{{ pkg.version }}</code></span>
-      </span>
-      <button
-        type="button"
-        class="ci-dep-path__inspect"
-        @click="emit('inspect', pkg)"
-      >
-        {{ DEPS_INSPECT }}
-      </button>
+      <div class="ci-dep-path__card">
+        <span class="ci-dep-path__label">
+          <code>{{ pkg.name }}</code>
+          <span class="ci-hotspots__note">{{ relationshipLabel(pkg) }} · <code>{{ pkg.version }}</code></span>
+        </span>
+        <button
+          type="button"
+          class="ci-dep-path__inspect"
+          @click="emit('inspect', pkg)"
+        >
+          {{ DEPS_INSPECT }}
+        </button>
+      </div>
     </li>
   </ol>
 </template>

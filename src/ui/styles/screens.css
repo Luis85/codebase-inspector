@@ -270,6 +270,7 @@
 :where(.codebase-inspector-root) .ci-coverage-gaps__more { margin-top: var(--ci-space-3); }
 :where(.codebase-inspector-root) button.ci-coverage-gaps__plan[aria-disabled="true"] { opacity: 0.6; cursor: default; }
 :where(.codebase-inspector-root) .ci-chip--danger { border-color: var(--ci-tone-danger); color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-chip--warning { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-chip--success { border-color: var(--ci-tone-success); color: var(--ci-tone-success); }
 :where(.codebase-inspector-root) .ci-chip--unknown { border-color: var(--ci-border); color: var(--ci-text-faint); }
 :where(.codebase-inspector-root) .ci-tests__duration { display: inline-flex; align-items: center; gap: var(--ci-space-2); }
@@ -291,20 +292,23 @@
 :where(.codebase-inspector-root) .ci-evidence-dialog__actions { display: flex; justify-content: flex-end; }
 
 /* Part 3 Task 10: Dependencies screen and the Package detail dialog. */
-:where(.codebase-inspector-root) .ci-chip--warning { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-packages__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-packages__query { flex: 1 1 14em; min-width: 0; }
 :where(.codebase-inspector-root) .ci-manifests { margin: var(--ci-space-4) 0; }
 :where(.codebase-inspector-root) .ci-manifests__title { margin: 0 0 var(--ci-space-2); font-size: var(--font-ui-medium, 1em); }
 :where(.codebase-inspector-root) .ci-manifests__list { display: grid; gap: var(--ci-space-1); margin: 0 0 var(--ci-space-2); padding: 0; list-style: none; }
 :where(.codebase-inspector-root) .ci-manifests__list code { font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+/* Fix round 1 (Important 3): the li is the row-flex wrapper that carries the connector;
+   the bordered card is a CHILD of it, so the arrow sits BETWEEN cards, not inside one. */
 :where(.codebase-inspector-root) .ci-dep-path { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-3); margin: 0; padding: 0; list-style: none; }
-:where(.codebase-inspector-root) .ci-dep-path__step { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-1); padding: var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); background: var(--ci-panel); }
-:where(.codebase-inspector-root) .ci-dep-path__step:not(:first-child)::before { content: '→'; margin-inline-end: var(--ci-space-2); color: var(--ci-text-faint); }
+:where(.codebase-inspector-root) .ci-dep-path__step { display: flex; align-items: center; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-dep-path__step:not(:first-child)::before { content: '→' / ''; color: var(--ci-text-faint); }
+:where(.codebase-inspector-root) .ci-dep-path__card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-1); padding: var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); background: var(--ci-panel); }
 :where(.codebase-inspector-root) .ci-dep-path__label { display: flex; flex-direction: column; gap: 2px; }
 @container (max-width: 900px) {
   :where(.codebase-inspector-root) .ci-dep-path { flex-direction: column; align-items: stretch; }
-  :where(.codebase-inspector-root) .ci-dep-path__step:not(:first-child)::before { content: '↓'; margin-inline-end: 0; }
+  :where(.codebase-inspector-root) .ci-dep-path__step { flex-direction: column; align-items: stretch; }
+  :where(.codebase-inspector-root) .ci-dep-path__step:not(:first-child)::before { content: '↓' / ''; }
 }
 :where(.codebase-inspector-root) .ci-chip--dep-review { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-chip--dep-update { border-color: var(--ci-tone-accent); color: var(--ci-tone-accent); }
