@@ -79,3 +79,21 @@ export const ARCH_NO_CYCLES_CAPTION = 'No cyclic module groups';
 export const ARCH_NO_RULES_REASON = 'No boundary rules defined.';
 export const ARCH_VIOLATIONS_CAPTION = (failing: number): string => `${failing} failing rule(s) · sample graph`;
 export const RULE_NOT_EVALUATED_REASON = 'A module in this rule is not in the sample graph.';
+
+/** Part 2 §2.3: File detail cards, history and findings. */
+export const NOT_MEASURED_REASON = 'Not measured in this scan.';
+export const FILE_CARD_COMPLEXITY = 'Max. cognitive complexity';
+export const FILE_CARD_COMPLEXITY_CAPTION = 'Highest function-level value, not a file sum';
+export const FILE_CARD_COVERAGE = 'Branch coverage';
+export const FILE_CARD_COVERAGE_CAPTION = (covered: string, total: string): string => `${covered} of ${total} instrumented branches`;
+export const FILE_CARD_DEPENDENTS = 'Direct dependents';
+export const FILE_CARD_DEPENDENTS_CAPTION = 'Illustrative fan-in';
+export const FILE_CARD_PRIORITY = 'Review priority';
+export const FILE_CARD_PRIORITY_CAPTION = 'Heuristic, not a failure probability';
+export const FILE_HISTORY_COMPLEXITY = 'Max. complexity';
+export const FILE_HISTORY_COVERAGE = 'Branch coverage (%)';
+export const FINDING_TITLE: Readonly<Record<'complexity' | 'duplication' | 'unused-exports', string>> = {
+  complexity: 'Complex function needs review',
+  duplication: 'Repeated implementation detected',
+  'unused-exports': 'Potentially unused export',
+};
