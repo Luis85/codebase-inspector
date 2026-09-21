@@ -78,3 +78,10 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 | # | Ruling | Cost if wrong |
 |---|---|---|
 | E33 | A module present in only one of the two compared snapshots shows its lines as `unknown` with the new reason `COMPARE_MODULE_ABSENT` ("Module not present in this snapshot."), not a line total of 0 and not the whole-snapshot `COMPARE_LINES_UNKNOWN` reason. Its file count is a real 0. | Low. The comparison dialog shows "—" rather than 0 lines for an added or removed module. |
+
+### Tasks 4–5
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E34 | File detail and Code quality build their finding rows through one helper, `titledFindings(file)` in `read-models/findings.ts`, so the two screens cannot disagree on the title or fingerprint. `findings.ts` imports only types from `file-detail.ts`. | None. |
+| E35 | Weighted module coverage lives in a new `read-models/module-coverage.ts` (`moduleCoverage(files): ModuleCoverage[]`, built on `groupByModule`). Overview's weak-module investigation and Test confidence both use it (E11). Overview keeps its own sort and its current output. | Low. The Overview tests pin the weak-module card. |
