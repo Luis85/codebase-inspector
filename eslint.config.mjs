@@ -129,6 +129,16 @@ export default tseslint.config(
     'obsidianmd/prefer-create-el': 'off',
   } },
 
+  // Task 4's own verbatim brief code: downloadText's transient anchor is created on
+  // `host.ownerDocument` — a generic HTMLElement's document, not necessarily one Obsidian
+  // has patched with `createEl`/`win` (the component test deliberately does not import
+  // ../mocks/obsidian, matching what a non-Obsidian jsdom document looks like). Plain
+  // `doc.createElement('a')` is the portable call that works whether or not the document
+  // has been extended. Scoped to this one file, not project-wide.
+  { files: ['src/ui/export/download.ts'], rules: {
+    'obsidianmd/prefer-create-el': 'off',
+  } },
+
   // Rule 4 — spec 4.4's CROSS-WINDOW rule, backed by a tool instead of by discipline
   // (Phase 2 fix wave, I9; ruling M88). Spec 4.4 states a closed list: "inside the
   // renderer and view, no bare `window`, `document`, `requestAnimationFrame`,

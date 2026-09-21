@@ -50,6 +50,16 @@ describe('EvidenceTable', () => {
   it('rows are keyboard focusable', () => {
     expect(mountTable().find('tbody tr').attributes('tabindex')).toBe('0');
   });
+  it('limit sorts the WHOLE set, then shows only the first rows', () => {
+    const w = mount(EvidenceTable as unknown as new () => { $props: {
+      columns: TableColumn<Row>[]; rows: Row[]; rowKey: (row: Row) => string; caption: string;
+      initialSort?: { key: string; dir: 'asc' | 'desc' }; limit?: number;
+    } }, {
+      props: { columns, rows, rowKey: (r: Row) => r.id, caption: 'Files', initialSort: { key: 'n', dir: 'desc' as const }, limit: 1 },
+      slots: { 'cell-name': ({ row }: { row: Row }) => h('b', row.name) },
+    });
+    expect(w.findAll('.ci-table__row').map((r) => r.text())).toEqual(['Beta']);
+  });
 });
 
 describe('LineChart', () => {

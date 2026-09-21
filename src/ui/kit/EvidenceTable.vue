@@ -8,6 +8,7 @@ const props = defineProps<{
   rowKey: RowKey<T>;
   caption: string;
   initialSort?: { key: string; dir: 'asc' | 'desc' };
+  limit?: number;
 }>();
 const emit = defineEmits<{ activate: [row: T] }>();
 
@@ -28,6 +29,10 @@ const sorted = computed(() => {
     return String(va).localeCompare(String(vb)) * sign;
   });
 });
+
+/** Part 2 P7: sort the WHOLE set, then show the first `limit` rows, so sorting a long
+ *  table never re-orders only the rows that happen to be on screen. */
+const visible = computed(() => (props.limit === undefined ? sorted.value : sorted.value.slice(0, props.limit)));
 
 function toggleSort(key: string): void {
   if (sortKey.value === key) sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
@@ -72,7 +77,7 @@ function onKey(event: KeyboardEvent, row: T): void {
     </thead>
     <tbody>
       <tr
-        v-for="row in sorted"
+        v-for="row in visible"
         :key="rowKey(row)"
         tabindex="0"
         class="ci-table__row"
