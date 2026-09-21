@@ -54,17 +54,21 @@ describe('review store', () => {
   // Fix round 1 (Important): a rejecting repository must leave local state untouched
   // and the rejection must propagate — the port is the source of truth, not an
   // afterthought fired off after the UI has already committed to showing the item.
-  it('leaves state unchanged and rejects when the repository refuses to save', async () => {
+  it('leaves state unchanged, clears the pending flag, and rejects when the repository refuses to save', async () => {
     const repo = createInMemoryReviewRepository();
     const store = useReviewStore();
     store.setRepository({ ...repo, saveWorkItem: () => Promise.reject(new Error('save failed')) });
     await expect(store.addWorkItemForFile('e1', 't', NOW)).rejects.toThrow('save failed');
     expect(store.workItemCount).toBe(0);
     expect(store.hasWorkItemFor('e1')).toBe(false);
-    // A retry after the failure must not have consumed an id/skipped a slot.
+    expect(store.isPendingFor('e1')).toBe(false);
+    // Fix round 2: the id/nextId advance is reserved SYNCHRONOUSLY, before the save
+    // is even attempted (so two overlapping calls can never race to the same id —
+    // see the "double click" test below). A failed save therefore leaves a GAP
+    // (wi-1 skipped) rather than the id being reused — an accepted tradeoff.
     store.setRepository(repo);
     const item = await store.addWorkItemForFile('e1', 't', NOW);
-    expect(item?.id).toBe('wi-1');
+    expect(item?.id).toBe('wi-2');
   });
 
   it('leaves state unchanged and rejects when the repository refuses to remove', async () => {
@@ -76,5 +80,35 @@ describe('review store', () => {
     await expect(store.removeWorkItem('wi-1')).rejects.toThrow('remove failed');
     expect(store.workItemCount).toBe(1);
     expect(store.hasWorkItemFor('e1')).toBe(true);
+  });
+
+  // Fix round 2 (Important, regression from round 1): round 1 made `addWorkItemForFile`
+  // await the repository before touching state, but the guard and the `wi-${nextId}`
+  // id were both still computed BEFORE that await — so two overlapping calls for the
+  // SAME file (e.g. a double-click before the first save settles) both passed the
+  // guard and both got id 'wi-1'. Models that race directly: two calls fired without
+  // awaiting either, against a repository whose save only resolves once released.
+  it('a second overlapping call for the same file is refused, not raced, while the first save is pending', async () => {
+    const store = useReviewStore();
+    let releaseSave: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releaseSave = resolve; });
+    store.setRepository({
+      listWorkItems: () => Promise.resolve([]),
+      saveWorkItem: () => gate,
+      removeWorkItem: () => Promise.resolve(),
+    });
+    const first = store.addWorkItemForFile('e1', 'first', NOW);
+    expect(store.isPendingFor('e1')).toBe(true);
+    const second = store.addWorkItemForFile('e1', 'second', NOW);
+    releaseSave?.();
+    const [firstItem, secondItem] = await Promise.all([first, second]);
+    expect([firstItem, secondItem].filter((i) => i !== null)).toHaveLength(1);
+    expect([firstItem, secondItem].filter((i) => i === null)).toHaveLength(1);
+    expect(store.workItemCount).toBe(1);
+    expect(store.isPendingFor('e1')).toBe(false);
+    // The refused call never reserved an id, so the next DIFFERENT file still gets
+    // the very next id rather than skipping one for the call that was turned away.
+    const third = await store.addWorkItemForFile('e2', 'third', NOW);
+    expect(third?.id).toBe('wi-2');
   });
 });

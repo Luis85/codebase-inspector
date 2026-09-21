@@ -144,6 +144,31 @@ describe('FileInspector.vue (C10)', () => {
     expect(wrapper.get('[aria-live]').text()).toContain('Could not add this file to the refactor plan.');
   });
 
+  // Fix round 2 (Important, regression from round 1): the store now refuses a second
+  // overlapping call, but the BUTTON must reflect that too — otherwise a real
+  // double-click still fires `addToPlan` twice from the UI's own point of view before
+  // either resolves. Verifies the pending-disable wiring, not the store's own guard
+  // (that's tests/unit/review-store.test.ts's job).
+  it('disables the plan button while the save is pending, so a double click cannot fire it twice', async () => {
+    const { target } = openWithFile();
+    let releaseSave: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releaseSave = resolve; });
+    useReviewStore().setRepository({
+      listWorkItems: () => Promise.resolve([]),
+      saveWorkItem: () => gate,
+      removeWorkItem: () => Promise.resolve(),
+    });
+    const wrapper = mountInspector();
+    const button = wrapper.find('.ci-inspector__plan-button');
+    await button.trigger('click');
+    expect(wrapper.find('.ci-inspector__plan-button').attributes('disabled')).toBeDefined();
+    await wrapper.find('.ci-inspector__plan-button').trigger('click');
+    releaseSave?.();
+    await flushPromises();
+    expect(useReviewStore().workItemCount).toBe(1);
+    expect(useReviewStore().hasWorkItemFor(target.id)).toBe(true);
+  });
+
   // Task 9 (F12): C10's own contract says "Keep exact raw values and scope", and
   // foundations/04 says "Preserve the full path through wrapping, a copy action, and
   // accessible text. Do not expose crucial content only in an ellipsis tooltip." The

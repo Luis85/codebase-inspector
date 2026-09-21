@@ -34,6 +34,10 @@ const selectedEntity = computed(() => (
 ));
 
 const inPlan = computed(() => (store.selectedEntityId ? review.hasWorkItemFor(store.selectedEntityId) : false));
+/** Fix round 2 (Important): the button is disabled while the save is in flight too,
+ *  not only once it has settled — otherwise a double-click could fire `addToPlan`
+ *  twice before the store's own guard has anything to refuse against. */
+const addPending = computed(() => (store.selectedEntityId ? review.isPendingFor(store.selectedEntityId) : false));
 
 /** WP-02: records intent only. Never edits, opens or executes anything in the source.
  *  Fix round 1 (Important): the review store now awaits the repository before
@@ -169,7 +173,7 @@ async function copyRelativePath(): Promise<void> {
         type="button"
         class="ci-inspector__plan-button"
         :aria-label="inPlan ? IN_PLAN_LABEL : ADD_TO_PLAN_LABEL"
-        :disabled="inPlan"
+        :disabled="inPlan || addPending"
         @click="addToPlan"
       >
         {{ inPlan ? IN_PLAN_LABEL : ADD_TO_PLAN_LABEL }}
