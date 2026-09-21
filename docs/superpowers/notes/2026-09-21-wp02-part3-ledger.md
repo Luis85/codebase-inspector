@@ -72,3 +72,9 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 | # | Ruling | Cost if wrong |
 |---|---|---|
 | E32 | `reopen(fingerprint)` returns `Promise<boolean>`: `true` when the disposition was removed, `false` when refused because a decision for that fingerprint is pending (E18). The dialog can then announce only real outcomes (E17). This deviates from the plan's `Promise<void>`. | Low. Callers that ignore the result are unaffected. |
+
+### Task 3
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E33 | A module present in only one of the two compared snapshots shows its lines as `unknown` with the new reason `COMPARE_MODULE_ABSENT` ("Module not present in this snapshot."), not a line total of 0 and not the whole-snapshot `COMPARE_LINES_UNKNOWN` reason. Its file count is a real 0. | Low. The comparison dialog shows "—" rather than 0 lines for an added or removed module. |
