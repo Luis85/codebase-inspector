@@ -1,0 +1,63 @@
+/* WP-02 shell. The leaf root stays the size container WP-01 declared; the content area is
+   ALSO a size container, so the city's existing unnamed @container rules (styles.css)
+   resolve against the space the city really has once the nav column is inline. */
+:where(.codebase-inspector-root) .ci-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+}
+:where(.codebase-inspector-root) .ci-shell--nav-inline { grid-template-columns: var(--ci-nav-width) minmax(0, 1fr); }
+:where(.codebase-inspector-root) .ci-shell__nav { display: none; }
+:where(.codebase-inspector-root) .ci-shell--nav-inline .ci-shell__nav { display: flex; grid-row: 1 / span 2; }
+:where(.codebase-inspector-root) .ci-shell--nav-open .ci-shell__nav {
+  display: flex; position: absolute; inset: 0 auto 0 0; z-index: 30;
+  width: min(280px, 85%); box-shadow: var(--shadow-l);
+}
+:where(.codebase-inspector-root) .ci-shell__topbar { grid-column: -2 / -1; }
+:where(.codebase-inspector-root) .ci-shell__content {
+  grid-column: -2 / -1; min-height: 0; min-width: 0; overflow: auto;
+  container-type: inline-size;
+}
+
+:where(.codebase-inspector-root) .ci-nav {
+  flex-direction: column; gap: var(--ci-space-1); min-height: 0; overflow-y: auto;
+  padding: var(--ci-space-3); border-right: 1px solid var(--ci-border); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-nav__head { display: flex; align-items: center; gap: var(--ci-space-2); padding-bottom: var(--ci-space-3); border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-nav__section { display: flex; flex-direction: column; gap: 2px; margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-nav__group {
+  margin: 0 0 var(--ci-space-1); padding-inline: var(--ci-space-2);
+  font-size: var(--font-ui-smaller); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ci-text-faint);
+}
+:where(.codebase-inspector-root) .ci-nav__footer { margin-top: auto; display: flex; flex-direction: column; gap: 2px; padding-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) button.ci-nav__item,
+:where(.codebase-inspector-root) button.ci-nav__workspace {
+  display: flex; align-items: center; gap: var(--ci-space-2); width: 100%;
+  min-height: var(--ci-control-min); padding: 0 var(--ci-space-2);
+  border: none; border-radius: var(--ci-radius-control); background: transparent; box-shadow: none;
+  color: var(--ci-text-muted); cursor: pointer; text-align: left; justify-content: flex-start;
+}
+:where(.codebase-inspector-root) button.ci-nav__workspace { color: var(--ci-text); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) button.ci-nav__item:hover { background: var(--ci-raised); color: var(--ci-text); }
+:where(.codebase-inspector-root) button.ci-nav__item[aria-current="page"] { background: var(--ci-raised); color: var(--ci-action); }
+:where(.codebase-inspector-root) .ci-nav__label { flex: 1 1 auto; }
+:where(.codebase-inspector-root) .ci-nav__badge {
+  padding: 0 var(--ci-space-2); border-radius: var(--ci-radius-small);
+  background: var(--ci-surface); color: var(--ci-text-muted); font-size: var(--font-ui-smaller);
+}
+
+:where(.codebase-inspector-root) .ci-topbar {
+  display: flex; align-items: center; gap: var(--ci-space-3);
+  padding: var(--ci-space-2) var(--ci-space-4); border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-shell--nav-inline button.ci-topbar__menu { display: none; }
+:where(.codebase-inspector-root) .ci-topbar__crumbs { display: flex; gap: var(--ci-space-2); flex: 1 1 auto; min-width: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small); white-space: nowrap; overflow: hidden; }
+:where(.codebase-inspector-root) .ci-topbar__crumbs [aria-current="page"] { color: var(--ci-text); }
+:where(.codebase-inspector-root) button.ci-topbar__search {
+  display: flex; align-items: center; gap: var(--ci-space-2); min-height: var(--ci-control-min);
+  padding: 0 var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-control);
+  background: var(--ci-surface); box-shadow: none; color: var(--ci-text-muted); cursor: pointer;
+}
+:where(.codebase-inspector-root) .ci-topbar__search kbd { font-size: var(--font-ui-smaller); }

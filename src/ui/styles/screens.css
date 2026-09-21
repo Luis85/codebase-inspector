@@ -1,0 +1,9 @@
+/* WP-02 screens. The city screen is a flex column so its PageHeader/cards (Task 10) and
+   the unchanged `.ci-app` share the content height; `.ci-app`'s own `height: 100%`
+   (styles.css, pinned by stage-height.test.ts) is overridden only inside this screen. */
+:where(.codebase-inspector-root) .ci-screen {
+  display: flex; flex-direction: column; gap: var(--ci-space-5);
+  padding: var(--ci-space-6); box-sizing: border-box; min-width: 0;
+}
+:where(.codebase-inspector-root) .ci-screen--city { height: 100%; padding: 0; gap: 0; }
+:where(.codebase-inspector-root) .ci-screen--city > .ci-app { flex: 1 1 0; min-height: 0; height: auto; }

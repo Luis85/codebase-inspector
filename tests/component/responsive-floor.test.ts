@@ -115,6 +115,8 @@ describe('the 320 px floor renders list-first (I2)', () => {
     const { wrapper, leaf, store } = mountInLeaf(1000);
     await nextTick();
     expect(store.viewMode).toBe('3d');
+    // WP-02 shell: jsdom's rect stub would give an inline nav the leaf's full width; real layout gives the city the rest.
+    wrapper.find<HTMLElement>('.ci-shell__nav').element.getBoundingClientRect = () => ({ width: 0 } as DOMRect);
 
     setRect(leaf, 200, 700);
     resizeObserver.trigger();
@@ -130,9 +132,11 @@ describe('the 320 px floor renders list-first (I2)', () => {
   });
 
   it('returns to TOP view, not 3D, when that is where the user was', async () => {
-    const { leaf, store } = mountInLeaf(1000);
+    const { wrapper, leaf, store } = mountInLeaf(1000);
     store.setViewMode('top');
     await nextTick();
+    // WP-02 shell: jsdom's rect stub would give an inline nav the leaf's full width; real layout gives the city the rest.
+    wrapper.find<HTMLElement>('.ci-shell__nav').element.getBoundingClientRect = () => ({ width: 0 } as DOMRect);
 
     setRect(leaf, 200, 700);
     resizeObserver.trigger();

@@ -69,3 +69,16 @@ export function contentBoxInlineSize(el: HTMLElement): number {
     - px(style.paddingLeft) - px(style.paddingRight)
     - px(style.borderLeftWidth) - px(style.borderRightWidth);
 }
+
+/** WP-02: the inline size the CITY actually gets. The leaf measurement above is still the
+ *  one CSS container queries on the leaf compare against, but once the inspector shell
+ *  shows its navigation column inline (`.ci-shell--nav-inline`) the city's own content box
+ *  (`.ci-shell__content`, itself a size container in shell.css) is narrower by that
+ *  column. Subtracting it keeps the JS threshold decisions (drawer at 820 px, list-first
+ *  floor at 320 px) in step with the container queries evaluated on `.ci-shell__content`.
+ *  Outside the shell, or with the nav collapsed into a drawer, this equals the leaf size. */
+export function cityInlineSize(el: HTMLElement): number {
+  const leaf = narrowContainer(el);
+  const nav = leaf.querySelector<HTMLElement>('.ci-shell--nav-inline > .ci-shell__nav');
+  return contentBoxInlineSize(leaf) - (nav ? nav.getBoundingClientRect().width : 0);
+}

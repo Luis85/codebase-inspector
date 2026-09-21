@@ -14,7 +14,7 @@ import { useCityRendererHandle, useCityStageEl } from '../renderer-handle';
 import { useCityStore } from '../stores/city-store';
 import { cameraKeyCommand } from '../interaction/keymap';
 import type { CameraKeyCommand } from '../interaction/keymap';
-import { contentBoxInlineSize, narrowContainer } from '../container-box';
+import { cityInlineSize } from '../container-box';
 import { DRAWER_MAX_INLINE_SIZE } from '../responsive';
 import { COPY_CAMERA_ROTATE_PAN_LABEL } from '../copy';
 
@@ -60,7 +60,7 @@ const props = withDefaults(defineProps<{ stepsCollapsed?: boolean }>(), { stepsC
 function computeStepsOpen(el: HTMLElement | null): boolean | null {
   if (props.stepsCollapsed !== undefined) return !props.stepsCollapsed;
   if (!el) return null;
-  const width = contentBoxInlineSize(narrowContainer(el));
+  const width = cityInlineSize(el);
   return width > 0 ? width >= DRAWER_MAX_INLINE_SIZE : null;
 }
 

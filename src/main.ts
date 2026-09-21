@@ -9,6 +9,8 @@ import { InMemorySnapshotStore } from './adapters/storage/in-memory-snapshot-sto
 import type { Clock } from './application/ports/clock';
 import './ui/styles.css';
 import './ui/styles/kit.css';
+import './ui/styles/shell.css';
+import './ui/styles/screens.css';
 
 // Shared by every CityView: approve()/ScanCoordinator never read the wall clock
 // themselves (src/application/approval.ts's own constraint), so ONE Clock is
