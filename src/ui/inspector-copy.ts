@@ -97,3 +97,32 @@ export const FINDING_TITLE: Readonly<Record<'complexity' | 'duplication' | 'unus
   duplication: 'Repeated implementation detected',
   'unused-exports': 'Potentially unused export',
 };
+
+/** Part 2 §2.1: Architecture screen. */
+export const SCREEN_NO_SNAPSHOT = 'No snapshot yet. Select a codebase and run a scan to see this screen.';
+export const ARCH_EYEBROW = 'Explore / Architecture';
+export const ARCH_TITLE = 'Architecture, without the guesswork.';
+export const ARCH_SUBTITLE = 'Explore module dependencies and compare them with your intended boundaries.';
+export const ARCH_VIEWS_LABEL = 'Architecture views';
+export const ARCH_TAB_MAP = 'Dependency map';
+export const ARCH_TAB_MATRIX = 'Dependency matrix';
+export const ARCH_VIOLATIONS_ONLY = 'Violations only';
+export const ARCH_MAP_FOOTNOTE = 'Arrows: importer → imported module. Sample edges, not observed imports. City arcs make no dependency claim.';
+export const ARCH_MAP_EYEBROW = 'Sample module graph';
+export const ARCH_NODE_LABEL = (label: string, files: number, outgoing: number, incoming: number): string =>
+  `${label}, ${files} files, ${outgoing} outgoing, ${incoming} incoming`;
+export const ARCH_NODE_FILES = (files: number): string => `${files} files`;
+export const ARCH_OMITTED_NOTE = (n: number): string => `${n} smaller modules are not shown in the graph.`;
+export const ARCH_MATRIX_CAPTION = 'Sample import statements from each row module to each column module';
+export const ARCH_MATRIX_CORNER = 'From ↓ / To →';
+export const ARCH_MATRIX_SELF = 'Same module';
+export const ARCH_MATRIX_NO_EDGE = 'No imports';
+export const ARCH_MATRIX_CELL_LABEL = (from: string, to: string, n: string): string => `${from} imports ${to}: ${n} sample import statements`;
+export const ARCH_MODULE_INSPECTOR_TITLE = 'Selected module';
+export const ARCH_MODULE_NONE = 'Select a module in the map.';
+export const ARCH_FACT_FILES = 'Files';
+export const ARCH_FACT_LINES = 'Lines';
+export const ARCH_FACT_IMPORTS = 'Imports';
+export const ARCH_FACT_IMPORTED_BY = 'Imported by';
+export const ARCH_NONE = 'None';
+export const ARCH_TOP_FILES = 'Highest review priority';

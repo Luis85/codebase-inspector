@@ -17,6 +17,7 @@ import SnapshotSelector from './shell/SnapshotSelector.vue';
 import CommandPalette from './shell/CommandPalette.vue';
 import CityScreen from './screens/CityScreen.vue';
 import OverviewScreen from './screens/OverviewScreen.vue';
+import ArchitectureScreen from './screens/ArchitectureScreen.vue';
 import PlaceholderScreen from './screens/PlaceholderScreen.vue';
 
 const store = useCityStore();
@@ -100,6 +101,7 @@ defineExpose({ rendererHost });
         ref="cityScreen"
       />
       <OverviewScreen v-else-if="store.route === 'overview'" />
+      <ArchitectureScreen v-else-if="store.route === 'architecture'" />
       <PlaceholderScreen
         v-else
         :route="store.route"
