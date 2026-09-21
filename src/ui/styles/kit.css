@@ -98,6 +98,10 @@
 :where(.codebase-inspector-root) .ci-table__row { cursor: pointer; }
 :where(.codebase-inspector-root) .ci-table__row:hover,
 :where(.codebase-inspector-root) .ci-table__row:focus-visible { background: var(--ci-raised); }
+/* E28/E45: a non-interactive row (LicenseTable) has nothing to activate. */
+:where(.codebase-inspector-root) .ci-table__row--static { cursor: default; }
+:where(.codebase-inspector-root) .ci-table__row--static:hover,
+:where(.codebase-inspector-root) .ci-table__row--static:focus-visible { background: none; }
 
 :where(.codebase-inspector-root) .ci-line-chart { margin: 0; }
 :where(.codebase-inspector-root) .ci-line-chart svg { width: 100%; height: auto; }

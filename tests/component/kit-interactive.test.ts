@@ -50,6 +50,21 @@ describe('EvidenceTable', () => {
   it('rows are keyboard focusable', () => {
     expect(mountTable().find('tbody tr').attributes('tabindex')).toBe('0');
   });
+  // E28/E45: LicenseTable rows are not activatable — no tabindex, no click/Enter activation.
+  it('a non-interactive row has no tabindex and emits no activate on click or Enter', async () => {
+    const w = mount(EvidenceTable as unknown as new () => { $props: {
+      columns: TableColumn<Row>[]; rows: Row[]; rowKey: (row: Row) => string; caption: string; interactive?: boolean;
+    } }, {
+      props: { columns, rows, rowKey: (r: Row) => r.id, caption: 'Files', interactive: false },
+      slots: { 'cell-name': ({ row }: { row: Row }) => h('b', row.name), 'cell-n': ({ row }: { row: Row }) => String(row.n ?? '—') },
+    });
+    const row = w.find('tbody tr');
+    expect(row.attributes('tabindex')).toBeUndefined();
+    await row.trigger('click');
+    await row.trigger('keydown', { key: 'Enter' });
+    expect(w.emitted('activate')).toBeUndefined();
+  });
+
   it('limit sorts the WHOLE set, then shows only the first rows', () => {
     const w = mount(EvidenceTable as unknown as new () => { $props: {
       columns: TableColumn<Row>[]; rows: Row[]; rowKey: (row: Row) => string; caption: string;

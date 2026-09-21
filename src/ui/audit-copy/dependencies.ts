@@ -67,5 +67,6 @@ export const PACKAGE_METADATA_NOTE = 'Metadata is illustrative. No package regis
 export const PACKAGE_CREATE_REVIEW = 'Create review item';
 export const PACKAGE_IN_REVIEW = 'Review item exists';
 export const PACKAGE_REVIEW_TITLE = (name: string, advisory: string | null): string => `Review ${name} ${advisory ?? 'dependency usage'}`;
+export const PACKAGE_REVIEW_ADDED = 'Review item added.';
 export const PACKAGE_REVIEW_FAILED = 'Could not add this review item.';
 export const PACKAGE_CLOSE = 'Close';

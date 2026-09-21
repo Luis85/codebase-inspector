@@ -24,7 +24,7 @@ describe('shell provenance badge (A11)', () => {
     store.setCity(snap, computeLayout(snap));
     store.select(snap.entities.find((e) => e.kind === 'file')!.id);
     const w = mountShell();
-    for (const route of ['overview', 'city', 'architecture', 'hotspots', 'file', 'quality', 'tests'] as const) {
+    for (const route of ['overview', 'city', 'architecture', 'hotspots', 'file', 'quality', 'tests', 'dependencies'] as const) {
       store.navigate(route);
       await nextTick();
       expect(w.find('.ci-topbar__sample').text(), route).toBe('Includes sample data');

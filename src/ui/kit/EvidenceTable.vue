@@ -2,14 +2,20 @@
 import { computed, ref } from 'vue';
 import type { RowKey, TableColumn } from './table-types';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   columns: readonly TableColumn<T>[];
   rows: readonly T[];
   rowKey: RowKey<T>;
   caption: string;
   initialSort?: { key: string; dir: 'asc' | 'desc' };
   limit?: number;
-}>();
+  /** E28/E45: a non-interactive table (e.g. LicenseTable) gets no row tabindex, click or
+   *  keydown handler and no pointer/hover affordance — there is nothing to activate. Vue
+   *  defaults an unpassed `boolean` prop to `false`, not `undefined`, so the default must
+   *  be declared here rather than with a `?? true` fallback in a computed. */
+  interactive?: boolean;
+}>(), { initialSort: undefined, limit: undefined, interactive: true });
+const withInteraction = computed(() => props.interactive);
 const emit = defineEmits<{ activate: [row: T] }>();
 
 const sortKey = ref<string | null>(props.initialSort?.key ?? null);
@@ -47,6 +53,13 @@ function ariaSort(key: string): 'ascending' | 'descending' | 'none' {
 function onKey(event: KeyboardEvent, row: T): void {
   if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); emit('activate', row); }
 }
+
+/** E28/E45: no handler object at all for a non-interactive table, so `v-on` attaches
+ *  no click/keydown listener to the row (not merely a handler that ignores the press). */
+function rowListeners(row: T): Record<string, EventListener> {
+  if (!withInteraction.value) return {};
+  return { click: () => emit('activate', row), keydown: (evt) => onKey(evt as KeyboardEvent, row) };
+}
 </script>
 
 <template>
@@ -79,10 +92,10 @@ function onKey(event: KeyboardEvent, row: T): void {
       <tr
         v-for="row in visible"
         :key="rowKey(row)"
-        tabindex="0"
+        :tabindex="withInteraction ? 0 : undefined"
         class="ci-table__row"
-        @click="emit('activate', row)"
-        @keydown="onKey($event, row)"
+        :class="{ 'ci-table__row--static': !withInteraction }"
+        v-on="rowListeners(row)"
       >
         <td
           v-for="col in columns"
