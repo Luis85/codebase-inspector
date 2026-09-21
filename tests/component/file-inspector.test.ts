@@ -135,6 +135,9 @@ describe('FileInspector.vue (C10)', () => {
       listWorkItems: () => Promise.resolve([]),
       saveWorkItem: () => Promise.reject(new Error('disk full')),
       removeWorkItem: () => Promise.resolve(),
+      listRules: () => Promise.resolve([]),
+      saveRule: () => Promise.resolve(),
+      removeRule: () => Promise.resolve(),
     });
     const wrapper = mountInspector();
     await wrapper.find('.ci-inspector__plan-button').trigger('click');
@@ -157,6 +160,9 @@ describe('FileInspector.vue (C10)', () => {
       listWorkItems: () => Promise.resolve([]),
       saveWorkItem: () => gate,
       removeWorkItem: () => Promise.resolve(),
+      listRules: () => Promise.resolve([]),
+      saveRule: () => Promise.resolve(),
+      removeRule: () => Promise.resolve(),
     });
     const wrapper = mountInspector();
     const button = wrapper.find('.ci-inspector__plan-button');

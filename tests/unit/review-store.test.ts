@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import type { ReviewRepository, WorkItem } from '../../src/ui/stores/ports/review-repository';
 
 const NOW = new Date('2026-09-21T10:00:00.000Z');
+const noop = (): void => {};
 
 describe('review store', () => {
   beforeEach(() => { setActivePinia(createPinia()); });
@@ -96,6 +98,9 @@ describe('review store', () => {
       listWorkItems: () => Promise.resolve([]),
       saveWorkItem: () => gate,
       removeWorkItem: () => Promise.resolve(),
+      listRules: () => Promise.resolve([]),
+      saveRule: () => Promise.resolve(),
+      removeRule: () => Promise.resolve(),
     });
     const first = store.addWorkItemForFile('e1', 'first', NOW);
     expect(store.isPendingFor('e1')).toBe(true);
@@ -110,5 +115,78 @@ describe('review store', () => {
     // the very next id rather than skipping one for the call that was turned away.
     const third = await store.addWorkItemForFile('e2', 'third', NOW);
     expect(third?.id).toBe('wi-2');
+  });
+
+  it('adds boundary rules with sequential AR ids, persisted through the port', async () => {
+    const repo = createInMemoryReviewRepository();
+    const store = useReviewStore();
+    store.setRepository(repo);
+    const a = await store.addRule('domain', 'storage', 'Keep domain pure', NOW);
+    const b = await store.addRule('ui', 'storage', 'Go through the port', NOW);
+    expect([a?.id, b?.id]).toEqual(['AR-001', 'AR-002']);
+    expect(a).toMatchObject({ from: 'domain', to: 'storage', rationale: 'Keep domain pure', createdAt: NOW.toISOString() });
+    expect(store.ruleCount).toBe(2);
+    expect(await repo.listRules()).toHaveLength(2);
+  });
+
+  it('refuses a self-rule, an empty rationale and a duplicate pair', async () => {
+    const store = useReviewStore();
+    expect(await store.addRule('a', 'a', 'x', NOW)).toBeNull();
+    expect(await store.addRule('a', 'b', '   ', NOW)).toBeNull();
+    await store.addRule('a', 'b', 'x', NOW);
+    expect(await store.addRule('a', 'b', 'again', NOW)).toBeNull();
+    expect(store.hasRule('a', 'b')).toBe(true);
+    expect(store.hasRule('b', 'a')).toBe(false);
+    expect(store.ruleCount).toBe(1);
+  });
+
+  it('refuses an overlapping add for the same pair while the first save is in flight', async () => {
+    let release: () => void = noop;
+    const base = createInMemoryReviewRepository();
+    const slow: ReviewRepository = { ...base, saveRule: (r) => new Promise((res) => { release = () => { void base.saveRule(r).then(res); }; }) };
+    const store = useReviewStore();
+    store.setRepository(slow);
+    const first = store.addRule('a', 'b', 'x', NOW);
+    expect(await store.addRule('a', 'b', 'x', NOW)).toBeNull();
+    release();
+    expect((await first)?.id).toBe('AR-001');
+  });
+
+  it('removes a rule through the port', async () => {
+    const repo = createInMemoryReviewRepository();
+    const store = useReviewStore();
+    store.setRepository(repo);
+    const rule = await store.addRule('a', 'b', 'x', NOW);
+    await store.removeRule(rule!.id);
+    expect(store.ruleCount).toBe(0);
+    expect(await repo.listRules()).toHaveLength(0);
+  });
+
+  it('load never moves nextId below a reservation an in-flight add already holds', async () => {
+    let release: () => void = noop;
+    const base = createInMemoryReviewRepository();
+    const slow: ReviewRepository = {
+      ...base,
+      saveWorkItem: (item: WorkItem) => new Promise((res) => { release = () => { void base.saveWorkItem(item).then(res); }; }),
+    };
+    const store = useReviewStore();
+    store.setRepository(slow);
+    const pending = store.addWorkItemForFile('e1', 't', NOW);   // reserves wi-1
+    await store.load();                                          // lists nothing yet
+    release();
+    await pending;
+    store.setRepository(base);
+    expect((await store.addWorkItemForFile('e2', 't', NOW))?.id).toBe('wi-2');
+    expect(store.workItems.filter((w) => w.id === 'wi-1')).toHaveLength(1);
+  });
+
+  it('loads rules and continues their numbering', async () => {
+    const repo = createInMemoryReviewRepository();
+    await repo.saveRule({ id: 'AR-007', from: 'a', to: 'b', rationale: 'x', createdAt: NOW.toISOString() });
+    const store = useReviewStore();
+    store.setRepository(repo);
+    await store.load();
+    expect(store.hasRule('a', 'b')).toBe(true);
+    expect((await store.addRule('b', 'c', 'y', NOW))?.id).toBe('AR-008');
   });
 });

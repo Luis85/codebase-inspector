@@ -1,7 +1,20 @@
 import { defineStore } from 'pinia';
 import { markRaw } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
-import { createInMemoryReviewRepository, type ReviewRepository, type WorkItem } from './ports/review-repository';
+import {
+  createInMemoryReviewRepository, type BoundaryRule, type ReviewRepository, type WorkItem,
+} from './ports/review-repository';
+
+const ruleKey = (from: string, to: string): string => `${from}->${to}`;
+
+function maxSuffix(ids: readonly string[], pattern: RegExp): number {
+  let max = 0;
+  for (const id of ids) {
+    const digits = pattern.exec(id)?.[1];
+    if (digits) max = Math.max(max, parseInt(digits, 10));
+  }
+  return max;
+}
 
 interface ReviewState {
   workItems: WorkItem[];
@@ -13,6 +26,9 @@ interface ReviewState {
    *  the same file (e.g. a double-click before the first save settles) both passed
    *  the guard and both computed the same `wi-${nextId}`. */
   pendingEntityIds: EntityId[];
+  rules: BoundaryRule[];
+  nextRuleId: number;
+  pendingRuleKeys: string[];
 }
 
 export const useReviewStore = defineStore('review', {
@@ -21,6 +37,9 @@ export const useReviewStore = defineStore('review', {
     nextId: 1,
     repository: markRaw(createInMemoryReviewRepository()),
     pendingEntityIds: [],
+    rules: [],
+    nextRuleId: 1,
+    pendingRuleKeys: [],
   }),
   getters: {
     workItemCount: (state): number => state.workItems.length,
@@ -31,22 +50,22 @@ export const useReviewStore = defineStore('review', {
      *  not just on `hasWorkItemFor`. */
     isPendingFor: (state) => (entityId: EntityId): boolean =>
       state.pendingEntityIds.includes(entityId),
+    ruleCount: (state): number => state.rules.length,
+    hasRule: (state) => (from: string, to: string): boolean =>
+      state.rules.some((r) => r.from === from && r.to === to),
   },
   actions: {
     setRepository(repository: ReviewRepository): void {
       this.repository = markRaw(repository);
     },
+    /** Part 2 §5: pending-aware. A save still in flight has already reserved an id; the
+     *  counters only ever move forward, so load() can never hand that id out again. */
     async load(): Promise<void> {
-      this.workItems = await this.repository.listWorkItems();
-      let maxId = 0;
-      for (const item of this.workItems) {
-        const match = item.id.match(/^wi-(\d+)$/);
-        if (match?.[1]) {
-          const num = parseInt(match[1], 10);
-          if (num > maxId) maxId = num;
-        }
-      }
-      this.nextId = maxId + 1;
+      const [items, rules] = await Promise.all([this.repository.listWorkItems(), this.repository.listRules()]);
+      this.workItems = items;
+      this.rules = rules;
+      this.nextId = Math.max(this.nextId, maxSuffix(items.map((i) => i.id), /^wi-(\d+)$/) + 1);
+      this.nextRuleId = Math.max(this.nextRuleId, maxSuffix(rules.map((r) => r.id), /^AR-(\d+)$/) + 1);
     },
     /** One work item per file; a second request for the same file is refused (null),
      *  including a SECOND call that arrives while the FIRST is still saving (fix
@@ -70,7 +89,8 @@ export const useReviewStore = defineStore('review', {
       this.pendingEntityIds.push(entityId);
       try {
         await this.repository.saveWorkItem(item);
-        this.workItems.push(item);
+        // A load() that ran mid-save may already hold it.
+        if (!this.workItems.some((w) => w.id === item.id)) this.workItems.push(item);
         return item;
       } finally {
         this.pendingEntityIds = this.pendingEntityIds.filter((id) => id !== entityId);
@@ -82,6 +102,29 @@ export const useReviewStore = defineStore('review', {
     async removeWorkItem(id: string): Promise<void> {
       await this.repository.removeWorkItem(id);
       this.workItems = this.workItems.filter((w) => w.id !== id);
+    },
+    /** Part 2 P5. Same reservation and persist-first ordering as `addWorkItemForFile`.
+     *  Refuses (null) a self-rule, an empty rationale, an existing pair, and a second call
+     *  for a pair whose first save has not settled. */
+    async addRule(from: string, to: string, rationale: string, now: Date): Promise<BoundaryRule | null> {
+      const key = ruleKey(from, to);
+      if (from === to || rationale.trim() === '' || this.hasRule(from, to) || this.pendingRuleKeys.includes(key)) return null;
+      const rule: BoundaryRule = {
+        id: `AR-${String(this.nextRuleId).padStart(3, '0')}`, from, to, rationale: rationale.trim(), createdAt: now.toISOString(),
+      };
+      this.nextRuleId += 1;
+      this.pendingRuleKeys.push(key);
+      try {
+        await this.repository.saveRule(rule);
+        if (!this.rules.some((r) => r.id === rule.id)) this.rules.push(rule);
+        return rule;
+      } finally {
+        this.pendingRuleKeys = this.pendingRuleKeys.filter((k) => k !== key);
+      }
+    },
+    async removeRule(id: string): Promise<void> {
+      await this.repository.removeRule(id);
+      this.rules = this.rules.filter((r) => r.id !== id);
     },
   },
 });
