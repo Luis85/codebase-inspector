@@ -254,3 +254,10 @@ above where they conflict.
   microcopy catalogue by a contract test).
 - **A10 — The review port holds work items only in Part 1**; dispositions and rules join it
   in Parts 3–4.
+- **A11 — The shell-level ProvenanceBadge (§4.1) is deferred to Part 2**; in Part 1 sample
+  values are labelled per value (MetricCard/ProvenanceBadge) and on the Overview verdict
+  callout, and the nav shows no sample counts.
+- **A12 — The narrow nav drawer closes on Escape and returns focus to its opener**; scrim,
+  click-outside close and focus containment are deferred to Part 2.
+- **A13 — Aggregates in read models must become evidence-aware** (partial/unknown when any
+  input lacks a value) before Part 2 wires the first real provider.
