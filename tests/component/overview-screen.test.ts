@@ -36,14 +36,14 @@ describe('OverviewScreen', () => {
     expect(mountOverview().find('.ci-callout__badge').text()).toBe('Includes sample data');
   });
 
-  it('opening a hotspot row selects the file and shows the city without moving the camera', async () => {
+  it('opening a hotspot row selects the file and shows File detail without moving the camera', async () => {
     withSnapshot();
     const store = useCityStore();
     store.navigate('overview');
     const w = mountOverview();
     await w.find('.ci-table__row').trigger('click');
     expect(store.selectedEntityId).not.toBeNull();
-    expect(store.route).toBe('city');
+    expect(store.route).toBe('file');
     expect(store.camera).toBeNull();
   });
 

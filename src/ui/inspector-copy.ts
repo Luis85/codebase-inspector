@@ -213,3 +213,42 @@ export const PRIORITY_TERMS: readonly { term: string; meaning: string }[] = [
 export const PRIORITY_CAVEAT = 'A transparent sample heuristic for ordering an investigation. It is not a defect probability, a maintainability index, an industry benchmark or a team-performance score.';
 export const PRIORITY_UNKNOWN_RULE = 'A file missing any of these inputs has an unknown priority. It is never scored as 0.';
 export const DIALOG_CLOSE = 'Close';
+
+/** Part 2 §2.3: File detail screen. */
+export const FILE_EYEBROW = 'File / Evidence & impact';
+export const FILE_NO_SELECTION_TITLE = 'No file selected';
+export const FILE_NO_SELECTION = 'Select a file in the city, a hotspot table or the command palette to see its evidence here.';
+export const FILE_BROWSE_HOTSPOTS = 'Browse hotspots';
+export const FILE_SHOW_IN_CITY = 'Show in city';
+export const FILE_INSPECT_ARCHITECTURE = 'Inspect architecture';
+export const FILE_ADD_WORK_ITEM = 'Add work item';
+export const FILE_COMMITS_CHIP = (n: string): string => `${n} commits / 90d`;
+export const FILE_SAMPLE_CHIP = 'Sample signals';
+export const FILE_SOURCE_TITLE = 'Source context';
+export const FILE_SOURCE_SUBTITLE = 'Inventory facts for this file. File content is not read.';
+export const FILE_SOURCE_PREVIEW_LATER = 'Source preview arrives with the source provider.';
+export const FILE_COPY_PATH = 'Copy path';
+export const FILE_COPY_FAILED = 'Could not copy the path. Select it and copy it manually.';
+export const FILE_FACT_PATH = 'Path';
+export const FILE_FACT_MODULE = 'Module';
+export const FILE_FACT_CATEGORY = 'Category';
+export const FILE_FACT_LINES = 'Lines';
+export const FILE_FACT_BYTES = 'Bytes';
+export const FILE_FINDINGS_TITLE = 'Evidence & decisions';
+export const FILE_FINDINGS_SUBTITLE = (n: string): string => `${n} static findings for this file.`;
+export const FILE_NO_FINDINGS = 'No sample findings for this file.';
+export const FILE_FINDINGS_CAVEAT_TITLE = 'No findings does not imply no defects.';
+export const FILE_FINDINGS_CAVEAT = 'Dynamic imports, reflection, configuration and runtime behaviour may need additional review.';
+export const FINDING_META = (line: number | null): string => (line === null ? 'Sample finding · line unknown' : `Sample finding · line ${line}`);
+export const SEVERITY_LABEL: Readonly<Record<'high' | 'medium' | 'low', string>> = { high: 'High', medium: 'Medium', low: 'Low' };
+export const FILE_HISTORY_TITLE = 'Change & test history';
+export const FILE_HISTORY_SUBTITLE = 'Sample per-file trends.';
+export const FILE_HISTORY_FOOTNOTE = 'Complexity and branch coverage use different units.';
+export const FILE_HISTORY_NONE = 'No history for this file.';
+export const FILE_WORK_ITEMS_TITLE = 'Planned work';
+export const FILE_WORK_ITEMS_SUBTITLE = 'Work items record intent; they never change the source.';
+export const FILE_NO_WORK_ITEMS = 'No work items for this file yet.';
+export const WORK_ITEM_STATUS_LABEL: Readonly<Record<'investigate' | 'planned' | 'in-progress' | 'verified', string>> = {
+  investigate: 'Investigate', planned: 'Planned', 'in-progress': 'In progress', verified: 'Verified',
+};
+export const INVESTIGATE_FILE_LABEL = 'Investigate file';

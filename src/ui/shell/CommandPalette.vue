@@ -34,9 +34,9 @@ function run(item: PaletteItem | undefined): void {
   if (item.kind === 'route' && isRouteId(item.target)) {
     store.navigate(item.target);
   } else if (item.kind === 'file') {
+    // Part 2 P11: a file from the palette opens its evidence, not the city.
     store.select(item.target);
-    store.navigate('city');
-    store.openInspector();
+    store.navigate('file');
   }
   emit('close');
 }
@@ -60,6 +60,7 @@ function onKeydown(event: KeyboardEvent): void {
         type="text"
         class="ci-palette__input"
         role="combobox"
+        aria-haspopup="listbox"
         aria-expanded="true"
         :aria-controls="listId"
         :aria-activedescendant="items[active] ? `${listId}-opt-${active}` : undefined"

@@ -3,8 +3,8 @@
   and bytes), never the sqrt-scaled scene height layout.ts computed for the same
   file — that scaling exists only to keep the city's skyline readable, and this
   drawer's whole job is to say what is actually true about the file. Offers Focus,
-  Copy relative path and (WP-02) Add to refactor plan — the last records intent in
-  the review store and never touches the source.
+  Copy relative path, (Part 2) Investigate file and (WP-02) Add to refactor plan —
+  the last records intent in the review store and never touches the source.
 
   Closing PRESERVES the selection — only `cityStore.clearSelection()` (never called
   from here) drops it.
@@ -17,7 +17,9 @@ import { useCityRendererHandle } from '../renderer-handle';
 import { useInspectorOpener } from '../drawer-focus';
 import { useClipboard } from '../clipboard';
 import { COPY_27, formatSnapshotScopeRoot, formatUnavailableReason } from '../copy';
-import { ADD_TO_PLAN_FAILED, ADD_TO_PLAN_LABEL, IN_PLAN_LABEL, WORK_ITEM_TITLE } from '../inspector-copy';
+import {
+  ADD_TO_PLAN_FAILED, ADD_TO_PLAN_LABEL, IN_PLAN_LABEL, INVESTIGATE_FILE_LABEL, WORK_ITEM_TITLE,
+} from '../inspector-copy';
 import type { Observation } from '../../domain/model';
 
 const store = useCityStore();
@@ -168,6 +170,13 @@ async function copyRelativePath(): Promise<void> {
         @click="copyRelativePath"
       >
         Copy relative path
+      </button>
+      <button
+        type="button"
+        class="ci-inspector__investigate"
+        @click="store.navigate('file')"
+      >
+        {{ INVESTIGATE_FILE_LABEL }}
       </button>
       <button
         type="button"

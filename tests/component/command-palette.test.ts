@@ -42,16 +42,21 @@ describe('CommandPalette', () => {
     w.unmount();
   });
 
-  it('opening a file selects it, shows the city and opens the inspector — without touching the camera', async () => {
+  it('opening a file selects it and shows File detail — without touching the camera', async () => {
     const store = useCityStore();
     store.navigate('overview');
     const w = mount(CommandPalette, { attachTo: document.body });
     await w.find('input').setValue('file-1');
     await w.find('input').trigger('keydown', { key: 'Enter' });
     expect(store.selectedEntityId).toContain('file-1.ts');
-    expect(store.route).toBe('city');
-    expect(store.inspectorOpen).toBe(true);
+    expect(store.route).toBe('file');
     expect(store.camera).toBeNull();
+    w.unmount();
+  });
+
+  it('the combobox announces its listbox popup', () => {
+    const w = mount(CommandPalette, { attachTo: document.body });
+    expect(w.find('input').attributes('aria-haspopup')).toBe('listbox');
     w.unmount();
   });
 

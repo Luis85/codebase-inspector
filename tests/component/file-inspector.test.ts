@@ -175,6 +175,18 @@ describe('FileInspector.vue (C10)', () => {
     expect(useReviewStore().hasWorkItemFor(target.id)).toBe(true);
   });
 
+  // Task 9: "Investigate file" opens the File detail screen for the selected entity,
+  // keeping the selection and never moving the camera — the same invariant every
+  // other path into File detail (palette, hotspot row) holds.
+  it('Investigate file navigates to File detail, keeping the selection and the camera', async () => {
+    const { store, target } = openWithFile();
+    const wrapper = mountInspector();
+    await wrapper.find('.ci-inspector__investigate').trigger('click');
+    expect(store.route).toBe('file');
+    expect(store.selectedEntityId).toBe(target.id);
+    expect(store.camera).toBeNull();
+  });
+
   // Task 9 (F12): C10's own contract says "Keep exact raw values and scope", and
   // foundations/04 says "Preserve the full path through wrapping, a copy action, and
   // accessible text. Do not expose crucial content only in an ellipsis tooltip." The

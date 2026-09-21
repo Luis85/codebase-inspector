@@ -46,11 +46,10 @@ const columns: readonly TableColumn<FileSummary>[] = [
 ];
 
 /** Selecting from any screen goes through the ONE selection owner and never moves the
- *  camera (city-store invariant); showing the city is a separate, explicit navigation. */
+ *  camera (city-store invariant); the file detail is a separate, explicit navigation. */
 function openFile(row: FileSummary): void {
   store.select(row.id);
-  store.navigate('city');
-  store.openInspector();
+  store.navigate('file');
 }
 
 /** Same rule as `openFile`: an investigation that lands on a FILE in the city opens
