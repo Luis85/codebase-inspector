@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { SNAPSHOT_LABEL } from '../inspector-copy';
+import { NO_SNAPSHOT_LABEL, SNAPSHOT_LABEL } from '../inspector-copy';
 import { useCityStore } from '../stores/city-store';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -10,7 +10,7 @@ const store = useCityStore();
  *  phase (spec §9 A4). The control already exists so the layout and focus order are final. */
 const label = computed(() => {
   const s = store.snapshot;
-  if (!s) return 'No snapshot';
+  if (!s) return NO_SNAPSHOT_LABEL;
   const d = new Date(s.providerRun.capturedAt);
   return `Latest · ${MONTHS[d.getUTCMonth()] ?? ''} ${d.getUTCDate()}`;
 });

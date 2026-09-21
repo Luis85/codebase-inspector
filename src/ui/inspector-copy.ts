@@ -22,3 +22,4 @@ export const IN_PLAN_LABEL = 'In refactor plan';
 export const OPEN_NAVIGATION_LABEL = 'Open navigation';
 export const CLOSE_NAVIGATION_LABEL = 'Close navigation';
 export const SNAPSHOT_LABEL = 'Snapshot';
+export const NO_SNAPSHOT_LABEL = 'No snapshot';

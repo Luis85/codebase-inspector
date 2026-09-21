@@ -61,6 +61,41 @@ describe('CommandPalette', () => {
     expect(w.text()).toContain('No matching screens or files.');
     w.unmount();
   });
+
+  it('ArrowDown moves to the second route and Enter activates it', async () => {
+    const store = useCityStore();
+    store.navigate('overview');
+    const w = mount(CommandPalette, { attachTo: document.body });
+    const input = w.find('input');
+    await input.trigger('keydown', { key: 'ArrowDown' });
+    await input.trigger('keydown', { key: 'Enter' });
+    expect(store.route).toBe('city');
+    w.unmount();
+  });
+
+  it('ArrowUp from the first item wraps to the last item', async () => {
+    const store = useCityStore();
+    store.navigate('overview');
+    const w = mount(CommandPalette, { attachTo: document.body });
+    const input = w.find('input');
+    await input.trigger('keydown', { key: 'ArrowUp' });
+    await input.trigger('keydown', { key: 'Enter' });
+    expect(store.route).toBe('file');
+    w.unmount();
+  });
+
+  it('two open palettes get distinct listbox ids so their aria references never collide', () => {
+    const w1 = mount(CommandPalette, { attachTo: document.body });
+    const w2 = mount(CommandPalette, { attachTo: document.body });
+    const list1 = w1.find('[role="listbox"]');
+    const list2 = w2.find('[role="listbox"]');
+    expect(list1.attributes('id')).toBeTruthy();
+    expect(list1.attributes('id')).not.toBe(list2.attributes('id'));
+    expect(w1.find('input').attributes('aria-controls')).toBe(list1.attributes('id'));
+    expect(w2.find('input').attributes('aria-controls')).toBe(list2.attributes('id'));
+    w1.unmount();
+    w2.unmount();
+  });
 });
 
 describe('shell wiring', () => {

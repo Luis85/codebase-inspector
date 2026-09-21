@@ -1,5 +1,17 @@
+<script lang="ts">
+// Module scope (shared by every CommandPalette instance in this one JS process,
+// regardless of how many leaves/apps are open): a per-instance sequence number.
+// Two leaves can each hold a palette (a supported case), and each leaf mounts its OWN
+// `createApp` root (src/host/city-view.ts), so `useId()` ALONE is not enough — Vue
+// scopes its counter to the app instance, and two independently created apps both
+// start theirs at 0, which is exactly the collision this exists to prevent. This
+// counter has no such reset, so combined with `useId()` below the id stays unique
+// both across instances in one app and across separate app instances.
+let paletteSequence = 0;
+</script>
+
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import { isRouteId } from '../../domain/route-ids';
 import { COMMAND_PALETTE_EMPTY, COMMAND_PALETTE_LABEL, COMMAND_PALETTE_PLACEHOLDER } from '../inspector-copy';
 import { useCityStore } from '../stores/city-store';
@@ -11,6 +23,7 @@ import { paletteItems, type PaletteItem } from './palette-items';
 const emit = defineEmits<{ close: [] }>();
 const store = useCityStore();
 const { files } = useReadModels();
+const listId = `ci-palette-${useId()}-${paletteSequence++}`;
 const query = ref('');
 const active = ref(0);
 const items = computed(() => paletteItems(query.value, files.value));
@@ -48,20 +61,20 @@ function onKeydown(event: KeyboardEvent): void {
         class="ci-palette__input"
         role="combobox"
         aria-expanded="true"
-        aria-controls="ci-palette-list"
-        :aria-activedescendant="items[active] ? `ci-palette-${active}` : undefined"
+        :aria-controls="listId"
+        :aria-activedescendant="items[active] ? `${listId}-opt-${active}` : undefined"
         :placeholder="COMMAND_PALETTE_PLACEHOLDER"
         :aria-label="COMMAND_PALETTE_LABEL"
         @keydown="onKeydown"
       >
       <ul
-        id="ci-palette-list"
+        :id="listId"
         class="ci-palette__list"
         role="listbox"
       >
         <li
           v-for="(item, i) in items"
-          :id="`ci-palette-${i}`"
+          :id="`${listId}-opt-${i}`"
           :key="item.key"
           role="option"
           class="ci-palette__item"
