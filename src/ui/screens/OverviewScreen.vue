@@ -4,7 +4,6 @@ import type { FileSummary } from '../read-models/file-summaries';
 import type { Investigation } from '../read-models/overview';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
-import { useSnapshotJournal } from '../stores/snapshot-journal';
 import { formatMetric } from '../evidence';
 import {
   OVERVIEW_ALL_HOTSPOTS_LABEL, OVERVIEW_AUDIT_REPORT_LABEL, OVERVIEW_COMPARE_LABEL,
@@ -27,9 +26,10 @@ import type { TableColumn } from '../kit/table-types';
 import InvestigationList from './overview/InvestigationList.vue';
 import EvidenceCoveragePanel from './overview/EvidenceCoveragePanel.vue';
 import SnapshotComparisonDialog from './evolution/SnapshotComparisonDialog.vue';
+import { useCanCompare } from './evolution/use-can-compare';
 
 const store = useCityStore();
-const journal = useSnapshotJournal();
+const canCompare = useCanCompare();
 const comparing = ref(false);
 const { overview } = useReadModels();
 const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
@@ -78,10 +78,11 @@ function openInvestigation(item: Investigation): void {
       :subtitle="OVERVIEW_SUBTITLE"
     >
       <template #actions>
-        <!-- Part 3 Q9: shown once the session journal holds two snapshots; opens the
-             comparison in place rather than navigating. -->
+        <!-- Part 3 Q9: shown once the session journal holds an earlier snapshot than the
+             one on screen (useCanCompare); opens the comparison in place rather than
+             navigating. -->
         <button
-          v-if="journal.entries.length >= 2"
+          v-if="canCompare"
           type="button"
           class="ci-overview__compare"
           @click="comparing = true"

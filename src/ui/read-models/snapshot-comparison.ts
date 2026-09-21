@@ -3,8 +3,18 @@
 import type { EntityId } from '../../domain/entity-id';
 import type { CodebaseSnapshot } from '../../domain/model';
 import { hasValue, sumEvidence, unknown, type MetricValue } from '../evidence';
-import { COMPARE_LINES_UNKNOWN, COMPARE_MODULE_ABSENT } from '../inspector-copy';
+import { COMPARE_LINES_UNKNOWN, COMPARE_MODULE_ABSENT, SNAPSHOT_ENTRY_LABEL } from '../inspector-copy';
 import { groupByModule, moduleLabel, type FileSummary } from './file-summaries';
+import { dateLabels } from './overview';
+
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+/** The one label for a journal entry (journal rows, comparison options, the Compare
+ *  buttons' descriptions): capture date plus UTC HH:MM, which tells same-day scans apart. */
+export function snapshotEntryLabel(capturedAt: string): string {
+  const d = new Date(capturedAt);
+  return SNAPSHOT_ENTRY_LABEL(dateLabels(capturedAt, 1, 0)[0] ?? '', `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`);
+}
 
 export interface JournalModule { module: string; files: number; lines: MetricValue }
 export interface JournalEntry {

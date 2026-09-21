@@ -59,5 +59,7 @@ export const COMPARE_COL_MODULE = 'Module';
 export const COMPARE_MODULES_NONE = 'No module changed between these snapshots.';
 export const COMPARE_NEEDS_TWO = 'Comparison needs an earlier snapshot of this codebase in this session.';
 export const COMPARE_CLOSE = 'Close';
-export const COMPARE_ENTRY = (capturedAt: string, id: string): string => `${capturedAt} · ${id.slice(0, 8)}`;
+// Fix round 1: collector ids are `snapshot:<repo>:<capturedAt>`, so a prefix of the id
+// never tells two scans apart; the capture date and UTC time do.
+export const SNAPSHOT_ENTRY_LABEL = (date: string, time: string): string => `${date} · ${time} UTC`;
 export const SIGNED = (n: number): string => (n > 0 ? `+${n.toLocaleString('en-US')}` : n.toLocaleString('en-US'));

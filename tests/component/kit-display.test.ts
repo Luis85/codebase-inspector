@@ -93,6 +93,16 @@ describe('BarChart', () => {
     expect(table.findAll('tbody tr')).toHaveLength(3);
     expect(table.findAll('thead th').map((th) => th.text())).toEqual(['Date', 'Commits']);
   });
+  it('draws negative and non-finite values as empty bars, but lists the raw values', () => {
+    const odd = [{ label: 'a', value: -5 }, { label: 'b', value: Number.NaN }, { label: 'c', value: Number.POSITIVE_INFINITY }, { label: 'd', value: 20 }];
+    const w = mount(BarChart, { props: { bars: odd, label: 'Odd', valueLabel: 'n' } });
+    const heights = w.findAll('.ci-bar-chart__bar').map((r) => Number(r.attributes('height')));
+    expect(heights).toHaveLength(4);
+    expect(heights.every((h) => Number.isFinite(h) && h >= 0)).toBe(true);
+    expect(heights.slice(0, 3)).toEqual([0, 0, 0]);
+    expect(heights[3]).toBeGreaterThan(0);
+    expect(w.findAll('tbody td').map((td) => td.text())).toEqual(['-5', 'NaN', 'Infinity', '20']);
+  });
   it('gives two charts distinct title ids', () => {
     const a = mount(BarChart, { props: { bars, label: 'A', valueLabel: 'n' } });
     const b = mount(BarChart, { props: { bars, label: 'B', valueLabel: 'n' } });

@@ -25,11 +25,13 @@ import NoSnapshot from './NoSnapshot.vue';
 import ChangeCouplingTable from './evolution/ChangeCouplingTable.vue';
 import SnapshotJournal from './evolution/SnapshotJournal.vue';
 import SnapshotComparisonDialog from './evolution/SnapshotComparisonDialog.vue';
+import { useCanCompare } from './evolution/use-can-compare';
 
 const WINDOWS: readonly ChangeWindow[] = [30, 90];
 
 const store = useCityStore();
 const journal = useSnapshotJournal();
+const canCompare = useCanCompare();
 const { files } = useReadModels();
 // E24: never `window` in src/ui.
 const changeWindow = ref<ChangeWindow>(90);
@@ -71,7 +73,7 @@ function openFile(id: EntityId): void {
           </button>
         </div>
         <button
-          v-if="journal.entries.length >= 2"
+          v-if="canCompare"
           type="button"
           class="ci-evolution__compare"
           @click="comparing = {}"

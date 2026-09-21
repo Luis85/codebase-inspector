@@ -3,8 +3,7 @@
 // from the inventory; kept in memory only.
 import { computed } from 'vue';
 import { formatMetric } from '../../evidence';
-import { dateLabels } from '../../read-models/overview';
-import type { JournalEntry } from '../../read-models/snapshot-comparison';
+import { snapshotEntryLabel, type JournalEntry } from '../../read-models/snapshot-comparison';
 import { useUniqueId } from '../../unique-id';
 import {
   EVOLUTION_JOURNAL_COMPARE, EVOLUTION_JOURNAL_CURRENT, EVOLUTION_JOURNAL_ENTRY, EVOLUTION_JOURNAL_ONE,
@@ -16,8 +15,6 @@ const idPrefix = useUniqueId('ci-journal-entry');
 /** Only an entry older than the one on screen can be a comparison base. */
 const currentAt = computed(() => props.entries.findIndex((e) => e.snapshotId === props.currentId));
 const canCompare = (i: number): boolean => currentAt.value >= 0 && i > currentAt.value;
-
-const dateLabel = (entry: JournalEntry): string => dateLabels(entry.capturedAt, 1, 0)[0] ?? '';
 </script>
 
 <template>
@@ -33,8 +30,7 @@ const dateLabel = (entry: JournalEntry): string => dateLabels(entry.capturedAt, 
           :id="`${idPrefix}-${i}`"
           class="ci-journal__head"
         >
-          <span class="ci-journal__date">{{ dateLabel(e) }}</span>
-          <code class="ci-journal__id">{{ e.snapshotId.slice(0, 8) }}</code>
+          <span class="ci-journal__date">{{ snapshotEntryLabel(e.capturedAt) }}</span>
         </div>
         <p class="ci-journal__summary">
           {{ EVOLUTION_JOURNAL_ENTRY(e.files, formatMetric(e.lines)) }}

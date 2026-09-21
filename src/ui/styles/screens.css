@@ -373,7 +373,6 @@
 :where(.codebase-inspector-root) .ci-journal__item--current::before { border-color: var(--ci-tone-accent); background: var(--ci-tone-accent); }
 :where(.codebase-inspector-root) .ci-journal__head { display: flex; align-items: baseline; gap: var(--ci-space-2); flex: 1 1 100%; }
 :where(.codebase-inspector-root) .ci-journal__date { font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-journal__id { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
 :where(.codebase-inspector-root) .ci-journal__summary { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-compare-dialog { display: grid; gap: var(--ci-space-3); max-width: 40em; padding: var(--ci-space-4); }
 :where(.codebase-inspector-root) .ci-compare-dialog__title { margin: 0; }

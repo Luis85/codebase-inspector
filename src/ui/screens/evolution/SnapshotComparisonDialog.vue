@@ -4,14 +4,13 @@
 // Overview and City.
 import { computed, ref } from 'vue';
 import { formatMetric, hasValue } from '../../evidence';
-import { compareSnapshots, type JournalEntry } from '../../read-models/snapshot-comparison';
-import { dateLabels } from '../../read-models/overview';
+import { compareSnapshots, snapshotEntryLabel, type JournalEntry } from '../../read-models/snapshot-comparison';
 import { useCityStore } from '../../stores/city-store';
 import { useSnapshotJournal } from '../../stores/snapshot-journal';
 import { useUniqueId } from '../../unique-id';
 import {
   COMPARE_ADDED, COMPARE_BASE_LABEL, COMPARE_CLOSE, COMPARE_COL_AFTER, COMPARE_COL_BEFORE, COMPARE_COL_CHANGE,
-  COMPARE_COL_MODULE, COMPARE_COL_SIGNAL, COMPARE_ENTRY, COMPARE_FILES, COMPARE_LINES, COMPARE_MODULES_CAPTION,
+  COMPARE_COL_MODULE, COMPARE_COL_SIGNAL, COMPARE_FILES, COMPARE_LINES, COMPARE_MODULES_CAPTION,
   COMPARE_MODULES_NONE, COMPARE_NEEDS_TWO, COMPARE_REMOVED, COMPARE_SUBTITLE, COMPARE_TITLE, NO_VALUE, SIGNED,
 } from '../../inspector-copy';
 import CiDialog from '../../kit/Dialog.vue';
@@ -32,7 +31,14 @@ const earlier = computed(() => {
   return out;
 });
 
-const baseId = ref(props.initialBaseId ?? earlier.value[0]?.snapshotId ?? '');
+const chosenId = ref(props.initialBaseId ?? earlier.value[0]?.snapshotId ?? '');
+/** Fix round 1: the journal can change while the dialog is open (a rescan, the cap, a
+ *  new repository). A chosen base that is no longer an earlier entry falls back to the
+ *  newest earlier one, so the select and the tables never disagree. */
+const baseId = computed({
+  get: () => (earlier.value.some((e) => e.snapshotId === chosenId.value) ? chosenId.value : earlier.value[0]?.snapshotId ?? ''),
+  set: (id: string) => { chosenId.value = id; },
+});
 const comparison = computed(() => {
   const base = earlier.value.find((e) => e.snapshotId === baseId.value);
   return base && current.value ? compareSnapshots(base, current.value) : null;
@@ -42,8 +48,6 @@ const linesChange = computed(() => {
   const d = comparison.value?.linesDelta;
   return d && hasValue(d) ? SIGNED(d.value) : NO_VALUE;
 });
-
-const dateLabel = (entry: JournalEntry): string => dateLabels(entry.capturedAt, 1, 0)[0] ?? '';
 </script>
 
 <template>
@@ -79,7 +83,7 @@ const dateLabel = (entry: JournalEntry): string => dateLabels(entry.capturedAt, 
             :key="e.snapshotId"
             :value="e.snapshotId"
           >
-            {{ COMPARE_ENTRY(dateLabel(e), e.snapshotId) }}
+            {{ snapshotEntryLabel(e.capturedAt) }}
           </option>
         </select>
       </template>

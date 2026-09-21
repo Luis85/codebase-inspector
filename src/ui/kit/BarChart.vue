@@ -12,14 +12,20 @@ const W = 600; const H = 200; const PAD_L = 32; const PAD_B = 22; const PAD_T = 
 const titleId = useUniqueId('ci-bar-chart-title');
 const descId = useUniqueId('ci-bar-chart-desc');
 
-const yMax = computed(() => niceMax(Math.max(0, ...props.bars.map((b) => b.value))));
+/** Geometry only: a negative or non-finite value draws an empty bar. The table fallback
+ *  still lists the raw value. */
+const heightValue = (v: number): number => (Number.isFinite(v) ? Math.max(0, v) : 0);
+const yMax = computed(() => niceMax(Math.max(0, ...props.bars.map((b) => heightValue(b.value)))));
 const ticks = computed(() => [0, 0.25, 0.5, 0.75, 1].map((t) => Math.round(t * yMax.value)));
 const y = (v: number): number => PAD_T + (H - PAD_T - PAD_B) * (1 - v / yMax.value);
 const slot = computed(() => (W - PAD_L - 8) / Math.max(1, props.bars.length));
-const rects = computed(() => props.bars.map((b, i) => ({
-  key: `${b.label}-${i}`, x: PAD_L + i * slot.value + (slot.value * GAP) / 2, width: slot.value * (1 - GAP),
-  y: y(b.value), height: (H - PAD_B) - y(b.value), cx: PAD_L + (i + 0.5) * slot.value, label: b.label,
-})));
+const rects = computed(() => props.bars.map((b, i) => {
+  const top = y(heightValue(b.value));
+  return {
+    key: `${b.label}-${i}`, x: PAD_L + i * slot.value + (slot.value * GAP) / 2, width: slot.value * (1 - GAP),
+    y: top, height: (H - PAD_B) - top, cx: PAD_L + (i + 0.5) * slot.value, label: b.label,
+  };
+}));
 </script>
 
 <template>
