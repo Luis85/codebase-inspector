@@ -7,7 +7,10 @@ import { isSampleBacked, type MetricValue } from '../evidence';
 import { fileSummariesFor, type FileSummary } from './file-summaries';
 import { buildOverviewModel, type OverviewModel } from './overview';
 import { buildCitySummary } from './city-summary';
-import { architectureGraphFor, buildArchitectureModel, cyclesValue, type ArchitectureGraph } from './architecture';
+import type { BoundaryRule } from '../stores/ports/review-repository';
+import {
+  architectureGraphFor, buildArchitectureModel, cyclesValue, type ArchitectureGraph, type ArchitectureModel,
+} from './architecture';
 import { buildFileDetail, type FileDetailModel } from './file-detail';
 
 /** One stable empty array, so the per-array memo (architectureGraphFor) still hits. */
@@ -32,6 +35,19 @@ export function overviewModelFor(snapshot: CodebaseSnapshot, files: readonly Fil
   return model;
 }
 
+/** Part 3 §4: one Architecture model per (graph, rule set), shared by every caller. The
+ *  rules array is mutated in place by `addRule`, so the key is a signature, not identity. */
+const architectureCache = new WeakMap<ArchitectureGraph, { signature: string; model: ArchitectureModel }>();
+const rulesSignature = (rules: readonly BoundaryRule[]): string => rules.map((r) => `${r.id}:${r.from}>${r.to}`).join('|');
+export function architectureModelFor(graph: ArchitectureGraph, rules: readonly BoundaryRule[]): ArchitectureModel {
+  const signature = rulesSignature(rules);
+  const hit = architectureCache.get(graph);
+  if (hit && hit.signature === signature) return hit.model;
+  const model = buildArchitectureModel(graph, rules);
+  architectureCache.set(graph, { signature, model });
+  return model;
+}
+
 const detailCache = new WeakMap<readonly FileSummary[], { snapshot: CodebaseSnapshot; byId: Map<EntityId, FileDetailModel | null> }>();
 export function fileDetailFor(snapshot: CodebaseSnapshot, files: readonly FileSummary[], entityId: EntityId | null): FileDetailModel | null {
   if (!entityId) return null;
@@ -50,7 +66,7 @@ export function useReadModels() {
   const cycles = computed(() => cyclesFor(graph.value));
   const overview = computed(() => (store.snapshot ? overviewModelFor(store.snapshot, files.value, cycles.value) : null));
   const citySummary = computed(() => buildCitySummary(files.value, cycles.value));
-  const architecture = computed(() => buildArchitectureModel(graph.value, review.rules));
+  const architecture = computed(() => architectureModelFor(graph.value, review.rules));
   const fileDetail = computed(() => (store.snapshot ? fileDetailFor(store.snapshot, files.value, store.selectedEntityId) : null));
   /** A11: the Hotspots screen shows sample values whenever any file's plotted signal does. */
   const filesUseSample = computed(() => files.value.some((f) => isSampleBacked(f.priority) || isSampleBacked(f.complexity)));

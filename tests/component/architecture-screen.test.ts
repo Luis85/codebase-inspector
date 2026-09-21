@@ -53,7 +53,7 @@ describe('ArchitectureScreen', () => {
     const w = mountArch();
     const nodes = w.findAll('.ci-module-map__node');
     expect(nodes).toHaveLength(6);
-    expect(nodes[0]!.attributes('aria-label')).toMatch(/files, \d+ outgoing, \d+ incoming$/);
+    expect(nodes[0]!.attributes('aria-label')).toMatch(/files, \d+ outgoing, \d+ incoming, sample edges$/);
     expect(w.find('.ci-module-map svg').attributes('aria-hidden')).toBe('true');
     expect(w.find('.ci-module-map__eyebrow .ci-provenance--sample').exists()).toBe(true);
     w.unmount();

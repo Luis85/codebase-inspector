@@ -7,7 +7,7 @@ import {
 
 export type EvidenceState = 'collected' | 'sample' | 'unknown' | 'stale' | 'partial' | 'failed' | 'excluded';
 
-export interface Provenance { source: string; detail?: string }
+export interface Provenance { source: string; detail?: string; includesSample?: true }
 
 export interface MetricValue<T = number> {
   state: EvidenceState;
@@ -61,6 +61,12 @@ function sharedSource(inputs: readonly MetricValue<unknown>[]): string {
   return inputs.every((m) => m.provenance.source === first) ? first : 'aggregate';
 }
 
+/** Part 3 §4: a value built from inputs that include sample data says so, even when its
+ *  state is `partial` and its source is `aggregate`. Never added to a `sample` source. */
+function flagSample(prov: Provenance, inputs: readonly MetricValue<unknown>[]): Provenance {
+  return prov.source !== 'sample' && inputs.some(isSampleBacked) ? { ...prov, includesSample: true } : prov;
+}
+
 type Present = MetricValue & { value: number };
 
 /** Spec §9 A13: one value computed from many. No inputs, or no input with a value, is
@@ -75,7 +81,7 @@ export function aggregate<T>(
   const present = inputs.filter((m): m is Present => hasValue(m));
   if (present.length === 0) return unknown<T>(inputs[0]?.reason ?? AGGREGATE_NO_VALUE_REASON);
   const value = compute(present.map((m) => m.value));
-  const prov = { source: sharedSource(present) };
+  const prov = flagSample({ source: sharedSource(present) }, present);
   if (present.length < inputs.length) {
     return { state: 'partial', value, provenance: prov, reason: AGGREGATE_MISSING_REASON(inputs.length - present.length, inputs.length) };
   }
@@ -100,12 +106,12 @@ export function ratioEvidence(numerator: MetricValue, denominator: MetricValue, 
   const result: MetricValue = {
     state: weakest([numerator.state, denominator.state]),
     value: Math.round((numerator.value / denominator.value) * scale),
-    provenance: { source: sharedSource([numerator, denominator]) },
+    provenance: flagSample({ source: sharedSource([numerator, denominator]) }, [numerator, denominator]),
   };
   return reason === undefined ? result : { ...result, reason };
 }
 
 /** True when a value rests on sample data, even when aggregation made it partial. */
 export function isSampleBacked(m: MetricValue<unknown>): boolean {
-  return m.state === 'sample' || m.provenance.source === 'sample';
+  return m.state === 'sample' || m.provenance.source === 'sample' || m.provenance.includesSample === true;
 }

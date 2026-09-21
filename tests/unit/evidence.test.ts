@@ -74,3 +74,25 @@ describe('evidence-aware aggregation (A13)', () => {
     expect(isSampleBacked(collected(1, 'inventory'))).toBe(false);
   });
 });
+
+describe('includesSample (Part 3 §4)', () => {
+  it('marks a partial aggregate whose present inputs mix collected and sample', () => {
+    const m = sumEvidence([collected(3, 'inventory'), sample(4), unknown('x')]);
+    expect(m.state).toBe('partial');
+    expect(m.provenance.source).toBe('aggregate');
+    expect(m.provenance.includesSample).toBe(true);
+    expect(isSampleBacked(m)).toBe(true);
+  });
+  it('marks a ratio of a collected value over a sample value', () => {
+    const r = ratioEvidence(collected(1, 'inventory'), sample(4));
+    expect(isSampleBacked(r)).toBe(true);
+  });
+  it('leaves an all-collected aggregate unflagged', () => {
+    const m = sumEvidence([collected(1, 'inventory'), collected(2, 'inventory')]);
+    expect(m.provenance).toEqual({ source: 'inventory' });
+    expect(isSampleBacked(m)).toBe(false);
+  });
+  it('does not add the flag when the source is already sample', () => {
+    expect(sumEvidence([sample(1), sample(2)]).provenance).toEqual({ source: 'sample' });
+  });
+});

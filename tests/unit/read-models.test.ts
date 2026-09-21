@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { useCityStore } from '../../src/ui/stores/city-store';
+import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { unknown, sample } from '../../src/ui/evidence';
@@ -190,5 +191,19 @@ describe('read-model memoization', () => {
     store.select(second!.id);
     expect(a.fileDetail.value?.file.id).toBe(second!.id);
     expect(b.fileDetail.value).toBe(a.fileDetail.value);
+  });
+
+  // Part 3 §4 (E5, no mounting): two callers share one Architecture model per rule set,
+  // and adding a rule rebuilds it for both.
+  it('two callers share one Architecture model per (graph, rule set)', async () => {
+    const store = useCityStore();
+    const snap = buildSnapshotFixture({ files: 20, directories: 2 });
+    store.setCity(snap, computeLayout(snap));
+    const a = useReadModels();
+    const b = useReadModels();
+    expect(a.architecture.value).toBe(b.architecture.value);
+    await useReviewStore().addRule('dir-0', 'dir-1', 'keep boundaries', new Date());
+    expect(a.architecture.value.rules).toHaveLength(1);
+    expect(b.architecture.value).toBe(a.architecture.value);
   });
 });

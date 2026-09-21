@@ -2,6 +2,7 @@
 // highest priority first. The scatter plots only files whose two axes are known; a file
 // missing either is counted, never drawn at 0.
 import { hasValue, isSampleBacked, type MetricValue } from '../evidence';
+import { type CsvColumn, metricColumns, toCsv } from '../export/csv';
 import { filesByPriority, moduleLabel, type FileSummary } from './file-summaries';
 
 export const MAX_PLOTTED = 400;
@@ -66,31 +67,19 @@ export function buildHotspotsModel(files: readonly FileSummary[], filter: Hotspo
   };
 }
 
-/** P8: a string cell starting with = + - @ (or tab/CR) is prefixed with ' so a
- *  spreadsheet never evaluates it. Numbers are never prefixed. */
-function csvCell(value: string | number | undefined): string {
-  if (value === undefined) return '';
-  let s = String(value);
-  if (typeof value === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-const CSV_METRICS: readonly [string, (f: FileSummary) => MetricValue][] = [
-  ['priority', (f) => f.priority],
-  ['complexity', (f) => f.complexity],
-  ['commits_90d', (f) => f.commits90d],
-  ['branch_coverage_pct', (f) => f.branchCoverage],
-  ['lines', (f) => f.lines],
+const HOTSPOTS_CSV_COLUMNS: readonly CsvColumn<FileSummary>[] = [
+  { header: 'path', value: (f) => f.path },
+  { header: 'module', value: (f) => moduleLabel(f.module) },
+  ...metricColumns<FileSummary>('priority', (f) => f.priority),
+  ...metricColumns<FileSummary>('complexity', (f) => f.complexity),
+  ...metricColumns<FileSummary>('commits_90d', (f) => f.commits90d),
+  ...metricColumns<FileSummary>('branch_coverage_pct', (f) => f.branchCoverage),
+  ...metricColumns<FileSummary>('lines', (f) => f.lines),
 ];
 
 /** P8: every row given. An unknown value is an empty cell whose `_state` column says
  *  why, so absent evidence is never exported as 0. RFC 4180 line endings, and a UTF-8
  *  byte-order mark (F7) so Excel reads non-ASCII paths. */
 export function hotspotsCsv(rows: readonly FileSummary[]): string {
-  const header = ['path', 'module', ...CSV_METRICS.flatMap(([name]) => [name, `${name}_state`])];
-  const lines = rows.map((f) => [
-    csvCell(f.path), csvCell(moduleLabel(f.module)),
-    ...CSV_METRICS.flatMap(([, get]) => { const m = get(f); return [csvCell(m.value), csvCell(m.state)]; }),
-  ].join(','));
-  return `\uFEFF${[header.join(','), ...lines].join('\r\n')}\r\n`;
+  return toCsv(HOTSPOTS_CSV_COLUMNS, rows);
 }

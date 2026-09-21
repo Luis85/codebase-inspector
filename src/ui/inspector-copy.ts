@@ -134,7 +134,7 @@ export const ARCH_VIOLATIONS_ONLY = 'Violations only';
 export const ARCH_MAP_FOOTNOTE = 'Arrows: importer → imported module. Sample edges, not observed imports. City arcs make no dependency claim.';
 export const ARCH_MAP_EYEBROW = 'Sample module graph';
 export const ARCH_NODE_LABEL = (label: string, files: number, outgoing: number, incoming: number): string =>
-  `${label}, ${files} files, ${outgoing} outgoing, ${incoming} incoming`;
+  `${label}, ${files} files, ${outgoing} outgoing, ${incoming} incoming, sample edges`;
 export const ARCH_NODE_FILES = (files: number): string => `${files} files`;
 export const ARCH_OMITTED_NOTE = (n: number): string => `${n} smaller modules are not shown in the graph.`;
 export const ARCH_MATRIX_CAPTION = 'Sample import statements from each row module to each column module';
@@ -197,7 +197,7 @@ export const HOTSPOTS_CSV_FILENAME = 'codebase-hotspots.csv';
 export const HOTSPOTS_SCATTER_TITLE = 'Complexity × change frequency';
 export const HOTSPOTS_SCATTER_SUBTITLE = 'Each dot is one file. Select a dot to inspect its evidence.';
 export const HOTSPOTS_SCATTER_FOOTNOTE = 'Size: source lines (ring: unknown) · Colour: branch coverage · Window: 90 days · Sample signals';
-export const HOTSPOTS_SCATTER_LABEL = 'Files by complexity and commits in the last 90 days';
+export const HOTSPOTS_SCATTER_LABEL = 'Sample signals: files by complexity and commits in the last 90 days';
 export const HOTSPOTS_X_AXIS = 'Commits in the last 90 days →';
 export const HOTSPOTS_Y_AXIS = 'Max. function cognitive complexity →';
 export const HOTSPOTS_QUADRANT_LABEL = 'Complex + frequently changed';
@@ -281,3 +281,6 @@ export const INVESTIGATE_FILE_LABEL = 'Investigate file';
 export const BREADCRUMB_LABEL = 'Breadcrumb';
 export const BREADCRUMB_ROOT = 'Workspace';
 export const PALETTE_SHORTCUT_HINT = 'Ctrl K';
+
+/** Part 3: Audit screens. Each file is re-exported here, so screens import only from inspector-copy. */
+export * from './audit-copy/shared';
