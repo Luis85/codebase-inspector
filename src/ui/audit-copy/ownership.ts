@@ -11,6 +11,8 @@ export const OWNERSHIP_BARS_TITLE = 'Knowledge distribution by module';
 export const OWNERSHIP_BARS_SUBTITLE = 'Sample share of changes attributed to the largest contributing group.';
 export const OWNERSHIP_BARS_FOOTNOTE = 'High concentration is a prompt for a conversation, not proof of missing knowledge.';
 export const OWNERSHIP_BAR_LABEL = (module: string, pct: string): string => `${module}: ${pct} concentration (sample)`;
+// E14: MeterList's own `label` prop, read out once for the whole list.
+export const OWNERSHIP_BARS_LABEL = 'Sample knowledge concentration by module';
 export const OWNERSHIP_ACTIONS_TITLE = 'Stewardship actions';
 export const OWNERSHIP_ACTIONS_SUBTITLE = 'Turn concentrated knowledge into shared understanding.';
 export const OWNERSHIP_ACTION_TITLE: Readonly<Record<'pairing' | 'tests' | 'documentation', (m: string) => string>> = {
@@ -23,8 +25,14 @@ export const OWNERSHIP_ACTION_BODY: Readonly<Record<'pairing' | 'tests' | 'docum
   tests: 'Capture current behaviour in characterization tests before it changes.',
   documentation: 'Write down the decisions and procedures that live in a few heads.',
 };
+// E50/E44: the button's visible text before it is added — its accessible name (the
+// aria-label below) starts with this same text, the state comes after.
+export const OWNERSHIP_ACTION_ADD_SHORT = 'Add work item';
 export const OWNERSHIP_ACTION_ADD = (title: string): string => `Add work item: ${title}`;
 export const OWNERSHIP_ACTION_ADDED = 'In refactor plan';
+export const OWNERSHIP_ACTION_ADDED_LABEL = (title: string): string => `In refactor plan: ${title}`;
+// E17: announced only on a real (non-null) addWorkItem result; a refusal announces nothing.
+export const OWNERSHIP_ACTION_DONE = 'Work item added.';
 export const OWNERSHIP_ACTION_FAILED = 'Could not add this work item.';
 export const OWNERSHIP_TABLE_TITLE = 'Module stewardship';
 export const OWNERSHIP_TABLE_SUBTITLE = 'Stewarding teams are sample labels and need human confirmation.';

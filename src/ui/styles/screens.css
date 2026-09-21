@@ -380,3 +380,20 @@
 :where(.codebase-inspector-root) .ci-compare-dialog__caption { padding-bottom: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); text-align: left; }
 :where(.codebase-inspector-root) .ci-compare-dialog .ci-table tbody th { padding: var(--ci-space-3); border-bottom: 1px solid var(--ci-border); font-weight: normal; text-align: left; }
 :where(.codebase-inspector-root) .ci-compare-dialog__actions { display: flex; justify-content: flex-end; }
+
+/* Part 3 Task 13: Ownership — stewardship actions and the stewardship table. */
+:where(.codebase-inspector-root) .ci-steward-actions { display: grid; gap: var(--ci-space-3); margin: 0; padding: 0; list-style: none; }
+:where(.codebase-inspector-root) .ci-steward-action {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; align-items: start; gap: var(--ci-space-3);
+  padding: var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-steward-action__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+:where(.codebase-inspector-root) .ci-steward-action__title { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-steward-action__body { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) button.ci-steward-action__add[aria-disabled="true"] { opacity: 0.6; cursor: default; }
+@container (max-width: 900px) {
+  :where(.codebase-inspector-root) .ci-steward-action { grid-template-columns: max-content minmax(0, 1fr); }
+  :where(.codebase-inspector-root) .ci-steward-action__add { grid-column: 1 / -1; justify-self: start; }
+}
+:where(.codebase-inspector-root) .ci-stewardship .ci-chip { margin-right: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-stewardship__city { white-space: nowrap; }

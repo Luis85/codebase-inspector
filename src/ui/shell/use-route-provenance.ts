@@ -9,6 +9,7 @@ export function useRouteProvenance(): ComputedRef<boolean> {
   const store = useCityStore();
   const {
     overview, citySummary, architecture, fileDetail, quality, testConfidence, dependencies, security, filesUseSample,
+    ownership,
   } = useReadModels();
   return computed(() => {
     if (!store.snapshot) return false;
@@ -24,6 +25,7 @@ export function useRouteProvenance(): ComputedRef<boolean> {
       case 'security': return security.value.usesSample;
       // Part 3 Q10: activity and coupling are always sample (EvolutionModel.usesSample is `true`).
       case 'evolution': return true;
+      case 'ownership': return ownership.value.usesSample && store.snapshot !== null;
       default: return false;
     }
   });
