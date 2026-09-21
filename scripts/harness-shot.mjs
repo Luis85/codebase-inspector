@@ -64,6 +64,12 @@ export const SHOTS = [
   // the comment on `waitForFailurePathSettled` for why it cannot use the standard
   // `body[data-ci-harness-ready="true"]` wait every other shot uses.
   { id: 's11-webgl-failed-dark', query: '?screen=s05&theme=dark', webglDisabled: true },
+  // WP-02 Part 1: the shell around the city, and the Overview, for side-by-side review
+  // against docs/concept/prototype/screenshots/{city,overview}-{dark,light}.png.
+  { id: 'wp02-city-dark', query: '?screen=s05&theme=dark&route=city' },
+  { id: 'wp02-overview-dark', query: '?screen=s05&theme=dark&route=overview' },
+  { id: 'wp02-overview-light', query: '?screen=s05&theme=light&route=overview' },
+  { id: 'wp02-overview-narrow-dark', query: '?screen=s10&theme=dark&route=overview&width=700', viewport: { width: 760, height: 900 } },
 ];
 
 async function main() {

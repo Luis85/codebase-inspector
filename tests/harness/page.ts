@@ -3,6 +3,7 @@
 //   ?screen=s05..s11   which screen state to seed
 //   ?theme=dark|light  which host scheme (default dark)
 //   ?width=<px>        the leaf box's width, for the narrow screen
+//   ?route=<id>        which inspector screen (default: city)
 //
 // `installObsidianDomExtensions` is called FIRST, before any other import runs its own
 // top-level code: the harness page has no Obsidian, and the REAL renderer reads
@@ -16,6 +17,7 @@ installObsidianDomExtensions(window);
 
 import { applyWantedScheme } from './theme';
 import { mountHarness, type ScreenId } from './mount';
+import { isRouteId } from '../../src/domain/route-ids';
 
 const SCREENS: readonly ScreenId[] = ['s05', 's06', 's07', 's08', 's09', 's10', 's11'];
 
@@ -32,4 +34,7 @@ const leaf = document.body.createDiv({ cls: 'ci-harness-leaf' });
 const width = params.get('width');
 if (width !== null && /^\d+$/.test(width)) leaf.style.width = `${width}px`;
 
-void mountHarness(leaf, { screen });
+const askedRoute = params.get('route');
+const route = isRouteId(askedRoute) ? askedRoute : 'city';
+
+void mountHarness(leaf, { screen, route });

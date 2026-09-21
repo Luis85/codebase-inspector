@@ -10,11 +10,13 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { harnessLayout, harnessSnapshot } from './fixture';
 import { HARNESS_THEME_EVENT } from './theme';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
+import type { RouteId } from '../../src/domain/route-ids';
 
 export type ScreenId = 's05' | 's06' | 's07' | 's08' | 's09' | 's10' | 's11';
 
 export interface HarnessOptions {
   screen: ScreenId;
+  route?: RouteId;
 }
 
 export async function mountHarness(root: HTMLElement, options: HarnessOptions): Promise<void> {
@@ -79,6 +81,16 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
   store.setCity(harnessSnapshot(), harnessLayout());
 
   applyScreenState(store, options.screen);
+
+  const route = options.route ?? 'city';
+  store.navigate(route);
+  if (route !== 'city') {
+    // Only the city route creates a renderer; every other screen is plain DOM and is
+    // drawn once Vue has flushed.
+    await nextTick();
+    document.body.dataset.ciHarnessReady = 'true';
+    return;
+  }
 
   // The renderer re-reads its palette on Obsidian's `css-change`; here, on ours. This
   // is a SEPARATE path from the watch above — that one paints the FIRST time a
