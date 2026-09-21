@@ -57,3 +57,13 @@ export const OPEN_NAVIGATION_LABEL = 'Open navigation';
 export const CLOSE_NAVIGATION_LABEL = 'Close navigation';
 export const SNAPSHOT_LABEL = 'Snapshot';
 export const NO_SNAPSHOT_LABEL = 'No snapshot';
+
+/** Part 2 §4 (A13): reasons that used to be inline literals in the read models. */
+export const NO_FILES_REASON = 'No files in this scan.';
+export const IMPORT_GRAPH_UNKNOWN_REASON = 'Import graph not collected yet.';
+export const PRIORITY_UNKNOWN_REASON = 'Priority needs complexity, commits and branch coverage.';
+/** Part 2 P1: files at the root form one module, never shown as "(root)". */
+export const ROOT_FILES_LABEL = 'Root files';
+export const PROTECT_MODULE_TITLE = (label: string, isRoot: boolean): string =>
+  (isRoot ? 'Protect the root files' : `Protect the ${label} module`);
+export const OVERVIEW_ARCH_CAPTION = 'Cyclic module groups · sample edges';

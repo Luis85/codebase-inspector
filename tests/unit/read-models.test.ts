@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
-import { fileSummariesFor, moduleOf, priorityScore } from '../../src/ui/read-models/file-summaries';
+import { unknown, sample } from '../../src/ui/evidence';
+import { fileSummariesFor, moduleLabel, moduleOf, priorityEvidence, priorityScore } from '../../src/ui/read-models/file-summaries';
 import { buildOverviewModel, HOTSPOT_THRESHOLD } from '../../src/ui/read-models/overview';
 import { buildCitySummary } from '../../src/ui/read-models/city-summary';
 
@@ -36,6 +37,17 @@ describe('file summaries', () => {
     const snap = buildSnapshotFixture({ files: 4, directories: 2 });
     expect(fileSummariesFor(snap)).toHaveLength(4);
     expect(fileSummariesFor(snap)).toBe(fileSummariesFor(snap));
+  });
+
+  it('labels the root module "Root files"', () => {
+    expect(moduleLabel('(root)')).toBe('Root files');
+    expect(moduleLabel('src')).toBe('src');
+  });
+
+  it('makes priority unknown when any input lacks a value (A13)', () => {
+    expect(priorityEvidence(sample(10), unknown('x'), sample(1), sample(2)).state).toBe('unknown');
+    expect(priorityEvidence(sample(24), sample(22), sample(1), sample(2)))
+      .toMatchObject({ state: 'sample', value: 50, provenance: { source: 'sample', detail: 'sample heuristic' } });
   });
 });
 
@@ -102,7 +114,7 @@ describe('overview model', () => {
     expect(model.series.map((s) => [s.id, s.tone])).toEqual([['coverage', 'success'], ['high-complexity', 'accent']]);
     const empty = buildSnapshotFixture({ files: 0 });
     const m = buildOverviewModel(empty, fileSummariesFor(empty));
-    expect(m.series.map((s) => [s.id, s.tone])).toEqual([['high-complexity', 'accent']]);
+    expect(m.series).toEqual([]);
   });
 
   it('never caps the high-complexity COUNT series at 100', () => {
@@ -112,6 +124,23 @@ describe('overview model', () => {
     expect(count).toBeGreaterThan(100);
     const series = buildOverviewModel(big, bigFiles).series.find((s) => s.id === 'high-complexity');
     expect(series?.points.at(-1)?.value).toBe(count);
+  });
+
+  it('never names the "(root)" module in investigation copy', () => {
+    const rootOnly = buildSnapshotFixture({ files: 6 });
+    expect(buildOverviewModel(rootOnly, fileSummariesFor(rootOnly)).investigations[1]?.title).toBe('Protect the root files');
+  });
+
+  it('makes branch coverage partial, not a smaller whole, when a file lacks coverage (A13)', () => {
+    const s = buildSnapshotFixture({ files: 4 });
+    const withGap = fileSummariesFor(s).map((f, i) => (i === 0
+      ? { ...f, branchesCovered: unknown('no report'), branchesTotal: unknown('no report') } : f));
+    expect(buildOverviewModel(s, withGap).cards.find((c) => c.id === 'coverage')?.value.state).toBe('partial');
+  });
+
+  it('uses the cycles value it is given for the architecture card', () => {
+    const arch = buildOverviewModel(snap, files, sample(2)).cards.find((c) => c.id === 'architecture');
+    expect(arch?.value).toMatchObject({ state: 'sample', value: 2 });
   });
 });
 
