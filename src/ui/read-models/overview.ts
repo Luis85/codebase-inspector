@@ -9,8 +9,12 @@ import {
   type EvidenceState, type MetricValue,
 } from '../evidence';
 import { sampleTrend } from '../fixtures/sample-signals';
-import { IMPORT_GRAPH_UNKNOWN_REASON, NO_FILES_REASON, OVERVIEW_ARCH_CAPTION, PROTECT_MODULE_TITLE } from '../inspector-copy';
-import { byPriority, moduleLabel, ROOT_MODULE, type FileSummary } from './file-summaries';
+import {
+  IMPORT_GRAPH_UNKNOWN_REASON, INVESTIGATE_FILE_TITLE, INVESTIGATE_HOTSPOT_DETAIL, INVESTIGATE_HOTSPOT_TITLE,
+  INVESTIGATE_LARGEST_DETAIL, INVESTIGATE_MODULE_DETAIL, INVESTIGATE_NO_LINES, NO_FILES_REASON, OVERVIEW_ARCH_CAPTION,
+  PROTECT_MODULE_TITLE,
+} from '../inspector-copy';
+import { filesByPriority, moduleLabel, ROOT_MODULE, type FileSummary } from './file-summaries';
 
 export const HOTSPOT_THRESHOLD = 65;
 export const HIGH_COMPLEXITY = 30;
@@ -64,23 +68,21 @@ function moduleCoverage(files: readonly FileSummary[]): { name: string; count: n
 
 function investigations(files: readonly FileSummary[]): Investigation[] {
   if (files.length === 0) return [];
-  const top = [...files].sort(byPriority)[0]!;
+  const top = filesByPriority(files)[0]!;
   const weak = moduleCoverage(files)
     .sort((a, b) => (a.pct.value ?? Infinity) - (b.pct.value ?? Infinity) || a.name.localeCompare(b.name))[0]!;
   const largest = files.filter((f) => hasValue(f.lines))
     .sort((a, b) => (b.lines.value ?? 0) - (a.lines.value ?? 0) || a.path.localeCompare(b.path))[0] ?? top;
   return [
     { id: 'top-hotspot', icon: 'flame', route: 'hotspots', entityId: top.id,
-      title: `Review ${top.name}`,
-      detail: `Complexity ${formatMetric(top.complexity)} · ${formatMetric(top.commits90d)} commits in 90 days · ${formatMetric(top.branchCoverage, '%')} branch coverage.` },
+      title: INVESTIGATE_HOTSPOT_TITLE(top.name),
+      detail: INVESTIGATE_HOTSPOT_DETAIL(formatMetric(top.complexity), formatMetric(top.commits90d), formatMetric(top.branchCoverage, '%')) },
     { id: 'weak-module', icon: 'flask-conical', route: 'tests', entityId: null,
       title: PROTECT_MODULE_TITLE(moduleLabel(weak.name), weak.name === ROOT_MODULE),
-      detail: `${formatMetric(weak.pct, '%')} branch coverage across ${weak.count} files.` },
+      detail: INVESTIGATE_MODULE_DETAIL(formatMetric(weak.pct, '%'), weak.count) },
     { id: 'largest-file', icon: 'building-2', route: 'city', entityId: largest.id,
-      title: `Inspect ${largest.name}`,
-      detail: hasValue(largest.lines)
-        ? `${formatMetric(largest.lines)} lines — the largest file in this scan.`
-        : 'Line count unavailable for this file.' },
+      title: INVESTIGATE_FILE_TITLE(largest.name),
+      detail: hasValue(largest.lines) ? INVESTIGATE_LARGEST_DETAIL(formatMetric(largest.lines)) : INVESTIGATE_NO_LINES },
   ];
 }
 
@@ -134,7 +136,7 @@ export function buildOverviewModel(
     cards,
     series,
     investigations: investigations(files),
-    hotspots: [...files].sort(byPriority).slice(0, 5),
+    hotspots: filesByPriority(files).slice(0, 5),
     coverage: coverageRows,
     usesSample: cards.some((c) => isSampleBacked(c.value)),
   };

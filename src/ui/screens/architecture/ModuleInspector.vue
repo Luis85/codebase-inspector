@@ -5,7 +5,7 @@ import type { ModuleSummary } from '../../read-models/architecture';
 import { moduleLabel } from '../../read-models/file-summaries';
 import {
   ARCH_FACT_FILES, ARCH_FACT_IMPORTED_BY, ARCH_FACT_IMPORTS, ARCH_FACT_LINES, ARCH_MODULE_INSPECTOR_TITLE,
-  ARCH_MODULE_NONE, ARCH_NONE, ARCH_TOP_FILES,
+  ARCH_MODULE_NONE, ARCH_NONE, ARCH_TOP_FILES, PRIORITY_SCALE_SUFFIX,
 } from '../../inspector-copy';
 import Panel from '../../kit/Panel.vue';
 import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
@@ -55,7 +55,7 @@ const emit = defineEmits<{ 'open-file': [id: EntityId] }>();
                 <span class="ci-file-cell__name">{{ f.name }}</span>
                 <span class="ci-file-cell__path">{{ f.path }}</span>
               </span>
-              <span class="ci-priority">{{ formatMetric(f.priority) }} / 100</span>
+              <span class="ci-priority">{{ formatMetric(f.priority) }}{{ PRIORITY_SCALE_SUFFIX }}</span>
             </button>
           </li>
         </ul>

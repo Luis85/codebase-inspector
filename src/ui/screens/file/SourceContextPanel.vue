@@ -6,7 +6,7 @@ import { formatMetric, hasValue } from '../../evidence';
 import type { FileDetailModel } from '../../read-models/file-detail';
 import {
   FILE_COPY_FAILED, FILE_COPY_PATH, FILE_FACT_BYTES, FILE_FACT_CATEGORY, FILE_FACT_LINES, FILE_FACT_MODULE, FILE_FACT_PATH,
-  FILE_SOURCE_PREVIEW_LATER, FILE_SOURCE_SUBTITLE, FILE_SOURCE_TITLE,
+  FILE_SOURCE_PREVIEW_LATER, FILE_SOURCE_SUBTITLE, FILE_SOURCE_TITLE, NO_VALUE,
 } from '../../inspector-copy';
 import Panel from '../../kit/Panel.vue';
 import Icon from '../../kit/Icon.vue';
@@ -48,7 +48,7 @@ async function copyPath(): Promise<void> {
       <dt>{{ FILE_FACT_MODULE }}</dt>
       <dd>{{ detail.moduleLabel }}</dd>
       <dt>{{ FILE_FACT_CATEGORY }}</dt>
-      <dd>{{ detail.category ?? '—' }}</dd>
+      <dd>{{ detail.category ?? NO_VALUE }}</dd>
       <dt>{{ FILE_FACT_LINES }}</dt>
       <dd>
         {{ formatMetric(detail.file.lines) }}

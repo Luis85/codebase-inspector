@@ -2,7 +2,7 @@
 // highest priority first. The scatter plots only files whose two axes are known; a file
 // missing either is counted, never drawn at 0.
 import { hasValue, isSampleBacked, type MetricValue } from '../evidence';
-import { byPriority, moduleLabel, type FileSummary } from './file-summaries';
+import { filesByPriority, moduleLabel, type FileSummary } from './file-summaries';
 
 export const MAX_PLOTTED = 400;
 export const TABLE_PAGE = 100;
@@ -36,9 +36,9 @@ const niceMax = (v: number): number => Math.max(10, Math.ceil(v / 10) * 10);
 
 export function buildHotspotsModel(files: readonly FileSummary[], filter: HotspotFilter): HotspotsModel {
   const q = filter.query.trim().toLowerCase();
-  const rows = files
-    .filter((f) => (filter.module === null || f.module === filter.module) && (!q || f.path.toLowerCase().includes(q)))
-    .sort(byPriority);
+  // F1: filter the once-sorted array; filter keeps the priority order, O(n) per keystroke.
+  const rows = filesByPriority(files)
+    .filter((f) => (filter.module === null || f.module === filter.module) && (!q || f.path.toLowerCase().includes(q)));
   const points: HotspotPoint[] = [];
   let plottable = 0;
   for (const f of rows) {

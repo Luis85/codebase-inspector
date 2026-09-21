@@ -68,6 +68,30 @@ export const PROTECT_MODULE_TITLE = (label: string, isRoot: boolean): string =>
   (isRoot ? 'Protect the root files' : `Protect the ${label} module`);
 export const OVERVIEW_ARCH_CAPTION = 'Cyclic module groups · sample edges';
 
+/** Final review F2: the Overview's investigation paths, relocated verbatim from overview.ts. */
+export const INVESTIGATE_HOTSPOT_TITLE = (name: string): string => `Review ${name}`;
+export const INVESTIGATE_HOTSPOT_DETAIL = (complexity: string, commits: string, coverage: string): string =>
+  `Complexity ${complexity} · ${commits} commits in 90 days · ${coverage} branch coverage.`;
+export const INVESTIGATE_MODULE_DETAIL = (coverage: string, files: number): string =>
+  `${coverage} branch coverage across ${files} files.`;
+export const INVESTIGATE_FILE_TITLE = (name: string): string => `Inspect ${name}`;
+export const INVESTIGATE_LARGEST_DETAIL = (lines: string): string => `${lines} lines — the largest file in this scan.`;
+export const INVESTIGATE_NO_LINES = 'Line count unavailable for this file.';
+
+/** Final review F2: evidence.ts fallback reasons (evidence.ts imports these; this file
+ *  imports nothing, so there is no cycle). */
+export const AGGREGATE_EMPTY_REASON = 'Nothing to aggregate.';
+export const AGGREGATE_NO_VALUE_REASON = 'No input has a value.';
+export const AGGREGATE_MISSING_REASON = (missing: number, total: number): string => `${missing} of ${total} inputs missing.`;
+export const RATIO_NUMERATOR_REASON = 'Numerator unavailable.';
+export const RATIO_DENOMINATOR_REASON = 'Denominator unavailable.';
+export const RATIO_ZERO_REASON = 'Nothing to divide by.';
+/** The one "no value" mark, and the priority scale suffix shown after a priority value. */
+export const NO_VALUE = '—';
+export const PRIORITY_SCALE_SUFFIX = ' / 100';
+/** Provenance detail on every sample module edge (Part 2 P3/P4). */
+export const SAMPLE_EDGE_DETAIL = 'sample import edges';
+
 /** Part 2 §2.1: Architecture cards and read-model reasons. */
 export const ARCH_CARD_MODULES = 'Modules';
 export const ARCH_CARD_EDGES = 'Sample module edges';

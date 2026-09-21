@@ -1,5 +1,10 @@
 // WP-02 spec §3.2: every displayed signal carries its evidence state, so a missing value
 // can never be rendered as a measured zero and sample data is always labelled.
+import {
+  AGGREGATE_EMPTY_REASON, AGGREGATE_MISSING_REASON, AGGREGATE_NO_VALUE_REASON, NO_VALUE, RATIO_DENOMINATOR_REASON,
+  RATIO_NUMERATOR_REASON, RATIO_ZERO_REASON,
+} from './inspector-copy';
+
 export type EvidenceState = 'collected' | 'sample' | 'unknown' | 'stale' | 'partial' | 'failed' | 'excluded';
 
 export interface Provenance { source: string; detail?: string }
@@ -39,7 +44,7 @@ export function hasValue<T>(m: MetricValue<T>): m is MetricValue<T> & { value: T
 
 /** Fixed en-US grouping (the same fixed-locale rule copy.ts's time formatter follows). */
 export function formatMetric(m: MetricValue, unit = ''): string {
-  if (!hasValue(m)) return '—';
+  if (!hasValue(m)) return NO_VALUE;
   return `${m.value.toLocaleString('en-US')}${unit}`;
 }
 
@@ -64,15 +69,15 @@ type Present = MetricValue & { value: number };
  *  as 0. */
 export function aggregate<T>(
   inputs: readonly MetricValue[], compute: (present: readonly number[]) => T,
-  emptyReason = 'Nothing to aggregate.',
+  emptyReason = AGGREGATE_EMPTY_REASON,
 ): MetricValue<T> {
   if (inputs.length === 0) return unknown<T>(emptyReason);
   const present = inputs.filter((m): m is Present => hasValue(m));
-  if (present.length === 0) return unknown<T>(inputs[0]?.reason ?? 'No input has a value.');
+  if (present.length === 0) return unknown<T>(inputs[0]?.reason ?? AGGREGATE_NO_VALUE_REASON);
   const value = compute(present.map((m) => m.value));
   const prov = { source: sharedSource(present) };
   if (present.length < inputs.length) {
-    return { state: 'partial', value, provenance: prov, reason: `${inputs.length - present.length} of ${inputs.length} inputs missing.` };
+    return { state: 'partial', value, provenance: prov, reason: AGGREGATE_MISSING_REASON(inputs.length - present.length, inputs.length) };
   }
   return { state: weakest(present.map((m) => m.state)), value, provenance: prov };
 }
@@ -88,9 +93,9 @@ export function countEvidence(inputs: readonly MetricValue[], predicate: (value:
 /** Rounded `numerator / denominator × scale`. Both sides must have a value, and a zero
  *  denominator is unknown, never a 0 %. */
 export function ratioEvidence(numerator: MetricValue, denominator: MetricValue, scale = 100): MetricValue {
-  if (!hasValue(numerator)) return unknown(numerator.reason ?? 'Numerator unavailable.');
-  if (!hasValue(denominator)) return unknown(denominator.reason ?? 'Denominator unavailable.');
-  if (denominator.value === 0) return unknown('Nothing to divide by.');
+  if (!hasValue(numerator)) return unknown(numerator.reason ?? RATIO_NUMERATOR_REASON);
+  if (!hasValue(denominator)) return unknown(denominator.reason ?? RATIO_DENOMINATOR_REASON);
+  if (denominator.value === 0) return unknown(RATIO_ZERO_REASON);
   const reason = [numerator, denominator].find((m) => m.state === 'partial')?.reason;
   const result: MetricValue = {
     state: weakest([numerator.state, denominator.state]),

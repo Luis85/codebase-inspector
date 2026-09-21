@@ -13,7 +13,7 @@ import {
   OVERVIEW_SIGNALS_PANEL_FOOTNOTE, OVERVIEW_SIGNALS_PANEL_SUBTITLE, OVERVIEW_SIGNALS_PANEL_TITLE,
   OVERVIEW_HOTSPOTS_TABLE_CAPTION, OVERVIEW_SUBTITLE, OVERVIEW_TITLE, OVERVIEW_VERDICT_BODY,
   OVERVIEW_VERDICT_TITLE, OVERVIEW_VIEW_EVOLUTION_LABEL,
-  SAMPLE_DATA_DETAIL, SAMPLE_DATA_NOTICE,
+  NO_VALUE, PRIORITY_SCALE_SUFFIX, SAMPLE_DATA_DETAIL, SAMPLE_DATA_NOTICE,
 } from '../inspector-copy';
 import { COPY_02 } from '../copy';
 import PageHeader from '../kit/PageHeader.vue';
@@ -40,7 +40,7 @@ function selectCodebase(): void {
 // but the guard is kept anyway rather than assuming index [3] always exists.
 const hotspotCountLabel = computed(() => {
   const card = overview.value?.cards[3];
-  return card ? formatMetric(card.value) : '—';
+  return card ? formatMetric(card.value) : NO_VALUE;
 });
 
 const columns: readonly TableColumn<FileSummary>[] = [
@@ -187,7 +187,7 @@ function openInvestigation(item: Investigation): void {
               {{ formatMetric(row.commits90d) }}
             </template>
             <template #cell-priority="{ row }">
-              <span class="ci-priority">{{ formatMetric(row.priority) }} / 100</span>
+              <span class="ci-priority">{{ formatMetric(row.priority) }}{{ PRIORITY_SCALE_SUFFIX }}</span>
             </template>
           </EvidenceTable>
         </Panel>

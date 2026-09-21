@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
-import { fileSummariesFor, type FileSummary } from '../../src/ui/read-models/file-summaries';
+import { byPriority, fileSummariesFor, filesByPriority, type FileSummary } from '../../src/ui/read-models/file-summaries';
 import { MAX_PLOTTED, buildHotspotsModel, coverageBand, hotspotsCsv } from '../../src/ui/read-models/hotspots';
 import { sample, unknown } from '../../src/ui/evidence';
 
@@ -35,6 +35,16 @@ describe('hotspots model', () => {
   });
   it('bands coverage, unknown included', () => {
     expect([sample(10), sample(60), sample(80), unknown('x')].map(coverageBand)).toEqual(['low', 'mid', 'high', 'unknown']);
+  });
+  it('sorts by priority once per files array (F1), and filtered rows keep that order', () => {
+    const files = filesOf(80);
+    const sorted = filesByPriority(files);
+    expect(filesByPriority(files)).toBe(sorted);
+    expect(sorted).toEqual([...files].sort(byPriority));
+    const rows = buildHotspotsModel(files, { module: 'dir-2', query: 'file-1' }).rows;
+    expect(rows.length).toBeGreaterThan(1);
+    expect(rows).toEqual(sorted.filter((f) => f.module === 'dir-2' && f.path.includes('file-1')));
+    expect([...rows].sort(byPriority)).toEqual(rows);
   });
   it('shortlists at most five files with a known priority', () => {
     const files = filesOf(20).map((f, i): FileSummary => (i < 18 ? { ...f, priority: unknown('x') } : f));

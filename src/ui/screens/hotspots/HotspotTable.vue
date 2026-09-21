@@ -6,6 +6,7 @@ import { TABLE_PAGE } from '../../read-models/hotspots';
 import {
   HOTSPOTS_COL_COMMITS, HOTSPOTS_COL_COMPLEXITY, HOTSPOTS_COL_COVERAGE, HOTSPOTS_COL_FILE, HOTSPOTS_COL_PRIORITY,
   HOTSPOTS_FILTER_PLACEHOLDER, HOTSPOTS_NO_RESULTS, HOTSPOTS_SHOW_MORE, HOTSPOTS_SORT_NOTE, HOTSPOTS_TABLE_TITLE,
+  PRIORITY_SCALE_SUFFIX,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
@@ -57,7 +58,7 @@ const columns: readonly TableColumn<FileSummary>[] = [
         </span>
       </template>
       <template #cell-priority="{ row }">
-        <span class="ci-priority">{{ formatMetric(row.priority) }} / 100</span>
+        <span class="ci-priority">{{ formatMetric(row.priority) }}{{ PRIORITY_SCALE_SUFFIX }}</span>
       </template>
       <template #cell-complexity="{ row }">
         {{ formatMetric(row.complexity) }}

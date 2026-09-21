@@ -8,7 +8,7 @@ import { sampleFindings, type SampleFinding } from '../fixtures/sample-findings'
 import {
   FILE_CARD_COMPLEXITY, FILE_CARD_COMPLEXITY_CAPTION, FILE_CARD_COVERAGE, FILE_CARD_COVERAGE_CAPTION,
   FILE_CARD_DEPENDENTS, FILE_CARD_DEPENDENTS_CAPTION, FILE_CARD_PRIORITY, FILE_CARD_PRIORITY_CAPTION,
-  FILE_HISTORY_COMPLEXITY, FILE_HISTORY_COVERAGE, FINDING_TITLE, NOT_MEASURED_REASON,
+  FILE_HISTORY_COMPLEXITY, FILE_HISTORY_COVERAGE, FINDING_TITLE, NOT_MEASURED_REASON, PRIORITY_SCALE_SUFFIX,
 } from '../inspector-copy';
 import { moduleLabel, type FileSummary } from './file-summaries';
 import { TREND_POINTS, trendLabels } from './overview';
@@ -58,7 +58,7 @@ export function buildFileDetail(snapshot: CodebaseSnapshot, files: readonly File
     { id: 'coverage', label: FILE_CARD_COVERAGE, icon: 'flask-conical', value: file.branchCoverage, unit: '%',
       caption: FILE_CARD_COVERAGE_CAPTION(formatMetric(file.branchesCovered), formatMetric(file.branchesTotal)), tone: 'success' },
     { id: 'dependents', label: FILE_CARD_DEPENDENTS, icon: 'link', value: file.directDependents, unit: '', caption: FILE_CARD_DEPENDENTS_CAPTION, tone: 'accent' },
-    { id: 'priority', label: FILE_CARD_PRIORITY, icon: 'info', value: file.priority, unit: ' / 100', caption: FILE_CARD_PRIORITY_CAPTION, tone: 'accent' },
+    { id: 'priority', label: FILE_CARD_PRIORITY, icon: 'info', value: file.priority, unit: PRIORITY_SCALE_SUFFIX, caption: FILE_CARD_PRIORITY_CAPTION, tone: 'accent' },
   ];
   return {
     file,

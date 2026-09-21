@@ -7,13 +7,13 @@ import type { BoundaryRule } from '../stores/ports/review-repository';
 import {
   ARCH_CARD_CYCLES, ARCH_CARD_EDGES, ARCH_CARD_MODULES, ARCH_CARD_VIOLATIONS, ARCH_EDGES_CAPTION,
   ARCH_MODULES_OMITTED_CAPTION, ARCH_NO_CYCLES_CAPTION, ARCH_NO_RULES_REASON, ARCH_VIOLATIONS_CAPTION,
-  NO_FILES_REASON, RULE_NOT_EVALUATED_REASON,
+  NO_FILES_REASON, RULE_NOT_EVALUATED_REASON, SAMPLE_EDGE_DETAIL,
 } from '../inspector-copy';
 import { byPriority, moduleLabel, type FileSummary } from './file-summaries';
 
 export const MAX_GRAPH_MODULES = 12;
 const TOP_FILES = 5;
-const EDGE_DETAIL = 'sample import edges';
+const EDGE_DETAIL = SAMPLE_EDGE_DETAIL;
 
 export interface ModuleSummary { name: string; label: string; fileCount: number; lines: MetricValue; topFiles: readonly FileSummary[] }
 export interface ModuleEdge { from: string; to: string; meaning: 'source-import'; imports: MetricValue }

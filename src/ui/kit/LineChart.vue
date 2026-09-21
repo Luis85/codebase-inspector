@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { NO_VALUE } from '../inspector-copy';
 
 interface Point { label: string; value: number }
 type Tone = 'success' | 'accent' | 'warning' | 'danger';
@@ -100,7 +101,7 @@ const paths = computed(() => props.series.map((s, si) => ({
             v-for="s in series"
             :key="s.id"
           >
-            {{ s.points[i]?.value ?? '—' }}
+            {{ s.points[i]?.value ?? NO_VALUE }}
           </td>
         </tr>
       </tbody>

@@ -98,3 +98,14 @@ export function fileSummariesFor(snapshot: CodebaseSnapshot): readonly FileSumma
   if (!hit) { hit = build(snapshot); cache.set(snapshot, hit); }
   return hit;
 }
+
+const priorityCache = new WeakMap<readonly FileSummary[], readonly FileSummary[]>();
+
+/** Final review F1: every file in `byPriority` order, sorted ONCE per files array (the
+ *  array `fileSummariesFor` returns per snapshot). Filtering this keeps the order, so a
+ *  screen never re-sorts every file per keystroke. */
+export function filesByPriority(files: readonly FileSummary[]): readonly FileSummary[] {
+  let hit = priorityCache.get(files);
+  if (!hit) { hit = [...files].sort(byPriority); priorityCache.set(files, hit); }
+  return hit;
+}
