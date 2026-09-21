@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import FileInspector from '../../src/ui/components/FileInspector.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
+import { useReviewStore } from '../../src/ui/stores/review-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../../tests/fixtures/snapshot-builder';
 import { CITY_RENDERER_KEY } from '../../src/ui/renderer-handle';
@@ -110,6 +111,17 @@ describe('FileInspector.vue (C10)', () => {
     await wrapper.get('[aria-label="Close"]').trigger('click');
     expect(store.inspectorOpen).toBe(false);
     expect(store.selectedEntityId).not.toBeNull();
+  });
+
+  it('adds the selected file to the refactor plan once', async () => {
+    const { target } = openWithFile();
+    const wrapper = mountInspector();
+    const add = wrapper.find('[aria-label="Add to refactor plan"]');
+    await add.trigger('click');
+    await nextTick();
+    expect(useReviewStore().hasWorkItemFor(target.id)).toBe(true);
+    expect(wrapper.find('[aria-label="Add to refactor plan"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.text()).toContain('In refactor plan');
   });
 
   // Task 9 (F12): C10's own contract says "Keep exact raw values and scope", and

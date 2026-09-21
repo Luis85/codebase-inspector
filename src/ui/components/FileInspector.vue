@@ -2,9 +2,9 @@
   C10 — the file inspector drawer. Shows the RAW measured values (source-unit lines
   and bytes), never the sqrt-scaled scene height layout.ts computed for the same
   file — that scaling exists only to keep the city's skyline readable, and this
-  drawer's whole job is to say what is actually true about the file. Offers exactly
-  two actions (spec §1, out-of-scope table: "any source-opening or open-in-editor
-  action" is explicitly not WP-01): Focus and Copy relative path.
+  drawer's whole job is to say what is actually true about the file. Offers Focus,
+  Copy relative path and (WP-02) Add to refactor plan — the last records intent in
+  the review store and never touches the source.
 
   Closing PRESERVES the selection — only `cityStore.clearSelection()` (never called
   from here) drops it.
@@ -12,13 +12,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useCityStore } from '../stores/city-store';
+import { useReviewStore } from '../stores/review-store';
 import { useCityRendererHandle } from '../renderer-handle';
 import { useInspectorOpener } from '../drawer-focus';
 import { useClipboard } from '../clipboard';
 import { COPY_27, formatSnapshotScopeRoot, formatUnavailableReason } from '../copy';
+import { ADD_TO_PLAN_LABEL, IN_PLAN_LABEL } from '../inspector-copy';
 import type { Observation } from '../../domain/model';
 
 const store = useCityStore();
+const review = useReviewStore();
 const renderer = useCityRendererHandle();
 const inspectorOpener = useInspectorOpener();
 const clipboard = useClipboard();
@@ -29,6 +32,15 @@ const copyFailed = ref(false);
 const selectedEntity = computed(() => (
   store.snapshot?.entities.find((e) => e.id === store.selectedEntityId) ?? null
 ));
+
+const inPlan = computed(() => (store.selectedEntityId ? review.hasWorkItemFor(store.selectedEntityId) : false));
+
+/** WP-02: records intent only. Never edits, opens or executes anything in the source. */
+async function addToPlan(): Promise<void> {
+  const entity = selectedEntity.value;
+  if (!entity) return;
+  await review.addWorkItemForFile(entity.id, `Investigate ${entity.name}`, new Date());
+}
 
 function observationFor(metricId: 'physical-lines' | 'byte-size'): Observation | null {
   const entityId = store.selectedEntityId;
@@ -143,6 +155,14 @@ async function copyRelativePath(): Promise<void> {
         @click="copyRelativePath"
       >
         Copy relative path
+      </button>
+      <button
+        type="button"
+        :aria-label="ADD_TO_PLAN_LABEL"
+        :disabled="inPlan"
+        @click="addToPlan"
+      >
+        {{ inPlan ? IN_PLAN_LABEL : ADD_TO_PLAN_LABEL }}
       </button>
     </div>
     <label

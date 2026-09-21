@@ -31,6 +31,10 @@ export const OVERVIEW_COVERAGE_PANEL_SUBTITLE = 'Know what this inspector does �
 export const CITY_EYEBROW = 'Explore / Code city';
 export const CITY_TITLE = 'Code city';
 export const CITY_SUBTITLE = 'Find the places worth investigating. Every building is a file.';
+/** Task 10: the City screen's own "View inventory" header action, centralised here
+ *  rather than left as a literal in CityScreen.vue — this file's own copy-
+ *  centralisation constraint binds brief snippets too. */
+export const CITY_VIEW_INVENTORY_LABEL = 'View inventory';
 export const NO_CODEBASE_LABEL = 'No codebase selected';
 export const SEARCH_TRIGGER_LABEL = 'Search anything…';
 export const COMMAND_PALETTE_LABEL = 'Command palette';

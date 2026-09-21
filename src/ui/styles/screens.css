@@ -43,3 +43,20 @@
   padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small);
   color: var(--ci-tone-danger); background: var(--background-modifier-error);
 }
+
+/* Task 10: the City screen's own PageHeader and summary cards. */
+:where(.codebase-inspector-root) .ci-city-screen__header { padding: var(--ci-space-5) var(--ci-space-6) 0; }
+:where(.codebase-inspector-root) .ci-city-summary {
+  display: grid; gap: var(--ci-space-3); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  padding: 0 var(--ci-space-4) var(--ci-space-4);
+}
+:where(.codebase-inspector-root) button.ci-city-summary__card {
+  display: flex; align-items: center; gap: var(--ci-space-3); height: auto;
+  padding: var(--ci-space-4); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-card);
+  background: var(--ci-panel); box-shadow: none; color: var(--ci-text); text-align: left; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-city-summary__card:hover { background: var(--ci-raised); }
+:where(.codebase-inspector-root) .ci-city-summary__value { font-size: 1.5em; font-weight: var(--font-semibold); color: var(--ci-action); }
+:where(.codebase-inspector-root) .ci-city-summary__text { display: flex; flex-direction: column; flex: 1 1 auto; white-space: normal; }
+:where(.codebase-inspector-root) .ci-city-summary__title { display: flex; gap: var(--ci-space-2); align-items: center; font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-city-summary__caption { color: var(--ci-text-muted); font-size: var(--font-ui-smaller); }
