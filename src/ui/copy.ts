@@ -187,3 +187,78 @@ export function formatCityHeaderSubtitle(fileCount: number, districtCount: numbe
  *  definition here so both call sites stay identical by construction, not by
  *  copy-paste. */
 export const CITY_RENDER_FAILURE_NOTICE = 'The city could not be rendered from the latest scan.';
+
+/** Task 8 (F6, design-review-checklist.md "City and inspection"): "Height
+ *  metric/scale/cap and equal-lot meaning are explained." The equal-lot half was
+ *  never explained anywhere in the product before this task — a user could see two
+ *  files of very different sizes occupy the same-shaped ground footprint and have
+ *  no way to learn that footprint carries no meaning at all, only height does. Not
+ *  in interactions/04-microcopy.md under any COPY id — authored fresh, in the
+ *  catalogue's own factual, declarative voice. */
+export const LEGEND_EQUAL_LOT = 'One equal lot per file: footprint size carries no meaning, only height does.';
+
+/** C11: "Color alone is insufficient." Selection is rendered as an outline (task 10),
+ *  never a recolor, specifically so a colorblind user — or anyone reading a static
+ *  screenshot with no hover state — can still tell what is selected without relying
+ *  on color. Not catalogued; authored fresh. */
+export const LEGEND_SELECTION_OUTLINE = 'Selection is shown as an outline; color marks category only.';
+
+/** C11 ("unknown is never zero") + interactions/03 ("Use a neutral minimum-height
+ *  shape with a question marker and expose the reason"). MetricLegend.vue renders
+ *  this ONLY while the current city actually contains an unavailable lot: unknown is
+ *  a METRIC STATE (CityLot.metricState), not a member of the closed category
+ *  vocabulary, so it must never appear as a swatch, and explaining a marker that is
+ *  not on screen would describe nothing real. Not catalogued; authored fresh. */
+export const LEGEND_UNKNOWN_MARKER = 'Unknown: a minimum-height lot with a question mark means the metric could not be measured for that file — see its file panel for the reason.';
+
+/** Task 8 (C12): "Absolute time and scope are available in details." The relative
+ *  age SnapshotStatus.vue already showed ("12 minutes ago") is unusable as evidence
+ *  once someone reopens the view later — this states how much the retained snapshot
+ *  covers and how it is divided, reading the SAME two counts CityHeader.vue's own
+ *  subtitle does (store.layout.lots.length, countDirectoryDistricts(...)) so the
+ *  two surfaces cannot disagree. Deliberately NOT "directory districts" (CityHeader's
+ *  own wording, formatCityHeaderSubtitle) — kept to plain "districts" so a
+ *  `toContain('N districts')` check here can never be satisfied by a stray substring
+ *  of CityHeader's own string (task's own hazard note: 'district' is a substring of
+ *  'districts'). Not catalogued; authored fresh. */
+export function formatSnapshotScopeCounts(fileCount: number, districtCount: number): string {
+  return `${fileCount} included file${fileCount === 1 ? '' : 's'} across ${districtCount} district${districtCount === 1 ? '' : 's'}`;
+}
+
+/** interactions/04-microcopy.md: "redact local absolute paths by default."
+ *  AnalysisScope.rootPath is a resolved, absolute local filesystem path (model.ts's
+ *  own comment: "NEVER persisted through getState()") — showing it verbatim in a
+ *  details panel would put a user's home directory name, username, or project
+ *  layout on screen. This names only the final path segment, which is enough to
+ *  recognise WHICH codebase a snapshot is of without exposing where it lives on
+ *  disk. Not catalogued; authored fresh. */
+export function formatSnapshotScopeRoot(rootPath: string): string {
+  const normalized = rootPath.replace(/\\/g, '/').replace(/\/+$/, '');
+  const base = normalized.slice(normalized.lastIndexOf('/') + 1);
+  return `Scope: ${base || normalized || '(root)'}`;
+}
+
+const MONTH_ABBREVIATIONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+/** C12: "Absolute time ... available in details." interactions/04-microcopy.md's own
+ *  "Units and dates" rule: "Evidence details and historical notes include date, time
+ *  zone, and snapshot identity." A fixed English day-month-year order and a fixed
+ *  three-letter month, not the ambient locale's own layout — DD/MM vs MM/DD is
+ *  exactly the ambiguity a piece of evidence cannot afford, and no `Intl` locale
+ *  tested actually produces "17 Sep 2026" as one contiguous, unambiguous token (every
+ *  locale tried gives either "Sept" (four letters) or reorders to "Sep 17, 2026").
+ *  `intl` is the CALLER's own window-scoped `Intl` (SnapshotStatus.vue resolves it
+ *  from the view's owning window, spec 4.4) — this function stays DOM-free, matching
+ *  the whole rest of this file, and receives an already-resolved `Intl` instead of a
+ *  `Window`. Always UTC: the same instant must read the same evidence regardless of
+ *  which machine or time zone is looking at it. */
+export function formatAbsoluteTime(iso: string, intl: typeof Intl): string {
+  const date = new Date(iso);
+  const day = date.getUTCDate();
+  const month = MONTH_ABBREVIATIONS[date.getUTCMonth()];
+  const year = date.getUTCFullYear();
+  const time = new intl.DateTimeFormat('en-GB', {
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC',
+  }).format(date);
+  return `${day} ${month} ${year}, ${time} UTC`;
+}

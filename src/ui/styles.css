@@ -654,12 +654,40 @@
   border-radius: var(--ci-radius-small);
   border: 1px solid var(--ci-border);
 }
+/* Task 8: the equal-lot / selection-outline / unknown-marker statements. Same
+   muted, compact treatment as the scale-name line above them -- these explain the
+   city's visual language, not a data value, so nothing here should read as more
+   important than the scale line itself. */
+:where(.codebase-inspector-root) .ci-legend__encoding {
+  margin-top: var(--ci-space-1);
+}
+:where(.codebase-inspector-root) .ci-legend__encoding p {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--ci-text-muted);
+}
 
 /* --- SnapshotStatus (C12) / StatusBanner (C16) / EmptyState (C17) -------------- */
 :where(.codebase-inspector-root) .ci-snapshot-status,
 :where(.codebase-inspector-root) .ci-status-banner {
   margin: 0;
   color: var(--ci-text-muted);
+}
+/* Task 8: the age line stays exactly as ci-snapshot-status looked before this task
+   (no color/margin change -- docs/superpowers/notes/2026-09-17-wp01-limitations.md
+   records that the two safety claims deliberately inherit the muted token with no
+   CSS of their own, to stay out of ruling M113's specificity fight; this preserves
+   that by not touching color here either). <details>/<summary> get only the spacing
+   they need to sit under the age line -- no color override for the same reason. */
+:where(.codebase-inspector-root) .ci-snapshot-status__age {
+  margin: 0;
+}
+:where(.codebase-inspector-root) .ci-snapshot-status__details {
+  margin-top: var(--ci-space-1);
+  font-size: 0.85em;
+}
+:where(.codebase-inspector-root) .ci-snapshot-status__details p {
+  margin: var(--ci-space-1) 0 0;
 }
 :where(.codebase-inspector-root) .ci-empty-state {
   padding: var(--ci-space-4);

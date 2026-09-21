@@ -6,9 +6,18 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useRunStore } from '../../src/ui/stores/run-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../../tests/fixtures/snapshot-builder';
+import { CLAIM_READ_ONLY_ACCESS, CLAIM_SOURCE_UNCHANGED } from '../../src/ui/copy';
+import type { CodebaseSnapshot } from '../../src/domain/model';
 
 function twelveMinutesLater(): Date {
   return new Date('2026-01-01T00:12:00.000Z');
+}
+
+/** buildSnapshotFixture always captures at a fixed instant (2026-01-01T00:00:00Z);
+ *  the absolute-time test below needs a DIFFERENT one to tell "formatted the real
+ *  value" apart from "happened to match the fixture default". */
+function withCapturedAt(snapshot: CodebaseSnapshot, capturedAt: string): CodebaseSnapshot {
+  return { ...snapshot, providerRun: { ...snapshot.providerRun, capturedAt } };
 }
 
 describe('SnapshotStatus.vue (C12)', () => {
@@ -56,8 +65,8 @@ describe('SnapshotStatus.vue (C12)', () => {
     const snapshot = buildSnapshotFixture({ files: 2 });
     store.setCity(snapshot, computeLayout(snapshot));
     const wrapper = mount(SnapshotStatus, { global: { provide: { now: twelveMinutesLater } } });
-    expect(wrapper.text()).toContain('Read-only source access');
-    expect(wrapper.text()).toContain('Source remains unchanged.');
+    expect(wrapper.text()).toContain(CLAIM_READ_ONLY_ACCESS);
+    expect(wrapper.text()).toContain(CLAIM_SOURCE_UNCHANGED);
   });
 
   it('claims nothing when there is no snapshot to claim it about', () => {
@@ -66,5 +75,47 @@ describe('SnapshotStatus.vue (C12)', () => {
     // that makes it render anyway.
     const wrapper = mount(SnapshotStatus);
     expect(wrapper.text()).toBe('');
+  });
+
+  // C12: "Absolute time and scope are available in details." A relative age alone
+  // ("12 minutes ago") is unusable as evidence once the view has been closed and
+  // reopened later. The literal 'Sep' (not 'Sept') pins that this is NOT the host
+  // machine's own default-locale formatting (this sandbox's own default locale
+  // renders September as "17.09.2026" or "17 Sept 2026", never "17 Sep 2026") —
+  // a bare `toLocaleString()` would make this test locale-dependent and therefore
+  // unable to fail portably; the implementation must use a fixed, unambiguous format.
+  it('makes the absolute observation time available, not only a relative age', () => {
+    const store = useCityStore();
+    const snapshot = withCapturedAt(buildSnapshotFixture({ files: 2 }), '2026-09-17T13:00:00.000Z');
+    store.setCity(snapshot, computeLayout(snapshot));
+    const wrapper = mount(SnapshotStatus, { global: { provide: { now: twelveMinutesLater } } });
+    expect(wrapper.find('.ci-snapshot-status__details').text()).toContain('17 Sep 2026');
+  });
+
+  it('states how much is included and how it is divided', () => {
+    const store = useCityStore();
+    const snapshot = buildSnapshotFixture({ files: 144, directories: 6 });
+    store.setCity(snapshot, computeLayout(snapshot));
+    const wrapper = mount(SnapshotStatus, { global: { provide: { now: twelveMinutesLater } } });
+    // Full-string, not `toContain('6 directory districts')`: 'district' is a
+    // substring of 'districts', and this footer intentionally does NOT reuse
+    // CityHeader's "directory districts" wording (see districts.ts's own
+    // countDirectoryDistricts comment) — it must still be the SAME count.
+    expect(wrapper.text()).toContain('144 included files');
+    expect(wrapper.text()).toContain('6 districts');
+  });
+
+  it('names the scope root without leaking the full local absolute path', () => {
+    // interactions/04-microcopy.md: "redact local absolute paths by default." The
+    // fixture's scope.rootPath is '/fixture/root' — an absolute path a real user's
+    // machine would make personally identifying (their home directory, username,
+    // etc.), which must never appear verbatim.
+    const store = useCityStore();
+    const snapshot = buildSnapshotFixture({ files: 2 });
+    store.setCity(snapshot, computeLayout(snapshot));
+    const wrapper = mount(SnapshotStatus, { global: { provide: { now: twelveMinutesLater } } });
+    const details = wrapper.find('.ci-snapshot-status__details').text();
+    expect(details).toContain('root');
+    expect(details).not.toContain('/fixture/root');
   });
 });
