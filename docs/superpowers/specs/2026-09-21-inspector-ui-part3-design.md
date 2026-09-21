@@ -1,7 +1,7 @@
 ---
 project: codebase-inspector
 title: WP-02 — Inspector UI, Part 3: the six Audit screens (design)
-status: draft
+status: approved
 date: 2026-09-21
 branch: feat/wp-02-part3 (from feat/wp-01-codebase-city at 904692e). Not stacked: fast-forwarded into feat/wp-01-codebase-city, so it lands on PR #1.
 baseline: 904692e
