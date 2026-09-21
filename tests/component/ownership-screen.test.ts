@@ -26,6 +26,8 @@ describe('OwnershipScreen', () => {
     withSnapshot();
     const w = mountO();
     expect(w.text()).toContain('Team-level continuity signals only.');
+    // Final review m7: the Knowledge-distribution panel carries the prototype's subtitle.
+    expect(w.text()).toContain('Sample share of changes attributed to the largest contributing group.');
     const meters = w.findAll('.ci-meter');
     expect(meters.length).toBeGreaterThan(0);
     expect(meters.every((m) => (m.attributes('aria-label') ?? '').includes('sample'))).toBe(true);
@@ -33,8 +35,9 @@ describe('OwnershipScreen', () => {
     expect(w.find('.ci-meters').attributes('aria-label')).toBe('Sample knowledge concentration by module');
     const rows = w.findAll('.ci-stewardship .ci-table__row');
     expect(rows).toHaveLength(4);
-    // Every row's team AND concentration cell carries a sample ProvenanceBadge.
-    expect(rows.every((r) => r.findAll('.ci-provenance--sample').length === 2)).toBe(true);
+    // Every row's team, concentration AND review-candidates cell carries a sample
+    // ProvenanceBadge (final review m3: candidates derive from sample priority).
+    expect(rows.every((r) => r.findAll('.ci-provenance--sample').length === 3)).toBe(true);
     w.unmount();
   });
 

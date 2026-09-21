@@ -146,6 +146,21 @@ describe('DependenciesScreen', () => {
     w.unmount();
   });
 
+  it('final review m5: each Path Inspect button has its own name, starting with its visible text', async () => {
+    withSnapshot();
+    const w = mountD();
+    await w.find('[role="tab"][data-tab-id="path"]').trigger('click');
+    const buttons = w.findAll('.ci-dep-path__inspect');
+    expect(buttons).toHaveLength(2);
+    const names = buttons.map((b) => b.attributes('aria-label') ?? '');
+    for (const [i, b] of buttons.entries()) {
+      expect(names[i]!.startsWith(b.text())).toBe(true);
+      expect(names[i]).toContain(w.findAll('.ci-dep-path__label code')[i * 2]!.text());
+    }
+    expect(names[0]).not.toBe(names[1]);
+    w.unmount();
+  });
+
   it('shows the unused-package note for a package with no references', async () => {
     withSnapshot();
     const w = mountD();

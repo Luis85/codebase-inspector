@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SamplePackage } from '../../fixtures/sample-packages';
-import { DEPS_INSPECT, DEPS_PATH_DIRECT, DEPS_PATH_TRANSITIVE } from '../../inspector-copy';
+import { DEPS_INSPECT, DEPS_INSPECT_LABEL, DEPS_PATH_DIRECT, DEPS_PATH_TRANSITIVE } from '../../inspector-copy';
 
 defineProps<{ rootLabel: string; path: readonly SamplePackage[] }>();
 const emit = defineEmits<{ inspect: [pkg: SamplePackage] }>();
@@ -28,6 +28,7 @@ const relationshipLabel = (pkg: SamplePackage): string => (pkg.relationship === 
         <button
           type="button"
           class="ci-dep-path__inspect"
+          :aria-label="DEPS_INSPECT_LABEL(pkg.name)"
           @click="emit('inspect', pkg)"
         >
           {{ DEPS_INSPECT }}

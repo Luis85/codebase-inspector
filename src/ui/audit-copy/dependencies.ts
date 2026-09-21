@@ -48,6 +48,8 @@ export const DEPS_PATH_SUBTITLE = 'How a transitive package reaches your codebas
 export const DEPS_PATH_DIRECT = 'Direct dependency';
 export const DEPS_PATH_TRANSITIVE = 'Transitive dependency';
 export const DEPS_INSPECT = 'Inspect package';
+// WCAG 2.5.3: starts with the visible DEPS_INSPECT text and names the package.
+export const DEPS_INSPECT_LABEL = (name: string): string => `${DEPS_INSPECT}: ${name}`;
 export const DEPS_LICENSES_TITLE = 'License inventory';
 export const DEPS_LICENSES_SUBTITLE = 'Policy compatibility needs a project-specific legal review.';
 export const DEPS_LICENSES_CAPTION = 'Licences in the sample inventory';

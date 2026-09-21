@@ -87,7 +87,7 @@ function exportCsv(): void {
         <button
           type="button"
           class="ci-security__export"
-          :disabled="security.advisories.length === 0"
+          :disabled="!store.snapshot || security.advisories.length === 0"
           @click="exportCsv"
         >
           <Icon name="download" />

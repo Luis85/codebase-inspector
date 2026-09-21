@@ -49,6 +49,7 @@ const columns: readonly TableColumn<StewardshipRow>[] = [
       </template>
       <template #cell-candidates="{ row }">
         {{ formatMetric(row.reviewCandidates) }}
+        <ProvenanceBadge :state="row.reviewCandidates.state" />
       </template>
       <template #cell-actions="{ row }">
         <button

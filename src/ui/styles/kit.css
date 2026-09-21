@@ -11,6 +11,9 @@
   --ci-radius-card: 8px;
   --ci-nav-width: 220px;
 }
+/* E40: press-to-disable buttons stay focusable (aria-disabled + a guarded handler), so one
+   shared rule gives every one of them the pending/added look. */
+:where(.codebase-inspector-root) button[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
 :where(.codebase-inspector-root) .ci-icon { display: inline-flex; width: 16px; height: 16px; color: currentColor; }
 :where(.codebase-inspector-root) .ci-icon svg { width: 16px; height: 16px; }
 

@@ -99,6 +99,24 @@ describe('SecurityScreen', () => {
     w.unmount();
   });
 
+  it('final review m4: each advisory\'s accessible name starts with its visible leading text', () => {
+    withSnapshot();
+    const w = mountS();
+    for (const open of w.findAll('.ci-advisory__open')) {
+      const lead = `${open.find('.ci-chip').text()} ${open.find('code').text()}`;
+      const label = open.attributes('aria-label') ?? '';
+      expect(label.startsWith(lead)).toBe(true);
+      expect(label).toContain(open.find('.ci-advisory__name').text());
+    }
+    w.unmount();
+  });
+
+  it('final review m6: Export review is disabled while there is no snapshot', () => {
+    const w = mountS();
+    expect(w.find('.ci-security__export').attributes('disabled')).toBeDefined();
+    w.unmount();
+  });
+
   it('an export throw sets the live region to EXPORT_FAILED', async () => {
     withSnapshot();
     vi.mocked(downloadText).mockImplementationOnce(() => { throw new Error('boom'); });

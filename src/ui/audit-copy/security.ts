@@ -21,7 +21,8 @@ export const SECURITY_ADVISORIES_TITLE = 'Advisories requiring review';
 export const SECURITY_ADVISORIES_SUBTITLE = 'DEMO identifiers are not CVEs or real vulnerability records.';
 export const SECURITY_REVIEW_BADGE = 'Review';
 export const SECURITY_ADVISORY_VERSIONS = (installed: string, patched: string): string => `Installed ${installed} · illustrative patched version ${patched}`;
-export const SECURITY_ADVISORY_LABEL = (id: string, name: string): string => `${id}, ${name}. Inspect package`;
+// WCAG 2.5.3: starts with the button's visible leading text (the Review chip, then the id).
+export const SECURITY_ADVISORY_LABEL = (id: string, name: string): string => `${SECURITY_REVIEW_BADGE} ${id}, ${name}. Inspect package`;
 export const SECURITY_CHECKLIST_TITLE = 'Review before remediation';
 export const SECURITY_CHECKLIST_SUBTITLE = 'A consistent audit checklist for every dependency finding. Not saved.';
 export const SECURITY_CHECKLIST: readonly string[] = [
