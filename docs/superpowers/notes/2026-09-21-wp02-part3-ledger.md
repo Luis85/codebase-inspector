@@ -108,3 +108,10 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 |---|---|---|
 | E42 | Test confidence's sub-components live in `src/ui/screens/test-confidence/`, not the plan's `screens/tests/`. An eslint rule blocks `src` imports from any `**/tests/**` path, to keep test code out of the bundle, and that guard stays as it is. | None. It only changes the path. |
 | E43 | The E10 roving-focus composable is `src/ui/kit/use-roving-index.ts`. HotspotScatter and CoverageMap both use it, and the Hotspots tests pass unchanged. | Low. If the scatter regresses, its old copy can come back. |
+
+### Task 10
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E44 | The Package detail dialog's "Create review item" button uses `aria-disabled` plus a guarded handler once the item exists or is pending, not `disabled` (the E40 lesson: disabling the focused control drops focus out of the dialog). Task 10's plan test that checks the `disabled` attribute checks `aria-disabled="true"` instead. Its accessible name contains its visible text (WCAG 2.5.3). | Low. |
+| E45 | License rows are not activatable. They use the E28 `EvidenceTable` prop `interactive: false`, so a row gets no tabindex and no click or keydown handler. | Low. It is an additive prop. |
