@@ -122,3 +122,11 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 |---|---|---|
 | E46 | The Security review checklist's state is held by `SecurityScreen`, so it survives switching tabs. It resets when the user leaves the screen and is never saved (R6). | Low. |
 | E47 | Chart fallback tables take their row-header column label from copy (`CHART_DATE_HEADER` in `audit-copy/shared.ts`). BarChart and LineChart move to it together in Task 12 (E13, and the plan's "both move together"). | None. |
+| E48 | A snapshot is labelled by its capture date and UTC time (`snapshotEntryLabel`: "Sep 22 · 09:05 UTC"), not by an id prefix, because real ids all start with `snapshot:`. Two scans in the same UTC minute still share a label. | Low. Two near-identical journal rows in a rare case. Adding seconds fixes it. |
+| E49 | The Compare actions (Evolution, Overview, City) appear only when the journal holds an entry OLDER than the snapshot on screen (`useCanCompare`), not whenever the journal has two or more entries. This tightens Q9's "at least two entries" so Compare never opens a dialog with nothing to compare. | Low. |
+
+### Task 13
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E50 | The stewardship action button uses `aria-disabled` plus a guarded handler once added or while pending, never `disabled` (E40/E44). Its accessible name starts with its visible text and follows its state: `OWNERSHIP_ACTION_ADD(title)` before, `OWNERSHIP_ACTION_ADDED_LABEL(title)` after. The meter list gets the sample-labelled `OWNERSHIP_BARS_LABEL` (E14). | Low. |
