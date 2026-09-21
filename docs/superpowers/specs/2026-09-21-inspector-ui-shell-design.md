@@ -1,7 +1,7 @@
 ---
 project: codebase-inspector
 title: WP-02 — Inspector UI from the full prototype, Part 1: shell and foundation (design)
-status: draft
+status: approved
 date: 2026-09-21
 branch: claude/inspector-prototype-ui-18caac (stacked on feat/wp-01-codebase-city, PR #1)
 baseline: c91a458
@@ -216,3 +216,41 @@ in the new snapshot and cleared otherwise.
 All screens other than Overview and City (placeholders only); source wizard; dialogs other
 than the command palette; any persistence beyond memory; any real provider for complexity,
 churn, coverage, findings, dependencies, security, history or ownership.
+
+## 9. Amendments from planning (2026-09-21)
+
+Found while writing the Part 1 plan against the actual code. These override the sections
+above where they conflict.
+
+- **A1 — Default route is `city`, not `overview`** (§4.6, §6). 16 existing test files mount
+  `App.vue` and expect the city; the prototype also opens on the city; a fresh leaf keeps
+  WP-01's behaviour. An unknown persisted route degrades to "no route" (→ `city`) without
+  discarding the rest of the view state.
+- **A2 — The route lives in the leaf's existing `city-view` Pinia store** (§4.5), not a
+  separate `route-store`, and there is no in-leaf history yet. `src/host/city-view.ts` is at
+  399/400 lines; routing through the store that `pickUiState`/`seedStoreFromState` already
+  sync persists the route with zero lines added there. `preferences-store` is deferred to
+  Part 4 (Settings) — nothing in Part 1 needs it.
+- **A3 — App.vue becomes the shell; today's App content moves unchanged to
+  `screens/CityWorkspace.vue`** (§3.1). App is at 383/400 lines, so the city composition is
+  moved, not extended. `CityScreen.vue` wraps it with the page header and summary cards.
+- **A4 — SnapshotSelector lists only the snapshot on screen** (§4.1). There is no snapshot
+  history in the store yet; the control exists so layout and focus order are final. "Compare
+  snapshots" is omitted from the City header until history exists.
+- **A5 — Command palette opens with Ctrl/Cmd+K inside the leaf only** (§4.2). The Obsidian
+  command is deferred (it needs a `city-view.ts` hook, which has no line budget left).
+- **A6 — Styles are plain CSS files** (`src/ui/styles/{kit,shell,screens}.css`, imported from
+  `main.ts`), not Vue-scoped styles (§3.2 rule 5). The codebase uses no SFC `<style>` blocks,
+  and `cssCodeSplit: false` merges everything into the single `styles.css` the bundle
+  assertion requires. The existing `styles.css` is untouched (layout-budget and stage-height
+  tests parse it).
+- **A7 — The nav column is inline only when the leaf is ≥ 820 px, decided in JS**; the shell
+  content area is its own size container, and `cityInlineSize()` subtracts an inline nav so
+  the city's JS thresholds match the container queries evaluated on the content area.
+- **A8 — Non-city routes handle "no snapshot" themselves** (§6). Overview shows its own
+  "select a codebase" state; the full `view-surface` chain (scanning, failed, partial…) stays
+  on the city route, unchanged.
+- **A9 — New strings live in `src/ui/inspector-copy.ts`**, not `copy.ts` (bound to the WP-01
+  microcopy catalogue by a contract test).
+- **A10 — The review port holds work items only in Part 1**; dispositions and rules join it
+  in Parts 3–4.
