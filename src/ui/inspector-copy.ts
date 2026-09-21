@@ -9,6 +9,25 @@ export const OVERVIEW_TITLE = 'A clearer picture of your codebase.';
 export const OVERVIEW_SUBTITLE = 'Understand the signals. Follow the evidence. Improve what matters.';
 export const OVERVIEW_VERDICT_TITLE = 'A review is recommended, not a verdict.';
 export const OVERVIEW_NO_SNAPSHOT = 'No snapshot yet. Select a codebase and run a scan to see its overview.';
+
+/** Task 9: the Overview screen's own inline button labels and panel titles/subtitles/
+ *  footnotes (task-9-brief.md Step 3), centralised here rather than left as literals in
+ *  OverviewScreen.vue — this file's own copy-centralisation constraint binds brief
+ *  snippets too. Text is prototype-verbatim (unchanged from the brief), only relocated. */
+export const OVERVIEW_COMPARE_LABEL = 'Compare';
+export const OVERVIEW_AUDIT_REPORT_LABEL = 'Audit report';
+export const OVERVIEW_VIEW_EVOLUTION_LABEL = 'View evolution';
+export const OVERVIEW_ALL_HOTSPOTS_LABEL = 'All hotspots';
+export const OVERVIEW_DATA_SOURCES_LABEL = 'Data sources';
+export const OVERVIEW_SIGNALS_PANEL_TITLE = 'Signals over time';
+export const OVERVIEW_SIGNALS_PANEL_SUBTITLE = 'Compare independent signals, not one opaque health score.';
+export const OVERVIEW_SIGNALS_PANEL_FOOTNOTE = 'Sample trend · branch coverage and file count use different units.';
+export const OVERVIEW_INVESTIGATIONS_PANEL_TITLE = 'Start investigating';
+export const OVERVIEW_INVESTIGATIONS_PANEL_SUBTITLE = 'Three evidence-backed review paths.';
+export const OVERVIEW_HOTSPOTS_PANEL_TITLE = 'Where change meets complexity';
+export const OVERVIEW_HOTSPOTS_PANEL_SUBTITLE = 'Priority is a transparent investigation heuristic.';
+export const OVERVIEW_COVERAGE_PANEL_TITLE = 'Evidence coverage';
+export const OVERVIEW_COVERAGE_PANEL_SUBTITLE = 'Know what this inspector does — and does not — show.';
 export const CITY_EYEBROW = 'Explore / Code city';
 export const CITY_TITLE = 'Code city';
 export const CITY_SUBTITLE = 'Find the places worth investigating. Every building is a file.';
