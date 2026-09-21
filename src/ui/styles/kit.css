@@ -83,3 +83,42 @@
 :where(.codebase-inspector-root) .ci-metric-card__caption,
 :where(.codebase-inspector-root) .ci-metric-card__reason { margin: 0; color: var(--ci-text-faint); font-size: var(--font-ui-smaller); }
 :where(.codebase-inspector-root) .ci-sparkline { width: 80px; height: 28px; stroke: var(--ci-card-tone, var(--ci-tone-accent)); stroke-width: 1.5; }
+
+:where(.codebase-inspector-root) .ci-table { width: 100%; border-collapse: collapse; font-size: var(--font-ui-small); }
+:where(.codebase-inspector-root) .ci-table th {
+  text-align: left; padding: var(--ci-space-2) var(--ci-space-3); color: var(--ci-text-muted);
+  font-size: var(--font-ui-smaller); letter-spacing: 0.08em; text-transform: uppercase;
+  border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-table td { padding: var(--ci-space-3); border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-table__num { text-align: right; font-variant-numeric: tabular-nums; }
+:where(.codebase-inspector-root) button.ci-table__sort {
+  all: unset; cursor: pointer; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+}
+:where(.codebase-inspector-root) .ci-table__row { cursor: pointer; }
+:where(.codebase-inspector-root) .ci-table__row:hover,
+:where(.codebase-inspector-root) .ci-table__row:focus-visible { background: var(--ci-raised); }
+
+:where(.codebase-inspector-root) .ci-line-chart { margin: 0; }
+:where(.codebase-inspector-root) .ci-line-chart svg { width: 100%; height: auto; }
+:where(.codebase-inspector-root) .ci-line-chart__grid line { stroke: var(--ci-border); stroke-dasharray: 3 4; }
+:where(.codebase-inspector-root) .ci-line-chart__grid text { fill: var(--ci-text-faint); font-size: 11px; }
+:where(.codebase-inspector-root) .ci-line-chart__line { stroke-width: 2; }
+:where(.codebase-inspector-root) .ci-line-chart__line--0 { stroke: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-line-chart__line--1 { stroke: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-line-chart__legend { display: flex; gap: var(--ci-space-4); color: var(--ci-text-muted); font-size: var(--font-ui-smaller); }
+:where(.codebase-inspector-root) .ci-line-chart__key::before {
+  content: ''; display: inline-block; width: 10px; height: 6px; margin-right: var(--ci-space-1); border-radius: 2px;
+}
+:where(.codebase-inspector-root) .ci-line-chart__key--0::before { background: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-line-chart__key--1::before { background: var(--ci-tone-accent); }
+
+:where(.codebase-inspector-root) .ci-dialog__backdrop {
+  position: absolute; inset: 0; z-index: 40; display: flex; justify-content: center; align-items: flex-start;
+  padding-top: 12vh; background: var(--background-modifier-cover);
+}
+:where(.codebase-inspector-root) .ci-dialog {
+  width: min(560px, calc(100% - 32px)); max-height: 70%; overflow: auto;
+  border: 1px solid var(--ci-border); border-radius: var(--ci-radius-modal);
+  background: var(--ci-surface); box-shadow: var(--shadow-l);
+}
