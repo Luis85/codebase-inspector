@@ -98,7 +98,7 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
     await nextTick();
     if (options.tab) {
       // Part 3 §4: a headless capture cannot click, so the harness selects the tab.
-      root.querySelector<HTMLElement>(`[role="tab"][data-tab-id="${options.tab}"]`)?.click();
+      root.querySelector<HTMLElement>(`[role="tab"][data-tab-id="${CSS.escape(options.tab)}"]`)?.click();
       await nextTick();
     }
     document.body.dataset.ciHarnessReady = 'true';
