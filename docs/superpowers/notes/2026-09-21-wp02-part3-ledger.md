@@ -115,3 +115,10 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 |---|---|---|
 | E44 | The Package detail dialog's "Create review item" button uses `aria-disabled` plus a guarded handler once the item exists or is pending, not `disabled` (the E40 lesson: disabling the focused control drops focus out of the dialog). Task 10's plan test that checks the `disabled` attribute checks `aria-disabled="true"` instead. Its accessible name contains its visible text (WCAG 2.5.3). | Low. |
 | E45 | License rows are not activatable. They use the E28 `EvidenceTable` prop `interactive: false`, so a row gets no tabindex and no click or keydown handler. | Low. It is an additive prop. |
+
+### Tasks 11–12
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E46 | The Security review checklist's state is held by `SecurityScreen`, so it survives switching tabs. It resets when the user leaves the screen and is never saved (R6). | Low. |
+| E47 | Chart fallback tables take their row-header column label from copy (`CHART_DATE_HEADER` in `audit-copy/shared.ts`). BarChart and LineChart move to it together in Task 12 (E13, and the plan's "both move together"). | None. |
