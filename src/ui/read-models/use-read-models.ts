@@ -7,11 +7,12 @@ import { isSampleBacked, type MetricValue } from '../evidence';
 import { fileSummariesFor, type FileSummary } from './file-summaries';
 import { buildOverviewModel, type OverviewModel } from './overview';
 import { buildCitySummary } from './city-summary';
-import type { BoundaryRule } from '../stores/ports/review-repository';
+import type { BoundaryRule, FindingDisposition } from '../stores/ports/review-repository';
 import {
   architectureGraphFor, buildArchitectureModel, cyclesValue, type ArchitectureGraph, type ArchitectureModel,
 } from './architecture';
 import { buildFileDetail, type FileDetailModel } from './file-detail';
+import { buildQualityModel, type QualityModel } from './findings';
 
 /** One stable empty array, so the per-array memo (architectureGraphFor) still hits. */
 const NO_FILES: readonly FileSummary[] = [];
@@ -57,6 +58,16 @@ export function fileDetailFor(snapshot: CodebaseSnapshot, files: readonly FileSu
   return entry.byId.get(entityId) ?? null;
 }
 
+const qualityCache = new WeakMap<readonly FileSummary[], { dispositions: readonly FindingDisposition[]; model: QualityModel }>();
+/** `review.dispositions` is reassigned on every decision, so its identity is the key. */
+export function qualityModelFor(files: readonly FileSummary[], dispositions: readonly FindingDisposition[]): QualityModel {
+  const hit = qualityCache.get(files);
+  if (hit && hit.dispositions === dispositions) return hit.model;
+  const model = buildQualityModel(files, dispositions);
+  qualityCache.set(files, { dispositions, model });
+  return model;
+}
+
 /** Screens read models through here only (spec §3.2 rule 1). */
 export function useReadModels() {
   const store = useCityStore();
@@ -68,7 +79,8 @@ export function useReadModels() {
   const citySummary = computed(() => buildCitySummary(files.value, cycles.value));
   const architecture = computed(() => architectureModelFor(graph.value, review.rules));
   const fileDetail = computed(() => (store.snapshot ? fileDetailFor(store.snapshot, files.value, store.selectedEntityId) : null));
+  const quality = computed(() => qualityModelFor(files.value, review.dispositions));
   /** A11: the Hotspots screen shows sample values whenever any file's plotted signal does. */
   const filesUseSample = computed(() => files.value.some((f) => isSampleBacked(f.priority) || isSampleBacked(f.complexity)));
-  return { files, overview, citySummary, architecture, fileDetail, filesUseSample };
+  return { files, overview, citySummary, architecture, fileDetail, quality, filesUseSample };
 }

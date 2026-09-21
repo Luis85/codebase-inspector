@@ -285,3 +285,4 @@ export const PALETTE_SHORTCUT_HINT = 'Ctrl K';
 /** Part 3: Audit screens. Each file is re-exported here, so screens import only from inspector-copy. */
 export * from './audit-copy/shared';
 export * from './audit-copy/evolution';
+export * from './audit-copy/quality';

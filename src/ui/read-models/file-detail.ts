@@ -10,6 +10,7 @@ import {
   FILE_CARD_DEPENDENTS, FILE_CARD_DEPENDENTS_CAPTION, FILE_CARD_PRIORITY, FILE_CARD_PRIORITY_CAPTION,
   FILE_HISTORY_COMPLEXITY, FILE_HISTORY_COVERAGE, FINDING_TITLE, NOT_MEASURED_REASON, PRIORITY_SCALE_SUFFIX,
 } from '../inspector-copy';
+import { findingFingerprint } from './findings';
 import { moduleLabel, type FileSummary } from './file-summaries';
 import { TREND_POINTS, trendLabels } from './overview';
 
@@ -17,7 +18,7 @@ export interface FileDetailCard {
   id: 'complexity' | 'coverage' | 'dependents' | 'priority'; label: string; icon: string;
   value: MetricValue; unit: string; caption: string; tone: 'warning' | 'success' | 'accent';
 }
-export interface FileFinding extends SampleFinding { title: string }
+export interface FileFinding extends SampleFinding { title: string; fingerprint: string }
 export interface FileHistorySeries {
   id: 'complexity' | 'coverage'; label: string; tone: 'accent' | 'success';
   points: readonly { label: string; value: number }[];
@@ -67,7 +68,7 @@ export function buildFileDetail(snapshot: CodebaseSnapshot, files: readonly File
     bytes: bytesOf(snapshot, file.id),
     cards,
     findingsCount: file.findings,
-    findings: sampleFindings(file).map((f) => ({ ...f, title: FINDING_TITLE[f.kind] })),
+    findings: sampleFindings(file).map((f) => ({ ...f, title: FINDING_TITLE[f.kind], fingerprint: findingFingerprint(file.id, f.id) })),
     history,
     usesSample: cards.some((c) => isSampleBacked(c.value)),
   };
