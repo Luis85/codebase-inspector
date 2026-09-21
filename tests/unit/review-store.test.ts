@@ -50,4 +50,31 @@ describe('review store', () => {
     expect(newItem?.id).toBe('wi-6');
     expect(await repo.listWorkItems()).toHaveLength(3);
   });
+
+  // Fix round 1 (Important): a rejecting repository must leave local state untouched
+  // and the rejection must propagate — the port is the source of truth, not an
+  // afterthought fired off after the UI has already committed to showing the item.
+  it('leaves state unchanged and rejects when the repository refuses to save', async () => {
+    const repo = createInMemoryReviewRepository();
+    const store = useReviewStore();
+    store.setRepository({ ...repo, saveWorkItem: () => Promise.reject(new Error('save failed')) });
+    await expect(store.addWorkItemForFile('e1', 't', NOW)).rejects.toThrow('save failed');
+    expect(store.workItemCount).toBe(0);
+    expect(store.hasWorkItemFor('e1')).toBe(false);
+    // A retry after the failure must not have consumed an id/skipped a slot.
+    store.setRepository(repo);
+    const item = await store.addWorkItemForFile('e1', 't', NOW);
+    expect(item?.id).toBe('wi-1');
+  });
+
+  it('leaves state unchanged and rejects when the repository refuses to remove', async () => {
+    const repo = createInMemoryReviewRepository();
+    const store = useReviewStore();
+    store.setRepository(repo);
+    await store.addWorkItemForFile('e1', 't', NOW);
+    store.setRepository({ ...repo, removeWorkItem: () => Promise.reject(new Error('remove failed')) });
+    await expect(store.removeWorkItem('wi-1')).rejects.toThrow('remove failed');
+    expect(store.workItemCount).toBe(1);
+    expect(store.hasWorkItemFor('e1')).toBe(true);
+  });
 });

@@ -36,18 +36,25 @@ export const useReviewStore = defineStore('review', {
       }
       this.nextId = maxId + 1;
     },
-    /** One work item per file; a second request for the same file is refused (null). */
+    /** One work item per file; a second request for the same file is refused (null).
+     *  Persists through the port BEFORE touching local state (fix round 1, Important):
+     *  a rejecting repository must leave `workItems`/`nextId` unchanged and the
+     *  rejection must propagate, rather than the UI showing an item that was never
+     *  actually saved. */
     async addWorkItemForFile(entityId: EntityId, title: string, now: Date): Promise<WorkItem | null> {
       if (this.hasWorkItemFor(entityId)) return null;
       const item: WorkItem = { id: `wi-${this.nextId}`, entityId, title, status: 'investigate', createdAt: now.toISOString() };
+      await this.repository.saveWorkItem(item);
       this.nextId += 1;
       this.workItems.push(item);
-      await this.repository.saveWorkItem(item);
       return item;
     },
+    /** Same ordering rule as `addWorkItemForFile`: the port is awaited first, so a
+     *  rejecting repository leaves the work item in local state instead of quietly
+     *  dropping it from the UI while it still exists in storage. */
     async removeWorkItem(id: string): Promise<void> {
-      this.workItems = this.workItems.filter((w) => w.id !== id);
       await this.repository.removeWorkItem(id);
+      this.workItems = this.workItems.filter((w) => w.id !== id);
     },
   },
 });

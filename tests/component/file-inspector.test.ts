@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import FileInspector from '../../src/ui/components/FileInspector.vue';
@@ -116,12 +116,32 @@ describe('FileInspector.vue (C10)', () => {
   it('adds the selected file to the refactor plan once', async () => {
     const { target } = openWithFile();
     const wrapper = mountInspector();
-    const add = wrapper.find('[aria-label="Add to refactor plan"]');
+    // Selects by class, not aria-label (fix round 1, Minor 2): the label flips to
+    // "In refactor plan" once added, so aria-label must flip with it (WCAG 2.5.3) —
+    // an aria-label selector would stop matching after the click.
+    const add = wrapper.find('.ci-inspector__plan-button');
     await add.trigger('click');
     await nextTick();
     expect(useReviewStore().hasWorkItemFor(target.id)).toBe(true);
-    expect(wrapper.find('[aria-label="Add to refactor plan"]').attributes('disabled')).toBeDefined();
+    const addAfter = wrapper.find('.ci-inspector__plan-button');
+    expect(addAfter.attributes('disabled')).toBeDefined();
+    expect(addAfter.attributes('aria-label')).toBe('In refactor plan');
     expect(wrapper.text()).toContain('In refactor plan');
+  });
+
+  it('shows a failure message and stays enabled when the repository rejects the add', async () => {
+    const { target } = openWithFile();
+    useReviewStore().setRepository({
+      listWorkItems: () => Promise.resolve([]),
+      saveWorkItem: () => Promise.reject(new Error('disk full')),
+      removeWorkItem: () => Promise.resolve(),
+    });
+    const wrapper = mountInspector();
+    await wrapper.find('.ci-inspector__plan-button').trigger('click');
+    await flushPromises();
+    expect(useReviewStore().hasWorkItemFor(target.id)).toBe(false);
+    expect(wrapper.find('.ci-inspector__plan-button').attributes('disabled')).toBeUndefined();
+    expect(wrapper.get('[aria-live]').text()).toContain('Could not add this file to the refactor plan.');
   });
 
   // Task 9 (F12): C10's own contract says "Keep exact raw values and scope", and

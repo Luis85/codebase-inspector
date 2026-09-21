@@ -17,7 +17,7 @@ import { useCityRendererHandle } from '../renderer-handle';
 import { useInspectorOpener } from '../drawer-focus';
 import { useClipboard } from '../clipboard';
 import { COPY_27, formatSnapshotScopeRoot, formatUnavailableReason } from '../copy';
-import { ADD_TO_PLAN_LABEL, IN_PLAN_LABEL } from '../inspector-copy';
+import { ADD_TO_PLAN_FAILED, ADD_TO_PLAN_LABEL, IN_PLAN_LABEL, WORK_ITEM_TITLE } from '../inspector-copy';
 import type { Observation } from '../../domain/model';
 
 const store = useCityStore();
@@ -35,11 +35,20 @@ const selectedEntity = computed(() => (
 
 const inPlan = computed(() => (store.selectedEntityId ? review.hasWorkItemFor(store.selectedEntityId) : false));
 
-/** WP-02: records intent only. Never edits, opens or executes anything in the source. */
+/** WP-02: records intent only. Never edits, opens or executes anything in the source.
+ *  Fix round 1 (Important): the review store now awaits the repository before
+ *  committing local state, so a rejecting repository leaves `inPlan` false rather
+ *  than the UI claiming an item was saved that never was — caught here the same way
+ *  `copyRelativePath` handles its own port failure, surfaced through the same
+ *  polite live region. */
 async function addToPlan(): Promise<void> {
   const entity = selectedEntity.value;
   if (!entity) return;
-  await review.addWorkItemForFile(entity.id, `Investigate ${entity.name}`, new Date());
+  try {
+    await review.addWorkItemForFile(entity.id, WORK_ITEM_TITLE(entity.name), new Date());
+  } catch {
+    liveMessage.value = ADD_TO_PLAN_FAILED;
+  }
 }
 
 function observationFor(metricId: 'physical-lines' | 'byte-size'): Observation | null {
@@ -158,7 +167,8 @@ async function copyRelativePath(): Promise<void> {
       </button>
       <button
         type="button"
-        :aria-label="ADD_TO_PLAN_LABEL"
+        class="ci-inspector__plan-button"
+        :aria-label="inPlan ? IN_PLAN_LABEL : ADD_TO_PLAN_LABEL"
         :disabled="inPlan"
         @click="addToPlan"
       >

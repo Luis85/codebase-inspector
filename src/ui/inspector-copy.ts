@@ -42,6 +42,12 @@ export const COMMAND_PALETTE_PLACEHOLDER = 'Go to a screen or file…';
 export const COMMAND_PALETTE_EMPTY = 'No matching screens or files.';
 export const ADD_TO_PLAN_LABEL = 'Add to refactor plan';
 export const IN_PLAN_LABEL = 'In refactor plan';
+/** Fix round 1 (Important): the FileInspector's polite-live-region message when
+ *  `addToPlan` rejects (the review repository failed to persist the work item). */
+export const ADD_TO_PLAN_FAILED = 'Could not add this file to the refactor plan.';
+/** Fix round 1 (Minor 3): the work item's own title, centralised rather than built
+ *  inline in FileInspector.vue. */
+export const WORK_ITEM_TITLE = (name: string): string => `Investigate ${name}`;
 export const OPEN_NAVIGATION_LABEL = 'Open navigation';
 export const CLOSE_NAVIGATION_LABEL = 'Close navigation';
 export const SNAPSHOT_LABEL = 'Snapshot';
