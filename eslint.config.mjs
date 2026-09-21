@@ -134,8 +134,10 @@ export default tseslint.config(
   // has patched with `createEl`/`win` (the component test deliberately does not import
   // ../mocks/obsidian, matching what a non-Obsidian jsdom document looks like). Plain
   // `doc.createElement('a')` is the portable call that works whether or not the document
-  // has been extended. Scoped to this one file, not project-wide.
-  { files: ['src/ui/export/download.ts'], rules: {
+  // has been extended. Its component test builds its host the same plain way, for the
+  // same reason: to prove downloadText against an unpatched jsdom document. Scoped to
+  // these two files, not project-wide.
+  { files: ['src/ui/export/download.ts', 'tests/component/download.test.ts'], rules: {
     'obsidianmd/prefer-create-el': 'off',
   } },
 

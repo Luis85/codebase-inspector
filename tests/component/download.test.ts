@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import '../mocks/obsidian';
 import { downloadText } from '../../src/ui/export/download';
 
 describe('downloadText (P8)', () => {
@@ -7,7 +6,8 @@ describe('downloadText (P8)', () => {
 
   it('clicks a transient download anchor in the host\'s own document and revokes the URL later', () => {
     vi.useFakeTimers();
-    const host = document.body.createDiv();
+    const host = document.createElement('div');
+    document.body.appendChild(host);
     const blobs: Blob[] = [];
     const create = vi.fn((b: Blob) => { blobs.push(b); return 'blob:ci-test'; });
     const revoke = vi.fn();
