@@ -66,3 +66,9 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 | E29 (F32) | The Package table has no initial sort (fixture order), and Task 10's test relies on it explicitly. | None. |
 | E30 (F33) | Task 5 computes `testRuns(snapshot, files)` once and reuses it, as its prose says. | None. |
 | E31 (F34) | Each coupling row shows the visible note "Correlation, not a causal dependency" (Q10), not only the panel subtitle. | Low. It adds visual weight per row. |
+
+### Task 2
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E32 | `reopen(fingerprint)` returns `Promise<boolean>`: `true` when the disposition was removed, `false` when refused because a decision for that fingerprint is pending (E18). The dialog can then announce only real outcomes (E17). This deviates from the plan's `Promise<void>`. | Low. Callers that ignore the result are unaffected. |
