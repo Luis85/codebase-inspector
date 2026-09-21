@@ -14,6 +14,6 @@ describe('csv', () => {
     interface Row { name: string; m: MetricValue }
     const rows: Row[] = [{ name: 'a', m: sample(3) }, { name: 'b', m: unknown('no data') }];
     const text = toCsv<Row>([{ header: 'name', value: (r) => r.name }, ...metricColumns<Row>('m', (r) => r.m)], rows);
-    expect(text).toBe('﻿name,m,m_state\r\na,3,sample\r\nb,,unknown\r\n');
+    expect(text).toBe('\uFEFFname,m,m_state\r\na,3,sample\r\nb,,unknown\r\n');
   });
 });

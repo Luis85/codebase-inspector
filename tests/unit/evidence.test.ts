@@ -83,8 +83,10 @@ describe('includesSample (Part 3 §4)', () => {
     expect(m.provenance.includesSample).toBe(true);
     expect(isSampleBacked(m)).toBe(true);
   });
-  it('marks a ratio of a collected value over a sample value', () => {
-    const r = ratioEvidence(collected(1, 'inventory'), sample(4));
+  it('marks a ratio whose denominator is a partial mixed aggregate', () => {
+    const denominator = sumEvidence([collected(3, 'inventory'), sample(4), unknown('x')]);
+    const r = ratioEvidence(collected(1, 'inventory'), denominator);
+    expect(r.provenance.includesSample).toBe(true);
     expect(isSampleBacked(r)).toBe(true);
   });
   it('leaves an all-collected aggregate unflagged', () => {
