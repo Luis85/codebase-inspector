@@ -6,12 +6,12 @@ import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
 import type { SamplePackage } from '../fixtures/sample-packages';
 import {
-  CONFIGURE_EVIDENCE, EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, EXPORT_FAILED, POLICY_ROWS, POLICY_TITLE,
-  SECRETS_EMPTY, SECRETS_EMPTY_TITLE, SECRETS_SUBTITLE, SECRETS_TITLE, SECURITY_ADVISORIES_SUBTITLE,
-  SECURITY_ADVISORIES_TITLE, SECURITY_CHECKLIST_SUBTITLE, SECURITY_CHECKLIST_TITLE, SECURITY_CSV_FILENAME,
-  SECURITY_EXPORT, SECURITY_EYEBROW, SECURITY_SOURCE_LABELS, SECURITY_SOURCES, SECURITY_SOURCES_TITLE,
-  SECURITY_SUBTITLE, SECURITY_TAB_ADVISORIES, SECURITY_TAB_POLICY, SECURITY_TAB_SECRETS, SECURITY_TABS_LABEL,
-  SECURITY_TITLE,
+  CONFIGURE_EVIDENCE, EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, EXPORT_FAILED, POLICY_ROWS, POLICY_SUBTITLE,
+  POLICY_TITLE, SECRETS_EMPTY, SECRETS_EMPTY_TITLE, SECRETS_SUBTITLE, SECRETS_TITLE, SECURITY_ADVISORIES_SUBTITLE,
+  SECURITY_ADVISORIES_TITLE, SECURITY_CHECKLIST, SECURITY_CHECKLIST_SUBTITLE, SECURITY_CHECKLIST_TITLE,
+  SECURITY_CSV_FILENAME, SECURITY_EXPORT, SECURITY_EYEBROW, SECURITY_SOURCE_LABELS, SECURITY_SOURCES,
+  SECURITY_SOURCES_TITLE, SECURITY_SUBTITLE, SECURITY_TAB_ADVISORIES, SECURITY_TAB_POLICY, SECURITY_TAB_SECRETS,
+  SECURITY_TABS_LABEL, SECURITY_TITLE,
 } from '../inspector-copy';
 import PageHeader from '../kit/PageHeader.vue';
 import MetricCard from '../kit/MetricCard.vue';
@@ -47,6 +47,9 @@ const sourcesOpen = ref(false);
 const inspecting = ref<SamplePackage | null>(null);
 const liveMessage = ref('');
 const root = ref<HTMLElement | null>(null);
+// Fix round 1 (Important 1): owned here, not inside ReviewChecklist, which sits behind a
+// `v-if` tab and would otherwise be torn down (and its progress lost) on every tab switch.
+const checklist = ref<boolean[]>(SECURITY_CHECKLIST.map(() => false));
 
 function inspect(pkg: SamplePackage): void {
   inspecting.value = pkg;
@@ -133,7 +136,7 @@ function exportCsv(): void {
             :title="SECURITY_CHECKLIST_TITLE"
             :subtitle="SECURITY_CHECKLIST_SUBTITLE"
           >
-            <ReviewChecklist />
+            <ReviewChecklist v-model="checklist" />
           </Panel>
         </div>
         <Panel
@@ -158,6 +161,7 @@ function exportCsv(): void {
         <Panel
           v-else
           :title="POLICY_TITLE"
+          :subtitle="POLICY_SUBTITLE"
         >
           <table class="ci-policy">
             <tbody>

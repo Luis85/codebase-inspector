@@ -15,7 +15,10 @@ withDefaults(defineProps<{ tone?: 'info' | 'warning'; title: string; badge?: str
       <p class="ci-callout__title">
         {{ title }}
       </p>
-      <p class="ci-callout__text">
+      <p
+        v-if="$slots.default"
+        class="ci-callout__text"
+      >
         <slot />
       </p>
     </div>

@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue';
 import { useUniqueId } from '../../unique-id';
 import { SECURITY_CHECKLIST, SECURITY_NO_CONCLUSION } from '../../inspector-copy';
 import Callout from '../../kit/Callout.vue';
 
-// Local and unsaved (Q7): no store, no persistence — a fresh mount always starts unchecked.
-const checked = ref<boolean[]>(SECURITY_CHECKLIST.map(() => false));
+// Fix round 1 (Important 1): state is owned by the parent screen, not this component —
+// it sits behind a `v-if` tab in SecurityScreen.vue, so a component-local ref would be
+// torn down and recreated (losing every check) on every tab switch. Still local to the
+// screen and unsaved (Q7): no store, no persistence.
+const checked = defineModel<boolean[]>({ required: true });
 const ids = SECURITY_CHECKLIST.map(() => useUniqueId('ci-checklist'));
 </script>
 

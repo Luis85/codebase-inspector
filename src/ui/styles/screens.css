@@ -340,9 +340,12 @@
 :where(.codebase-inspector-root) .ci-advisory__body { display: flex; flex-direction: column; gap: var(--ci-space-1); min-width: 0; }
 :where(.codebase-inspector-root) .ci-advisory__top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-advisory__top code { font-family: var(--ci-font-mono); }
-:where(.codebase-inspector-root) .ci-advisory__name { display: block; font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-advisory__summary { display: block; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
-:where(.codebase-inspector-root) .ci-advisory__versions { display: block; color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); }
+/* Fix round 1 (Minor 6): `display: block` here was ineffective — these spans are flex
+   items of `.ci-advisory__body`, and a flex container already blockifies its children
+   regardless of their own `display`. */
+:where(.codebase-inspector-root) .ci-advisory__name { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-advisory__summary { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-advisory__versions { color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); }
 
 :where(.codebase-inspector-root) .ci-checklist { display: grid; gap: var(--ci-space-2); margin: 0 0 var(--ci-space-3); padding: 0; list-style: none; }
 :where(.codebase-inspector-root) .ci-checklist li { display: flex; align-items: center; gap: var(--ci-space-2); }
