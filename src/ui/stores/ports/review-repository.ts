@@ -14,13 +14,25 @@ export type WorkTarget =
 
 export type WorkIntent = 'refactor' | 'tests' | 'review' | 'pairing' | 'documentation';
 
+/** Part 4 W8: how urgent the reviewer judges the work; a user decision, not evidence. */
+export type WorkPriority = 'high' | 'medium' | 'low';
+/** Part 4 W8: the three verification checks, in the order the editor lists them. */
+export type WorkChecks = readonly [boolean, boolean, boolean];
+export const NO_CHECKS: WorkChecks = [false, false, false];
+export const WORK_TITLE_MAX = 160;
+export const WORK_NOTES_MAX = 5000;
+
 export interface WorkItem {
   id: string;
   target: WorkTarget;
   intent: WorkIntent;
   title: string;
   status: WorkItemStatus;
+  priority: WorkPriority;
+  notes: string;
+  checks: WorkChecks;
   createdAt: string;
+  updatedAt?: string;
 }
 
 /** Part 3 Q4: one work item per (target, intent). The kind prefix keeps a package and a
@@ -28,6 +40,29 @@ export interface WorkItem {
 export function workTargetKey(target: WorkTarget, intent: WorkIntent): string {
   const subject = target.kind === 'file' ? target.entityId : target.kind === 'package' ? target.name : target.module;
   return `${target.kind}:${subject}:${intent}`;
+}
+
+/** Part 4 W9: what an edit may change. The target and intent are the item's identity
+ *  (Q4), so they never change after creation. */
+export interface WorkItemPatch { title?: string; status?: WorkItemStatus; priority?: WorkPriority; notes?: string; checks?: WorkChecks }
+/** Part 4 W11: what the editor's create mode may set up front. `addWorkItem` validates
+ *  the result with `workItemProblem`, so a new item can never start as an unchecked
+ *  `verified`. */
+export interface WorkItemInit { priority?: WorkPriority; notes?: string; status?: WorkItemStatus; checks?: WorkChecks }
+
+export function allChecksDone(checks: WorkChecks): boolean {
+  return checks[0] && checks[1] && checks[2];
+}
+
+/** Part 4 W9: the one validity rule, shared by the store (which refuses) and the editor
+ *  (which explains). `verified` needs every check done. */
+export function workItemProblem(item: Pick<WorkItem, 'title' | 'notes' | 'status' | 'checks'>): 'title-empty' | 'title-long' | 'notes-long' | 'unverified' | null {
+  const title = item.title.trim();
+  if (title === '') return 'title-empty';
+  if (title.length > WORK_TITLE_MAX) return 'title-long';
+  if (item.notes.length > WORK_NOTES_MAX) return 'notes-long';
+  if (item.status === 'verified' && !allChecksDone(item.checks)) return 'unverified';
+  return null;
 }
 
 /** Part 2 P5: an intended boundary, "`from` must not import `to`". Module names are the

@@ -73,6 +73,18 @@ describe('NavColumn badges', () => {
     expect(badgeFor(w, 'Refactor workbench')).toBe('1');
     w.unmount();
   });
+
+  it('counts only open work items, so a verified item drops out of the badge', async () => {
+    withSnapshot();
+    const w = mountNav(false);
+    const review = useReviewStore();
+    await review.addWorkItemForFile('r\0file\0a.ts', 'Investigate a.ts', new Date(0));
+    const second = await review.addWorkItemForFile('r\0file\0b.ts', 'Investigate b.ts', new Date(0));
+    await review.updateWorkItem(second!.id, { status: 'verified', checks: [true, true, true] }, new Date(0));
+    await flushPromises();
+    expect(badgeFor(w, 'Refactor workbench')).toBe('1');
+    w.unmount();
+  });
 });
 
 function pressEscape(w: ReturnType<typeof mountNav>): KeyboardEvent {

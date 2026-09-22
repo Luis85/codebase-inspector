@@ -23,7 +23,8 @@ const badges = computed<Partial<Record<RouteId, number>>>(() => {
   const findings = overview.value?.cards.find((c) => c.id === 'findings')?.value;
   return {
     quality: findings?.state === 'collected' ? findings.value : undefined,
-    workbench: review.workItemCount || undefined,
+    // Part 4 W13: items not yet verified.
+    workbench: review.openWorkItemCount || undefined,
   };
 });
 

@@ -33,6 +33,7 @@ describe('review store', () => {
     const repo = createInMemoryReviewRepository();
     await repo.saveWorkItem({
       id: 'w1', target: { kind: 'file', entityId: 'e9' }, intent: 'refactor', title: 't', status: 'planned', createdAt: NOW.toISOString(),
+      priority: 'medium', notes: '', checks: [false, false, false],
     });
     const store = useReviewStore();
     store.setRepository(repo);
@@ -47,9 +48,11 @@ describe('review store', () => {
     const repo = createInMemoryReviewRepository();
     await repo.saveWorkItem({
       id: 'wi-3', target: { kind: 'file', entityId: 'e1' }, intent: 'refactor', title: 't1', status: 'investigate', createdAt: NOW.toISOString(),
+      priority: 'medium', notes: '', checks: [false, false, false],
     });
     await repo.saveWorkItem({
       id: 'wi-5', target: { kind: 'file', entityId: 'e2' }, intent: 'refactor', title: 't2', status: 'investigate', createdAt: NOW.toISOString(),
+      priority: 'medium', notes: '', checks: [false, false, false],
     });
     const store = useReviewStore();
     store.setRepository(repo);

@@ -2,8 +2,9 @@ import { defineStore } from 'pinia';
 import { markRaw } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
 import {
-  createInMemoryReviewRepository, workTargetKey, DISMISS_REASON_MAX,
-  type BoundaryRule, type FindingDisposition, type ReviewRepository, type WorkIntent, type WorkItem, type WorkTarget,
+  createInMemoryReviewRepository, workTargetKey, workItemProblem, NO_CHECKS, DISMISS_REASON_MAX,
+  type BoundaryRule, type FindingDisposition, type ReviewRepository, type WorkIntent, type WorkItem, type WorkItemInit,
+  type WorkItemPatch, type WorkTarget,
 } from './ports/review-repository';
 
 const ruleKey = (from: string, to: string): string => `${from}->${to}`;
@@ -30,6 +31,8 @@ interface ReviewState {
    *  calls for the same target+intent (e.g. a double-click before the first save
    *  settles) both passed the guard and both computed the same `wi-${nextId}`. */
   pendingWorkKeys: string[];
+  /** Part 4 W9: work-item ids with an update or removal in flight. */
+  pendingItemIds: string[];
   /** Part 3 Q3: decisions on findings, kept apart from the findings themselves. */
   dispositions: FindingDisposition[];
   /** Fingerprints with a `decide` (acknowledge/dismiss) or `reopen` in flight — same
@@ -46,11 +49,15 @@ export const useReviewStore = defineStore('review', {
     nextRuleId: 1,
     pendingRuleKeys: [],
     pendingWorkKeys: [],
+    pendingItemIds: [],
     dispositions: [],
     pendingFingerprints: [],
   }),
   getters: {
     workItemCount: (state): number => state.workItems.length,
+    /** Part 4 W13: the nav badge counts what is still to do. */
+    openWorkItemCount: (state): number => state.workItems.filter((w) => w.status !== 'verified').length,
+    isItemPending: (state) => (id: string): boolean => state.pendingItemIds.includes(id),
     hasWorkItem: (state) => (target: WorkTarget, intent: WorkIntent): boolean =>
       state.workItems.some((w) => workTargetKey(w.target, w.intent) === workTargetKey(target, intent)),
     isPending: (state) => (target: WorkTarget, intent: WorkIntent): boolean =>
@@ -100,10 +107,14 @@ export const useReviewStore = defineStore('review', {
      *  failed save still leaves a gap in the id sequence (the reservation isn't rolled
      *  back) — an accepted tradeoff for never reusing an id a caller may already have
      *  observed. */
-    async addWorkItem(target: WorkTarget, intent: WorkIntent, title: string, now: Date): Promise<WorkItem | null> {
+    async addWorkItem(target: WorkTarget, intent: WorkIntent, title: string, now: Date, init: WorkItemInit = {}): Promise<WorkItem | null> {
       const key = workTargetKey(target, intent);
       if (this.hasWorkItem(target, intent) || this.pendingWorkKeys.includes(key)) return null;
-      const item: WorkItem = { id: `wi-${this.nextId}`, target, intent, title, status: 'investigate', createdAt: now.toISOString() };
+      const item: WorkItem = {
+        id: `wi-${this.nextId}`, target, intent, title: title.trim(), status: init.status ?? 'investigate',
+        priority: init.priority ?? 'medium', notes: init.notes ?? '', checks: init.checks ?? NO_CHECKS, createdAt: now.toISOString(),
+      };
+      if (workItemProblem(item) !== null) return null;
       this.nextId += 1;
       this.pendingWorkKeys.push(key);
       try {
@@ -118,12 +129,51 @@ export const useReviewStore = defineStore('review', {
     addWorkItemForFile(entityId: EntityId, title: string, now: Date): Promise<WorkItem | null> {
       return this.addWorkItem({ kind: 'file', entityId }, 'refactor', title, now);
     },
-    /** Same ordering rule as `addWorkItem`: the port is awaited first, so a
-     *  rejecting repository leaves the work item in local state instead of quietly
-     *  dropping it from the UI while it still exists in storage. */
-    async removeWorkItem(id: string): Promise<void> {
-      await this.repository.removeWorkItem(id);
-      this.workItems = this.workItems.filter((w) => w.id !== id);
+    /** Part 4 W9: same persist-first ordering and pending reservation as `addWorkItem`,
+     *  keyed by id. Refuses (null) an unknown id, a pending id, and any edit that
+     *  `workItemProblem` rejects — `verified` needs all three checks, here as well as in
+     *  the editor. */
+    async updateWorkItem(id: string, patch: WorkItemPatch, now: Date): Promise<WorkItem | null> {
+      const current = this.workItems.find((w) => w.id === id);
+      if (!current || this.pendingItemIds.includes(id)) return null;
+      const next: WorkItem = { ...current, ...patch, updatedAt: now.toISOString() };
+      next.title = next.title.trim();
+      if (workItemProblem(next) !== null) return null;
+      this.pendingItemIds.push(id);
+      try {
+        await this.repository.saveWorkItem(next);
+        this.workItems = this.workItems.map((w) => (w.id === id ? next : w));
+        return next;
+      } finally {
+        this.pendingItemIds = this.pendingItemIds.filter((p) => p !== id);
+      }
+    },
+    /** Persist first (a rejecting port leaves the item in place); refused (false) while
+     *  an update or removal of the same id is in flight. */
+    async removeWorkItem(id: string): Promise<boolean> {
+      if (this.pendingItemIds.includes(id)) return false;
+      this.pendingItemIds.push(id);
+      try {
+        await this.repository.removeWorkItem(id);
+        this.workItems = this.workItems.filter((w) => w.id !== id);
+        return true;
+      } finally {
+        this.pendingItemIds = this.pendingItemIds.filter((p) => p !== id);
+      }
+    },
+    /** Part 4 W14: removes every work item, rule and disposition through the port, then
+     *  reloads from it, so local state always matches what the port still holds, even
+     *  after a partial failure (whose rejection still propagates). */
+    async clearAll(): Promise<void> {
+      try {
+        await Promise.all([
+          ...this.workItems.map((w) => this.repository.removeWorkItem(w.id)),
+          ...this.rules.map((r) => this.repository.removeRule(r.id)),
+          ...this.dispositions.map((d) => this.repository.removeDisposition(d.fingerprint)),
+        ]);
+      } finally {
+        await this.load();
+      }
     },
     /** Part 2 P5. Same reservation and persist-first ordering as `addWorkItem`.
      *  Refuses (null) a self-rule, an empty rationale, an existing pair, and a second call
