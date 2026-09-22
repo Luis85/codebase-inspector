@@ -73,7 +73,7 @@ Part 4 adds no provider and no persistence (spec W1, W2). It adds two small per-
 **Test infrastructure**
 - jsdom stubs load through vitest `setupFiles`. Component tests that open a `CiDialog` also `import '../mocks/obsidian'`.
 - Tests that mount `App` or a real `CityView` and need the city seed route `'city'`. The harness must keep drawing the city (`tests/unit/obsidian-mock-scope.test.ts`).
-- Every `.every(...)` assertion is preceded by a non-empty check (E27). No raw BOM byte in any file: use `String.fromCharCode(0xFEFF)` or the `\uFEFF` escape (E7/E39). Nothing under `src` imports from a `tests/` path, and no `src` folder is named `tests` (E42).
+- Every `.every(...)` assertion is preceded by a non-empty check (E27). No raw BOM or NUL byte in any file: write `String.fromCharCode(0xFEFF)` / `String.fromCharCode(0)` (E7/E39; the editing tools turn a backslash-u escape into the real byte). Nothing under `src` imports from a `tests/` path, and no `src` folder is named `tests` (E42).
 - Edit files only with the Edit/Write tools. **Never `sed -i`, heredocs or scripts**: files are CRLF on Windows.
 
 **Gates and commits**
@@ -965,7 +965,7 @@ describe('work-item read model (Part 4)', () => {
     expect(md).toContain('> # not a heading');
     expect(md).toContain('- [x] Characterize existing behaviour and define a safe boundary');
     expect(md).toContain('- [ ] Implement the agreed change and keep compatibility');
-    expect(md).not.toContain(' ');
+    expect(md).not.toContain(String.fromCharCode(0));
   });
 });
 ```
