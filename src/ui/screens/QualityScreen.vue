@@ -154,7 +154,6 @@ function exportCsv(): void { exportText(QUALITY_CSV_FILENAME, () => findingsCsv(
       :fingerprint="reviewing"
       @close="closeReview"
       @open-file="openFile"
-      @announce="liveMessage = $event"
     />
   </div>
 </template>

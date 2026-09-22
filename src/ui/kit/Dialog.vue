@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 
-defineProps<{ label: string }>();
+defineProps<{ label: string; status?: string }>();
 const emit = defineEmits<{ close: [] }>();
 
 const panel = ref<HTMLElement | null>(null);
@@ -64,6 +64,13 @@ function onKeydown(event: KeyboardEvent): void {
       :aria-label="label"
       @keydown="onKeydown"
     >
+      <p
+        v-if="status !== undefined"
+        class="visually-hidden ci-dialog__status"
+        role="status"
+      >
+        {{ status }}
+      </p>
       <slot />
     </div>
   </div>

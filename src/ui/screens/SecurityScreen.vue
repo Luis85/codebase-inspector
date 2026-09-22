@@ -177,7 +177,6 @@ function exportCsv(): void { exportText(SECURITY_CSV_FILENAME, () => advisoriesC
       v-if="inspecting"
       :pkg="inspecting"
       @close="inspecting = null"
-      @announce="liveMessage = $event"
     />
     <EvidenceSourceDialog
       v-if="sourcesOpen"

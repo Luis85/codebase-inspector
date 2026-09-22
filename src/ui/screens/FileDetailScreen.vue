@@ -135,7 +135,6 @@ async function addWorkItem(): Promise<void> {
         :fingerprint="reviewing"
         @close="reviewing = null"
         @open-file="reviewing = null"
-        @announce="liveMessage = $event"
       />
     </template>
   </div>

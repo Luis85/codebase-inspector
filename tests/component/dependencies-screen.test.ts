@@ -11,6 +11,7 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { PACKAGE_REVIEW_ADDED, PACKAGE_REVIEW_FAILED } from '../../src/ui/inspector-copy';
 
 function withSnapshot() {
   const snap = buildSnapshotFixture({ files: 12, directories: 2 });
@@ -18,7 +19,7 @@ function withSnapshot() {
 }
 const mountD = () => mount(DependenciesScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn() } } });
 const flush = async () => { await Promise.resolve(); await nextTick(); };
-const live = (w: ReturnType<typeof mountD>) => w.find('.ci-dependencies__live').text();
+const dialogStatus = (w: ReturnType<typeof mountD>) => w.find('[role="dialog"] .ci-dialog__status').text();
 
 describe('DependenciesScreen', () => {
   beforeEach(() => { setActivePinia(createPinia()); vi.mocked(downloadText).mockClear(); });
@@ -87,7 +88,7 @@ describe('DependenciesScreen', () => {
     await w.findAll('.ci-table__row')[0]!.trigger('click');
     await w.find('.ci-package-dialog__review').trigger('click');
     await flush();
-    expect(live(w)).toBe('Review item added.');
+    expect(dialogStatus(w)).toBe(PACKAGE_REVIEW_ADDED);
     w.unmount();
   });
 
@@ -99,7 +100,7 @@ describe('DependenciesScreen', () => {
     await w.findAll('.ci-table__row')[0]!.trigger('click');
     await w.find('.ci-package-dialog__review').trigger('click');
     await flush();
-    expect(live(w)).toBe('');
+    expect(dialogStatus(w)).toBe('');
     w.unmount();
   });
 
@@ -111,7 +112,9 @@ describe('DependenciesScreen', () => {
     await w.findAll('.ci-table__row')[0]!.trigger('click');
     await w.find('.ci-package-dialog__review').trigger('click');
     await flush();
-    expect(live(w)).toBe('Could not add this review item.');
+    const error = w.find('.ci-package-dialog__error');
+    expect(error.attributes('role')).toBe('alert');
+    expect(error.text()).toBe(PACKAGE_REVIEW_FAILED);
     w.unmount();
   });
 

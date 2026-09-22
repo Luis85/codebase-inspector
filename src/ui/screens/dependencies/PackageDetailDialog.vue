@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { SamplePackage } from '../../fixtures/sample-packages';
 import { formatMetric, sample } from '../../evidence';
 import { useReviewStore } from '../../stores/review-store';
@@ -14,8 +14,10 @@ import CiDialog from '../../kit/Dialog.vue';
 import Callout from '../../kit/Callout.vue';
 
 const props = defineProps<{ pkg: SamplePackage }>();
-const emit = defineEmits<{ close: []; announce: [message: string] }>();
+const emit = defineEmits<{ close: [] }>();
 const review = useReviewStore();
+const status = ref('');
+const error = ref('');
 
 const target = computed<WorkTarget>(() => ({ kind: 'package', name: props.pkg.name }));
 const exists = computed(() => review.hasWorkItem(target.value, 'review'));
@@ -23,16 +25,18 @@ const pending = computed(() => review.isPending(target.value, 'review'));
 const blocked = computed(() => exists.value || pending.value);
 
 /** E44: the button never becomes `disabled` — disabling the focused control would drop
- *  focus out of the dialog — so a blocked press is ignored here instead. */
+ *  focus out of the dialog — so a blocked press is ignored here instead. The outcome is
+ *  announced INSIDE the dialog (Part 4 E55), same reasoning as FindingReviewDialog. */
 async function createReview(): Promise<void> {
   if (blocked.value) return;
+  error.value = '';
   try {
     const item = await review.addWorkItem(
       target.value, 'review', PACKAGE_REVIEW_TITLE(props.pkg.name, props.pkg.advisory?.id ?? null), new Date(),
     );
-    if (item) emit('announce', PACKAGE_REVIEW_ADDED);
+    if (item) status.value = PACKAGE_REVIEW_ADDED;
   } catch {
-    emit('announce', PACKAGE_REVIEW_FAILED);
+    error.value = PACKAGE_REVIEW_FAILED;
   }
 }
 </script>
@@ -40,6 +44,7 @@ async function createReview(): Promise<void> {
 <template>
   <CiDialog
     :label="pkg.name"
+    :status="status"
     @close="emit('close')"
   >
     <div class="ci-package-dialog">
@@ -95,6 +100,13 @@ async function createReview(): Promise<void> {
         >
           {{ exists ? PACKAGE_IN_REVIEW : PACKAGE_CREATE_REVIEW }}
         </button>
+        <p
+          v-if="error"
+          class="ci-package-dialog__error"
+          role="alert"
+        >
+          {{ error }}
+        </p>
         <button
           type="button"
           class="ci-package-dialog__close"

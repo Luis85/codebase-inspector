@@ -159,7 +159,6 @@ function exportCsv(): void { exportText(DEPS_CSV_FILENAME, () => packagesCsv(fil
       v-if="inspecting"
       :pkg="inspecting"
       @close="inspecting = null"
-      @announce="liveMessage = $event"
     />
   </div>
 </template>

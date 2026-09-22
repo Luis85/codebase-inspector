@@ -74,7 +74,8 @@ describe('QualityScreen', () => {
     await flush();
     expect(useReviewStore().dispositions).toHaveLength(1);
     expect(w.find('.ci-finding-dialog__reopen').exists()).toBe(true);
-    expect(w.find('.ci-quality__live').text()).toBe('Finding acknowledged. No repository suppression was written.');
+    expect(w.find('[role="dialog"] .ci-dialog__status').text()).toBe('Finding acknowledged. No repository suppression was written.');
+    expect(w.find('.ci-quality__live').text()).toBe('');
     await w.find('.ci-finding-dialog__close').trigger('click');
     await flush();
     const rows = w.findAll('.ci-table__row').map((r) => r.text());
@@ -167,7 +168,7 @@ describe('QualityScreen', () => {
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
     await flush();
     expect(spy).toHaveBeenCalledOnce();
-    expect(w.find('.ci-quality__live').text()).toBe('');
+    expect(w.find('[role="dialog"] .ci-dialog__status').text()).toBe('');
     expect(w.find('.ci-finding-dialog__error').exists()).toBe(false);
     w.unmount();
   });
@@ -180,7 +181,7 @@ describe('QualityScreen', () => {
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
     await flush();
     expect(w.find('.ci-finding-dialog__error').text()).toBe('Could not save this decision.');
-    expect(w.find('.ci-quality__live').text()).toBe('');
+    expect(w.find('[role="dialog"] .ci-dialog__status').text()).toBe('');
     w.unmount();
   });
 

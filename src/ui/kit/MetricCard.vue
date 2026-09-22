@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { formatMetric, hasValue, type MetricValue } from '../evidence';
+import { formatMetric, hasValue, isSampleBacked, type MetricValue } from '../evidence';
+import { SAMPLE_BADGE_DETAIL } from '../inspector-copy';
 import Icon from './Icon.vue';
 import ProvenanceBadge from './ProvenanceBadge.vue';
 import Sparkline from './Sparkline.vue';
@@ -12,6 +13,9 @@ const props = withDefaults(defineProps<{
 
 const shown = computed(() => formatMetric(props.value));
 const known = computed(() => hasValue(props.value));
+/** Part 4 E55: a partial/stale aggregate can still rest on sample inputs; that fact is
+ *  marked in addition to its own state, never in place of it. */
+const alsoSample = computed(() => props.value.state !== 'sample' && isSampleBacked(props.value));
 </script>
 
 <template>
@@ -26,6 +30,12 @@ const known = computed(() => hasValue(props.value));
         v-if="value.state !== 'collected'"
         :state="value.state"
         :detail="value.provenance.detail"
+      />
+      <ProvenanceBadge
+        v-if="alsoSample"
+        class="ci-metric-card__sample"
+        state="sample"
+        :detail="SAMPLE_BADGE_DETAIL"
       />
     </header>
     <div class="ci-metric-card__row">

@@ -17,7 +17,7 @@ import CiDialog from '../../kit/Dialog.vue';
 import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
 
 const props = defineProps<{ fingerprint: string }>();
-const emit = defineEmits<{ close: []; openFile: [id: EntityId]; announce: [message: string] }>();
+const emit = defineEmits<{ close: []; openFile: [id: EntityId] }>();
 const { quality } = useReadModels();
 const review = useReviewStore();
 const base = useUniqueId('ci-finding-dialog');
@@ -26,6 +26,7 @@ const finding = computed(() => quality.value.byFingerprint.get(props.fingerprint
 const dismissing = ref(false);
 const reason = ref('');
 const error = ref('');
+const status = ref('');
 const reasonField = ref<HTMLTextAreaElement | null>(null);
 const toggleButton = ref<HTMLButtonElement | null>(null);
 const busy = computed(() => review.isDispositionPending(props.fingerprint));
@@ -33,13 +34,15 @@ const busy = computed(() => review.isDispositionPending(props.fingerprint));
 /** Records a decision only; no repository suppression is ever written (Q3). E17: the
  *  outcome is announced only when the store actually did something — a refusal
  *  (`null`, or `false` from reopen) announces nothing and is not an error either.
- *  Resolves true when the action took effect. */
+ *  Resolves true when the action took effect. The outcome is announced INSIDE the
+ *  dialog (Part 4 E55): a region outside an aria-modal dialog is hidden from assistive
+ *  technology while the dialog is open. */
 async function run(action: () => Promise<unknown>, done: string): Promise<boolean> {
   error.value = '';
   try {
     const result = await action();
     if (result === null || result === false) return false;
-    emit('announce', done);
+    status.value = done;
     return true;
   } catch {
     error.value = FINDING_DECISION_FAILED;
@@ -100,6 +103,7 @@ async function addWorkItem(): Promise<void> {
   <CiDialog
     v-if="finding"
     :label="FINDING_DIALOG_TITLE"
+    :status="status"
     @close="emit('close')"
   >
     <div class="ci-finding-dialog">
