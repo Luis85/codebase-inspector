@@ -36,6 +36,15 @@ describe('hotspots model', () => {
   it('bands coverage, unknown included', () => {
     expect([sample(10), sample(60), sample(80), unknown('x')].map(coverageBand)).toEqual(['low', 'mid', 'high', 'unknown']);
   });
+  it('gives xTicks and yTicks as non-empty integer scales ending at xMax/yMax', () => {
+    const m = buildHotspotsModel(filesOf(60), ALL);
+    expect(m.xTicks.length).toBeGreaterThan(0);
+    expect(m.yTicks.length).toBeGreaterThan(0);
+    expect(m.xTicks.at(-1)).toBe(m.xMax);
+    expect(m.yTicks.at(-1)).toBe(m.yMax);
+    expect(m.xTicks.every((t) => Number.isInteger(t))).toBe(true);
+    expect(m.yTicks.every((t) => Number.isInteger(t))).toBe(true);
+  });
   it('sorts by priority once per files array (F1), and filtered rows keep that order', () => {
     const files = filesOf(80);
     const sorted = filesByPriority(files);

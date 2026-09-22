@@ -3,12 +3,13 @@
 // missing either is counted, never drawn at 0.
 import { hasValue, isSampleBacked, type MetricValue } from '../evidence';
 import { type CsvColumn, metricColumns, toCsv } from '../export/csv';
-import { niceMax } from '../kit/chart-scale';
+import { niceTicks } from '../kit/chart-scale';
 import { filesByPriority, moduleLabel, type FileSummary } from './file-summaries';
 
 export const MAX_PLOTTED = 400;
 export const TABLE_PAGE = 100;
 export const SHORTLIST_SIZE = 5;
+export const SCATTER_TICKS = 5;
 /** The review quadrant's churn edge (half the sample range's 44). */
 export const CHURN_THRESHOLD = 22;
 
@@ -24,6 +25,8 @@ export interface HotspotsModel {
   shortlist: readonly FileSummary[];
   xMax: number;
   yMax: number;
+  xTicks: readonly number[];
+  yTicks: readonly number[];
   linesMax: number;
   usesSample: boolean;
 }
@@ -52,6 +55,8 @@ export function buildHotspotsModel(files: readonly FileSummary[], filter: Hotspo
     }
   }
   const names = [...new Set(files.map((f) => f.module))].sort((a, b) => a.localeCompare(b));
+  const xs = niceTicks(Math.max(0, ...points.map((p) => p.x)), SCATTER_TICKS);
+  const ys = niceTicks(Math.max(0, ...points.map((p) => p.y)), SCATTER_TICKS);
   return {
     modules: names.map((name) => ({ name, label: moduleLabel(name) })),
     rows,
@@ -59,8 +64,10 @@ export function buildHotspotsModel(files: readonly FileSummary[], filter: Hotspo
     plottable,
     unplottable: rows.length - plottable,
     shortlist: rows.filter((f) => hasValue(f.priority)).slice(0, SHORTLIST_SIZE),
-    xMax: niceMax(Math.max(0, ...points.map((p) => p.x))),
-    yMax: niceMax(Math.max(0, ...points.map((p) => p.y))),
+    xMax: xs.max,
+    yMax: ys.max,
+    xTicks: xs.ticks,
+    yTicks: ys.ticks,
     linesMax: Math.max(1, ...points.map((p) => p.lines ?? 0)),
     usesSample: rows.some((f) => isSampleBacked(f.priority) || isSampleBacked(f.complexity)),
   };

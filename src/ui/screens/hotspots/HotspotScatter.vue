@@ -13,13 +13,12 @@ const props = defineProps<{ model: HotspotsModel; selectedId: EntityId | null }>
 const emit = defineEmits<{ select: [id: EntityId] }>();
 
 const W = 640; const H = 340; const L = 48; const R = 12; const T = 12; const B = 40;
-const R_MIN = 3; const R_MAX = 10; const TICKS = 5;
+const R_MIN = 3; const R_MAX = 10;
 const BANDS = ['low', 'mid', 'high', 'unknown'] as const;
 
 const sx = (v: number): number => L + (v / props.model.xMax) * (W - L - R);
 const sy = (v: number): number => T + (1 - v / props.model.yMax) * (H - T - B);
 const radius = (p: HotspotPoint): number => (p.lines === null ? R_MIN : R_MIN + (R_MAX - R_MIN) * Math.sqrt(p.lines / props.model.linesMax));
-const ticks = (max: number): number[] => Array.from({ length: TICKS + 1 }, (_, i) => (max / TICKS) * i);
 const quadrant = computed(() => {
   const { xMax, yMax } = props.model;
   if (xMax <= CHURN_THRESHOLD || yMax <= HIGH_COMPLEXITY) return null;
@@ -74,7 +73,7 @@ function onDot(i: number, id: EntityId): void {
         >{{ HOTSPOTS_QUADRANT_LABEL }}</text>
         <g class="ci-scatter__grid">
           <g
-            v-for="t in ticks(model.yMax)"
+            v-for="t in model.yTicks"
             :key="`y${t}`"
           >
             <line
@@ -87,15 +86,15 @@ function onDot(i: number, id: EntityId): void {
               :x="L - 6"
               :y="sy(t) + 4"
               text-anchor="end"
-            >{{ Math.round(t) }}</text>
+            >{{ t }}</text>
           </g>
           <text
-            v-for="t in ticks(model.xMax)"
+            v-for="t in model.xTicks"
             :key="`x${t}`"
             :x="sx(t)"
             :y="H - B + 16"
             text-anchor="middle"
-          >{{ Math.round(t) }}</text>
+          >{{ t }}</text>
           <text
             :x="(L + W - R) / 2"
             :y="H - 4"

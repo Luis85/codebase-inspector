@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { CHART_BARS_DESC, CHART_DATE_HEADER } from '../inspector-copy';
 import { useUniqueId } from '../unique-id';
-import { niceMax } from './chart-scale';
+import { niceTicks } from './chart-scale';
 
 interface Bar { label: string; value: number }
 const props = defineProps<{ bars: readonly Bar[]; label: string; valueLabel: string }>();
@@ -15,8 +15,9 @@ const descId = useUniqueId('ci-bar-chart-desc');
 /** Geometry only: a negative or non-finite value draws an empty bar. The table fallback
  *  still lists the raw value. */
 const heightValue = (v: number): number => (Number.isFinite(v) ? Math.max(0, v) : 0);
-const yMax = computed(() => niceMax(Math.max(0, ...props.bars.map((b) => heightValue(b.value)))));
-const ticks = computed(() => [0, 0.25, 0.5, 0.75, 1].map((t) => Math.round(t * yMax.value)));
+const scale = computed(() => niceTicks(Math.max(0, ...props.bars.map((b) => heightValue(b.value)))));
+const yMax = computed(() => scale.value.max);
+const ticks = computed(() => scale.value.ticks);
 const y = (v: number): number => PAD_T + (H - PAD_T - PAD_B) * (1 - v / yMax.value);
 const slot = computed(() => (W - PAD_L - 8) / Math.max(1, props.bars.length));
 const rects = computed(() => props.bars.map((b, i) => {
