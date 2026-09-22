@@ -293,3 +293,4 @@ export * from './audit-copy/ownership';
 
 /** Part 4: Act and Configure screens. */
 export * from './audit-copy/workbench';
+export * from './audit-copy/report';
