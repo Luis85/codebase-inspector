@@ -7,6 +7,8 @@ import '../mocks/obsidian';
 vi.mock('../../src/ui/export/download', () => ({ downloadText: vi.fn() }));
 import SettingsScreen from '../../src/ui/screens/SettingsScreen.vue';
 import WorkbenchScreen from '../../src/ui/screens/WorkbenchScreen.vue';
+import ImportReviewDialog from '../../src/ui/screens/settings/ImportReviewDialog.vue';
+import type { ImportCandidate } from '../../src/ui/screens/settings/import-candidate';
 import { makeEntityId } from '../../src/domain/entity-id';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { CodebaseSnapshot } from '../../src/domain/model';
@@ -16,7 +18,8 @@ import { useReportStore } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { NO_CHECKS, createInMemoryReviewRepository, type WorkItem } from '../../src/ui/stores/ports/review-repository';
 import {
-  IMPORT_BUSY, IMPORT_CONFIRM_TEXT, IMPORT_ERROR, IMPORT_FAILED, IMPORT_ORIGIN, IMPORTED, SETTINGS_IMPORT_HINT, SETTINGS_IMPORT_OPEN,
+  IMPORT_BUSY, IMPORT_CONFIRM_TEXT, IMPORT_ERROR, IMPORT_FAILED, IMPORT_ORIGIN, IMPORT_STALE, IMPORTED, SETTINGS_IMPORT_HINT,
+  SETTINGS_IMPORT_OPEN,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
@@ -52,6 +55,27 @@ async function pick(w: VueWrapper, text: string): Promise<void> {
   Object.defineProperty(input.element, 'files', { value: [new File([text], 'x.json', { type: 'application/json' })], configurable: true });
   await input.trigger('change');
   await flushPromises();
+}
+
+/** Part 5 E19a: a file whose `.text()` does not resolve until `release()` is called, so a
+ *  test can change the codebase on screen while the pick is still being read. */
+function slowFile(text: string): { file: File; release: () => void } {
+  let release: () => void = noop;
+  const gate = new Promise<void>((r) => { release = r; });
+  const file = new File([text], 'x.json', { type: 'application/json' });
+  const read = file.text.bind(file);
+  file.text = async () => { await gate; return read(); };
+  return { file, release };
+}
+
+/** Picks a slow file and returns the release function, without waiting for the read
+ *  (`readReviewStateFile`'s `file.text()`) to settle. */
+async function pickSlow(w: VueWrapper, text: string): Promise<() => void> {
+  const { file, release } = slowFile(text);
+  const input = w.find('.ci-settings__import-file');
+  Object.defineProperty(input.element, 'files', { value: [file], configurable: true });
+  await input.trigger('change');
+  return release;
 }
 
 async function openPrivacy(): Promise<VueWrapper> {
@@ -220,5 +244,63 @@ describe('Import review state (Part 5 V13–V16)', () => {
     expect(wb.find('img').exists()).toBe(false);
     expect(wb.html()).toContain('&lt;img');
     wb.unmount();
+  });
+
+  // Part 5 E19: a codebase switch (a scan/approval completing) between pick and confirm,
+  // or while the file is still being read, must never write one codebase's ids into
+  // another's bucket (Part 4 E8/E11).
+  it('drops a parsed file silently if the codebase on screen changed while it was still being read (E19a)', async () => {
+    const snap = withSnapshot();
+    const review = useReviewStore();
+    const w = await openPrivacy();
+    const release = await pickSlow(w, stateText(snap));
+    const other = buildSnapshotFixture({ files: 3, directories: 1, repositoryId: 'repo-other' });
+    useCityStore().setCity(other, computeLayout(other));
+    release();
+    await flushPromises();
+    expect(w.find('.ci-import-dialog').exists()).toBe(false);
+    expect(w.find('.ci-settings__import-error').exists()).toBe(false);
+    expect(review.workItems).toEqual([]);
+    expect(w.find('.ci-settings__live').text()).toBe('');
+    w.unmount();
+  });
+
+  it('closes the import dialog silently when the codebase on screen changes while it is open; nothing is applied (E19b)', async () => {
+    const snap = withSnapshot();
+    const review = useReviewStore();
+    const w = await openPrivacy();
+    await pick(w, stateText(snap));
+    expect(w.find('.ci-import-dialog').exists()).toBe(true);
+    const other = buildSnapshotFixture({ files: 3, directories: 1, repositoryId: 'repo-other' });
+    useCityStore().setCity(other, computeLayout(other));
+    await flushPromises();
+    expect(w.find('.ci-import-dialog').exists()).toBe(false);
+    expect(review.workItems).toEqual([]);
+    expect(w.find('.ci-settings__live').text()).toBe('');
+    w.unmount();
+  });
+
+  it('ImportReviewDialog.confirm refuses with IMPORT_STALE, applying nothing, when its candidate no longer matches the codebase on screen (E19c defence in depth)', async () => {
+    const snap = withSnapshot();
+    const review = useReviewStore();
+    const path = snap.entities.find((e) => e.kind === 'file')!.path;
+    const candidate: ImportCandidate = {
+      repositoryId: 'repo-other',
+      state: {
+        workItems: [{
+          id: 'wi-9', target: { kind: 'file', entityId: makeEntityId('repo-other', 'file', path) }, intent: 'refactor',
+          title: 'Stale', status: 'planned', priority: 'high', notes: '', checks: NO_CHECKS, createdAt: NOW.toISOString(),
+        }],
+        rules: [], dispositions: [],
+        report: { sections: { summary: true, architecture: true, hotspots: true, security: true, plan: true }, note: '' },
+        origin: { folder: 'other-app' },
+      },
+    };
+    const w = mount(ImportReviewDialog, { attachTo: document.body, props: { candidate } });
+    await w.find('.ci-import-dialog__confirm').trigger('click');
+    await flushPromises();
+    expect(w.find('.ci-import-dialog__error').text()).toBe(IMPORT_STALE);
+    expect(review.workItems).toEqual([]);
+    w.unmount();
   });
 });

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useReportStore } from '../../stores/report-store';
 import { useReviewStore } from '../../stores/review-store';
 import {
@@ -7,20 +7,19 @@ import {
   SETTINGS_CLEAR_FAILED, SETTINGS_CLEARED,
 } from '../../inspector-copy';
 import CiDialog from '../../kit/Dialog.vue';
+import { useBusyAction } from '../../kit/use-busy-action';
 
 const emit = defineEmits<{ close: []; done: [message: string] }>();
 const review = useReviewStore();
 const report = useReportStore();
-const busy = ref(false);
-const error = ref('');
+const { busy, error, requestClose: requestCloseWith, run } = useBusyAction();
 const text = computed(() => SETTINGS_CLEAR_DIALOG_TEXT(review.workItems.length, review.dispositions.length, review.rules.length));
 
 /** Fix round 1, Minor 4: while a clear is in flight, Cancel, Escape and the backdrop
  *  click (all routed through CiDialog's `close`) are ignored — the dialog closing mid-
  *  clear would unmount it and lose the outcome (the announcement or the error). */
 function requestClose(): void {
-  if (busy.value) return;
-  emit('close');
+  requestCloseWith(() => emit('close'));
 }
 
 /** W14: everything goes through the port first (clearAll reloads from it); the report
@@ -29,22 +28,15 @@ function requestClose(): void {
  *  whose save lands after the clear would otherwise be written back into the port and
  *  reappear on the next load. That refusal keeps the dialog open, resets nothing and
  *  announces nothing (E17), same as a rejection but with its own message. */
-async function confirm(): Promise<void> {
-  if (busy.value) return;
-  busy.value = true;
-  error.value = '';
-  try {
+function confirm(): Promise<void> {
+  return run(async () => {
     if (await review.clearAll()) {
       report.reset();
       emit('done', SETTINGS_CLEARED);
     } else {
       error.value = SETTINGS_CLEAR_BUSY;
     }
-  } catch {
-    error.value = SETTINGS_CLEAR_FAILED;
-  } finally {
-    busy.value = false;
-  }
+  }, SETTINGS_CLEAR_FAILED);
 }
 </script>
 

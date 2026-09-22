@@ -94,3 +94,5 @@ export const IMPORTED = (items: number, decisions: number, rules: number): strin
   `Review state imported: ${plural(items, 'work item', 'work items')}, ${plural(decisions, 'finding decision', 'finding decisions')} and ${plural(rules, 'boundary rule', 'boundary rules')}.`;
 export const IMPORT_FAILED = 'Could not import the whole review state. The lists show what was saved.';
 export const IMPORT_BUSY = 'A review change is still being saved. Try again in a moment.';
+/** Part 5 E19: the codebase on screen changed between pick and confirm. */
+export const IMPORT_STALE = 'The codebase on screen changed. Pick the file again.';

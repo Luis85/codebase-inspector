@@ -3,15 +3,16 @@
 // created with createElement. The button opens it, and the picked file is the only thing
 // read. A refusal is one inline alert; a valid file goes up to the confirmation dialog.
 import { ref } from 'vue';
-import { readReviewStateFile, type ImportedReviewState } from '../../read-models/review-state-import';
+import { readReviewStateFile } from '../../read-models/review-state-import';
 import { useCityStore } from '../../stores/city-store';
 import { reannounce } from '../../kit/reannounce';
 import { useUniqueId } from '../../unique-id';
 import {
   IMPORT_ERROR, SETTINGS_IMPORT, SETTINGS_IMPORT_HINT, SETTINGS_IMPORT_OPEN, SETTINGS_IMPORT_TEXT,
 } from '../../inspector-copy';
+import type { ImportCandidate } from './import-candidate';
 
-const emit = defineEmits<{ parsed: [state: ImportedReviewState] }>();
+const emit = defineEmits<{ parsed: [candidate: ImportCandidate] }>();
 const city = useCityStore();
 const fileInput = ref<HTMLInputElement | null>(null);
 const error = ref('');
@@ -26,7 +27,13 @@ function open(): void {
 
 /** One outcome per pick. The input is emptied first, so picking the same file again still
  *  fires `change`. A refusal is re-announced (V15: a new pick clears the previous error
- *  first). */
+ *  first).
+ *
+ *  Part 5 E19: the codebase on screen can change while the file is still being read (a
+ *  scan or approval completing rebinds the review store to a new bucket). The
+ *  repositoryId is captured BEFORE the read, and checked again once it resolves: a
+ *  mismatch means this result belongs to a codebase that is no longer on screen, so it is
+ *  dropped silently — no dialog, no error, nothing announced, since the user did not act. */
 async function picked(): Promise<void> {
   const input = fileInput.value;
   const file = input?.files?.[0];
@@ -34,9 +41,10 @@ async function picked(): Promise<void> {
   if (input) input.value = '';
   if (!file || repositoryId === undefined) return;
   const result = await readReviewStateFile(file, { repositoryId });
+  if (city.snapshot?.repositoryId !== repositoryId) return;
   if (result.ok) {
     error.value = '';
-    emit('parsed', result.state);
+    emit('parsed', { state: result.state, repositoryId });
     return;
   }
   await reannounce(error, IMPORT_ERROR[result.code](result.detail));
