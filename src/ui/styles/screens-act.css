@@ -52,3 +52,32 @@
 :where(.codebase-inspector-root) .ci-work-editor__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-top: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-work-editor__confirm-text { flex: 1 1 auto; color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-work-editor__spacer { flex: 1 1 auto; }
+
+/* Part 4 Task 11: Audit report. */
+:where(.codebase-inspector-root) .ci-report { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1fr) minmax(14em, 18em); align-items: start; }
+@container (max-width: 900px) {
+  :where(.codebase-inspector-root) .ci-report { grid-template-columns: minmax(0, 1fr); }
+}
+:where(.codebase-inspector-root) .ci-report-paper {
+  display: flex; flex-direction: column; gap: var(--ci-space-4); padding: var(--ci-space-6);
+  border: 1px solid var(--ci-border); border-radius: var(--ci-radius-card); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-report-paper__kicker { display: flex; justify-content: space-between; align-items: center; color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); letter-spacing: 0.08em; text-transform: uppercase; }
+:where(.codebase-inspector-root) .ci-report-paper__title { margin: 0; font-size: var(--font-ui-large, 1.15em); }
+:where(.codebase-inspector-root) .ci-report-paper__facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0; padding-bottom: var(--ci-space-4); border-bottom: 1px solid var(--ci-border); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-report-paper__facts dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-report-paper__facts dd { margin: 0; }
+:where(.codebase-inspector-root) .ci-report-paper__section { display: flex; flex-direction: column; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-report-paper__section-title,
+:where(.codebase-inspector-root) .ci-report-paper__section-title--fixed { margin: 0; font-size: var(--font-ui-medium, 1em); }
+:where(.codebase-inspector-root) .ci-report-paper__subtitle { margin: var(--ci-space-2) 0 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-report-paper__metrics,
+:where(.codebase-inspector-root) .ci-report-paper__plan { display: grid; gap: var(--ci-space-2); margin: 0; padding-left: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-report-paper__metrics li,
+:where(.codebase-inspector-root) .ci-report-paper__plan li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-report-paper__note { margin: 0; white-space: pre-wrap; }
+:where(.codebase-inspector-root) .ci-report-contents { display: flex; flex-direction: column; gap: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-report-contents__check { display: flex; align-items: center; gap: var(--ci-space-2); padding: var(--ci-space-1) 0; }
+:where(.codebase-inspector-root) .ci-report-contents__note { width: 100%; min-height: 8em; resize: vertical; }
+:where(.codebase-inspector-root) .ci-report-contents__apply { width: 100%; margin-top: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-report-contents__error { margin: var(--ci-space-2) 0 0; color: var(--ci-tone-danger); }

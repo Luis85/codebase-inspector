@@ -29,6 +29,8 @@ export function useRouteProvenance(): ComputedRef<boolean> {
       case 'ownership': return ownership.value.usesSample;
       // Part 4 W16: work items are the reviewer's own records, not sample values.
       case 'workbench': return false;
+      // Part 4 W16: the report quotes the Overview, Hotspots and Security sample values.
+      case 'report': return true;
       default: return false;
     }
   });
