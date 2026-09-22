@@ -75,7 +75,7 @@ function byLabel(wrapper: ReturnType<typeof mountControls>, label: string) {
  *  nothing (oxlint consistent-function-scoping), so it lives at module scope. */
 function layoutDouble(): { layout: LeafLayout; tick: () => void } {
   const layoutTick = ref(0);
-  return { layout: { leafWidth: ref(900), navInline: ref(true), layoutTick }, tick: () => { layoutTick.value += 1; } };
+  return { layout: { layoutTick }, tick: () => { layoutTick.value += 1; } };
 }
 function resizeLeaf(stage: HTMLElement, width: number): void {
   stage.closest<HTMLElement>('.codebase-inspector-root')!.getBoundingClientRect = () => ({

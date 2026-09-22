@@ -18,6 +18,7 @@ import { computed, inject } from 'vue';
 import { useCityStore } from '../stores/city-store';
 import { useRunStore } from '../stores/run-store';
 import { COPY_07, COPY_09 } from '../copy';
+import { noop } from '../kit/noop';
 import FileSearch from './FileSearch.vue';
 
 defineEmits<{ 'open-files-drawer': [event: MouseEvent] }>();
@@ -30,9 +31,7 @@ const runStore = useRunStore();
 // component holds no reference to ScanCoordinator to call one with; the injected
 // callback IS the consent-chain entry point (components emit intents; the
 // application validates and performs work).
-const onScanRequested = inject<() => void>('onScanRequested', () => {});
-/** consistent-function-scoping: a no-op default that captures nothing, hoisted once. */
-const noop = (): void => {};
+const onScanRequested = inject<() => void>('onScanRequested', noop);
 // Part 5 V6: provided by city-scan-controller.ts's provideScanCallbacks, calling the SAME
 // CityView.cancelScan the 'cancel-scan' command calls. Never a direct coordinator call.
 const onCancelScan = inject<() => void>('onCancelScan', noop);

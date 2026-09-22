@@ -27,7 +27,9 @@ function open(): void {
 
 /** One outcome per pick. The input is emptied first, so picking the same file again still
  *  fires `change`. A refusal is re-announced (V15: a new pick clears the previous error
- *  first).
+ *  first — fix round 3, minor 3: cleared immediately, before the read starts, not after
+ *  it resolves. A stale `role="alert"` staying on screen for the whole read — which can
+ *  be slow — was itself a false announcement).
  *
  *  Part 5 E19: the codebase on screen can change while the file is still being read (a
  *  scan or approval completing rebinds the review store to a new bucket). The
@@ -40,10 +42,10 @@ async function picked(): Promise<void> {
   const repositoryId = city.snapshot?.repositoryId;
   if (input) input.value = '';
   if (!file || repositoryId === undefined) return;
+  error.value = '';
   const result = await readReviewStateFile(file, { repositoryId });
   if (city.snapshot?.repositoryId !== repositoryId) return;
   if (result.ok) {
-    error.value = '';
     emit('parsed', { state: result.state, repositoryId });
     return;
   }

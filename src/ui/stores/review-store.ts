@@ -282,23 +282,25 @@ export const useReviewStore = defineStore('review', {
      *  phases, so one rejection does not stop the rest). The removals finish before the
      *  saves start, so an imported id that a current item already had is saved, not
      *  deleted. Reloads in `finally`, so the lists show exactly what the port holds (the
-     *  id counters move past every imported id), then rethrows the first rejection.
+     *  id counters move past every imported id), then rethrows the first rejection —
+     *  unless the codebase changed mid-run (E20 below), when it never rethrows.
      *
      *  Part 5 E18: refused (false), touching nothing, while `hasPendingChanges` is true.
-     *  Otherwise `bulkBusy` is set SYNCHRONOUSLY, before the first `await`, so a
-     *  mutating action started right after refuses via its own `bulkBusy` check, and a
-     *  concurrent second `clearAll`/`replaceAll` refuses via `hasPendingChanges` too —
-     *  closing the race where an add started mid-run could reserve an id equal to (and
-     *  later overwrite) an imported one. Cleared in `finally` alongside the reload, kept
-     *  global (not gated on `this.repository === repo`, unlike the pending arrays, V9)
-     *  so it is never left set after a codebase switch mid-run.
+     *  `bulkBusy` is set SYNCHRONOUSLY, before the first `await`, so a mutating action
+     *  started right after refuses via its own `bulkBusy` check, and a concurrent second
+     *  `clearAll`/`replaceAll` refuses via `hasPendingChanges` too — closing the race
+     *  where an add started mid-run could reserve an imported id. Fix round 3 (minor 1):
+     *  cleared in a NESTED `finally`, only once the reload has settled, not one `await`
+     *  earlier — the old ordering cleared the flag before `nextId` had advanced past the
+     *  imported ids, so an add in that window could still reserve one. Still global and
+     *  always-clearing, not gated on `this.repository === repo` like the pending arrays.
      *
-     *  Part 5 E20: a codebase switch (`bindRepository`) that lands while this is running
-     *  writes `state` to `repo` — the codebase that was bound when the call started,
-     *  which is correct and stays. But the codebase now bound is a DIFFERENT one, so this
-     *  call did not apply to what is now on screen: it resolves `false` (not `true`), the
-     *  same shape a caller already treats as "did not apply", even though nothing here
-     *  was actually refused. */
+     *  Part 5 E20: a codebase switch (`bindRepository`) mid-run writes `state` to `repo`
+     *  — the codebase bound when the call started, which is correct. But the now-bound
+     *  codebase is DIFFERENT, so this resolves `false`, the shape a caller already treats
+     *  as "did not apply", and (fix round 3, minor 2) never rethrows either — the writes
+     *  landed in the OLD codebase's port, correctly, so blaming the now-current one would
+     *  be wrong. The same-codebase case still rethrows. */
     async replaceAll(state: ReviewReplacement): Promise<boolean> {
       if (this.hasPendingChanges) return false;
       this.bulkBusy = true;
@@ -313,11 +315,14 @@ export const useReviewStore = defineStore('review', {
         ]);
         results = [...removed, ...saved];
       } finally {
-        this.bulkBusy = false;
-        if (this.repository === repo) await this.load();
+        try {
+          if (this.repository === repo) await this.load();
+        } finally {
+          this.bulkBusy = false;
+        }
       }
       const rejected = results.find(isRejected);
-      if (rejected) throw rejected.reason;
+      if (rejected && this.repository === repo) throw rejected.reason;
       return this.repository === repo;
     },
     /** Part 2 P5. Same reservation and persist-first ordering as `addWorkItem`.

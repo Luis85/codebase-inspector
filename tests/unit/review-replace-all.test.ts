@@ -1,6 +1,7 @@
 // Part 5 V16: replacing the whole review state with an imported one, and the report's restore.
 // Part 5 P1 (T19): clearAll is pending-aware, the same rule as replaceAll.
 import { beforeEach, describe, expect, it } from 'vitest';
+import { flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useReportStore } from '../../src/ui/stores/report-store';
@@ -94,6 +95,33 @@ describe('review store replaceAll (Part 5 V16)', () => {
     expect(store.rules).toEqual([]);
   });
 
+  // Fix round 3, minor 1: bulkBusy used to clear one `await` BEFORE the reload that
+  // advances nextId/nextRuleId past the imported ids, so an addWorkItem in that window
+  // could reserve an id the import already used. It now clears only once the reload has
+  // settled (a nested try/finally around the reload). listWorkItems is gated so the
+  // reload is caught still in flight, after the write phase (removals + saves) has
+  // already resolved and the imported item is already sitting in the port.
+  it('refuses an addWorkItem started after the write phase settles but before the reload does (fix round 3, minor 1)', async () => {
+    const repo = createInMemoryReviewRepository();
+    const store = useReviewStore();
+    let releaseList: (() => void) | undefined;
+    const listGate = new Promise<void>((resolve) => { releaseList = resolve; });
+    store.setRepository({ ...repo, listWorkItems: () => listGate.then(() => repo.listWorkItems()) });
+    const imported = { workItems: [{ ...ITEMS[0]!, id: 'wi-1' }], rules: [], dispositions: [] };
+    const running = store.replaceAll(imported);
+    await flushPromises();
+    // The write phase has settled — the imported item is already in the port — and the
+    // reload is stuck behind the gated listWorkItems(). This is exactly the window the
+    // old ordering left open: bulkBusy was already false here.
+    expect(store.bulkBusy, 'bulkBusy must still be true while the reload is in flight').toBe(true);
+    expect(await store.addWorkItem({ kind: 'package', name: 'during' }, 'review', 'During', NOW)).toBeNull();
+    releaseList?.();
+    expect(await running).toBe(true);
+    expect(await repo.listWorkItems()).toEqual([{ ...ITEMS[0]!, id: 'wi-1' }]);
+    // nextId continues from the imported id, not from the refused attempt.
+    expect((await store.addWorkItem({ kind: 'package', name: 'after' }, 'review', 'After', NOW))?.id).toBe('wi-2');
+  });
+
   // Part 5 E20: a codebase switch (bindRepository) that lands while replaceAll is still
   // running writes to the codebase it started for — correct, and it stays — but that
   // codebase is no longer the one on screen, so the call did not apply to what is now
@@ -113,6 +141,28 @@ describe('review store replaceAll (Part 5 V16)', () => {
     expect(await repoA.listWorkItems()).toEqual(ITEMS);
     expect(await repoA.listRules()).toEqual(RULES);
     expect(await repoA.listDispositions()).toEqual(DECISIONS);
+  });
+
+  // Fix round 3, minor 2: a rejection in the OLD codebase's writes used to be rethrown
+  // even when the codebase had already changed mid-run, so the dialog showed
+  // IMPORT_FAILED for a codebase the write never touched. It must resolve false instead
+  // — the writes stayed in repo-a's port, which is correct, and repo-b was never written.
+  it('resolves false, and does not rethrow, when a codebase switch lands mid-run AND a write in the old codebase rejects', async () => {
+    const repoA = createInMemoryReviewRepository();
+    const store = useReviewStore();
+    await store.bindRepository('repo-a');
+    let release: () => void = noop;
+    const gate = new Promise<void>((r) => { release = r; });
+    store.setRepository({
+      ...repoA,
+      saveWorkItem: async (item: WorkItem) => { await gate; await repoA.saveWorkItem(item); },
+      saveRule: () => Promise.reject(new Error('disk full')),
+    });
+    const running = store.replaceAll(IMPORTED);
+    await store.bindRepository('repo-b');
+    release();
+    await expect(running).resolves.toBe(false);
+    expect(store.workItems).toEqual([]);
   });
 });
 

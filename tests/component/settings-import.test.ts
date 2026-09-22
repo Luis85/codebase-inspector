@@ -130,6 +130,24 @@ describe('Import review state (Part 5 V13–V16)', () => {
     w.unmount();
   });
 
+  // Fix round 3, minor 3: the previous error used to stay on screen (a stale
+  // role="alert") for the whole duration of a new, slower read, because it was only
+  // cleared once that read resolved. It must clear as soon as the new pick starts.
+  it('clears a stale error immediately on a new pick, before a slow read resolves', async () => {
+    const snap = withSnapshot();
+    const w = await openPrivacy();
+    await pick(w, '{');
+    expect(w.find('.ci-settings__import-error').text()).toBe(IMPORT_ERROR['not-json'](''));
+    const release = await pickSlow(w, stateText(snap));
+    await flushPromises();
+    expect(w.find('.ci-settings__import-error').exists()).toBe(false);
+    release();
+    await flushPromises();
+    expect(w.find('.ci-settings__import-error').exists()).toBe(false);
+    expect(w.find('.ci-import-dialog').exists()).toBe(true);
+    w.unmount();
+  });
+
   it('refuses a file from another codebase and names its folder', async () => {
     const snap = withSnapshot();
     const w = await openPrivacy();

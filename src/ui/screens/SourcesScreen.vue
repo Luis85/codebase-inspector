@@ -12,13 +12,10 @@ import PageHeader from '../kit/PageHeader.vue';
 import Panel from '../kit/Panel.vue';
 import Callout from '../kit/Callout.vue';
 import Icon from '../kit/Icon.vue';
+import { noop } from '../kit/noop';
 import ScopePanel from './sources/ScopePanel.vue';
 import ScanStatusPanel from './sources/ScanStatusPanel.vue';
 import ProviderGrid from './sources/ProviderGrid.vue';
-
-/** consistent-function-scoping: a no-op default that captures nothing, hoisted once
- *  rather than a fresh arrow allocated on every inject() call. */
-const noop = (): void => {};
 
 const store = useCityStore();
 const runStore = useRunStore();
