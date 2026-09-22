@@ -127,3 +127,12 @@ Clean review.
 | E6 | The New work item editor pins its target file when it opens (`creatingFor`). A selection change or loss while the dialog is open neither unmounts it nor retargets the save, so a half-written draft is never lost and never lands on another file. If a rescan removes the pinned file, the item is still created, and its target reads "Not in this snapshot". | Low. A user could plan work against a file a rescan just removed; the label says so. |
 | E7 | The editor's checklist moves into `workbench/WorkChecklist.vue` (`defineModel<[boolean, boolean, boolean]>`), because the fix round took the editor past the 300-line threshold (X19). | None. |
 
+### Task 11
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E8 | A reviewer note about one codebase must never appear in another codebase's report. The report store binds to the snapshot's `repositoryId` (`bindRepository`) and resets its sections and note when the leaf switches to another codebase. `city-view.ts` has no line budget, so the Report screen does the binding with an immediate watcher. | Low. A note is lost when the leaf switches codebase, which is the intent. The Settings export reads the current (bound) note. |
+| E9 | The unapplied draft note is discarded when the user leaves the Report screen. Only the applied note is kept (spec: "applied, not live"). | Low. Typed-but-unapplied text is lost on navigation. |
+| E10 | The report paper marks every sample-backed hotspot cell (not only priority) and shows no "Collected" badge, so the screen carries the same evidence labels as the Markdown export. | None. |
+
+
