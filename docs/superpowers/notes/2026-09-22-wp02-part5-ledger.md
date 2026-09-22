@@ -51,6 +51,75 @@ This ledger records every ruling made while planning and executing Part 5, and w
 | T32 | **Contrast #4: the owner chose Option B, plugin-owned derived tokens (2026-09-22).** New tokens in `kit.css` do the work; `styles.css` is untouched and no host variable is redefined.<br>• Every text-on-colour button in the view gets a fill mixed 80% toward `--text-on-accent-inverted` (black by default): `mod-cta`, `mod-warning`, and the WP-01 accent controls, which are overridden from `kit.css`. Measured result: accent 6.11:1 dark and 5.04:1 light; warning 5.10:1 dark and 6.11:1 light.<br>• Hovers move from `--ci-raised` (1.03:1) to a `--ci-hover` tint made of 10% `--ci-text`. It is perceptible, but it does not reach 3:1.<br>• Pressed and current states keep `--ci-raised`, because each has another cue.<br>Task 15 implements Option B only, and Task 16 re-measures. | Low. The accent looks darker than the host theme's. A custom theme with a dark `--text-on-accent` must also define `--text-on-accent-inverted`, which Obsidian's defaults do, or the fill darkens toward black. On mobile, `.is-mobile button.mod-warning` (0,2,1) still wins. |
 | T31 (P14) | The `src` file floor in the evidence note is the real count rounded down to a multiple of ten. | None. |
 
+## Pre-flight conflict scan (before Task 1, HEAD 8b7d01c)
+
+Checked: every "replace X with Y" anchor, test selector, helper, export, line number and line count the plan relies on, against the real code; relative imports resolved by hand; the V21 extractor run over the real `src/ui/screens/**` (output matches the plan's table); all code the plan gives for `src/` swept against the Global Constraints (no ES2021+ API, no bare globals, no `instanceof HTMLElement`, no raw BOM/NUL, no `src`→`tests` import, `aria-disabled` on every new self-blocking button, copy only in `audit-copy`, CSS only in allowed sheets with em fallbacks, a non-empty check before every `.every`). Findings F1–F11 are ruled on as Part 5 E1–E11.
+
+### Task pairs that share a file or an interface
+
+| Tasks | Shared file / interface | Result |
+|---|---|---|
+| 1 → 2 | `screens/city/use-city-floor.ts` (T1 creates; T2 replaces the `attachResizeObserver` block, adds `injectLeafLayout`) | Anchor OK; T2's import path is wrong (F1 → E1) |
+| 1 → 3 | `host/city-scan-controller.ts`, `provideScanCallbacks(app, controller)`, `CityScanController.cancelScan(): void` | OK; `city-view.ts` untouched by T3 |
+| 1 → 2, 3, 5, 12, 15 | caps on `city-view.ts` / `CityWorkspace.vue` (T1 → ~275 / ~189) | OK; no later task edits either |
+| 1 → 12 | `CitySelectionNotice.vue` classes vs V21 owners | OK (`ci-app`, `ci-selection-notice` on the WP-01 list) |
+| 2 → 5 → 6 | `src/ui/App.vue` (164) | Disjoint anchors, all present; ~186 at the end |
+| 2 (internal) | `LeafLayout`, `LEAF_LAYOUT_KEY`, `injectLeafLayout(): LeafLayout \| null` → use-city-floor, CameraControls | OK |
+| 2 ↔ 6 | `tests/component/workspace-shell.test.ts` | OK; ~324 lines after T6 (plan says ~297) |
+| 3 ↔ 13 ↔ 14 | `tests/component/sources-screen.test.ts`, `audit-copy/sources.ts` (T3 deletes `SOURCES_CANCEL_HINT`) | OK |
+| 3 ↔ 15 | `shell.css` `button.ci-toolbar__cancel:hover` on `--ci-raised` | OK; T15 must convert it (its test catches it) |
+| 3 → 16 | `.ci-toolbar__cancel`, `?run=running` seed shape vs `ScanLifecycleState` | OK |
+| 4 → 5, 9 | `reannounce(live, message): Promise<void>` import paths | OK |
+| 4 → 14 | the intermediate `''` | OK |
+| 5 → 6 | T5's `// Part 4 E2/E18:` comment vs T6's `grep "Part 4 E2[^0-9]"` gate | Conflict (F5 → E5) |
+| 5 → 13 | route-focus test's `.ci-provider__route` "Architecture" vs T13's ProviderGrid rewrite | OK (class and text kept) |
+| 6 → 7 → 8 | `review-state.ts`, `review-store.ts`: buckets, `repo` capture; `REVIEW_STATE_SCHEMA(_V1)`, `SOURCE_FOLDER_MAX`, `repositoryDigest`, `reviewStateSource`, `findingRef`, `reviewStateJson` | OK, except P1's `clearAll` has no step in T8 (F2 → E2) |
+| 6 → 16 | `tests/harness/mount.ts` items block (P6's `await review.load()`) | Conflict: T16 replaces the block and drops it (F4 → E4) |
+| 7 ↔ 9 ↔ 14 | `SettingsScreen.vue`, `settings-screen.test.ts` | OK |
+| 8 → 9 | `readReviewStateFile(file, current)`, `ImportedReviewState`, `replaceAll(state): Promise<boolean>`, `report.restore(sections, note)` | OK |
+| 8 (P1) → 9 → 14 | `clearAll(): Promise<boolean>`, `SETTINGS_CLEAR_BUSY`, `ClearReviewDialog` | Gap: in no task body (F2, F3 → E2, E3) |
+| 9 → 16 | `.ci-settings__import-file`, `.ci-dialog`, `IMPORT_ORIGIN_UNKNOWN` | OK; T16's compare text is stale (F7 → E7) |
+| 11 ↔ 12 | `FindingsTable.vue`, `screens-audit.css` | Disjoint, OK |
+| 11 → 14 | `.ci-findings-table__open` | OK |
+| 12 → 15 | finding-review hover moved to `button.ci-file-finding__review:hover` | OK (T15 names both) |
+| 5 ↔ 12 ↔ 15 | `kit.css` | Disjoint anchors; kit defines only `--ci-*` | 
+| 14 → 15 | kit-css-fallbacks cascade order | OK (7 sheets; main.ts and `pluginStylesheets` match) |
+| 13 ↔ 14 | `workbench-screen.test.ts`, `WorkItemEditor.vue` | OK |
+| 15 (B) | WP-01 overrides in `kit.css` vs `styles.css` rules | OK (every `--ci-action`/`--ci-raised` rule in `styles.css` is listed) |
+
+### Per task
+
+| Task | Text vs itself and the real code | Result |
+|---|---|---|
+| 1 | Moved bodies match real lines; `CityViewDeps` re-export keeps 7 importers; RED 400/387 > 360 | OK |
+| 2 | Tests, code, files agree; observer counts right; container-box helper matches | F1 (import path) |
+| 3 | Anchors verbatim; guard sees `running` at click time; host test in the jsdom project | OK (F10 duplication) |
+| 4 | Anchors real | OK (F11 stale count) |
+| 5 | Selectors and anchors real | OK (trips T6's gate, F5) |
+| 6 | Every quoted store block matches | OK (F5) |
+| 7 | `fnv1a` unsigned, vectors right, `rootFolderLabel('/')` fallback pinned | OK (F9 finding-id length) |
+| 8 | zod issue paths, `normalizeRelativePath` behaviour verified | F2 (P1 missing) |
+| 9 | Copy, row, dialog, tabs and tests agree | F2 (dialog, `SETTINGS_CLEAR_BUSY` missing) |
+| 10 | `const SECURITY = buildSecurityModel()` the only module-load caller | OK |
+| 11 | Every quoted line verified; `.every` preceded by length checks | OK |
+| 12 | Extractor reports exactly the five offenders the plan names | OK |
+| 13 | Anchors real; RED wording slightly off | OK (F9 rationale cap, F11) |
+| 14 | (b) race and (e) X6 tests contradict P1 | F3 |
+| 15 (B) | ≥ 16 static `mod-cta`/`mod-warning` classes; styles.css list matches | F6 (ruling number) |
+| 16 | Fixture, builder, anchors real | F4, F7, F8 |
+
 ## Execution rulings
 
-(Appended per task.)
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| Part 5 E1 (F1) | Task 2's `use-city-floor.ts` imports `'../../shell/leaf-layout'`, not `'../../../shell/leaf-layout'`. From `src/ui/screens/city/`, two levels up is `src/ui/`, as the file's other imports show. | None. A wrong path fails typecheck at once. |
+| Part 5 E2 (F2) | P1's work is split as P1 assigns it. **Task 8** makes `clearAll(): Promise<boolean>` pending-aware after its Step 6 (so Step 6(b)'s anchor still matches), with a unit test: a clear while an add, update or decision is pending returns `false` and does not touch the port. **Task 9** adds `ClearReviewDialog.vue` to its files, adds `SETTINGS_CLEAR_BUSY` to `audit-copy/settings.ts`, and treats `false` as a refusal (alert, dialog open, nothing announced, report untouched), with a component test. | Low. Between the Task 8 and Task 9 commits, a clear refused mid-save would still announce "cleared" and reset the note; it is reachable only during a pending save and lasts one commit. |
+| Part 5 E3 (F3) | Task 14 (b): during the pending update, `expect(await store.clearAll()).toBe(false)`, the port still holds both items, and after release plus `load()` nothing reappears and `pendingItemIds` is `[]`; mutation = delete `clearAll`'s pending check. (e): replace `await review.clearAll()` with `review.workItems = review.workItems.filter((w) => w.id !== 'wi-1')` (P1). The "clearAll: reload" mutation row quotes Task 6's `if (this.repository === repo) await this.load();`. | Low. The tests would otherwise be red or test the old behaviour. |
+| Part 5 E4 (F4) | Task 16 keeps `await useReviewStore().load()` (and the import) in `tests/harness/mount.ts` immediately before `await seedDemoItems(...)`. P6/T24 bind over Task 16's "replace the whole block". | Low. Without it the seeding can be wiped by a late load, and the three-non-null check would still pass. |
+| Part 5 E5 (F5) | Task 6's citation gate is narrowed: the three title-clip citations (review-repository.ts, review-store.ts, review-work-items.test.ts) must read "Part 4 E3", and no title-clip citation may read "Part 4 E2". Task 5's `Part 4 E2/E18` citation (the dialog-status clear) is correct and stays. | None. |
+| Part 5 E6 (F6) | Task 15's recorded decision cites ruling **T32**, not T19. | None. |
+| Part 5 E7 (F7) | Task 16's capture check reads `IMPORT_ORIGIN_UNKNOWN`, not "unknown origin (v1)" (P8/T26). | None. |
+| Part 5 E8 (F8) | Task 16 checks `s10-narrow-dark.png` (and any narrow capture) for the city toolbar wrapping Scan and Cancel scan to a second row, with no horizontal overflow (P11). | None. |
+| Part 5 E9 (F9) | Two own-export round-trip gaps are closed at their source, not by loosening V14. (a) Task 7's `findingRef` also leaves out (and counts in `warnings`, V12) a disposition whose finding id does not match `/^[A-Za-z0-9-]{1,64}$/`, so an export never carries what the import refuses. (b) Task 13 caps a rule rationale at 1000 characters: `maxlength` on RuleEditor's textarea and `addRule` refusing (`null`) a longer one, with a test. | Low. A long-id decision is dropped from the export with a warning, instead of making the whole file unimportable. A reviewer cannot type a rationale past 1000 characters. |
+| Part 5 E10 (F10) | The plan's verbatim test-double copies (`city-view-cancel.test.ts` from `city-view.test.ts`, `APPROVAL`, Task 14's mount helpers) are accepted: test-only, and the capped wiring test cannot host them. | Low. Duplicated doubles can drift; a later cleanup can extract `tests/fixtures/city-view-doubles.ts`. |
+| Part 5 E11 (F11) | Stale plan sizes and RED wording are informational; implementers report the real numbers and the real RED output. | None. |
