@@ -2,6 +2,7 @@
 // and imported text staying plain text.
 import { describe, expect, it } from 'vitest';
 import { accepted, docWith, outcome, targetOf, type ReviewDoc } from '../fixtures/review-state-doc';
+import { RULE_RATIONALE_MAX } from '../../src/ui/stores/ports/review-repository';
 
 const NUL = String.fromCharCode(0);
 type Change = (d: ReviewDoc) => void;
@@ -13,7 +14,10 @@ describe('review-state import: rules and decisions (Part 5 V14)', () => {
     ['an empty from', (d) => { d.rules[0]!.from = ''; }, 'invalid rules.0.from'],
     ['a to over 255', (d) => { d.rules[0]!.to = 'm'.repeat(256); }, 'invalid rules.0.to'],
     ['a blank rationale', (d) => { d.rules[0]!.rationale = '  '; }, 'invalid rules.0.rationale'],
-    ['a rationale over 1000', (d) => { d.rules[0]!.rationale = 'r'.repeat(1001); }, 'invalid rules.0.rationale'],
+    // Part 5 E9(b): the import parser is bounded by the same constant the store enforces
+    // (RuleEditor's rationale textarea and addRule's own refusal), so a reviewer's own
+    // export always re-imports.
+    ['a rationale over RULE_RATIONALE_MAX', (d) => { d.rules[0]!.rationale = 'r'.repeat(RULE_RATIONALE_MAX + 1); }, 'invalid rules.0.rationale'],
     ['a rule createdAt that is not ISO', (d) => { d.rules[0]!.createdAt = 'now'; }, 'invalid rules.0.createdAt'],
     ['a duplicate rule id', (d) => { d.rules.push({ ...d.rules[0]!, to: 'api' }); }, 'invalid rules.1.id'],
     ['a duplicate rule pair', (d) => { d.rules.push({ ...d.rules[0]!, id: 'AR-002' }); }, 'invalid rules.1.to'],

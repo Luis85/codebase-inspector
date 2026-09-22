@@ -244,4 +244,18 @@ describe('WorkbenchScreen (Part 4)', () => {
     expect(mime).toBe('text/markdown;charset=utf-8');
     w.unmount();
   });
+
+  it('gives every editor field label the one label style: the real <label>s and the Target caption alike (Part 5 V29)', async () => {
+    const ids = withSnapshot();
+    useCityStore().select(ids[0]!);
+    const w = mountW();
+    await nextTick();
+    // Create mode shows all five labelled fields (title, priority, status, intent, notes).
+    await w.find('.ci-workbench__new').trigger('click');
+    const labels = w.findAll('.ci-work-editor label[for]');
+    expect(labels).toHaveLength(5);
+    expect(labels.every((l) => l.classes('ci-work-editor__label'))).toBe(true);
+    expect(w.findAll('.ci-work-editor__label')).toHaveLength(6);
+    w.unmount();
+  });
 });

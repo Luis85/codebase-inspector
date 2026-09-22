@@ -2,12 +2,16 @@
 import type { RouteId } from '../../../domain/route-ids';
 import type { ProviderCard } from '../../read-models/sources';
 import { ROUTE_META } from '../../routes';
-import { SOURCES_PROVIDERS_TITLE, SOURCES_USED_BY } from '../../inspector-copy';
+import { useUniqueId } from '../../unique-id';
+import { SOURCES_OPEN_ROUTE, SOURCES_PROVIDERS_TITLE, SOURCES_USED_BY, SOURCES_USED_BY_GROUP } from '../../inspector-copy';
 import Icon from '../../kit/Icon.vue';
 import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
 
 defineProps<{ providers: readonly ProviderCard[] }>();
 const emit = defineEmits<{ open: [route: RouteId] }>();
+/** Part 5 V28: one unique base per grid. Each card's heading id adds the provider id, so
+ *  every article is labelled by its own h4. */
+const base = useUniqueId('ci-provider');
 </script>
 
 <template>
@@ -21,6 +25,7 @@ const emit = defineEmits<{ open: [route: RouteId] }>();
         :key="p.id"
         class="ci-provider"
         :class="`ci-provider--${p.id}`"
+        :aria-labelledby="`${base}-${p.id}-name`"
       >
         <div class="ci-provider__head">
           <span class="ci-provider__icon">
@@ -31,7 +36,10 @@ const emit = defineEmits<{ open: [route: RouteId] }>();
             :state="p.state"
           />
         </div>
-        <h4 class="ci-provider__name">
+        <h4
+          :id="`${base}-${p.id}-name`"
+          class="ci-provider__name"
+        >
           {{ p.title }}
         </h4>
         <p class="ci-note">
@@ -40,7 +48,11 @@ const emit = defineEmits<{ open: [route: RouteId] }>();
         <p class="ci-provider__text">
           {{ p.description }}
         </p>
-        <div class="ci-provider__routes">
+        <div
+          class="ci-provider__routes"
+          role="group"
+          :aria-label="SOURCES_USED_BY_GROUP(p.title)"
+        >
           <span class="ci-note">
             {{ SOURCES_USED_BY }}
           </span>
@@ -49,6 +61,7 @@ const emit = defineEmits<{ open: [route: RouteId] }>();
             :key="r"
             type="button"
             class="ci-provider__route"
+            :aria-label="SOURCES_OPEN_ROUTE(ROUTE_META[r].title)"
             @click="emit('open', r)"
           >
             {{ ROUTE_META[r].title }}

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository, RULE_RATIONALE_MAX } from '../../src/ui/stores/ports/review-repository';
 import type { ReviewRepository, WorkItem } from '../../src/ui/stores/ports/review-repository';
 
 const NOW = new Date('2026-09-21T10:00:00.000Z');
@@ -139,6 +139,17 @@ describe('review store', () => {
     expect(a).toMatchObject({ from: 'domain', to: 'storage', rationale: 'Keep domain pure', createdAt: NOW.toISOString() });
     expect(store.ruleCount).toBe(2);
     expect(await repo.listRules()).toHaveLength(2);
+  });
+
+  it('refuses a rationale over RULE_RATIONALE_MAX characters after trimming, but accepts exactly the max (Part 5 E9(b))', async () => {
+    const store = useReviewStore();
+    const tooLong = 'r'.repeat(RULE_RATIONALE_MAX + 1);
+    expect(await store.addRule('a', 'b', tooLong, NOW)).toBeNull();
+    expect(store.ruleCount).toBe(0);
+    // Padding with trailing whitespace that trims away must not count toward the limit.
+    const padded = `${'r'.repeat(RULE_RATIONALE_MAX)}   `;
+    const rule = await store.addRule('a', 'b', padded, NOW);
+    expect(rule?.rationale.length).toBe(RULE_RATIONALE_MAX);
   });
 
   it('refuses a self-rule, an empty rationale and a duplicate pair', async () => {

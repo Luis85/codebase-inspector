@@ -49,4 +49,13 @@ describe('sources model (Part 4 W2/W3/W15)', () => {
     expect(formatBytes(2_048)).toBe('2 KB');
     expect(formatBytes(512)).toBe('512 bytes');
   });
+  it('picks the unit after rounding, so a limit never reads "1,000 KB", and says "1 byte" (Part 5 V26)', () => {
+    expect(formatBytes(999_999)).toBe('1 MB');
+    expect(formatBytes(999_950)).toBe('1 MB');
+    expect(formatBytes(999_949)).toBe('999.9 KB');
+    expect(formatBytes(1_000)).toBe('1 KB');
+    expect(formatBytes(999)).toBe('999 bytes');
+    expect(formatBytes(1)).toBe('1 byte');
+    expect(formatBytes(0)).toBe('0 bytes');
+  });
 });

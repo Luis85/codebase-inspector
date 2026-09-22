@@ -43,10 +43,13 @@ function formatFixed(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 1 });
 }
 
+/** Part 5 V26: the unit is picked AFTER rounding to one decimal. Rounding is counted in
+ *  tenths of a KB, which is exact for whole byte counts, so 999,950 bytes and up read
+ *  "1 MB" and never "1,000 KB". */
 export function formatBytes(n: number): string {
-  if (n >= 1_000_000) return `${formatFixed(n / 1_000_000)} MB`;
+  if (Math.round(n / 100) >= 10_000) return `${formatFixed(n / 1_000_000)} MB`;
   if (n >= 1_000) return `${formatFixed(n / 1_000)} KB`;
-  return `${n} bytes`;
+  return n === 1 ? '1 byte' : `${n.toLocaleString('en-US')} bytes`;
 }
 
 function scopeRows(snapshot: CodebaseSnapshot): ScopeRow[] {

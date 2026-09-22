@@ -151,7 +151,10 @@ async function confirmDelete(): Promise<void> {
           {{ WORK_EDITOR_SUBTITLE }}
         </p>
       </header>
-      <label :for="`${base}-title`">{{ WORK_FIELD_TITLE }}</label>
+      <label
+        :for="`${base}-title`"
+        class="ci-work-editor__label"
+      >{{ WORK_FIELD_TITLE }}</label>
       <input
         :id="`${base}-title`"
         v-model="title"
@@ -162,7 +165,10 @@ async function confirmDelete(): Promise<void> {
       >
       <div class="ci-work-editor__grid">
         <div class="ci-work-editor__field">
-          <label :for="`${base}-priority`">{{ WORK_FIELD_PRIORITY }}</label>
+          <label
+            :for="`${base}-priority`"
+            class="ci-work-editor__label"
+          >{{ WORK_FIELD_PRIORITY }}</label>
           <select
             :id="`${base}-priority`"
             v-model="priority"
@@ -178,7 +184,10 @@ async function confirmDelete(): Promise<void> {
           </select>
         </div>
         <div class="ci-work-editor__field">
-          <label :for="`${base}-status`">{{ WORK_FIELD_STATUS }}</label>
+          <label
+            :for="`${base}-status`"
+            class="ci-work-editor__label"
+          >{{ WORK_FIELD_STATUS }}</label>
           <select
             :id="`${base}-status`"
             v-model="status"
@@ -197,7 +206,10 @@ async function confirmDelete(): Promise<void> {
           v-if="!existing"
           class="ci-work-editor__field"
         >
-          <label :for="`${base}-intent`">{{ WORK_FIELD_INTENT }}</label>
+          <label
+            :for="`${base}-intent`"
+            class="ci-work-editor__label"
+          >{{ WORK_FIELD_INTENT }}</label>
           <select
             :id="`${base}-intent`"
             v-model="intent"
@@ -226,7 +238,10 @@ async function confirmDelete(): Promise<void> {
           </span>
         </div>
       </div>
-      <label :for="`${base}-notes`">{{ WORK_FIELD_NOTES }}</label>
+      <label
+        :for="`${base}-notes`"
+        class="ci-work-editor__label"
+      >{{ WORK_FIELD_NOTES }}</label>
       <textarea
         :id="`${base}-notes`"
         v-model="notes"

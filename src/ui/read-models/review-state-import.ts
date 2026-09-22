@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { makeEntityId } from '../../domain/entity-id';
 import { normalizeRelativePath } from '../../domain/path-safety';
 import {
-  DISMISS_REASON_MAX, WORK_NOTES_MAX, WORK_TITLE_MAX, workItemProblem,
+  DISMISS_REASON_MAX, RULE_RATIONALE_MAX, WORK_NOTES_MAX, WORK_TITLE_MAX, workItemProblem,
   type BoundaryRule, type FindingDisposition, type WorkItem, type WorkTarget,
 } from '../stores/ports/review-repository';
 import { REPORT_NOTE_MAX, type ReportSection } from '../stores/report-store';
@@ -117,7 +117,8 @@ const RULE = z.object({
   id: z.string().regex(/^AR-\d{3,6}$/),
   from: z.string().min(1).max(255),
   to: z.string().min(1).max(255),
-  rationale: trimmedBetween(1, 1000),
+  // Part 5 E9(b): bounded by the same constant the store's `addRule` refuses beyond.
+  rationale: trimmedBetween(1, RULE_RATIONALE_MAX),
   createdAt: ISO,
 }).strict().refine((r) => r.from !== r.to, { error: 'A rule needs two different modules.', path: ['to'] });
 const RULES = z.array(RULE).max(500).superRefine((rules, ctx) => {

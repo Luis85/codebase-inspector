@@ -45,3 +45,7 @@ export const SOURCES_PROVIDER: Readonly<Record<string, { title: string; descript
 };
 export const SOURCES_PLANNED_TITLE = 'Planned integrations';
 export const SOURCES_PLANNED = 'An external analyser may later be imported from a report or run as an already-installed tool, and only on your explicit request. Nothing is ever installed, and no integration is active today.';
+/** Part 5 V28: the provider's route buttons form a group named after the provider, and
+ *  each button's name contains its visible screen title (WCAG 2.5.3). */
+export const SOURCES_USED_BY_GROUP = (provider: string): string => `${provider} is used by`;
+export const SOURCES_OPEN_ROUTE = (title: string): string => `Open ${title}`;

@@ -42,7 +42,7 @@
 :where(.codebase-inspector-root) .ci-work-editor__header h3 { margin: 0; }
 :where(.codebase-inspector-root) .ci-work-editor__grid { display: grid; gap: var(--ci-space-3); grid-template-columns: repeat(2, minmax(0, 1fr)); margin: var(--ci-space-2) 0; }
 :where(.codebase-inspector-root) .ci-work-editor__field { display: flex; flex-direction: column; gap: var(--ci-space-1); }
-:where(.codebase-inspector-root) .ci-work-editor__label { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-work-editor__label { color: var(--ci-text); font-size: var(--font-ui-small, 0.9em); font-weight: var(--font-medium, 500); }
 :where(.codebase-inspector-root) .ci-work-editor__target { overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-work-editor__notes { min-height: 6em; resize: vertical; }
 :where(.codebase-inspector-root) .ci-work-editor__checks { display: grid; gap: var(--ci-space-2); margin: var(--ci-space-2) 0 0; padding: 0; border: none; }

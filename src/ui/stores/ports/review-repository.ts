@@ -24,6 +24,10 @@ export type WorkChecks = readonly [boolean, boolean, boolean];
 export const NO_CHECKS: WorkChecks = Object.freeze([false, false, false]);
 export const WORK_TITLE_MAX = 160;
 export const WORK_NOTES_MAX = 5000;
+/** Part 5 E9(b): shared by the store's `addRule` refusal, `RuleEditor`'s rationale
+ *  textarea `maxlength`, and the import parser's rule schema, so a reviewer's own
+ *  export always re-imports. */
+export const RULE_RATIONALE_MAX = 1000;
 
 export interface WorkItem {
   id: string;

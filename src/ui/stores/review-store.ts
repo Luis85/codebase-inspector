@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { markRaw } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
 import {
-  createInMemoryReviewRepository, workTargetKey, workItemProblem, clipTitle, NO_CHECKS, DISMISS_REASON_MAX,
+  createInMemoryReviewRepository, workTargetKey, workItemProblem, clipTitle, NO_CHECKS, DISMISS_REASON_MAX, RULE_RATIONALE_MAX,
   type BoundaryRule, type FindingDisposition, type ReviewRepository, type WorkIntent, type WorkItem, type WorkItemInit,
   type WorkItemPatch, type WorkTarget,
 } from './ports/review-repository';
@@ -321,13 +321,16 @@ export const useReviewStore = defineStore('review', {
       return this.repository === repo;
     },
     /** Part 2 P5. Same reservation and persist-first ordering as `addWorkItem`.
-     *  Refuses (null) a self-rule, an empty rationale, an existing pair, and a second call
-     *  for a pair whose first save has not settled. */
+     *  Refuses (null) a self-rule, an empty rationale, a rationale over
+     *  `RULE_RATIONALE_MAX` after trimming (Part 5 E9(b), the same cap the import parser
+     *  and `RuleEditor` enforce), an existing pair, and a second call for a pair whose
+     *  first save has not settled. */
     async addRule(from: string, to: string, rationale: string, now: Date): Promise<BoundaryRule | null> {
       const key = ruleKey(from, to);
-      if (this.bulkBusy || from === to || rationale.trim() === '' || this.hasRule(from, to) || this.pendingRuleKeys.includes(key)) return null;
+      const trimmed = rationale.trim();
+      if (this.bulkBusy || from === to || trimmed === '' || trimmed.length > RULE_RATIONALE_MAX || this.hasRule(from, to) || this.pendingRuleKeys.includes(key)) return null;
       const rule: BoundaryRule = {
-        id: `AR-${String(this.nextRuleId).padStart(3, '0')}`, from, to, rationale: rationale.trim(), createdAt: now.toISOString(),
+        id: `AR-${String(this.nextRuleId).padStart(3, '0')}`, from, to, rationale: trimmed, createdAt: now.toISOString(),
       };
       const repo = this.repository;
       this.nextRuleId += 1;
