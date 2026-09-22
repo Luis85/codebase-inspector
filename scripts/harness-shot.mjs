@@ -103,6 +103,21 @@ export const SHOTS = [
   { id: 'wp02-ownership-dark', query: '?screen=s05&theme=dark&route=ownership' },
   { id: 'wp02-ownership-light', query: '?screen=s05&theme=light&route=ownership' },
   { id: 'wp02-ownership-narrow-dark', query: '?screen=s10&theme=dark&route=ownership&width=700', viewport: { width: 760, height: 900 } },
+  // WP-02 Part 4: compare against docs/concept/prototype/screenshots/{workbench,report,sources,settings}-{dark,light}.png
+  // and workbench-narrow.png, settings-narrow.png.
+  { id: 'wp02-workbench-dark', query: '?screen=s05&theme=dark&route=workbench&items=demo' },
+  { id: 'wp02-workbench-light', query: '?screen=s05&theme=light&route=workbench&items=demo' },
+  { id: 'wp02-workbench-narrow-dark', query: '?screen=s10&theme=dark&route=workbench&items=demo&width=700', viewport: { width: 760, height: 900 } },
+  { id: 'wp02-report-dark', query: '?screen=s05&theme=dark&route=report&items=demo' },
+  { id: 'wp02-report-light', query: '?screen=s05&theme=light&route=report&items=demo' },
+  { id: 'wp02-report-narrow-dark', query: '?screen=s10&theme=dark&route=report&items=demo&width=700', viewport: { width: 760, height: 900 } },
+  { id: 'wp02-sources-dark', query: '?screen=s05&theme=dark&route=sources' },
+  { id: 'wp02-sources-light', query: '?screen=s05&theme=light&route=sources' },
+  { id: 'wp02-sources-narrow-dark', query: '?screen=s10&theme=dark&route=sources&width=700', viewport: { width: 760, height: 900 } },
+  { id: 'wp02-settings-dark', query: '?screen=s05&theme=dark&route=settings' },
+  { id: 'wp02-settings-light', query: '?screen=s05&theme=light&route=settings' },
+  { id: 'wp02-settings-narrow-dark', query: '?screen=s10&theme=dark&route=settings&width=700', viewport: { width: 760, height: 900 } },
+  { id: 'wp02-settings-privacy-dark', query: '?screen=s05&theme=dark&route=settings&tab=privacy' },
 ];
 
 async function main() {
