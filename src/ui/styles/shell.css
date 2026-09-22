@@ -98,3 +98,23 @@
 :where(.codebase-inspector-root) .ci-shell--compact .ci-table td { padding-top: var(--ci-space-1); padding-bottom: var(--ci-space-1); }
 :where(.codebase-inspector-root) .ci-shell--compact .ci-metric-card { padding: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-shell--compact .ci-screen:not(.ci-screen--city) { gap: var(--ci-space-3); }
+
+/* Part 5 V6: Cancel scan sits beside Scan in the city toolbar and takes the same skin
+   (styles.css `button.ci-toolbar__scan`, M113): `button` raises the rule to (0,1,1) so it
+   ties Obsidian's `button:not(.clickable-icon)` and wins on order, and box-shadow is
+   cleared so the host's input shadow does not paint under the border. No `cursor` here:
+   kit.css's shared `button[aria-disabled="true"]` rule (E54) owns the blocked look. */
+:where(.codebase-inspector-root) button.ci-toolbar__cancel {
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-3);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  white-space: nowrap;
+}
+:where(.codebase-inspector-root) button.ci-toolbar__cancel:hover { background: var(--ci-raised); }
+/* One more always-present control: let the toolbar wrap in a narrow leaf instead of
+   overflowing it (the WP-01 rule in styles.css sets only display, alignment and gap). */
+:where(.codebase-inspector-root) .ci-app__toolbar { flex-wrap: wrap; }

@@ -10,12 +10,14 @@
   App.vue's own `openFilesDrawer(event)` keeps reading `event.currentTarget` exactly as
   it always did when the button lived inline -- moving the button must not change whose
   element focus returns to when the drawer closes.
+
+  Part 5 V6: and Cancel scan (COPY_09, the command's own name), right after Scan.
 -->
 <script setup lang="ts">
-import { inject } from 'vue';
+import { computed, inject } from 'vue';
 import { useCityStore } from '../stores/city-store';
 import { useRunStore } from '../stores/run-store';
-import { COPY_07 } from '../copy';
+import { COPY_07, COPY_09 } from '../copy';
 import FileSearch from './FileSearch.vue';
 
 defineEmits<{ 'open-files-drawer': [event: MouseEvent] }>();
@@ -29,6 +31,20 @@ const runStore = useRunStore();
 // callback IS the consent-chain entry point (components emit intents; the
 // application validates and performs work).
 const onScanRequested = inject<() => void>('onScanRequested', () => {});
+/** consistent-function-scoping: a no-op default that captures nothing, hoisted once. */
+const noop = (): void => {};
+// Part 5 V6: provided by city-scan-controller.ts's provideScanCallbacks, calling the SAME
+// CityView.cancelScan the 'cancel-scan' command calls. Never a direct coordinator call.
+const onCancelScan = inject<() => void>('onCancelScan', noop);
+/** Only a RUNNING scan can be cancelled (a cancelling one already is). Read from runStore
+ *  at press time, so the guard never lags a render. */
+const cancellable = computed(() => runStore.run.status === 'running');
+/** E40/E44/E50: the button stays focusable while blocked, so the handler refuses the press.
+ *  Announces nothing itself (E17): AnnouncementRegion announces the run's real outcome. */
+function cancelScan(): void {
+  if (!cancellable.value) return;
+  onCancelScan();
+}
 </script>
 
 <template>
@@ -47,6 +63,17 @@ const onScanRequested = inject<() => void>('onScanRequested', () => {});
       @click="onScanRequested"
     >
       {{ COPY_07 }}
+    </button>
+    <!-- Part 5 V6: always rendered, so a focused Cancel keeps focus when the run ends (the
+         toolbar never unmounts); aria-disabled unless a run is running, with the guarded
+         handler above. Pressing it does not navigate. -->
+    <button
+      type="button"
+      class="ci-toolbar__cancel"
+      :aria-disabled="cancellable ? undefined : 'true'"
+      @click="cancelScan"
+    >
+      {{ COPY_09 }}
     </button>
     <!-- Task 9 fix round 1, item 3 (Important): list mode is the FALLBACK, not
          the default (spec 5.2), but must stay genuinely reachable both ways --

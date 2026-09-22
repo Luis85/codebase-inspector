@@ -22,10 +22,12 @@ const noop = (): void => {};
 
 const store = useCityStore();
 const runStore = useRunStore();
-// W2: the two host callbacks the UI already injects (NoSnapshot, NavColumn, AppToolbar);
-// the host's own modals and consent chain do the work.
+// W2: the host callbacks the UI already injects (NoSnapshot, NavColumn, AppToolbar); the
+// host's own modals and consent chain do the work. Part 5 V6: onCancelScan calls the SAME
+// CityView.cancelScan the 'cancel-scan' command calls.
 const onSelectCodebase = inject<() => void>('onSelectCodebase', noop);
 const onScanRequested = inject<() => void>('onScanRequested', noop);
+const onCancelScan = inject<() => void>('onCancelScan', noop);
 
 const model = computed(() => buildSourcesModel(store.snapshot, runStore.run));
 const inFlight = computed(() => runStore.run.status === 'running' || runStore.run.status === 'cancelling');
@@ -39,6 +41,13 @@ function rescan(): void {
   if (inFlight.value) return;
   store.navigate('city');
   onScanRequested();
+}
+/** Part 5 V6: guarded on the store itself (not the panel's props, which lag one render), so
+ *  an aria-disabled press does nothing. Stays on this screen: the run line announces the
+ *  outcome (role="status"). */
+function cancelScan(): void {
+  if (runStore.run.status !== 'running') return;
+  onCancelScan();
 }
 function open(route: RouteId): void {
   store.navigate(route);
@@ -77,7 +86,10 @@ function open(route: RouteId): void {
     </Callout>
     <div class="ci-screen__grid">
       <ScopePanel :rows="model.scope" />
-      <ScanStatusPanel :run="model.run" />
+      <ScanStatusPanel
+        :run="model.run"
+        @cancel="cancelScan"
+      />
     </div>
     <ProviderGrid
       :providers="model.providers"

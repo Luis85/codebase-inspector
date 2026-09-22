@@ -8,9 +8,14 @@ import { useRunStore } from '../../src/ui/stores/run-store';
 import { initialScanLifecycleState } from '../../src/application/run-state';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { COPY_09 } from '../../src/ui/copy';
 
-function mountS(onSelectCodebase = vi.fn(), onScanRequested = vi.fn()) {
-  return mount(SourcesScreen, { attachTo: document.body, global: { provide: { onSelectCodebase, onScanRequested } } });
+function mountS(onSelectCodebase = vi.fn(), onScanRequested = vi.fn(), onCancelScan = vi.fn()) {
+  return mount(SourcesScreen, { attachTo: document.body, global: { provide: { onSelectCodebase, onScanRequested, onCancelScan } } });
+}
+const APPROVAL = { profileId: 'p', sourceFingerprint: 's', scopeFingerprint: 'c', approvedAt: 'a', operation: 'read-only-inventory' as const };
+function setRunning(processedFiles: number): void {
+  useRunStore().setLifecycle({ ...initialScanLifecycleState(), run: { status: 'running', runId: 'r', generation: 1, approval: APPROVAL, processedFiles } });
 }
 const withSnapshot = () => {
   const snap = buildSnapshotFixture({ files: 10, directories: 2 });
@@ -55,18 +60,49 @@ describe('SourcesScreen (Part 4)', () => {
     w.unmount();
   });
 
-  it('Rescan is aria-disabled while a run is in flight, and the status explains how to cancel', async () => {
+  it('Rescan is aria-disabled while a run is in flight', async () => {
     const scan = vi.fn();
     const w = mountS(vi.fn(), scan);
-    const approval = { profileId: 'p', sourceFingerprint: 's', scopeFingerprint: 'c', approvedAt: 'a', operation: 'read-only-inventory' as const };
-    useRunStore().setLifecycle({ ...initialScanLifecycleState(), run: { status: 'running', runId: 'r', generation: 1, approval, processedFiles: 12 } });
+    setRunning(12);
     await nextTick();
     const rescan = w.find('.ci-sources__rescan');
     expect(rescan.attributes('aria-disabled')).toBe('true');
     await rescan.trigger('click');
     expect(scan).not.toHaveBeenCalled();
     expect(w.find('.ci-sources__status').text()).toContain('12 files read so far');
-    expect(w.find('.ci-sources__status').text()).toContain('Cancel scan');
+    w.unmount();
+  });
+
+  it('Cancel scan replaces the command-palette hint: always rendered, inert while idle (Part 5 V6)', async () => {
+    const onCancelScan = vi.fn();
+    const w = mountS(vi.fn(), vi.fn(), onCancelScan);
+    const cancel = w.get('.ci-sources__cancel');
+    expect(cancel.text()).toBe(COPY_09);
+    expect(cancel.attributes('aria-disabled')).toBe('true');
+    await cancel.trigger('click');
+    expect(onCancelScan).not.toHaveBeenCalled();
+    expect(w.find('.ci-sources__status').text()).not.toContain('command palette');
+    w.unmount();
+  });
+
+  it('while running, Cancel scan calls the host once and stays here; the run line announces the outcome', async () => {
+    const onCancelScan = vi.fn();
+    const w = mountS(vi.fn(), vi.fn(), onCancelScan);
+    setRunning(4);
+    await nextTick();
+    expect(w.get('.ci-sources__run').attributes('role')).toBe('status');
+    const cancel = w.get('.ci-sources__cancel');
+    expect(cancel.attributes('aria-disabled')).toBeUndefined();
+    await cancel.trigger('click');
+    expect(onCancelScan).toHaveBeenCalledOnce();
+    expect(useCityStore().route).toBe('sources');
+
+    useRunStore().setLifecycle({ ...initialScanLifecycleState(), run: { status: 'cancelling', runId: 'r', generation: 1 } });
+    await nextTick();
+    expect(w.get('.ci-sources__run').text()).toContain('Cancelling the scan');
+    expect(w.get('.ci-sources__cancel').attributes('aria-disabled')).toBe('true');
+    await w.get('.ci-sources__cancel').trigger('click');
+    expect(onCancelScan).toHaveBeenCalledOnce();
     w.unmount();
   });
 

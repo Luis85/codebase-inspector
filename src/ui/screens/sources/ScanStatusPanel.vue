@@ -2,13 +2,16 @@
 import { computed } from 'vue';
 import type { RunView } from '../../read-models/sources';
 import {
-  SOURCES_CANCEL_HINT, SOURCES_RUN_CANCELLED, SOURCES_RUN_CANCELLING, SOURCES_RUN_COMPLETE, SOURCES_RUN_FAILED, SOURCES_RUN_IDLE,
+  SOURCES_RUN_CANCELLED, SOURCES_RUN_CANCELLING, SOURCES_RUN_COMPLETE, SOURCES_RUN_FAILED, SOURCES_RUN_IDLE,
   SOURCES_RUN_RUNNING, SOURCES_STATUS_SUBTITLE, SOURCES_STATUS_TITLE,
 } from '../../inspector-copy';
+import { COPY_09 } from '../../copy';
 import Panel from '../../kit/Panel.vue';
 import Icon from '../../kit/Icon.vue';
 
 const props = defineProps<{ run: RunView }>();
+/** Part 5 V6: the screen owns the host callback and the guard; this only reports the press. */
+defineEmits<{ cancel: [] }>();
 
 /** W3: the real run state, mirrored from the host; nothing here is simulated. */
 const view = computed<{ icon: string; text: string; tone: 'muted' | 'warning' | 'success' }>(() => {
@@ -22,7 +25,8 @@ const view = computed<{ icon: string; text: string; tone: 'muted' | 'warning' | 
     default: return { icon: 'clock', text: SOURCES_RUN_IDLE, tone: 'muted' };
   }
 });
-const inFlight = computed(() => props.run.kind === 'running' || props.run.kind === 'cancelling');
+/** V6: only a RUNNING scan can be cancelled (a cancelling one already is). */
+const cancellable = computed(() => props.run.kind === 'running');
 </script>
 
 <template>
@@ -31,21 +35,28 @@ const inFlight = computed(() => props.run.kind === 'running' || props.run.kind =
       :title="SOURCES_STATUS_TITLE"
       :subtitle="SOURCES_STATUS_SUBTITLE"
     >
+      <!-- Part 5 V6: a status region, so "cancelling" and "cancelled" are announced here. -->
       <p
         class="ci-sources__run"
         :class="`ci-sources__run--${view.tone}`"
+        role="status"
       >
         <Icon :name="view.icon" />
         <span>
           {{ view.text }}
         </span>
       </p>
-      <p
-        v-if="inFlight"
-        class="ci-note"
+      <!-- Part 5 V6: replaces the command-palette hint. Always rendered; aria-disabled unless
+           a run is running (E40/E44/E50), and SourcesScreen's handler refuses the press then
+           too. It announces nothing itself (E17) and does not navigate. -->
+      <button
+        type="button"
+        class="ci-sources__cancel"
+        :aria-disabled="cancellable ? undefined : 'true'"
+        @click="$emit('cancel')"
       >
-        {{ SOURCES_CANCEL_HINT }}
-      </p>
+        {{ COPY_09 }}
+      </button>
     </Panel>
   </div>
 </template>

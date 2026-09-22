@@ -137,12 +137,16 @@ export class CityScanController {
 }
 
 /** The scan callbacks the Vue tree injects (NoSnapshot and the welcome action, NavColumn,
- *  AppToolbar, Data & scans), provided at the APP level before `mount()` (ruling M68's
- *  pattern: a component's own provide() only resolves for its descendants). Each calls
- *  the SAME method its command-palette twin calls, never the coordinator directly. */
+ *  AppToolbar (Scan, Cancel scan), Data & scans), provided at the APP level before
+ *  `mount()` (ruling M68's pattern: a component's own provide() only resolves for its
+ *  descendants). Each calls the SAME method its command-palette twin calls, never the
+ *  coordinator directly. */
 export function provideScanCallbacks(app: VueApp, controller: CityScanController): void {
   app.provide('onSelectCodebase', () => { void controller.selectCodebase(); });
   // Task 5 (F7): the toolbar's Scan control, calling the SAME method the
   // 'scan-codebase' palette command calls.
   app.provide('onScanRequested', () => { void controller.startScan(); });
+  // Part 5 V6: Cancel scan in the city toolbar and on Data & scans, calling the SAME method
+  // the 'cancel-scan' command calls. cancelScan() is itself a no-op unless a run is running.
+  app.provide('onCancelScan', () => { controller.cancelScan(); });
 }

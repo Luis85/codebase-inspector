@@ -24,7 +24,8 @@ import '../mocks/obsidian';
 import App from '../../src/ui/App.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useRunStore } from '../../src/ui/stores/run-store';
-import { COPY_07 } from '../../src/ui/copy';
+import { COPY_07, COPY_09 } from '../../src/ui/copy';
+import { initialScanLifecycleState } from '../../src/application/run-state';
 
 describe('toolbar Scan control (F7)', () => {
   beforeEach(() => {
@@ -75,5 +76,59 @@ describe('toolbar Scan control (F7)', () => {
     });
     await nextTick();
     expect(wrapper.get('.ci-toolbar__scan').attributes('disabled')).toBeDefined();
+  });
+});
+
+const APPROVAL = {
+  profileId: 'p1', sourceFingerprint: 'f1', scopeFingerprint: 's1',
+  approvedAt: '2026-01-01T00:00:00.000Z', operation: 'read-only-inventory' as const,
+};
+
+// Part 5 V6: Cancel scan beside Scan. Always rendered (the toolbar never unmounts, so a
+// focused Cancel never loses focus when the run ends); aria-disabled plus a guarded handler
+// unless a run is running (E40/E44/E50).
+describe('toolbar Cancel scan (Part 5 V6)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    useCityStore().navigate('city');
+  });
+  afterEach(() => { document.body.innerHTML = ''; });
+
+  it('sits right after Scan, carries the command\'s own name, and is inert while no run is running', async () => {
+    const onCancelScan = vi.fn();
+    const wrapper = mount(App, { global: { provide: { onCancelScan } } });
+    const cancel = wrapper.get('.ci-toolbar__cancel');
+    expect(cancel.text()).toBe(COPY_09);
+    expect(wrapper.get('.ci-toolbar__scan').element.nextElementSibling).toBe(cancel.element);
+    expect(cancel.attributes('aria-disabled')).toBe('true');
+    expect(cancel.attributes('disabled')).toBeUndefined();
+    await cancel.trigger('click');
+    expect(onCancelScan).not.toHaveBeenCalled();
+  });
+
+  it('while a run is running, calls the host once and stays on the city', async () => {
+    const onCancelScan = vi.fn();
+    const wrapper = mount(App, { global: { provide: { onCancelScan } } });
+    useRunStore().setLifecycle({
+      ...initialScanLifecycleState(),
+      run: { status: 'running', runId: 'r1', generation: 1, approval: APPROVAL, processedFiles: 3 },
+    });
+    await nextTick();
+    const cancel = wrapper.get('.ci-toolbar__cancel');
+    expect(cancel.attributes('aria-disabled')).toBeUndefined();
+    await cancel.trigger('click');
+    expect(onCancelScan).toHaveBeenCalledTimes(1);
+    expect(useCityStore().route).toBe('city');
+  });
+
+  it('is inert again while the run is only cancelling', async () => {
+    const onCancelScan = vi.fn();
+    const wrapper = mount(App, { global: { provide: { onCancelScan } } });
+    useRunStore().setLifecycle({ ...initialScanLifecycleState(), run: { status: 'cancelling', runId: 'r1', generation: 1 } });
+    await nextTick();
+    const cancel = wrapper.get('.ci-toolbar__cancel');
+    expect(cancel.attributes('aria-disabled')).toBe('true');
+    await cancel.trigger('click');
+    expect(onCancelScan).not.toHaveBeenCalled();
   });
 });
