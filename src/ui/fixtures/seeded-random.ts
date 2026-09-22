@@ -1,4 +1,6 @@
 // Deterministic pseudo-randomness for SAMPLE data only. Never used for anything measured.
+// `fnv1a` also names a codebase in the review-state export (Part 5 V11,
+// `repositoryDigest`): that is an identifier, not a measurement.
 export function fnv1a(text: string): number {
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i += 1) {

@@ -60,3 +60,6 @@ export const SETTINGS_ABOUT_NEVER_TEXT = 'Change, delete or move source files; i
 export const SETTINGS_ABOUT_SAMPLE = 'Sample data';
 export const SETTINGS_ABOUT_SAMPLE_TEXT = 'Signals without a real provider are sample data and are labelled everywhere they appear. Missing evidence is unknown, never zero.';
 export const REVIEW_STATE_NOTE = 'Kept in memory for one session. Nothing was written to the vault.';
+/** Part 5 V12: one `warnings` entry of the v2 export, per kind of item left out. */
+export const REVIEW_STATE_SKIPPED = (n: number, kind: 'work items' | 'finding decisions'): string =>
+  `Left out ${plural(n, kind === 'work items' ? 'work item' : 'finding decision', kind)} whose target could not be written as a relative path.`;

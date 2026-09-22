@@ -5,6 +5,7 @@ import '../mocks/obsidian';
 
 vi.mock('../../src/ui/export/download', () => ({ downloadText: vi.fn() }));
 import { downloadText } from '../../src/ui/export/download';
+import { computeLayout } from '../../src/domain/layout/layout';
 import SettingsScreen from '../../src/ui/screens/SettingsScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { usePreferencesStore } from '../../src/ui/stores/preferences-store';
@@ -12,6 +13,8 @@ import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review
 import { useReportStore } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { SETTINGS_CLEAR_FAILED } from '../../src/ui/inspector-copy';
+import { repositoryDigest } from '../../src/ui/read-models/review-state';
+import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
 const mountS = () => mount(SettingsScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn() } } });
 const tab = (w: ReturnType<typeof mountS>, id: string) => w.find(`[role="tab"][data-tab-id="${id}"]`).trigger('click');
@@ -62,12 +65,24 @@ describe('SettingsScreen (Part 4)', () => {
     expect(mime).toBe('application/json;charset=utf-8');
     const parsed = JSON.parse(text) as Record<string, unknown>;
     expect(parsed).toMatchObject({
-      schema: 'codebase-inspector.review-state.v1',
+      schema: 'codebase-inspector.review-state.v2', source: null,
       workItems: [{ target: { kind: 'file', path: 'src/a.ts' } }],
       report: { sections: useReportStore().sections, note: 'Confirm the parser boundary.' },
     });
     expect(text).not.toContain(String.fromCharCode(0));
     expect(text).not.toContain('repo-xyz');
+    w.unmount();
+  });
+
+  it('names the codebase on screen by folder and digest only (Part 5 V11)', async () => {
+    const snap = buildSnapshotFixture({ files: 4, directories: 1, repositoryId: 'repo-xyz' });
+    useCityStore().setCity(snap, computeLayout(snap));
+    const w = mountS();
+    await w.find('.ci-settings__export').trigger('click');
+    const text = vi.mocked(downloadText).mock.calls[0]![2];
+    expect((JSON.parse(text) as { source: unknown }).source).toEqual({ folder: 'root', repository: repositoryDigest('repo-xyz') });
+    expect(text).not.toContain('repo-xyz');
+    expect(text).not.toContain('/fixture/root');
     w.unmount();
   });
 

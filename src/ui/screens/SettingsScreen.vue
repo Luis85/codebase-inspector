@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { nextTick, ref } from 'vue';
 import { JSON_MIME, useCsvExport } from '../export/use-csv-export';
-import { reviewStateJson } from '../read-models/review-state';
+import { reviewStateJson, reviewStateSource } from '../read-models/review-state';
+import { useCityStore } from '../stores/city-store';
 import { useReportStore } from '../stores/report-store';
 import { useReviewStore } from '../stores/review-store';
 import type { TabItem } from '../kit/tab-types';
@@ -18,6 +19,7 @@ import type { SettingsTab } from './settings/settings-tabs';
 
 const TABS: readonly TabItem[] = (['appearance', 'analysis', 'accessibility', 'privacy', 'about'] as const).map((id) => ({ id, label: SETTINGS_TAB[id] }));
 
+const city = useCityStore();
 const review = useReviewStore();
 const report = useReportStore();
 const root = ref<HTMLElement | null>(null);
@@ -27,11 +29,13 @@ const showPriority = ref(false);
 const showClear = ref(false);
 const exportText = useCsvExport(root, liveMessage);
 
-/** W14: JSON through the leaf's own document only; relative paths, never raw entity ids. */
+/** W14 / Part 5 V11: JSON through the leaf's own document only; relative paths, never raw
+ *  entity ids; the source names the folder and a digest, never the absolute root or the id. */
 function exportState(): void {
   exportText(SETTINGS_JSON_FILENAME, () => reviewStateJson({
     workItems: review.workItems, rules: review.rules, dispositions: review.dispositions,
     report: { sections: report.sections, note: report.note }, exportedAt: new Date(),
+    source: reviewStateSource(city.snapshot),
   }), JSON_MIME);
 }
 /** E17-style repeat (fix round 1, Minor 3): a screen reader only announces an actual text
