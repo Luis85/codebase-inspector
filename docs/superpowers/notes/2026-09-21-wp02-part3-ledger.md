@@ -132,3 +132,11 @@ The pre-flight scan checked every task pair that shares a file or interface and 
 | E50 | The stewardship action button uses `aria-disabled` plus a guarded handler once added or while pending, never `disabled` (E40/E44). Its accessible name starts with its visible text and follows its state: `OWNERSHIP_ACTION_ADD(title)` before, `OWNERSHIP_ACTION_ADDED_LABEL(title)` after. The meter list gets the sample-labelled `OWNERSHIP_BARS_LABEL` (E14). | Low. |
 | E51 | Ownership has NO metric cards. The spec §2 preamble's "four `MetricCard`s" is read as the default for screens whose own bullet lists cards. Ownership's bullet lists a Callout and three panels, the prototype (`ownership-dark.png`) has no cards, and the plan's model and task have none. A per-module count card row would also invite ranking, which Q11 forbids. This rules on the spec-review finding, which is not treated as a defect. | Low. Adding a card row later is mechanical: a `cards` field on `OwnershipModel` plus four MetricCards. |
 | E52 | "Show in city" uses the label `Show in city: <module>` so the accessible name contains the visible text (WCAG 2.5.3). This amends the Task 7 copy `OWNERSHIP_SHOW_IN_CITY_LABEL`. | None. |
+
+### Final whole-branch review (904692e..1d517ba), fix wave 1d517ba..8b0d4bb
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E53 | The Architecture memo is keyed per leaf rule array (`toRaw(review.rules)`) under each graph, and its signature covers every rule field. The Task 1 deferral ("rules never mutated in place") was wrong: leaves share the graph, and their rule ids collide. | None. It is a correctness fix. |
+| E54 | Every `aria-disabled` button shares one kit rule (opacity 0.6, cursor `not-allowed`), replacing the per-class rules, whose cursor was `default`. | None. It is cosmetic. |
+| E55 | The final review's remaining minor findings are deferred to Part 4 cleanup: splitting `screens.css` (399 lines), a `useCsvExport` composable, a "sample" mark on MetricCard for `includesSample` values, a live region inside dialogs, the uneven chart ticks, the `SECURITY` freeze, class-name reuse across screens, and no dedicated button column in the Quality/Dependencies tables. None hides evidence or breaks a hard constraint. | Low. Each is polish or maintainability. |
