@@ -41,12 +41,12 @@ describe('work-item read model (Part 4)', () => {
     expect(buildWorkbenchModel(items, FILES, 'LIB/').rows.map((r) => r.item.id)).toEqual(['wi-2']);
     expect(buildWorkbenchModel(items, FILES, 'zzz').cards[0]!.value.value).toBe(2);
   });
-  it('writes the plan as Markdown with checklists, relative paths and the session note', () => {
+  it('writes the plan as Markdown with checklists, relative paths, the session note, and a quoted note that cannot start a block', () => {
     const md = planMarkdown(buildWorkbenchModel([item({ notes: '# not a heading', checks: [true, false, false] })], FILES, '').rows, 'repo');
     expect(md).toContain('# Refactor plan — repo');
     expect(md).toContain('## wi-1 — Split parser');
     expect(md).toContain('- Target: `src/parser.ts`');
-    expect(md).toContain('> # not a heading');
+    expect(md).toContain('> \\# not a heading');
     expect(md).toContain('- [x] Characterize existing behaviour and define a safe boundary');
     expect(md).toContain('- [ ] Implement the agreed change and keep compatibility');
     expect(md).not.toContain(String.fromCharCode(0));

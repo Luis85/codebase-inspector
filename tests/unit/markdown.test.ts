@@ -11,11 +11,16 @@ describe('markdown (Part 4 W6)', () => {
   it('escapes pipes and backslashes in table cells', () => {
     expect(mdCell('a|b\\c')).toBe('a\\|b\\\\c');
   });
-  it('fences code spans that contain backticks', () => {
+  it('fences code spans with a run-length-aware fence that never collides with the content', () => {
     expect(mdCode('src/a.ts')).toBe('`src/a.ts`');
     expect(mdCode('a`b')).toBe('`` a`b ``');
+    expect(mdCode('`')).toBe('`` ` ``');
+    expect(mdCode('``')).toBe('``` `` ```');
   });
-  it('quotes every line of a note', () => { expect(mdQuote('a\nb')).toBe('> a\n> b'); });
+  it('quotes every line of a note and escapes a leading block-starter so it cannot start a heading, list or nested quote', () => {
+    expect(mdQuote('a\nb')).toBe('> a\n> b');
+    expect(mdQuote('# a\n- b')).toBe('> \\# a\n> \\- b');
+  });
   it('spells out the evidence of every value and never writes unknown as 0', () => {
     expect(mdValue(collected(1200, 'inventory'), ' lines')).toBe('1,200 lines');
     expect(mdValue(sample(3))).toBe('3 (sample)');
