@@ -314,6 +314,34 @@ describe('CameraControls re-measures on every leaf layout change (Part 5 V5)', (
     await nextTick();
     expect(byLabel(wrapper, 'Rotate left').exists()).toBe(false);
   });
+
+  // Controller ruling Part 5 E13 (Important, a11y — WCAG 2.4.3): a layoutTick re-apply
+  // used to collapse the steps group unconditionally, even while a keyboard user's focus
+  // was ON one of the six step buttons — dropping focus to <body> with no visible cause.
+  // Expanding is always safe (nothing is removed); only a COLLAPSE can steal focus, so
+  // only a collapse is deferred until focus has moved elsewhere.
+  it('never collapses the steps out from under a step button the user is focused on (Part 5 E13)', async () => {
+    const stage = stageInRoot(900);
+    const { layout, tick } = layoutDouble();
+    const wrapper = mountControls(rendererDouble, stage, {}, layout);
+    const rotateLeft = byLabel(wrapper, 'Rotate left').element as HTMLElement;
+    rotateLeft.focus();
+    expect(document.activeElement).toBe(rotateLeft);
+
+    // The leaf narrows while focus is still on the step button: the collapse must wait.
+    resizeLeaf(stage, 600);
+    tick();
+    await nextTick();
+    expect(byLabel(wrapper, 'Rotate left').exists()).toBe(true);
+    expect(document.activeElement).toBe(rotateLeft);
+
+    // Focus moves elsewhere (a primary-row button, outside the steps group); the next
+    // tick is then free to apply the narrow default.
+    (byLabel(wrapper, 'Fit').element as HTMLElement).focus();
+    tick();
+    await nextTick();
+    expect(byLabel(wrapper, 'Rotate left').exists()).toBe(false);
+  });
 });
 
 // Task 10: the overlay must not swallow a pointer aimed at a building UNDER it —

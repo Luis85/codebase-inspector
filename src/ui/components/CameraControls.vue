@@ -26,6 +26,9 @@ const BUTTON_PAN_STEP = 30;
 const renderer = useCityRendererHandle();
 const stage = useCityStageEl();
 const store = useCityStore();
+/** Part 5 E13: this component's own root, so a layoutTick re-apply can check whether
+ *  focus is inside the steps group before collapsing it (never a bare `document`). */
+const rootEl = ref<HTMLElement | null>(null);
 
 // Task 10 (F5): explicit test/override seam for the disclosure's INITIAL state.
 // jsdom has no layout engine, so camera-controls.test.ts pins the narrow case
@@ -75,16 +78,34 @@ function computeStepsOpen(el: HTMLElement | null): boolean | null {
 // narrower than it needs to before it has measured anything.
 const stepsOpen = ref(computeStepsOpen(stage.value) ?? true);
 
+/** Part 5 E13 (a11y, WCAG 2.4.3): true while `document.activeElement` (read through this
+ *  component's OWN root, never a bare `document`) sits inside the steps group. A layoutTick
+ *  re-apply must never collapse the group out from under whichever step button the keyboard
+ *  user is currently on — that drops focus to `<body>`, an invisible, disorienting jump. */
+function stepsContainFocus(): boolean {
+  const root = rootEl.value;
+  if (!root) return false;
+  const steps = root.querySelector<HTMLElement>('.ci-camera-controls__steps');
+  const active = root.ownerDocument.activeElement;
+  return steps !== null && active !== null && steps.contains(active);
+}
+
 /** Re-applied once more from the shared stage watch below, for the one case the
  *  synchronous read above cannot cover: CameraControls is now a DOM descendant of
  *  CityViewport's own `.ci-viewport` (see the watch's own comment), so in the REAL
  *  host `stage.value` is still null at this component's OWN setup time and only
  *  becomes available once CityViewport's `onMounted` runs. A no-op whenever the
  *  synchronous read already had an answer (`props.stepsCollapsed` set, or a real
- *  measurement already came back non-zero). */
+ *  measurement already came back non-zero).
+ *
+ *  Part 5 E13: expanding is always allowed; COLLAPSING is refused while focus is inside
+ *  the steps group (`stepsContainFocus`) — the next tick, once focus has moved elsewhere,
+ *  re-applies the default as usual. Focus itself is never moved by this function. */
 function applyStepsDefault(el: HTMLElement | null): void {
   const nextStepsOpen = computeStepsOpen(el);
-  if (nextStepsOpen !== null) stepsOpen.value = nextStepsOpen;
+  if (nextStepsOpen === null) return;
+  if (!nextStepsOpen && stepsContainFocus()) return;
+  stepsOpen.value = nextStepsOpen;
 }
 
 /** Part 5 V5: set once the user has opened or closed the steps themselves. From then on a
@@ -189,6 +210,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
+    ref="rootEl"
     class="ci-camera-controls ci-camera-controls--overlay"
     role="group"
     aria-label="Camera controls"
