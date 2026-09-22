@@ -47,3 +47,30 @@ Spec: `docs/superpowers/specs/2026-09-22-inspector-ui-part4-design.md`. Plan:
 ## Execution rulings
 
 (Appended per task.)
+
+### Pre-flight scan (before Task 1)
+
+The pre-flight scan (one Opus reviewer, read-only) checked every task pair that shares a file or an interface, and each task's own consistency, against the real code at 148a6cd. It found 19 items: 1 blocker, 7 likely failures, 4 risks and 7 nits. Each is ruled on below and reaches its task through the dispatch. The plan text is left unchanged, and these rulings amend it.
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| X0 | Dispatch format. Each implementer gets a brief file holding the plan's Global Constraints, the Screen-task conventions (Tasks 10–13) and the full task text, copied verbatim by script. The dispatch prompt itself carries the hard constraints, the amending rulings and the real names from earlier tasks. The brief is a file rather than inline text so the controller's context survives 14 tasks, and the words are the same. | None. |
+| X1 (F1) | Task 4: `FindingReviewDialog.run()` keeps its `Promise<boolean>` contract, because `saveDismissal` closes the form on `true`. It sets `status.value = done` and returns `true` only when the result is neither `null` nor `false`, returns `false` otherwise, and on a throw sets the error and returns `false`. | None. The alternative breaks typecheck. |
+| X2 (F2) | Task 2 also renames `OverviewScreen.vue:103` `ci-overview__empty` → `ci-empty`. | None. |
+| X3 (F3) | Task 2: the FindingsTable empty title becomes `ci-empty__title`. The audit rules `.ci-findings-table__empty` and `__empty-title` are deleted outright, not text-replaced. Any padding the Quality empty state needs moves to `.ci-findings-table__none`. The old `.ci-findings-table__empty .ci-hotspots__note` override becomes `.ci-findings-table__none .ci-note`. | Low. |
+| X4 (F4) | Task 4 tests find the in-dialog region as `[role="dialog"] .ci-dialog__status`: the region is a sibling of the slotted root, not inside it. | None. |
+| X5 (F5) | Task 9's partial-read test builds `buildSnapshotFixture({ files: 10, directories: 2, unavailable: 2, completeness: 'partial' })`. | None. |
+| X6 (F6) | Task 10: in `WorkItemEditor`, a local `removing` flag is set before `removeWorkItem` is awaited. The "item vanished" watcher skips `emit('close')` while the flag is set, so `done(WORK_DELETED)` is emitted and announced. | Low. Without it, a deletion is never announced. |
+| X7 (F7) | Task 9: `formatBytes`'s formatter is hoisted to module scope (`consistent-function-scoping`). The same applies to any closure in the plan that captures nothing. | None. |
+| X8 (F8) | Tasks 10, 11 and 13 tests use the mock call tuple without casts (`host.classList…`, `JSON.parse(text)`), because of `no-unnecessary-type-assertion`. | None. |
+| X9 (F9) | Task 13's clear test, and any test awaiting a multi-step store chain, uses `flushPromises()` from `@vue/test-utils`. | None. |
+| X10 (F10) | The `workspace-shell.test.ts` placeholder test is retargeted in **Task 10**, not Task 13 (assert `.ci-screen--workbench`, rename the test), so no task leaves a red test behind. Task 13 still deletes the placeholder and adds the density test. | None. |
+| X11 (F11) | Task 9's review-state test asserts `not.toContain(String.fromCharCode(0))` and `not.toContain(String.fromCharCode(92) + 'u0000')`. It uses the distinctive repository id `repo-xyz` and asserts that string never appears. No backslash-u escape is written anywhere. | None. |
+| X12 (F12) | Task 2: kit `.ci-note` keeps the old note spacing (`margin: var(--ci-space-2) 0 0`), and the existing `… .ci-note { margin: 0 }` overrides still apply. Kit `.ci-selected-strip` takes the Hotspots declarations (flex, wrap, centred, `justify-content: space-between`, gap `space-3`, margin-top `space-3`), with no muted colour or small font, and the explore rule is deleted. Nothing changes visually. | Low. The harness captures in Task 14 would show a regression. |
+| X13 (F13) | `exactOptionalPropertyTypes` is not in `tsconfig.json`, but the user's hard constraints require it as a rule. It binds as review discipline: never assign `undefined` to an optional property. Typecheck does not enforce it. | None. |
+| X14 (F14) | Tasks 11 and 13 write templates multi-line directly (`vue/singleline-html-element-content-newline`). `eslint --fix` is allowed only on the task's own files. | None. |
+| X15 (F15) | Task 10: `.ci-work-editor` sets no width, and the kit `.ci-dialog` sizes it. | None. |
+| X16 (F16) | Task 4 moves three assertions: the dependencies "announces PACKAGE_REVIEW_ADDED" test to `[role="dialog"] .ci-dialog__status`; the "rejected add announces PACKAGE_REVIEW_FAILED" test to `.ci-package-dialog__error`; and the quality `.ci-quality__live` expectation (it is replaced, not kept beside the new one). | None. |
+| X17 (F17) | Task 1's stylesheet-order test checks `expect(order).toHaveLength(7)` before `.every` (E27). | None. |
+| X18 (F18) | The copy follows the spec. `REPORT_CALLOUT` = "This is an illustrative review built partly from sample data. It is not a security certification or an audit of your repository." `SOURCES_CALLOUT_TITLE` = "Evidence sources". `SOURCES_CALLOUT` = "One real provider is connected: the built-in read-only inventory. Every other signal is sample data or not collected." Settings › Privacy & storage gets its own Export review state button (`ci-settings__export-privacy`, emitting `export`), as spec §2 lists. **Deviation kept:** the report paper's section headings are `h4` under an `h3` paper title, under the page `h2`, because a correct outline beats spec §2's "h3 sections". `mdQuote` keeping `> # …` is acceptable, and the test description says "quotes every line". | Low. |
+| X19 (F19) | Task 10: the WorkItemEditor split threshold is 300 lines, as in the plan's self-review. | None. |
