@@ -464,9 +464,9 @@ that same heading (1074 tests, 1073 passed, 1 skipped) and every per-layer Tests
 the table below are the WP-01-gate transcription described above; they are **not** the
 living suite's totals, and the guard below only checks that they sum to each other, not
 that they match a fresh run. The living suite's own measurement, taken at this commit:
-168 files, 1756 tests, 1754 passed, 1 skipped, plus `tests/unit/install-script.test.ts`'s
+168 files, 1759 tests, 1757 passed, 1 skipped, plus `tests/unit/install-script.test.ts`'s
 one environmental failure in a worktree without `.obsidian/` (that failure is
-environmental, not counted in the 1756/1754/1 above, and is not part of the pinned
+environmental, not counted in the 1759/1757/1 above, and is not part of the pinned
 per-layer table either).
 **168 files, 1074 tests, 1073 passed,
 1 skipped.**
@@ -697,8 +697,8 @@ check these against the suite and against the matrix itself:
 - The **reference hardware** rows, which describe a machine.
 - The `npm run analyze` **total of 11**. Its internal breakdown is checked, but the figure
   itself needs the tool, which is not part of `npm run verify` and needs network.
-- The **living suite's own totals** named in the G8 vintage note above (168 files, 1756
-  tests, 1754 passed, 1 skipped, plus `tests/unit/install-script.test.ts`'s one
+- The **living suite's own totals** named in the G8 vintage note above (168 files, 1759
+  tests, 1757 passed, 1 skipped, plus `tests/unit/install-script.test.ts`'s one
   environmental failure). Nothing in the suite can assert its own whole-run tally from
   inside itself, for the same reason the per-layer test counts are transcribed rather
   than derived. Re-take with `npx vitest run`.
