@@ -15,6 +15,7 @@ import { buildFileDetail, type FileDetailModel } from './file-detail';
 import { buildDependenciesModel, type DependenciesModel } from './dependencies';
 import { buildEvolutionModel, type EvolutionModel } from './evolution';
 import type { ChangeWindow } from '../fixtures/sample-evolution';
+import { SAMPLE_PACKAGES, type SamplePackage } from '../fixtures/sample-packages';
 import { buildQualityModel, type QualityModel } from './findings';
 import { buildOwnershipModel, type OwnershipModel } from './ownership';
 import { buildSecurityModel, type SecurityModel } from './security';
@@ -99,8 +100,14 @@ export function dependenciesModelFor(snapshot: CodebaseSnapshot): DependenciesMo
   return hit;
 }
 
-/** Security has no snapshot-derived input (Part 3 Q7), so it is built once at module load. */
-const SECURITY: SecurityModel = buildSecurityModel();
+/** Security has no snapshot-derived input (Part 3 Q7). Part 5 V18: built on the first read,
+ *  never at module load, and then shared by every leaf (keyed by the package array). */
+const securityCache = new WeakMap<readonly SamplePackage[], SecurityModel>();
+export function securityModelFor(packages: readonly SamplePackage[]): SecurityModel {
+  let hit = securityCache.get(packages);
+  if (!hit) { hit = buildSecurityModel(packages); securityCache.set(packages, hit); }
+  return hit;
+}
 
 /** Part 3 Q8-Q10: one Evolution model per (snapshot, journal identity, changeWindow). The
  *  journal's `entries` array is reassigned on every `record`, so its identity is a valid
@@ -137,7 +144,7 @@ export function useReadModels() {
   const quality = computed(() => qualityModelFor(files.value, review.dispositions));
   const testConfidence = computed(() => (store.snapshot ? testConfidenceModelFor(store.snapshot, files.value) : null));
   const dependencies = computed(() => (store.snapshot ? dependenciesModelFor(store.snapshot) : null));
-  const security = computed(() => SECURITY);
+  const security = computed(() => securityModelFor(SAMPLE_PACKAGES));
   const ownership = computed(() => ownershipModelFor(files.value));
   /** A11: the Hotspots screen shows sample values whenever any file's plotted signal does. */
   const filesUseSample = computed(() => files.value.some((f) => isSampleBacked(f.priority) || isSampleBacked(f.complexity)));

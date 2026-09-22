@@ -11,14 +11,15 @@ import {
 export interface SecurityCard { id: 'advisories' | 'secrets' | 'licenses' | 'runtime'; label: string; icon: string; value: MetricValue; caption: string; tone: 'accent' | 'warning' }
 export interface SecurityModel { advisories: readonly SamplePackage[]; cards: readonly SecurityCard[]; usesSample: true }
 
-export function buildSecurityModel(): SecurityModel {
-  const advisories = SAMPLE_PACKAGES.filter((p) => p.advisory !== null);
+/** Part 5 V18: pure over its input; nothing calls it at module load (see securityModelFor). */
+export function buildSecurityModel(packages: readonly SamplePackage[] = SAMPLE_PACKAGES): SecurityModel {
+  const advisories = packages.filter((p) => p.advisory !== null);
   return {
     advisories,
     cards: [
       { id: 'advisories', label: SECURITY_CARD_ADVISORIES, icon: 'shield', value: sample(advisories.length), caption: SECURITY_CARD_ADVISORIES_CAPTION, tone: 'warning' },
       { id: 'secrets', label: SECURITY_CARD_SECRETS, icon: 'lock', value: unknown(SECRETS_NOT_COLLECTED), caption: '', tone: 'accent' },
-      { id: 'licenses', label: SECURITY_CARD_LICENSES, icon: 'file-text', value: sample(SAMPLE_PACKAGES.filter((p) => p.license === null).length), caption: SECURITY_CARD_LICENSES_CAPTION, tone: 'accent' },
+      { id: 'licenses', label: SECURITY_CARD_LICENSES, icon: 'file-text', value: sample(packages.filter((p) => p.license === null).length), caption: SECURITY_CARD_LICENSES_CAPTION, tone: 'accent' },
       { id: 'runtime', label: SECURITY_CARD_RUNTIME, icon: 'info', value: unknown(RUNTIME_NOT_ASSESSED), caption: '', tone: 'accent' },
     ],
     usesSample: true,
