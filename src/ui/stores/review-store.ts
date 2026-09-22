@@ -28,6 +28,13 @@ function isRejected(result: PromiseSettledResult<unknown>): result is PromiseRej
 interface ReviewBucket { repository: ReviewRepository; nextId: number; nextRuleId: number }
 const newBucket = (): ReviewBucket => ({ repository: markRaw(createInMemoryReviewRepository()), nextId: 1, nextRuleId: 1 });
 
+/** Part 5 V16: a whole review state to replace the bound codebase's with (an import). */
+export interface ReviewReplacement {
+  workItems: readonly WorkItem[];
+  rules: readonly BoundaryRule[];
+  dispositions: readonly FindingDisposition[];
+}
+
 interface ReviewState {
   workItems: WorkItem[];
   nextId: number;
@@ -241,8 +248,14 @@ export const useReviewStore = defineStore('review', {
      *  `Promise.allSettled`, so one rejection does not stop the rest from being
      *  attempted; reloads from the port in a `finally` so local state always matches
      *  what it still holds afterwards, even after a partial failure; then rethrows the
-     *  first rejection (if any), after the reload, so the caller still sees it. */
-    async clearAll(): Promise<void> {
+     *  first rejection (if any), after the reload, so the caller still sees it.
+     *  Part 5 P1 (T19): refused (false), touching nothing, while any save, update or
+     *  removal is in flight — the same rule as `replaceAll`. Otherwise an update whose
+     *  save lands after the clear would be written back into the port and reappear on
+     *  the next load. */
+    async clearAll(): Promise<boolean> {
+      const pending = this.pendingWorkKeys.length + this.pendingItemIds.length + this.pendingRuleKeys.length + this.pendingFingerprints.length;
+      if (pending > 0) return false;
       const repo = this.repository;
       let results: PromiseSettledResult<void>[] = [];
       try {
@@ -257,6 +270,39 @@ export const useReviewStore = defineStore('review', {
       }
       const rejected = results.find(isRejected);
       if (rejected) throw rejected.reason;
+      return true;
+    },
+    /** Part 5 V16: replaces the whole review state with an imported one. Refused (false)
+     *  while any save, update or removal is in flight, so nothing half-applied races it.
+     *  Removes every current item, rule and decision through the port, then saves every
+     *  imported one (persist-first; `allSettled` in both phases, so one rejection does not
+     *  stop the rest). The removals finish before the saves start, so an imported id that
+     *  a current item already had is saved, not deleted. Reloads in `finally`, so the
+     *  lists show exactly what the port holds (the id counters move past every imported
+     *  id), then rethrows the first rejection, like `clearAll`. */
+    async replaceAll(state: ReviewReplacement): Promise<boolean> {
+      const pending = this.pendingWorkKeys.length + this.pendingItemIds.length + this.pendingRuleKeys.length + this.pendingFingerprints.length;
+      if (pending > 0) return false;
+      const repo = this.repository;
+      let results: PromiseSettledResult<void>[] = [];
+      try {
+        const removed = await Promise.allSettled([
+          ...this.workItems.map((w) => repo.removeWorkItem(w.id)),
+          ...this.rules.map((r) => repo.removeRule(r.id)),
+          ...this.dispositions.map((d) => repo.removeDisposition(d.fingerprint)),
+        ]);
+        const saved = await Promise.allSettled([
+          ...state.workItems.map((w) => repo.saveWorkItem(w)),
+          ...state.rules.map((r) => repo.saveRule(r)),
+          ...state.dispositions.map((d) => repo.saveDisposition(d)),
+        ]);
+        results = [...removed, ...saved];
+      } finally {
+        if (this.repository === repo) await this.load();
+      }
+      const rejected = results.find(isRejected);
+      if (rejected) throw rejected.reason;
+      return true;
     },
     /** Part 2 P5. Same reservation and persist-first ordering as `addWorkItem`.
      *  Refuses (null) a self-rule, an empty rationale, an existing pair, and a second call

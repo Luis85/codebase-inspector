@@ -16,9 +16,11 @@ export const REVIEW_STATE_SCHEMA_V1 = 'codebase-inspector.review-state.v1';
 export const REVIEW_STATE_SCHEMA = 'codebase-inspector.review-state.v2';
 /** V14: the longest folder label an import accepts, so every export stays importable. */
 export const SOURCE_FOLDER_MAX = 255;
-/** Part 5 E9(a): the pattern Task 8's import enforces on a finding id (the part of a
- *  fingerprint after the last '#'). An export never carries what the import refuses. */
-const FINDING_ID_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
+/** Part 5 E9(a)/E17: the pattern Task 8's import enforces on a finding id (the part of a
+ *  fingerprint after the last '#'). An export never carries what the import refuses.
+ *  Exported so review-state-import.ts uses this same constant rather than declaring its
+ *  own copy. */
+export const FINDING_ID_PATTERN = /^[A-Za-z0-9-]{1,64}$/;
 
 export interface ReviewStateSource { folder: string; repository: string }
 

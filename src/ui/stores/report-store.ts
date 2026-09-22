@@ -34,6 +34,12 @@ export const useReportStore = defineStore('report', {
       this.sections = allOn();
       this.note = '';
     },
+    /** Part 5 V16: an imported report's sections and note, for the bound codebase. The
+     *  parser has already bounded the note (REPORT_NOTE_MAX). */
+    restore(sections: Readonly<Record<ReportSection, boolean>>, note: string): void {
+      this.sections = { ...sections };
+      this.note = note;
+    },
     /** Controller ruling Part 4 E8, amended by Part 5 V10: a reviewer note about one
      *  codebase must never appear in another codebase's report. Pinia state lives per
      *  leaf (never reset on its own), so a snapshot switch inside the same leaf sets the
