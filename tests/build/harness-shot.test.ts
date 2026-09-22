@@ -4,6 +4,9 @@ import { SHOTS } from '../../scripts/harness-shot.mjs';
 
 const source = readFileSync('scripts/chromium.mjs', 'utf8');
 
+// oxlint(unicorn/consistent-function-scoping): captures nothing from the it() below.
+const shotQuery = (id: string) => new URLSearchParams(SHOTS.find((shot) => shot.id === id)?.query ?? '');
+
 describe('harness-shot SHOTS', () => {
   it('covers every one of the seven city screens', () => {
     const screens = new Set(SHOTS.map((shot) => new URLSearchParams(shot.query).get('screen')));
@@ -50,6 +53,19 @@ describe('harness-shot SHOTS', () => {
     // loading `?screen=s11` would exercise `store.setViewMode('list')` instead of ever
     // asking the renderer for a WebGL2 context.
     expect(new URLSearchParams(failureShot.query).get('screen')).not.toBe('s11');
+  });
+
+  it('captures the Part 5 states: the editor in both schemes, a running scan, the import dialog (V29, V30)', () => {
+    for (const theme of ['dark', 'light']) {
+      const q = shotQuery(`wp02-workbench-editor-${theme}`);
+      expect(q.get('theme')).toBe(theme);
+      expect(q.get('items')).toBe('demo');
+      expect(q.get('edit')).toBe('first');
+    }
+    expect(shotQuery('wp02-sources-running-dark').get('run')).toBe('running');
+    expect(shotQuery('wp02-city-running-dark').get('run')).toBe('running');
+    expect(shotQuery('wp02-settings-import-dark').get('import')).toBe('demo');
+    expect(shotQuery('wp02-settings-import-dark').get('tab')).toBe('privacy');
   });
 });
 

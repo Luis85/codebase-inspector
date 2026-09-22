@@ -7,7 +7,10 @@ import {
 } from '../../src/ui/renderer-handle';
 import { readPalette } from '../../src/host/theme-bridge';
 import { useCityStore } from '../../src/ui/stores/city-store';
+import { useReportStore } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
+import { useRunStore } from '../../src/ui/stores/run-store';
+import { demoImportJson, runningLifecycle, seedDemoItems } from './seed';
 import { harnessLayout, harnessSnapshot } from './fixture';
 import { HARNESS_THEME_EVENT } from './theme';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
@@ -21,6 +24,9 @@ export interface HarnessOptions {
   select?: string;
   tab?: string;
   items?: 'demo';
+  edit?: 'first';
+  run?: 'running';
+  importFile?: 'demo';
 }
 
 export async function mountHarness(root: HTMLElement, options: HarnessOptions): Promise<void> {
@@ -92,6 +98,11 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
     if (target) store.select(target);
   }
 
+  if (options.run === 'running') {
+    // Part 5 V6: the toolbar's and Data & scans' Cancel are enabled only while running.
+    useRunStore().setLifecycle(runningLifecycle());
+  }
+
   const route = options.route ?? 'city';
   store.navigate(route);
   if (route !== 'city') {
@@ -99,24 +110,39 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
     // drawn once Vue has flushed.
     await nextTick();
     if (options.items === 'demo') {
-      // Part 4: the workbench and report shots need work items; three fixed ones on the
-      // first three files, one per status column the prototype shows.
-      const review = useReviewStore();
       // Part 5 V8: App's repository watcher bound the review store to this snapshot and
       // started a load. A second load settles after the first (same depth, in order), so
-      // awaiting it guarantees no load lands on top of the items added below.
-      await review.load();
-      const ids = (store.layout?.lots ?? []).slice(0, 3).map((l) => l.entityId);
-      const at = new Date('2026-09-17T12:00:00Z');
-      if (ids[0]) await review.addWorkItem({ kind: 'file', entityId: ids[0] }, 'refactor', 'Separate calculation from persistence', at, { priority: 'high', status: 'planned', checks: [true, false, false] });
-      if (ids[1]) await review.addWorkItem({ kind: 'file', entityId: ids[1] }, 'tests', 'Add regression tests for selection changes', at, { status: 'in-progress', checks: [true, true, false] });
-      if (ids[2]) await review.addWorkItem({ kind: 'file', entityId: ids[2] }, 'documentation', 'Document the persistence boundary', at, { priority: 'low', status: 'verified', checks: [true, true, true] });
+      // awaiting it guarantees no load lands on top of the items seedDemoItems adds below.
+      await useReviewStore().load();
+      // Part 4: the workbench and report shots need work items. Part 5 V30: seedDemoItems
+      // throws unless all three were created, so a refused add fails the capture.
+      await seedDemoItems((store.layout?.lots ?? []).slice(0, 3).map((l) => l.entityId));
+      await nextTick();
+    }
+    if (options.edit === 'first') {
+      // Part 5 V29: the editor open, so the label style is seen in both themes.
+      const card = root.querySelector<HTMLElement>('.ci-work-card');
+      if (!card) throw new Error('harness: edit=first found no work card (add items=demo)');
+      card.click();
+      await nextTick();
       await nextTick();
     }
     if (options.tab) {
       // Part 3 §4: a headless capture cannot click, so the harness selects the tab.
       root.querySelector<HTMLElement>(`[role="tab"][data-tab-id="${CSS.escape(options.tab)}"]`)?.click();
       await nextTick();
+    }
+    if (options.importFile === 'demo') {
+      // Part 5 V13: a capture cannot use the file picker, so the Import row's own
+      // <input type="file"> gets a fixed file and the `change` event a real pick fires.
+      const input = root.querySelector<HTMLInputElement>('.ci-settings__import-file');
+      const firstPath = store.snapshot?.entities.find((e) => e.kind === 'file')?.path;
+      if (!input || !firstPath) throw new Error('harness: import=demo found no import input (add tab=privacy)');
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([demoImportJson(firstPath, useReportStore().sections)], 'review-state.json', { type: 'application/json' }));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change'));
+      await until(() => root.querySelector('.ci-dialog') !== null);
     }
     document.body.dataset.ciHarnessReady = 'true';
     return;

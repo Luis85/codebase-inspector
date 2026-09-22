@@ -118,6 +118,14 @@ export const SHOTS = [
   { id: 'wp02-settings-light', query: '?screen=s05&theme=light&route=settings' },
   { id: 'wp02-settings-narrow-dark', query: '?screen=s10&theme=dark&route=settings&width=700', viewport: { width: 760, height: 900 } },
   { id: 'wp02-settings-privacy-dark', query: '?screen=s05&theme=dark&route=settings&tab=privacy' },
+  // WP-02 Part 5: compare against docs/concept/prototype/screenshots/work-item-editor-dark.png
+  // (the editor, both schemes), scan-progress-dark.png (a running scan: Data & scans and the
+  // city, Cancel enabled) and settings-dark.png (the import dialog over Settings).
+  { id: 'wp02-workbench-editor-dark', query: '?screen=s05&theme=dark&route=workbench&items=demo&edit=first' },
+  { id: 'wp02-workbench-editor-light', query: '?screen=s05&theme=light&route=workbench&items=demo&edit=first' },
+  { id: 'wp02-sources-running-dark', query: '?screen=s05&theme=dark&route=sources&run=running' },
+  { id: 'wp02-city-running-dark', query: '?screen=s05&theme=dark&route=city&run=running' },
+  { id: 'wp02-settings-import-dark', query: '?screen=s05&theme=dark&route=settings&tab=privacy&import=demo' },
 ];
 
 async function main() {

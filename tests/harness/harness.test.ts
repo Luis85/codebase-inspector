@@ -3,8 +3,11 @@
 // alive anyway: it runs under the ordinary suite, so a refactor that breaks the
 // harness fails a test instead of being discovered the next time somebody wants a
 // picture.
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { createPinia, setActivePinia } from 'pinia';
+import { useReviewStore } from '../../src/ui/stores/review-store';
+import { runningLifecycle, seedDemoItems } from './seed';
 import { harnessLayout, harnessSnapshot } from './fixture';
 import { applyScheme } from './theme';
 
@@ -47,6 +50,12 @@ describe('harness fixture', () => {
     // fixture with no unavailable file cannot photograph that rule being kept.
     expect(harnessLayout().lots.some((lot) => lot.metricState === 'unavailable')).toBe(true);
   });
+
+  it('is partial, with the warning a real scan writes when line counts are unavailable (Part 5 V30, Part 4 E17)', () => {
+    const snapshot = harnessSnapshot();
+    expect(snapshot.completeness).toBe('partial');
+    expect(snapshot.warnings).toEqual(['binary content: physical lines are not defined']);
+  });
 });
 
 describe('harness theme', () => {
@@ -57,5 +66,28 @@ describe('harness theme', () => {
     applyScheme('dark');
     expect(document.body.classList.contains('theme-dark')).toBe(true);
     expect(document.body.classList.contains('theme-light')).toBe(false);
+  });
+});
+
+// oxlint(unicorn/consistent-function-scoping): captures nothing from the describe below.
+const fileIds = () => harnessSnapshot().entities.filter((e) => e.kind === 'file').map((e) => e.id);
+
+describe('harness seeding (Part 5 V30)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+
+  it('seeds three work items, one per status column the prototype shows', async () => {
+    await seedDemoItems(fileIds().slice(0, 3));
+    expect(useReviewStore().workItems.map((w) => w.status)).toEqual(['planned', 'in-progress', 'verified']);
+  });
+  it('throws when fewer than three were created, so the page error fails the capture', async () => {
+    await expect(seedDemoItems(fileIds().slice(0, 2))).rejects.toThrow('harness: items=demo seeded 2 of 3 work items');
+  });
+  it('counts a refused add (null) as missing, never as seeded', async () => {
+    const ids = fileIds().slice(0, 3);
+    await useReviewStore().addWorkItem({ kind: 'file', entityId: ids[0]! }, 'refactor', 'Already planned', new Date('2026-09-17T12:00:00Z'));
+    await expect(seedDemoItems(ids)).rejects.toThrow('harness: items=demo seeded 2 of 3 work items');
+  });
+  it('seeds a running scan for ?run=running', () => {
+    expect(runningLifecycle().run).toMatchObject({ status: 'running', processedFiles: 57 });
   });
 });

@@ -7,6 +7,9 @@
 //   ?select=first|<path>  select a file (for the file route)
 //   ?tab=<id>          select a tab on a tabbed screen (after the route)
 //   ?items=demo        seed three work items (workbench, report)
+//   ?edit=first        open the first work card's editor (workbench, with items=demo)
+//   ?run=running       seed the run store with a running scan (city, sources)
+//   ?import=demo       open the import dialog with a fixed v1 file (settings, tab=privacy)
 //
 // `installObsidianDomExtensions` is called FIRST, before any other import runs its own
 // top-level code: the harness page has no Obsidian, and the REAL renderer reads
@@ -45,4 +48,7 @@ const select = params.get('select');
 void mountHarness(leaf, {
   screen, route, ...(select ? { select } : {}), ...(params.get('tab') ? { tab: params.get('tab')! } : {}),
   ...(params.get('items') === 'demo' ? { items: 'demo' as const } : {}),
+  ...(params.get('edit') === 'first' ? { edit: 'first' as const } : {}),
+  ...(params.get('run') === 'running' ? { run: 'running' as const } : {}),
+  ...(params.get('import') === 'demo' ? { importFile: 'demo' as const } : {}),
 });

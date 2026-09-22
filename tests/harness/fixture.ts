@@ -18,6 +18,10 @@ export function harnessSnapshot(): CodebaseSnapshot {
     // an unknown, and neither is drawn as the other.
     measuredZero: 1,
     unavailable: 3,
+    // Part 5 V30 (Part 4 E17): a real scan marks a snapshot partial whenever a file's
+    // lines are unavailable (inventory-collector.ts), with this reason as its warning.
+    completeness: 'partial',
+    warnings: ['binary content: physical lines are not defined'],
   });
 }
 
