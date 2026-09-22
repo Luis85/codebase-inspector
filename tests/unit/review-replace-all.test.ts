@@ -136,6 +136,40 @@ describe('review store clearAll (Part 5 P1/T19)', () => {
   });
 });
 
+describe('review store bulk gate (Part 5 E18)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+
+  it('refuses an addWorkItem started during a gated replaceAll, and every imported item survives intact', async () => {
+    const repo = createInMemoryReviewRepository();
+    const store = useReviewStore();
+    store.setRepository(repo);
+    const running = store.replaceAll(IMPORTED);
+    // Started synchronously while replaceAll's bulkBusy flag is set but its removal and
+    // save phases have not settled yet: must not reserve an id an imported item could collide with.
+    expect(await store.addWorkItem({ kind: 'package', name: 'during' }, 'review', 'During', NOW)).toBeNull();
+    expect(await running).toBe(true);
+    expect(store.workItems).toEqual(ITEMS);
+    expect(await repo.listWorkItems()).toEqual(ITEMS);
+  });
+
+  it('refuses a second replaceAll, and a clearAll, started while the first is still running', async () => {
+    const repo = createInMemoryReviewRepository();
+    const store = useReviewStore();
+    store.setRepository(repo);
+    // All three start synchronously, back to back, before any of them can settle: the
+    // in-memory repo resolves fast enough that awaiting one in between would let the
+    // first finish (and clear bulkBusy) before the next call is even made.
+    const first = store.replaceAll(IMPORTED);
+    const second = store.replaceAll(IMPORTED);
+    const clear = store.clearAll();
+    expect(await second).toBe(false);
+    expect(await clear).toBe(false);
+    expect(await first).toBe(true);
+    expect(store.workItems).toEqual(ITEMS);
+    expect(await repo.listWorkItems()).toEqual(ITEMS);
+  });
+});
+
 describe('report store restore (Part 5 V16)', () => {
   beforeEach(() => { setActivePinia(createPinia()); });
 

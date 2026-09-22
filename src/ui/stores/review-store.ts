@@ -22,6 +22,19 @@ function isRejected(result: PromiseSettledResult<unknown>): result is PromiseRej
   return result.status === 'rejected';
 }
 
+/** Part 5 E18: shared by `clearAll` and `replaceAll` (which `clearAll` now calls, with an
+ *  empty replacement) — removes every given item, rule and disposition through `repo`, all
+ *  in one `Promise.allSettled` so one rejection never stops the rest from being attempted. */
+function removeEverything(
+  repo: ReviewRepository, workItems: readonly WorkItem[], rules: readonly BoundaryRule[], dispositions: readonly FindingDisposition[],
+): Promise<PromiseSettledResult<void>[]> {
+  return Promise.allSettled([
+    ...workItems.map((w) => repo.removeWorkItem(w.id)),
+    ...rules.map((r) => repo.removeRule(r.id)),
+    ...dispositions.map((d) => repo.removeDisposition(d.fingerprint)),
+  ]);
+}
+
 /** Part 5 V8: one codebase's own repository and id counters. The lists are reloaded from
  *  the repository on every switch; the counters travel with the bucket because a failed
  *  save or a removal leaves a spent id that `load()` cannot see. */
@@ -34,6 +47,8 @@ export interface ReviewReplacement {
   rules: readonly BoundaryRule[];
   dispositions: readonly FindingDisposition[];
 }
+/** Part 5 E18: what `clearAll` replaces the bound codebase's state with — nothing. */
+const EMPTY_REPLACEMENT: ReviewReplacement = { workItems: [], rules: [], dispositions: [] };
 
 interface ReviewState {
   workItems: WorkItem[];
@@ -61,6 +76,12 @@ interface ReviewState {
   buckets: Map<string, ReviewBucket>;
   /** The key of the bucket that `repository` and the counters belong to. */
   boundKey: string;
+  /** Part 5 E18: true while `replaceAll` (which `clearAll` calls) is running. Set
+   *  synchronously before its first `await`, cleared in `finally`: every mutating
+   *  action refuses (its own null/false shape) while it is set, and a concurrent
+   *  second `clearAll`/`replaceAll` refuses via `hasPendingChanges`. Global like the
+   *  pending arrays (V9). */
+  bulkBusy: boolean;
 }
 
 export const useReviewStore = defineStore('review', {
@@ -79,9 +100,15 @@ export const useReviewStore = defineStore('review', {
       pendingFingerprints: [],
       buckets: markRaw(new Map([['', unbound]])),
       boundKey: '',
+      bulkBusy: false,
     };
   },
   getters: {
+    /** Part 5 E18: any save, update or removal in flight, OR a `clearAll`/`replaceAll`
+     *  already running. The gate `clearAll`/`replaceAll` themselves use before starting. */
+    hasPendingChanges: (state): boolean =>
+      state.bulkBusy || state.pendingWorkKeys.length > 0 || state.pendingItemIds.length > 0
+      || state.pendingRuleKeys.length > 0 || state.pendingFingerprints.length > 0,
     workItemCount: (state): number => state.workItems.length,
     /** Part 4 W13: the nav badge counts what is still to do. */
     openWorkItemCount: (state): number => state.workItems.filter((w) => w.status !== 'verified').length,
@@ -171,7 +198,7 @@ export const useReviewStore = defineStore('review', {
      *  observed. */
     async addWorkItem(target: WorkTarget, intent: WorkIntent, title: string, now: Date, init: WorkItemInit = {}): Promise<WorkItem | null> {
       const key = workTargetKey(target, intent);
-      if (this.hasWorkItem(target, intent) || this.pendingWorkKeys.includes(key)) return null;
+      if (this.bulkBusy || this.hasWorkItem(target, intent) || this.pendingWorkKeys.includes(key)) return null;
       // Controller ruling Part 4 E3: clip (never refuse) an over-long GENERATED title, so a
       // long package or file name can never make the calling button silently do
       // nothing. `updateWorkItem` still refuses one via `workItemProblem` — that title
@@ -204,7 +231,7 @@ export const useReviewStore = defineStore('review', {
      *  the editor. */
     async updateWorkItem(id: string, patch: WorkItemPatch, now: Date): Promise<WorkItem | null> {
       const current = this.workItems.find((w) => w.id === id);
-      if (!current || this.pendingItemIds.includes(id)) return null;
+      if (this.bulkBusy || !current || this.pendingItemIds.includes(id)) return null;
       // Copies only the five patch fields, and only when present: `{ ...current,
       // ...patch }` would accept any wider object at runtime (a full WorkItem passed as
       // a patch could overwrite id/target/intent/createdAt), and an explicit `undefined`
@@ -233,7 +260,7 @@ export const useReviewStore = defineStore('review', {
      *  unknown id (so E17 callers never announce a removal that did not happen), and
      *  while an update or removal of the same id is in flight. */
     async removeWorkItem(id: string): Promise<boolean> {
-      if (!this.workItems.some((w) => w.id === id) || this.pendingItemIds.includes(id)) return false;
+      if (this.bulkBusy || !this.workItems.some((w) => w.id === id) || this.pendingItemIds.includes(id)) return false;
       const repo = this.repository;
       this.pendingItemIds.push(id);
       try {
@@ -244,53 +271,34 @@ export const useReviewStore = defineStore('review', {
         this.pendingItemIds = this.pendingItemIds.filter((p) => p !== id);
       }
     },
-    /** Part 4 W14: removes every work item, rule and disposition through the port with
-     *  `Promise.allSettled`, so one rejection does not stop the rest from being
-     *  attempted; reloads from the port in a `finally` so local state always matches
-     *  what it still holds afterwards, even after a partial failure; then rethrows the
-     *  first rejection (if any), after the reload, so the caller still sees it.
-     *  Part 5 P1 (T19): refused (false), touching nothing, while any save, update or
-     *  removal is in flight — the same rule as `replaceAll`. Otherwise an update whose
-     *  save lands after the clear would be written back into the port and reappear on
-     *  the next load. */
-    async clearAll(): Promise<boolean> {
-      const pending = this.pendingWorkKeys.length + this.pendingItemIds.length + this.pendingRuleKeys.length + this.pendingFingerprints.length;
-      if (pending > 0) return false;
-      const repo = this.repository;
-      let results: PromiseSettledResult<void>[] = [];
-      try {
-        results = await Promise.allSettled([
-          ...this.workItems.map((w) => repo.removeWorkItem(w.id)),
-          ...this.rules.map((r) => repo.removeRule(r.id)),
-          ...this.dispositions.map((d) => repo.removeDisposition(d.fingerprint)),
-        ]);
-      } finally {
-        // Part 5 V9: after a switch, the bound codebase has already loaded its own state.
-        if (this.repository === repo) await this.load();
-      }
-      const rejected = results.find(isRejected);
-      if (rejected) throw rejected.reason;
-      return true;
+    /** Part 4 W14 / Part 5 V16: clears the whole review state — `replaceAll` with
+     *  nothing to restore. Same gating (E18), ordering and error handling. */
+    clearAll(): Promise<boolean> {
+      return this.replaceAll(EMPTY_REPLACEMENT);
     },
-    /** Part 5 V16: replaces the whole review state with an imported one. Refused (false)
-     *  while any save, update or removal is in flight, so nothing half-applied races it.
-     *  Removes every current item, rule and decision through the port, then saves every
-     *  imported one (persist-first; `allSettled` in both phases, so one rejection does not
-     *  stop the rest). The removals finish before the saves start, so an imported id that
-     *  a current item already had is saved, not deleted. Reloads in `finally`, so the
-     *  lists show exactly what the port holds (the id counters move past every imported
-     *  id), then rethrows the first rejection, like `clearAll`. */
+    /** Part 5 V16: replaces the whole review state with an imported one (or, via
+     *  `clearAll`, with nothing). Removes every current item, rule and decision through
+     *  the port, then saves every imported one (persist-first; `allSettled` in both
+     *  phases, so one rejection does not stop the rest). The removals finish before the
+     *  saves start, so an imported id that a current item already had is saved, not
+     *  deleted. Reloads in `finally`, so the lists show exactly what the port holds (the
+     *  id counters move past every imported id), then rethrows the first rejection.
+     *
+     *  Part 5 E18: refused (false), touching nothing, while `hasPendingChanges` is true.
+     *  Otherwise `bulkBusy` is set SYNCHRONOUSLY, before the first `await`, so a
+     *  mutating action started right after refuses via its own `bulkBusy` check, and a
+     *  concurrent second `clearAll`/`replaceAll` refuses via `hasPendingChanges` too —
+     *  closing the race where an add started mid-run could reserve an id equal to (and
+     *  later overwrite) an imported one. Cleared in `finally` alongside the reload, kept
+     *  global (not gated on `this.repository === repo`, unlike the pending arrays, V9)
+     *  so it is never left set after a codebase switch mid-run. */
     async replaceAll(state: ReviewReplacement): Promise<boolean> {
-      const pending = this.pendingWorkKeys.length + this.pendingItemIds.length + this.pendingRuleKeys.length + this.pendingFingerprints.length;
-      if (pending > 0) return false;
+      if (this.hasPendingChanges) return false;
+      this.bulkBusy = true;
       const repo = this.repository;
       let results: PromiseSettledResult<void>[] = [];
       try {
-        const removed = await Promise.allSettled([
-          ...this.workItems.map((w) => repo.removeWorkItem(w.id)),
-          ...this.rules.map((r) => repo.removeRule(r.id)),
-          ...this.dispositions.map((d) => repo.removeDisposition(d.fingerprint)),
-        ]);
+        const removed = await removeEverything(repo, this.workItems, this.rules, this.dispositions);
         const saved = await Promise.allSettled([
           ...state.workItems.map((w) => repo.saveWorkItem(w)),
           ...state.rules.map((r) => repo.saveRule(r)),
@@ -298,6 +306,7 @@ export const useReviewStore = defineStore('review', {
         ]);
         results = [...removed, ...saved];
       } finally {
+        this.bulkBusy = false;
         if (this.repository === repo) await this.load();
       }
       const rejected = results.find(isRejected);
@@ -309,7 +318,7 @@ export const useReviewStore = defineStore('review', {
      *  for a pair whose first save has not settled. */
     async addRule(from: string, to: string, rationale: string, now: Date): Promise<BoundaryRule | null> {
       const key = ruleKey(from, to);
-      if (from === to || rationale.trim() === '' || this.hasRule(from, to) || this.pendingRuleKeys.includes(key)) return null;
+      if (this.bulkBusy || from === to || rationale.trim() === '' || this.hasRule(from, to) || this.pendingRuleKeys.includes(key)) return null;
       const rule: BoundaryRule = {
         id: `AR-${String(this.nextRuleId).padStart(3, '0')}`, from, to, rationale: rationale.trim(), createdAt: now.toISOString(),
       };
@@ -324,7 +333,11 @@ export const useReviewStore = defineStore('review', {
         this.pendingRuleKeys = this.pendingRuleKeys.filter((k) => k !== key);
       }
     },
+    /** Part 5 E18: a no-op (not a removal) while a bulk operation is running — the
+     *  closest this action's void shape has to the null/false refusal every other
+     *  mutating action returns. */
     async removeRule(id: string): Promise<void> {
+      if (this.bulkBusy) return;
       const repo = this.repository;
       await repo.removeRule(id);
       if (this.repository === repo) this.rules = this.rules.filter((r) => r.id !== id);
@@ -333,7 +346,7 @@ export const useReviewStore = defineStore('review', {
      *  fingerprint. Same persist-first ordering and pending guard as work items. */
     async decide(disposition: FindingDisposition): Promise<FindingDisposition | null> {
       const fp = disposition.fingerprint;
-      if (this.pendingFingerprints.includes(fp)) return null;
+      if (this.bulkBusy || this.pendingFingerprints.includes(fp)) return null;
       const repo = this.repository;
       this.pendingFingerprints.push(fp);
       try {
@@ -357,7 +370,7 @@ export const useReviewStore = defineStore('review', {
      *  (false) rather than racing it. Persists before mutating (E32): a rejecting port
      *  leaves the disposition in place and the rejection propagates. */
     async reopen(fingerprint: string): Promise<boolean> {
-      if (this.pendingFingerprints.includes(fingerprint)) return false;
+      if (this.bulkBusy || this.pendingFingerprints.includes(fingerprint)) return false;
       const repo = this.repository;
       this.pendingFingerprints.push(fingerprint);
       try {
