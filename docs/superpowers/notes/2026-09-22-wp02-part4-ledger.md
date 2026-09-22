@@ -135,4 +135,18 @@ Clean review.
 | E9 | The unapplied draft note is discarded when the user leaves the Report screen. Only the applied note is kept (spec: "applied, not live"). | Low. Typed-but-unapplied text is lost on navigation. |
 | E10 | The report paper marks every sample-backed hotspot cell (not only priority) and shows no "Collected" badge, so the screen carries the same evidence labels as the Markdown export. | None. |
 
+### Task 12
+
+Clean review.
+- Deferred minors: the provider "Used by" buttons read only the target screen's name out of context (no group label); the Change-source test does not prove navigate-before-host ordering (the Rescan test does).
+
+### Task 13
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E11 | Amends E8: the report store is bound to the current codebase from `App.vue`, not from the Report screen. Otherwise a note written for codebase A would travel into the Settings review-state export after switching to codebase B without opening the Report screen. | Low. One immediate watcher in the shell; App.vue has room. |
+| E12 | Compact density never touches the city screen: the compact gap rule excludes `.ci-screen--city`, whose `gap: 0` and stage height are pinned by the WP-01 layout tests. | None. |
+| E13 | The Clear review state dialog ignores Cancel, Escape and backdrop while a clear is running, so it cannot unmount mid-clear and lose the outcome or the failure. | Low. The user waits a moment on a slow port. |
+
+
 
