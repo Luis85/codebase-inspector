@@ -100,13 +100,6 @@ async function createReview(): Promise<void> {
         >
           {{ exists ? PACKAGE_IN_REVIEW : PACKAGE_CREATE_REVIEW }}
         </button>
-        <p
-          v-if="error"
-          class="ci-package-dialog__error"
-          role="alert"
-        >
-          {{ error }}
-        </p>
         <button
           type="button"
           class="ci-package-dialog__close"
@@ -115,6 +108,13 @@ async function createReview(): Promise<void> {
           {{ PACKAGE_CLOSE }}
         </button>
       </div>
+      <p
+        v-if="error"
+        class="ci-package-dialog__error"
+        role="alert"
+      >
+        {{ error }}
+      </p>
     </div>
   </CiDialog>
 </template>

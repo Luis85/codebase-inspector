@@ -185,6 +185,21 @@ describe('QualityScreen', () => {
     w.unmount();
   });
 
+  it('fix round 1: a later failure clears an earlier success out of the dialog status', async () => {
+    withSnapshot();
+    const w = mountQ();
+    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.find('.ci-finding-dialog__acknowledge').trigger('click');
+    await flush();
+    expect(w.find('[role="dialog"] .ci-dialog__status').text()).toBe('Finding acknowledged. No repository suppression was written.');
+    vi.spyOn(useReviewStore(), 'addWorkItemForFile').mockRejectedValueOnce(new Error('disk'));
+    await w.find('.ci-finding-dialog__work-item').trigger('click');
+    await flush();
+    expect(w.find('[role="dialog"] .ci-dialog__status').text()).toBe('');
+    expect(w.find('.ci-finding-dialog__error').text()).toBe('Could not save this decision.');
+    w.unmount();
+  });
+
   it('dismiss requires a reason; with one, the decision and reason are stored', async () => {
     withSnapshot();
     const w = mountQ();

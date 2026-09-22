@@ -39,6 +39,7 @@ const busy = computed(() => review.isDispositionPending(props.fingerprint));
  *  technology while the dialog is open. */
 async function run(action: () => Promise<unknown>, done: string): Promise<boolean> {
   error.value = '';
+  status.value = '';
   try {
     const result = await action();
     if (result === null || result === false) return false;
