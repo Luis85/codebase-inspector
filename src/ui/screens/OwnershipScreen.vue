@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { downloadText } from '../export/download';
+import { useCsvExport } from '../export/use-csv-export';
 import { CONCENTRATION_WARNING, stewardshipCsv, type StewardshipAction } from '../read-models/ownership';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
 import { useReviewStore } from '../stores/review-store';
 import {
-  EXPORT_FAILED, OWNERSHIP_ACTION_DONE, OWNERSHIP_ACTION_FAILED, OWNERSHIP_ACTIONS_SUBTITLE, OWNERSHIP_ACTIONS_TITLE,
+  OWNERSHIP_ACTION_DONE, OWNERSHIP_ACTION_FAILED, OWNERSHIP_ACTIONS_SUBTITLE, OWNERSHIP_ACTIONS_TITLE,
   OWNERSHIP_BAR_LABEL, OWNERSHIP_BARS_FOOTNOTE, OWNERSHIP_BARS_LABEL, OWNERSHIP_BARS_SUBTITLE, OWNERSHIP_BARS_TITLE, OWNERSHIP_CALLOUT,
   OWNERSHIP_CALLOUT_TITLE, OWNERSHIP_CSV_FILENAME, OWNERSHIP_EXPORT, OWNERSHIP_EYEBROW, OWNERSHIP_HIDDEN,
   OWNERSHIP_SUBTITLE, OWNERSHIP_TABLE_SUBTITLE, OWNERSHIP_TABLE_TITLE, OWNERSHIP_TITLE, SAMPLE_BADGE_DETAIL,
@@ -27,6 +27,7 @@ const review = useReviewStore();
 const { ownership } = useReadModels();
 const liveMessage = ref('');
 const root = ref<HTMLElement | null>(null);
+const exportText = useCsvExport(root, liveMessage);
 
 const bars = computed<MeterItem[]>(() => ownership.value.rows.map((row) => ({
   id: row.module,
@@ -54,14 +55,7 @@ async function addAction(a: StewardshipAction): Promise<void> {
   }
 }
 
-function exportCsv(): void {
-  if (!root.value) return;
-  try {
-    downloadText(root.value, OWNERSHIP_CSV_FILENAME, stewardshipCsv(ownership.value.rows));
-  } catch {
-    liveMessage.value = EXPORT_FAILED;
-  }
-}
+function exportCsv(): void { exportText(OWNERSHIP_CSV_FILENAME, () => stewardshipCsv(ownership.value.rows)); }
 </script>
 
 <template>

@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
-import { downloadText } from '../export/download';
+import { useCsvExport } from '../export/use-csv-export';
 import {
   DEFAULT_QUALITY_FILTER, FINDINGS_PAGE, filterFindings, findingsCsv, type QualityFilter, type QualityFinding,
 } from '../read-models/findings';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
 import {
-  EXPORT_FAILED, QUALITY_CSV_FILENAME, QUALITY_EXPORT, QUALITY_EYEBROW, QUALITY_FOOTNOTE, QUALITY_SUBTITLE,
+  QUALITY_CSV_FILENAME, QUALITY_EXPORT, QUALITY_EYEBROW, QUALITY_FOOTNOTE, QUALITY_SUBTITLE,
   QUALITY_TABLE_TITLE, QUALITY_TITLE,
 } from '../inspector-copy';
 import PageHeader from '../kit/PageHeader.vue';
@@ -28,6 +28,7 @@ const reviewing = ref<string | null>(null);
 const openedIndex = ref(0);
 const liveMessage = ref('');
 const root = ref<HTMLElement | null>(null);
+const exportText = useCsvExport(root, liveMessage);
 
 const rows = computed(() => filterFindings(quality.value.findings, filter.value));
 watch(filter, () => { shown.value = FINDINGS_PAGE; });
@@ -81,14 +82,7 @@ function openFile(id: EntityId): void {
 }
 
 /** Every filtered finding, handed to the user through this leaf's own document. */
-function exportCsv(): void {
-  if (!root.value) return;
-  try {
-    downloadText(root.value, QUALITY_CSV_FILENAME, findingsCsv(rows.value));
-  } catch {
-    liveMessage.value = EXPORT_FAILED;
-  }
-}
+function exportCsv(): void { exportText(QUALITY_CSV_FILENAME, () => findingsCsv(rows.value)); }
 </script>
 
 <template>

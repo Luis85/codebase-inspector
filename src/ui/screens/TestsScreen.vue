@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
 import { formatMetric, hasValue, sumEvidence } from '../evidence';
-import { downloadText } from '../export/download';
+import { useCsvExport } from '../export/use-csv-export';
 import type { FileSummary } from '../read-models/file-summaries';
 import { TABLE_PAGE } from '../read-models/hotspots';
 import { GAP_THRESHOLD, coverageTiles, gapsCsv } from '../read-models/test-confidence';
@@ -11,7 +11,7 @@ import { useCityStore } from '../stores/city-store';
 import { useReviewStore } from '../stores/review-store';
 import { useUniqueId } from '../unique-id';
 import {
-  CONFIGURE_EVIDENCE, EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, EXPORT_FAILED, HOTSPOTS_ALL_MODULES,
+  CONFIGURE_EVIDENCE, EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, HOTSPOTS_ALL_MODULES,
   HOTSPOTS_MODULE_FILTER, MUTATION_EMPTY, MUTATION_EMPTY_TITLE, MUTATION_SUBTITLE, MUTATION_TITLE, TESTS_EVIDENCE,
   TESTS_EXPORT, TESTS_CSV_FILENAME, TESTS_EYEBROW, TESTS_GAPS_SUBTITLE, TESTS_GAPS_TITLE, TESTS_MAP_FOOTNOTE,
   TESTS_MAP_SUBTITLE, TESTS_MAP_TITLE, TESTS_MODULE_BAR_LABEL, TESTS_MODULES_HIDDEN, TESTS_MODULES_LABEL,
@@ -53,6 +53,7 @@ const evidenceOpen = ref(false);
 const liveMessage = ref('');
 const root = ref<HTMLElement | null>(null);
 const moduleSelectId = useUniqueId('ci-tests-module');
+const exportText = useCsvExport(root, liveMessage);
 
 const tiles = computed(() => coverageTiles(files.value, moduleFilter.value));
 /** Like Hotspots: any selected file, even one the tile cap or module filter hides. */
@@ -105,15 +106,7 @@ async function planTests(f: FileSummary): Promise<void> {
   }
 }
 
-function exportCsv(): void {
-  const model = testConfidence.value;
-  if (!root.value || !model) return;
-  try {
-    downloadText(root.value, TESTS_CSV_FILENAME, gapsCsv(model.gaps));
-  } catch {
-    liveMessage.value = EXPORT_FAILED;
-  }
-}
+function exportCsv(): void { exportText(TESTS_CSV_FILENAME, () => gapsCsv(testConfidence.value?.gaps ?? [])); }
 </script>
 
 <template>

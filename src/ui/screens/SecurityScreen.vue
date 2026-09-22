@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { downloadText } from '../export/download';
+import { useCsvExport } from '../export/use-csv-export';
 import { advisoriesCsv } from '../read-models/security';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
 import type { SamplePackage } from '../fixtures/sample-packages';
 import {
-  CONFIGURE_EVIDENCE, EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, EXPORT_FAILED, POLICY_ROWS, POLICY_SUBTITLE,
+  CONFIGURE_EVIDENCE, EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, POLICY_ROWS, POLICY_SUBTITLE,
   POLICY_TITLE, SECRETS_EMPTY, SECRETS_EMPTY_TITLE, SECRETS_SUBTITLE, SECRETS_TITLE, SECURITY_ADVISORIES_SUBTITLE,
   SECURITY_ADVISORIES_TITLE, SECURITY_CHECKLIST, SECURITY_CHECKLIST_SUBTITLE, SECURITY_CHECKLIST_TITLE,
   SECURITY_CSV_FILENAME, SECURITY_EXPORT, SECURITY_EYEBROW, SECURITY_SOURCE_LABELS, SECURITY_SOURCES,
@@ -50,19 +50,13 @@ const root = ref<HTMLElement | null>(null);
 // Fix round 1 (Important 1): owned here, not inside ReviewChecklist, which sits behind a
 // `v-if` tab and would otherwise be torn down (and its progress lost) on every tab switch.
 const checklist = ref<boolean[]>(SECURITY_CHECKLIST.map(() => false));
+const exportText = useCsvExport(root, liveMessage);
 
 function inspect(pkg: SamplePackage): void {
   inspecting.value = pkg;
 }
 
-function exportCsv(): void {
-  if (!root.value) return;
-  try {
-    downloadText(root.value, SECURITY_CSV_FILENAME, advisoriesCsv(security.value.advisories));
-  } catch {
-    liveMessage.value = EXPORT_FAILED;
-  }
-}
+function exportCsv(): void { exportText(SECURITY_CSV_FILENAME, () => advisoriesCsv(security.value.advisories)); }
 </script>
 
 <template>

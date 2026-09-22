@@ -136,4 +136,13 @@ describe('HotspotsScreen', () => {
     expect(store.selectedEntityId).not.toBeNull();
     w.unmount();
   });
+
+  it('announces a failed download (E55)', async () => {
+    withSnapshot();
+    vi.mocked(downloadText).mockImplementationOnce(() => { throw new Error('no window'); });
+    const w = mountHot();
+    await w.find('.ci-hotspots__export').trigger('click');
+    expect(w.find('.ci-hotspots__live').text()).toBe('Could not start the download.');
+    w.unmount();
+  });
 });

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
-import { downloadText } from '../export/download';
+import { useCsvExport } from '../export/use-csv-export';
 import { TABLE_PAGE, buildHotspotsModel, hotspotsCsv } from '../read-models/hotspots';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
@@ -27,8 +27,10 @@ const moduleFilter = ref<string | null>(null);
 const query = ref('');
 const shown = ref(TABLE_PAGE);
 const formulaOpen = ref(false);
+const liveMessage = ref('');
 const root = ref<HTMLElement | null>(null);
 const moduleSelectId = useUniqueId('ci-hotspots-module');
+const exportText = useCsvExport(root, liveMessage);
 
 const model = computed(() => buildHotspotsModel(files.value, { module: moduleFilter.value, query: query.value }));
 const selected = computed(() => model.value.rows.find((f) => f.id === store.selectedEntityId) ?? null);
@@ -45,9 +47,7 @@ function openFile(id: EntityId): void {
 }
 
 /** P8: every filtered row, handed to the user through this leaf's own document. */
-function exportCsv(): void {
-  if (root.value) downloadText(root.value, HOTSPOTS_CSV_FILENAME, hotspotsCsv(model.value.rows));
-}
+function exportCsv(): void { exportText(HOTSPOTS_CSV_FILENAME, () => hotspotsCsv(model.value.rows)); }
 </script>
 
 <template>
@@ -80,6 +80,12 @@ function exportCsv(): void {
         </button>
       </template>
     </PageHeader>
+    <p
+      class="visually-hidden ci-hotspots__live"
+      role="status"
+    >
+      {{ liveMessage }}
+    </p>
     <NoSnapshot v-if="!store.snapshot" />
     <template v-else>
       <div class="ci-hotspots__grid">

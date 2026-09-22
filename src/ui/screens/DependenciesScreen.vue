@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { downloadText } from '../export/download';
+import { useCsvExport } from '../export/use-csv-export';
 import { filterPackages, packagesCsv, type PackageFilter } from '../read-models/dependencies';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
@@ -9,7 +9,7 @@ import {
   DEPS_CALLOUT, DEPS_CALLOUT_TITLE, DEPS_EXPORT, DEPS_EYEBROW, DEPS_CSV_FILENAME, DEPS_FOOTNOTE, DEPS_LICENSES_SUBTITLE,
   DEPS_LICENSES_TITLE, DEPS_MANIFESTS_NONE, DEPS_MANIFESTS_NOTE, DEPS_MANIFESTS_TITLE, DEPS_PATH_SUBTITLE,
   DEPS_PATH_TITLE, DEPS_SUBTITLE, DEPS_TAB_INVENTORY, DEPS_TAB_LICENSES, DEPS_TAB_PATH, DEPS_TABS_LABEL, DEPS_TITLE,
-  EXPORT_FAILED, SAMPLE_BADGE_DETAIL,
+  SAMPLE_BADGE_DETAIL,
 } from '../inspector-copy';
 import PageHeader from '../kit/PageHeader.vue';
 import MetricCard from '../kit/MetricCard.vue';
@@ -38,6 +38,7 @@ const filter = ref<PackageFilter>('all');
 const inspecting = ref<SamplePackage | null>(null);
 const liveMessage = ref('');
 const root = ref<HTMLElement | null>(null);
+const exportText = useCsvExport(root, liveMessage);
 
 const filtered = computed(() => (dependencies.value ? filterPackages(dependencies.value.packages, query.value, filter.value) : []));
 
@@ -45,14 +46,7 @@ function inspect(pkg: SamplePackage): void {
   inspecting.value = pkg;
 }
 
-function exportCsv(): void {
-  if (!root.value) return;
-  try {
-    downloadText(root.value, DEPS_CSV_FILENAME, packagesCsv(filtered.value));
-  } catch {
-    liveMessage.value = EXPORT_FAILED;
-  }
-}
+function exportCsv(): void { exportText(DEPS_CSV_FILENAME, () => packagesCsv(filtered.value)); }
 </script>
 
 <template>
