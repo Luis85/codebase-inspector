@@ -14,6 +14,7 @@ import { useCityStore } from './stores/city-store';
 import { usePreferencesStore } from './stores/preferences-store';
 import { useReportStore } from './stores/report-store';
 import { useLeafWidth } from './shell/use-leaf-width';
+import { provideLeafLayout } from './shell/leaf-layout';
 import { useJournalFeed } from './shell/use-journal-feed';
 import NavColumn from './shell/NavColumn.vue';
 import TopBar from './shell/TopBar.vue';
@@ -53,6 +54,8 @@ const leafWidth = useLeafWidth(rootEl);
 /** Inline nav only when the leaf is measurably wide. 0 (hidden leaf, jsdom) keeps the
  *  drawer layout, so the city gets the whole leaf — exactly WP-01's behaviour. */
 const navInline = computed(() => leafWidth.value >= DRAWER_MAX_INLINE_SIZE);
+/** Part 5 V4/V5: this leaf's ONE measurement, shared with the city floor and the camera controls. */
+provideLeafLayout(leafWidth, navInline);
 const navOpen = ref(false);
 const paletteOpen = ref(false);
 let navOpener: HTMLElement | null = null;

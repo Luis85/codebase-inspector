@@ -13,10 +13,17 @@
 // spatial mode (`returnFromList()` -> `lastSpatialMode`) and never drags someone out of a
 // list view they chose themselves. `setViewMode` preserves query, selection and the camera
 // bookmark, which is exactly what the spec's next sentence requires.
-import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue';
+//
+// Part 5 V4 (Part 2 deferral): inside the shell, App's leaf observer is the leaf's ONLY
+// observer (shell/leaf-layout.ts). This re-measures on its post-patch `layoutTick`, so the
+// nav column's inline/drawer switch is already in the DOM when `cityInlineSize` subtracts
+// it, and it observes neither the leaf nor `.ci-shell__content`. Mounted without the shell
+// (a component test), it falls back to one observer of its own on the leaf.
+import { onBeforeUnmount, onMounted, ref, watch, type Ref } from 'vue';
 import type { useCityStore } from '../../stores/city-store';
 import { DRAWER_MAX_INLINE_SIZE, MIN_INLINE_SIZE } from '../../responsive';
 import { cityInlineSize, narrowContainer } from '../../container-box';
+import { injectLeafLayout } from '../../shell/leaf-layout';
 
 interface WinBearing { win?: Window }
 
@@ -34,6 +41,17 @@ export function useCityFloor(
   const forcedListByFloor = ref(false);
   let resizeObserver: ResizeObserver | null = null;
   let unwireMigration: (() => void) | null = null;
+  // Part 5 V4 fix (implementer round 1): `layoutTick` fires once more, right after the
+  // shell's very first paint, purely because `navInline` settles from its unmeasured
+  // default -- even when that settle changes nothing THIS measurement depends on (no
+  // `.codebase-inspector-root` ancestor to climb to, or the nav column was already
+  // accounted for). Without this guard that extra call still runs the unconditional
+  // "not narrow -> retire the drawer" line below and silently closes a drawer the user
+  // opened in the same tick (welcome-state.test.ts's narrow-layout drawer pair). Only
+  // skipping when the MEASURED width is unchanged keeps every genuine transition (a
+  // real resize, or the nav column's width actually being subtracted for the first
+  // time) reacting exactly as before.
+  let previousWidth: number | undefined;
 
   function updateResponsiveLayout(): void {
     const el = rootEl.value;
@@ -42,6 +60,8 @@ export function useCityFloor(
     // compares -- `getBoundingClientRect()` is the BORDER box and Obsidian's own
     // `.view-content` padding makes the two differ by 24 px. See container-box.ts.
     const width = cityInlineSize(el);
+    if (width === previousWidth) return;
+    previousWidth = width;
     narrowDrawer.value = width < DRAWER_MAX_INLINE_SIZE;
     // Re-review round 2 (R1, Important): at or above the threshold the Files overlay
     // STOPS EXISTING -- styles.css makes the list a permanent column and hides the
@@ -62,21 +82,22 @@ export function useCityFloor(
     }
   }
 
-  /** Task 11 fix round 1, item 3: rebuilt off `el`'s CURRENT `.win`, never left pointing
-   *  at the pre-migration window's `ResizeObserver` constructor (which has no defined
-   *  behaviour once `el` has moved). */
+  const leafLayout = injectLeafLayout();
+  if (leafLayout) watch(() => leafLayout.layoutTick.value, () => { updateResponsiveLayout(); });
+
+  /** The fallback observer, used only without the shell. Task 11 fix round 1, item 3:
+   *  rebuilt off `el`'s CURRENT `.win`, never left pointing at the pre-migration window's
+   *  `ResizeObserver` constructor (which has no defined behaviour once `el` has moved). */
   function attachResizeObserver(el: HTMLElement): void {
     resizeObserver?.disconnect();
     resizeObserver = null;
+    if (leafLayout) return;
     const win = (el as unknown as WinBearing).win;
     if (!win) return;
     resizeObserver = new (win as unknown as { ResizeObserver: typeof ResizeObserver }).ResizeObserver(() => {
       updateResponsiveLayout();
     });
     resizeObserver.observe(narrowContainer(el));
-    // WP-02: the shell's nav column flipping inline resizes the city's content box but not the leaf.
-    const content = el.closest<HTMLElement>('.ci-shell__content');
-    if (content) resizeObserver.observe(content);
   }
 
   onMounted(() => {

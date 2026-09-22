@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import { nextTick, ref } from 'vue';
 // Side-effect import: installs the createDiv prototype extension real Obsidian
 // patches onto HTMLElement (tests/mocks/obsidian.ts) — needed here since this test
 // builds a standalone stage element outside any mounted component.
@@ -10,6 +11,7 @@ import '../mocks/obsidian';
 import CameraControls from '../../src/ui/components/CameraControls.vue';
 import { CITY_RENDERER_KEY, CITY_STAGE_KEY } from '../../src/ui/renderer-handle';
 import { useCityStore } from '../../src/ui/stores/city-store';
+import { LEAF_LAYOUT_KEY, type LeafLayout } from '../../src/ui/shell/leaf-layout';
 
 // Resolved from the working directory (the repo root, always run with the
 // UPPERCASE drive letter — see task-9-context.md §7), not `import.meta.url`: under
@@ -36,6 +38,7 @@ function mountControls(
   rendererDouble: ReturnType<typeof makeRendererDouble>,
   stageEl: HTMLElement,
   props: { stepsCollapsed?: boolean } = {},
+  leafLayout?: LeafLayout,
 ) {
   return mount(CameraControls, {
     props,
@@ -43,6 +46,7 @@ function mountControls(
       provide: {
         [CITY_RENDERER_KEY as symbol]: { value: rendererDouble },
         [CITY_STAGE_KEY as symbol]: { value: stageEl },
+        ...(leafLayout ? { [LEAF_LAYOUT_KEY as symbol]: leafLayout } : {}),
       },
     },
     attachTo: document.body,
@@ -65,6 +69,18 @@ function stageInRoot(width: number): HTMLElement {
 
 function byLabel(wrapper: ReturnType<typeof mountControls>, label: string) {
   return wrapper.find(`[aria-label="${label}"]`);
+}
+
+/** What App's provideLeafLayout provides; a test advances the tick by hand. Captures
+ *  nothing (oxlint consistent-function-scoping), so it lives at module scope. */
+function layoutDouble(): { layout: LeafLayout; tick: () => void } {
+  const layoutTick = ref(0);
+  return { layout: { leafWidth: ref(900), navInline: ref(true), layoutTick }, tick: () => { layoutTick.value += 1; } };
+}
+function resizeLeaf(stage: HTMLElement, width: number): void {
+  stage.closest<HTMLElement>('.codebase-inspector-root')!.getBoundingClientRect = () => ({
+    width, height: 700, top: 0, left: 0, right: width, bottom: 700, x: 0, y: 0, toJSON: () => ({}),
+  });
 }
 
 describe('CameraControls.vue (C09) — WCAG 2.5.7', () => {
@@ -251,6 +267,52 @@ describe('CameraControls.vue (C09) — WCAG 2.5.7', () => {
     expect(source).not.toContain("from 'obsidian'");
     expect(source).not.toContain('addCommand');
     expect(source).not.toContain('hotkeys');
+  });
+});
+
+// Part 5 V5 (Part 2 deferral): the steps default was computed once, at mount. It now follows
+// the shell's ONE leaf measurement (leaf-layout.ts's layoutTick) until the user toggles.
+describe('CameraControls re-measures on every leaf layout change (Part 5 V5)', () => {
+  let rendererDouble: ReturnType<typeof makeRendererDouble>;
+  beforeEach(() => { setActivePinia(createPinia()); rendererDouble = makeRendererDouble(); });
+
+  it('collapses the steps when the leaf narrows across 820 px, and reopens them when it widens', async () => {
+    const stage = stageInRoot(900);
+    const { layout, tick } = layoutDouble();
+    const wrapper = mountControls(rendererDouble, stage, {}, layout);
+    expect(byLabel(wrapper, 'Rotate left').exists()).toBe(true);
+
+    resizeLeaf(stage, 600);
+    tick();
+    await nextTick();
+    expect(byLabel(wrapper, 'Rotate left').exists()).toBe(false);
+
+    resizeLeaf(stage, 900);
+    tick();
+    await nextTick();
+    expect(byLabel(wrapper, 'Rotate left').exists()).toBe(true);
+  });
+
+  it('never overrides the user once they have toggled the steps themselves', async () => {
+    const stage = stageInRoot(900);
+    const { layout, tick } = layoutDouble();
+    const wrapper = mountControls(rendererDouble, stage, {}, layout);
+    resizeLeaf(stage, 600);
+    tick();
+    await nextTick();
+    expect(byLabel(wrapper, 'Rotate left').exists()).toBe(false);
+
+    await wrapper.find('.ci-camera-controls__more').trigger('click');   // the user opens them
+    resizeLeaf(stage, 500);
+    tick();
+    await nextTick();
+    expect(byLabel(wrapper, 'Rotate left').exists()).toBe(true);
+
+    await wrapper.find('.ci-camera-controls__more').trigger('click');   // …and closes them
+    resizeLeaf(stage, 1000);
+    tick();
+    await nextTick();
+    expect(byLabel(wrapper, 'Rotate left').exists()).toBe(false);
   });
 });
 

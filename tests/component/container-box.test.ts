@@ -62,20 +62,21 @@ describe('M97: the drawer threshold is measured on the box the container query u
     document.body.innerHTML = '';
   });
 
-  /** Mounts into a leaf whose BORDER box is `borderBoxWidth` and which carries the real
-   *  host's 12 px of horizontal padding, opens the Files drawer, and then lets the
-   *  responsive observer run. Whether the drawer survives is whether App and the
-   *  stylesheet agree about how wide the leaf is. */
+  /** Mounts into a genuinely narrow leaf that carries the real host's 12 px of horizontal
+   *  padding, opens the Files drawer, then drags the leaf to a BORDER box of
+   *  `borderBoxWidth` and lets the responsive observer run. Whether the drawer survives is
+   *  whether App and the stylesheet agree about how wide the leaf is. */
   async function drawerSurvivesAt(borderBoxWidth: number): Promise<boolean> {
     const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
     leaf.setCssStyles({ paddingLeft: `${HOST_PADDING_PX}px`, paddingRight: `${HOST_PADDING_PX}px` });
-    setRect(leaf, borderBoxWidth, 700);
+    setRect(leaf, 600, 700);                       // genuinely narrow: the drawer IS a drawer
     const wrapper = mount(App, { attachTo: leaf });
     await nextTick();
 
     await wrapper.get('[aria-label="Files"]').trigger('click');
     expect(wrapper.find('.ci-app__list-wrapper--open').exists()).toBe(true);
 
+    setRect(leaf, borderBoxWidth, 700);            // the drag to the width under test
     resizeObserver.trigger();
     await nextTick();
     return wrapper.find('.ci-app__list-wrapper--open').exists();

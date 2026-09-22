@@ -16,6 +16,7 @@ import { cameraKeyCommand } from '../interaction/keymap';
 import type { CameraKeyCommand } from '../interaction/keymap';
 import { cityInlineSize } from '../container-box';
 import { DRAWER_MAX_INLINE_SIZE } from '../responsive';
+import { injectLeafLayout } from '../shell/leaf-layout';
 import { COPY_CAMERA_ROTATE_PAN_LABEL } from '../copy';
 
 const BUTTON_ZOOM_FACTOR = 1.2;
@@ -86,7 +87,25 @@ function applyStepsDefault(el: HTMLElement | null): void {
   if (nextStepsOpen !== null) stepsOpen.value = nextStepsOpen;
 }
 
-function toggleSteps(): void { stepsOpen.value = !stepsOpen.value; }
+/** Part 5 V5: set once the user has opened or closed the steps themselves. From then on a
+ *  leaf resize never overrides their choice. */
+let userToggled = false;
+function toggleSteps(): void {
+  userToggled = true;
+  stepsOpen.value = !stepsOpen.value;
+}
+
+// Part 5 V5 (Part 2 deferral): the shell's ONE leaf measurement (shell/leaf-layout.ts)
+// ticks after every leaf-width or nav-inline change, once the DOM is patched. The steps
+// default is re-applied on each tick until the user has toggled. `props.stepsCollapsed`
+// still wins inside computeStepsOpen. A standalone mount (no shell) keeps the setup-time
+// and stage-arrival default only, as before.
+const leafLayout = injectLeafLayout();
+if (leafLayout) {
+  watch(() => leafLayout.layoutTick.value, () => {
+    if (!userToggled) applyStepsDefault(stage.value);
+  });
+}
 
 function nudge(delta: { orbit?: [number, number]; pan?: [number, number]; zoomFactor?: number }): void {
   renderer.value?.nudgeCamera(delta);

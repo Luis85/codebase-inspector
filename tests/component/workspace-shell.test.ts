@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import App from '../../src/ui/App.vue';
+import CityScreen from '../../src/ui/screens/CityScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { usePreferencesStore } from '../../src/ui/stores/preferences-store';
 import { useReportStore } from '../../src/ui/stores/report-store';
@@ -11,9 +12,9 @@ import { cityInlineSize } from '../../src/ui/container-box';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
-/** A ResizeObserver stand-in that fires only the observers watching a given element, so a
- *  test can resize the shell's content box WITHOUT the leaf (which is what a nav-inline
- *  flip does in a real host). installControllableResizeObserver fires every observer. */
+/** A ResizeObserver stand-in that fires only the observers watching a given element, and
+ *  counts them (Part 5 V4: one observer per leaf). installControllableResizeObserver
+ *  fires every observer. */
 function installTargetedResizeObserver() {
   const entries: { cb: () => void; targets: Element[] }[] = [];
   const holder = window as unknown as { ResizeObserver: unknown };
@@ -27,6 +28,7 @@ function installTargetedResizeObserver() {
   };
   return {
     resize: (target: Element) => { entries.filter((e) => e.targets.includes(target)).forEach((e) => { e.cb(); }); },
+    observersOf: (target: Element): number => entries.filter((e) => e.targets.includes(target)).length,
     restore: () => { holder.ResizeObserver = previous; },
   };
 }
@@ -189,30 +191,54 @@ describe('workspace shell', () => {
     leaf.remove();
   });
 
-  it('re-measures the city when only the shell content box resizes (nav column flips)', async () => {
+  it('re-measures the city after the nav column flips inline with the leaf width (Part 5 V4)', async () => {
+    // App's leaf observer is the leaf's only one. The city re-measures on the shell's
+    // post-patch layoutTick, so the inline nav column is already in the DOM when
+    // cityInlineSize subtracts it.
     const ro = installTargetedResizeObserver();
     try {
       const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
-      leaf.getBoundingClientRect = () => ({ width: 1000 } as DOMRect);
+      leaf.getBoundingClientRect = () => ({ width: 700 } as DOMRect);
       const w = mountShell(leaf);
-      const nav = w.find<HTMLElement>('.ci-shell__nav').element;
-      const content = w.find<HTMLElement>('.ci-shell__content').element;
+      w.find<HTMLElement>('.ci-shell__nav').element.getBoundingClientRect = () => ({ width: 220 } as DOMRect);
       await w.get('[aria-label="Files"]').trigger('click');
       expect(w.find('.ci-app__list-wrapper--open').exists()).toBe(true);
 
-      // The inline nav takes its column: the city's box is 780 (narrow), the leaf is unchanged.
-      nav.getBoundingClientRect = () => ({ width: 220 } as DOMRect);
-      ro.resize(content);
+      // 1000 px leaf: the nav column goes inline (220), so the city gets 780 and stays narrow.
+      leaf.getBoundingClientRect = () => ({ width: 1000 } as DOMRect);
+      ro.resize(leaf);
       await nextTick();
+      expect(w.find('.ci-shell').classes()).toContain('ci-shell--nav-inline');
       expect(w.find('.ci-app__list-wrapper--open').exists()).toBe(true);
 
-      // The column goes away: the city is wide again, so the narrow-only drawer is retired.
-      nav.getBoundingClientRect = () => ({ width: 0 } as DOMRect);
-      ro.resize(content);
+      // 1200 px leaf: the city gets 980, so the narrow-only drawer is retired.
+      leaf.getBoundingClientRect = () => ({ width: 1200 } as DOMRect);
+      ro.resize(leaf);
       await nextTick();
       expect(w.find('.ci-app__list-wrapper--open').exists()).toBe(false);
       w.unmount();
       leaf.remove();
+    } finally {
+      ro.restore();
+    }
+  });
+
+  it('observes the leaf exactly once: App inside the shell, the city itself when mounted alone (Part 5 V4)', () => {
+    const ro = installTargetedResizeObserver();
+    try {
+      const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
+      const w = mountShell(leaf);
+      expect(ro.observersOf(leaf)).toBe(1);
+      expect(ro.observersOf(w.get('.ci-shell__content').element)).toBe(0);
+      w.unmount();
+      expect(ro.observersOf(leaf)).toBe(0);
+      leaf.remove();
+
+      const alone = document.body.createDiv({ cls: 'codebase-inspector-root' });
+      const city = mount(CityScreen, { attachTo: alone, global: { provide: { onSelectCodebase: vi.fn(), createCityRenderer: null } } });
+      expect(ro.observersOf(alone)).toBe(1);
+      city.unmount();
+      alone.remove();
     } finally {
       ro.restore();
     }
