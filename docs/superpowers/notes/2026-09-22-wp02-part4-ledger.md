@@ -163,6 +163,19 @@ Clean review. The controller looked at all 13 new captures next to the prototype
 | E16 | Contrast decision #4 is left untouched. The new screens add more instances of the already-failing `--ci-on-action` on `--ci-action` pair (New work item, Export Markdown, Rescan, Create / Save in the editor) but no new token pair. Settings' "Clear review state…" uses Obsidian's own `mod-warning` host style (white on red), which #4 did not measure. It is reported here, not changed. | Low. It is the owner's open decision. |
 | E17 | The harness snapshot is `completeness: 'complete'` while some files have unknown line counts, so the Report shows "Source lines … Partial" while Data & scans shows "Complete". This is a fixture artefact, not a UI defect: a real partial read sets both. | None. |
 
+### Final whole-branch review (08cb58f..ec1f7fc), fix wave 37d41c4..5b81e18
+
+The final review (Opus) found nothing Critical or Important. One fix wave covered its Minors 1–8, the swap to `flushPromises`, and the "Part 4 E<n>" citation form.
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E18 | Fixed in the wave: the Board/List pressed state gets an inset accent bar (E15); repeated outcomes are re-announced (`useCsvExport`, Workbench); create-mode busy follows the store's pending key; one `targetMarkdown` helper serves both Markdown exports (they had drifted); hotspot path cells escape pipes; the cancel hint names Obsidian's command palette; the clear dialog pluralises; `flushPromises` replaces microtask counting. | None. |
+| E19 | Deferred to WP-05: work items, rules and dispositions from another codebase still show in this leaf (marked "Not in this snapshot"), and the review-state JSON carries no source label. Nothing is mislabelled; durable, repository-keyed review state is WP-05. | Medium. A reviewer switching codebases in one leaf sees the other codebase's plan items. |
+| E20 | Deferred: `ci-finding__*` (used by File detail) and `ci-scatter__*` (used by Test confidence's coverage map) are still shared across screens. They were not in E55's list, and `css-class-scope.test.ts` guards only three prefixes. | Low. It is a maintainability smell, not a defect. |
+| E21 | Parked after the fix wave: three comments cite the title-clip ruling as "Part 4 E2" when it is Part 4 **E3** (`review-repository.ts:60`, `review-store.ts:117`, `tests/unit/review-work-items.test.ts:35`). The only fix wave is spent, and this is a comment-only correction for the next change in those files. | Low. A reader following the citation lands on the dialog-status ruling. |
+| E22 | The remaining deferred minors stay deferred, as the final review triaged them: the X17 tautology; `build()` inside the export `try`; the null-model Tests export; `niceTicks` with non-positive target or floor; the unused `niceMax`; no `floor = 100` sweep; the untested `clearAll` race and rethrow; "unknown (Failed)" wording; the leading `\|` in `mdLine`; `findingRef` without `#`; review-state tests covering only file targets; `formatBytes` at 999,999; untested editor focus moves; the editor label needing a real-theme check; "Used by" button context; the Change-source ordering test; focus dropping after navigation; the `tab as SettingsTab` cast; harness seeding ignoring `null`. | Low. Each is unreachable today, cosmetic, or test-only. |
+
+
 
 
 
