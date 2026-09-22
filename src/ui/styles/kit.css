@@ -10,6 +10,17 @@
   --ci-text-faint: var(--text-faint);
   --ci-radius-card: 8px;
   --ci-nav-width: 220px;
+  /* Part 5 V17, contrast decision #4 (option B): plugin-owned DERIVED tokens. They mix
+     host variables and redefine none (spec 4.4). The fills move the accent and the error
+     colour toward the accent's inverted text colour until text on them reaches 4.5:1
+     (measured 6.11/5.04 and 5.10/6.11 dark/light at 80 %). Hover moves further, never
+     back, so pointing at a button cannot drop it under the threshold. --ci-hover is a
+     neutral hover surface that can be seen (--ci-raised measured 1.03/1.04). */
+  --ci-action-fill: color-mix(in srgb, var(--interactive-accent) 80%, var(--text-on-accent-inverted, black));
+  --ci-action-fill-hover: color-mix(in srgb, var(--interactive-accent) 72%, var(--text-on-accent-inverted, black));
+  --ci-danger-fill: color-mix(in srgb, var(--background-modifier-error) 80%, var(--text-on-accent-inverted, black));
+  --ci-danger-fill-hover: color-mix(in srgb, var(--background-modifier-error) 72%, var(--text-on-accent-inverted, black));
+  --ci-hover: color-mix(in srgb, var(--ci-text) 10%, var(--ci-panel));
 }
 /* E40: press-to-disable buttons stay focusable (aria-disabled + a guarded handler), so one
    shared rule gives every one of them the pending/added look. */
@@ -102,7 +113,7 @@
 }
 :where(.codebase-inspector-root) .ci-table__row { cursor: pointer; }
 :where(.codebase-inspector-root) .ci-table__row:hover,
-:where(.codebase-inspector-root) .ci-table__row:focus-visible { background: var(--ci-raised); }
+:where(.codebase-inspector-root) .ci-table__row:focus-visible { background: var(--ci-hover); }
 /* E28/E45: a non-interactive row (LicenseTable) has nothing to activate. */
 :where(.codebase-inspector-root) .ci-table__row--static { cursor: default; }
 :where(.codebase-inspector-root) .ci-table__row--static:hover,
@@ -235,3 +246,24 @@
   padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small); white-space: nowrap;
   color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent);
 }
+
+/* Part 5 V17 (option B). Obsidian paints button.mod-cta and button.mod-warning at (0,1,1)
+   and their hovers at (0,2,1). These tie them and win on order (a plugin's styles load
+   after app.css), and a snippet scoped to the root still beats them (host-cascade rule). */
+:where(.codebase-inspector-root) button.mod-cta { background-color: var(--ci-action-fill); }
+:where(.codebase-inspector-root) button.mod-cta:hover { background-color: var(--ci-action-fill-hover); }
+:where(.codebase-inspector-root) button.mod-warning { background-color: var(--ci-danger-fill); }
+:where(.codebase-inspector-root) button.mod-warning:hover { background-color: var(--ci-danger-fill-hover); }
+/* The WP-01 controls in styles.css that paint --ci-on-action on --ci-action, and its hovers
+   that painted --ci-raised: the same selectors, overridden here, never edited there. */
+:where(.codebase-inspector-root) button.ci-welcome__action,
+:where(.codebase-inspector-root) button.ci-file-list__row--selected,
+:where(.codebase-inspector-root) button.ci-file-list__row--selected:hover { background: var(--ci-action-fill); }
+:where(.codebase-inspector-root) button.ci-welcome__action:hover { background: var(--ci-action-fill-hover); }
+:where(.codebase-inspector-root) button.ci-app__mode-toggle:hover,
+:where(.codebase-inspector-root) button.ci-selection-notice__reveal:hover,
+:where(.codebase-inspector-root) button.ci-selection-notice__clear:hover,
+:where(.codebase-inspector-root) button.ci-app__drawer-close:hover,
+:where(.codebase-inspector-root) button.ci-toolbar__scan:hover,
+:where(.codebase-inspector-root) button.ci-file-list__group-focus:hover,
+:where(.codebase-inspector-root) .ci-camera-controls button:hover { background: var(--ci-hover); }

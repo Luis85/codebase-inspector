@@ -55,7 +55,7 @@
   color: var(--ci-text-muted); cursor: pointer; text-align: left; justify-content: flex-start;
 }
 :where(.codebase-inspector-root) button.ci-nav__workspace { color: var(--ci-text); font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) button.ci-nav__item:hover { background: var(--ci-raised); color: var(--ci-text); }
+:where(.codebase-inspector-root) button.ci-nav__item:hover { background: var(--ci-hover); color: var(--ci-text); }
 :where(.codebase-inspector-root) button.ci-nav__item[aria-current="page"] { background: var(--ci-raised); color: var(--ci-action); }
 :where(.codebase-inspector-root) .ci-nav__label { flex: 1 1 auto; }
 :where(.codebase-inspector-root) .ci-nav__badge {
@@ -116,7 +116,7 @@
   color: var(--ci-text);
   white-space: nowrap;
 }
-:where(.codebase-inspector-root) button.ci-toolbar__cancel:hover { background: var(--ci-raised); }
+:where(.codebase-inspector-root) button.ci-toolbar__cancel:hover { background: var(--ci-hover); }
 /* One more always-present control: let the toolbar wrap in a narrow leaf instead of
    overflowing it (the WP-01 rule in styles.css sets only display, alignment and gap). */
 :where(.codebase-inspector-root) .ci-app__toolbar { flex-wrap: wrap; }

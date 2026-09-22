@@ -209,8 +209,10 @@ Whether a factual safety claim belongs in the muted token is for a human looking
   trade for the user to make**, not a defect.
 - **Whether the city feels too small** at a wide (~1,876 px) leaf: the panel caps moved
   the stage from 1,280 px to 1,140 px there.
-- **The new hover contrast on three controls.** `--ci-raised` had no consumer before
-  this cycle and sits close to the surrounding surface in the default themes.
+- **The new hover contrast on three controls — decided in WP-02 Part 5 (option B).**
+  The skinned hovers no longer paint `--ci-raised`; they paint the plugin-owned
+  `--ci-hover`, and text-on-colour buttons use darkened fills. See
+  `2026-09-21-wp01b-open-decisions.md` §4.
 - **The checkpoint-#3 sections the user never itemised** — multiple leaves, independent
   selection, command reveal, disable/re-enable, theme switching and pop-out migration.
   Automated coverage exists for each and is named in the gate-evidence document; a human

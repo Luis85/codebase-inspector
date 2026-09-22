@@ -113,7 +113,7 @@
   flex: 1 1 auto; min-width: 0; width: 100%; height: auto; padding: var(--ci-space-4); border: none; border-radius: 0;
   background: transparent; box-shadow: none; color: var(--ci-text); text-align: left; cursor: pointer;
 }
-:where(.codebase-inspector-root) button.ci-advisory__open:hover { background: var(--ci-raised); }
+:where(.codebase-inspector-root) button.ci-advisory__open:hover { background: var(--ci-hover); }
 :where(.codebase-inspector-root) button.ci-advisory__open:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: -2px; }
 :where(.codebase-inspector-root) .ci-advisory__open .ci-icon { color: var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-advisory__body { display: flex; flex-direction: column; gap: var(--ci-space-1); min-width: 0; }

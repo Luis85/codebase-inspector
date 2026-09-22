@@ -112,6 +112,13 @@ cannot be corrected without breaking that rule.
 limitation; introduce a plugin-owned hover token, which is a §4.1 palette change; or raise
 it upstream against Obsidian's defaults.
 
+**Decided (WP-02 Part 5, ruling T32): option B, plugin-owned derived tokens.** `kit.css`
+derives `--ci-action-fill`, `--ci-danger-fill` (with 72 % hover variants) and `--ci-hover`
+by mixing host variables; no host variable is redefined, so spec 4.4 holds. Every
+`mod-cta` and `mod-warning` button in the view, the welcome action, the selected file row
+and every skinned hover now use them. The measured ratios after the change are in the
+Part 5 Task 16 report.
+
 ## Two parked residuals
 
 Neither was fixed, because the branch's single authorised fix wave had already run.
