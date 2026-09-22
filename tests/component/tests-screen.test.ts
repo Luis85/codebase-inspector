@@ -117,6 +117,7 @@ describe('TestsScreen', () => {
     expect(row('Test runs').text()).toContain('Not collected');
     expect(row('Branch coverage').find('.ci-provenance').classes()).toContain('ci-provenance--sample');
     await w.find('.ci-evidence-dialog__close').trigger('click');
+    expect(w.find('.ci-tests__export').attributes('aria-disabled')).toBeUndefined();
     await w.find('.ci-tests__export').trigger('click');
     const [, name, text] = vi.mocked(downloadText).mock.calls[0]!;
     expect(name).toBe('branch-coverage-gaps.csv');
@@ -147,6 +148,20 @@ describe('TestsScreen', () => {
     const badges = w.findAll('.ci-tests__duration .ci-provenance');
     expect(badges.length).toBeGreaterThan(0);
     expect(badges.every((b) => b.classes().includes('ci-provenance--sample'))).toBe(true);
+    w.unmount();
+  });
+
+  it('V23 (E40): with no model, Export is aria-disabled, stays focusable, and a press hands nothing to downloadText', async () => {
+    const w = mountT();   // no snapshot: testConfidence is null
+    const button = w.find('.ci-tests__export');
+    expect(button.attributes('disabled')).toBeUndefined();
+    expect(button.attributes('aria-disabled')).toBe('true');
+    (button.element as HTMLElement).focus();
+    await button.trigger('click');
+    await nextTick();
+    expect(downloadText).not.toHaveBeenCalled();
+    expect(w.find('.ci-tests__live').text()).toBe('');
+    expect(document.activeElement).toBe(button.element);
     w.unmount();
   });
 });

@@ -106,7 +106,14 @@ async function planTests(f: FileSummary): Promise<void> {
   }
 }
 
-function exportCsv(): void { exportText(TESTS_CSV_FILENAME, () => gapsCsv(testConfidence.value?.gaps ?? [])); }
+/** V23 (E40): nothing to export without a model or without gaps. The button stays focusable
+ *  (aria-disabled), so the handler refuses too, and downloadText never gets an empty CSV. */
+const exportBlocked = computed(() => !testConfidence.value || testConfidence.value.gaps.length === 0);
+function exportCsv(): void {
+  const model = testConfidence.value;
+  if (!model || model.gaps.length === 0) return;
+  exportText(TESTS_CSV_FILENAME, () => gapsCsv(model.gaps));
+}
 </script>
 
 <template>
@@ -131,7 +138,7 @@ function exportCsv(): void { exportText(TESTS_CSV_FILENAME, () => gapsCsv(testCo
         <button
           type="button"
           class="ci-tests__export"
-          :disabled="!testConfidence || testConfidence.gaps.length === 0"
+          :aria-disabled="exportBlocked ? 'true' : undefined"
           @click="exportCsv"
         >
           <Icon name="download" />
