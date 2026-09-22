@@ -48,6 +48,10 @@ Spec: `docs/superpowers/specs/2026-09-22-inspector-ui-part4-design.md`. Plan:
 
 (Appended per task.)
 
+**Numbering.** Part 4's execution rulings (E1–E17 below) are numbered on their own, and the numbers overlap with Part 3's E1–E55.
+- Part 3 rulings cited in Part 4 code keep their Part 3 meaning: E17 (announce only real outcomes), E20, E27, E40, E44, E50, E53, E55.
+- Part 4 rulings are cited as "Part 4 E<n>" in code comments; the final fix wave makes every existing citation follow that form.
+
 ### Pre-flight scan (before Task 1)
 
 The pre-flight scan (one Opus reviewer, read-only) checked every task pair that shares a file or an interface, and each task's own consistency, against the real code at 148a6cd. It found 19 items: 1 blocker, 7 likely failures, 4 risks and 7 nits. Each is ruled on below and reaches its task through the dispatch. The plan text is left unchanged, and these rulings amend it.
@@ -147,6 +151,18 @@ Clean review.
 | E11 | Amends E8: the report store is bound to the current codebase from `App.vue`, not from the Report screen. Otherwise a note written for codebase A would travel into the Settings review-state export after switching to codebase B without opening the Report screen. | Low. One immediate watcher in the shell; App.vue has room. |
 | E12 | Compact density never touches the city screen: the compact gap rule excludes `.ci-screen--city`, whose `gap: 0` and stage height are pinned by the WP-01 layout tests. | None. |
 | E13 | The Clear review state dialog ignores Cancel, Escape and backdrop while a clear is running, so it cannot unmount mid-clear and lose the outcome or the failure. | Low. The user waits a moment on a slow port. |
+
+### Task 14
+
+Clean review. The controller looked at all 13 new captures next to the prototype screenshots (workbench, report, sources, settings in dark, light and narrow, plus settings › privacy).
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E14 | Intended differences from the prototype, not fixed: no Print (W6); an "Includes sample data" badge instead of "Demo report" (W7); no drag and drop, no team avatars (W8, W10); Data & scans shows the real scope and run state with no simulated state buttons, "Run demo scan", fallow JSON or state import (W2, W14, W15); Settings uses horizontal tabs (S25), has no theme switch, connections, contrast or threshold controls (W5); a four-column provider grid instead of three; icons do not render in the harness (the Obsidian `setIcon` mock draws nothing); the fixture's `root` / `file-N` names. | Low. Each follows a spec decision or is harness-only. |
+| E15 | Fixed in the final fix wave: the Workbench Board / List toggle's pressed state is barely distinguishable in both themes. | Low. |
+| E16 | Contrast decision #4 is left untouched. The new screens add more instances of the already-failing `--ci-on-action` on `--ci-action` pair (New work item, Export Markdown, Rescan, Create / Save in the editor) but no new token pair. Settings' "Clear review state…" uses Obsidian's own `mod-warning` host style (white on red), which #4 did not measure. It is reported here, not changed. | Low. It is the owner's open decision. |
+| E17 | The harness snapshot is `completeness: 'complete'` while some files have unknown line counts, so the Report shows "Source lines … Partial" while Data & scans shows "Complete". This is a fixture artefact, not a UI defect: a real partial read sets both. | None. |
+
 
 
 
