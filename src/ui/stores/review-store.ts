@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { markRaw } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
 import {
-  createInMemoryReviewRepository, workTargetKey, workItemProblem, NO_CHECKS, DISMISS_REASON_MAX,
+  createInMemoryReviewRepository, workTargetKey, workItemProblem, clipTitle, NO_CHECKS, DISMISS_REASON_MAX,
   type BoundaryRule, type FindingDisposition, type ReviewRepository, type WorkIntent, type WorkItem, type WorkItemInit,
   type WorkItemPatch, type WorkTarget,
 } from './ports/review-repository';
@@ -16,6 +16,10 @@ function maxSuffix(ids: readonly string[], pattern: RegExp): number {
     if (digits) max = Math.max(max, parseInt(digits, 10));
   }
   return max;
+}
+
+function isRejected(result: PromiseSettledResult<unknown>): result is PromiseRejectedResult {
+  return result.status === 'rejected';
 }
 
 interface ReviewState {
@@ -110,8 +114,12 @@ export const useReviewStore = defineStore('review', {
     async addWorkItem(target: WorkTarget, intent: WorkIntent, title: string, now: Date, init: WorkItemInit = {}): Promise<WorkItem | null> {
       const key = workTargetKey(target, intent);
       if (this.hasWorkItem(target, intent) || this.pendingWorkKeys.includes(key)) return null;
+      // Controller ruling E2: clip (never refuse) an over-long GENERATED title, so a
+      // long package or file name can never make the calling button silently do
+      // nothing. `updateWorkItem` still refuses one via `workItemProblem` — that title
+      // came from the user, and the editor can explain the refusal.
       const item: WorkItem = {
-        id: `wi-${this.nextId}`, target, intent, title: title.trim(), status: init.status ?? 'investigate',
+        id: `wi-${this.nextId}`, target, intent, title: clipTitle(title.trim()), status: init.status ?? 'investigate',
         priority: init.priority ?? 'medium', notes: init.notes ?? '', checks: init.checks ?? NO_CHECKS, createdAt: now.toISOString(),
       };
       if (workItemProblem(item) !== null) return null;
@@ -136,8 +144,18 @@ export const useReviewStore = defineStore('review', {
     async updateWorkItem(id: string, patch: WorkItemPatch, now: Date): Promise<WorkItem | null> {
       const current = this.workItems.find((w) => w.id === id);
       if (!current || this.pendingItemIds.includes(id)) return null;
-      const next: WorkItem = { ...current, ...patch, updatedAt: now.toISOString() };
-      next.title = next.title.trim();
+      // Copies only the five patch fields, and only when present: `{ ...current,
+      // ...patch }` would accept any wider object at runtime (a full WorkItem passed as
+      // a patch could overwrite id/target/intent/createdAt), and an explicit `undefined`
+      // in a field the caller did pass would clobber a required field instead of
+      // leaving it alone. The target and intent (the item's identity, Q4) can then
+      // never change through this path.
+      const next: WorkItem = { ...current, updatedAt: now.toISOString() };
+      if (patch.title !== undefined) next.title = patch.title.trim();
+      if (patch.status !== undefined) next.status = patch.status;
+      if (patch.priority !== undefined) next.priority = patch.priority;
+      if (patch.notes !== undefined) next.notes = patch.notes;
+      if (patch.checks !== undefined) next.checks = patch.checks;
       if (workItemProblem(next) !== null) return null;
       this.pendingItemIds.push(id);
       try {
@@ -148,10 +166,11 @@ export const useReviewStore = defineStore('review', {
         this.pendingItemIds = this.pendingItemIds.filter((p) => p !== id);
       }
     },
-    /** Persist first (a rejecting port leaves the item in place); refused (false) while
-     *  an update or removal of the same id is in flight. */
+    /** Persist first (a rejecting port leaves the item in place); refused (false) for an
+     *  unknown id (so E17 callers never announce a removal that did not happen), and
+     *  while an update or removal of the same id is in flight. */
     async removeWorkItem(id: string): Promise<boolean> {
-      if (this.pendingItemIds.includes(id)) return false;
+      if (!this.workItems.some((w) => w.id === id) || this.pendingItemIds.includes(id)) return false;
       this.pendingItemIds.push(id);
       try {
         await this.repository.removeWorkItem(id);
@@ -161,12 +180,15 @@ export const useReviewStore = defineStore('review', {
         this.pendingItemIds = this.pendingItemIds.filter((p) => p !== id);
       }
     },
-    /** Part 4 W14: removes every work item, rule and disposition through the port, then
-     *  reloads from it, so local state always matches what the port still holds, even
-     *  after a partial failure (whose rejection still propagates). */
+    /** Part 4 W14: removes every work item, rule and disposition through the port with
+     *  `Promise.allSettled`, so one rejection does not stop the rest from being
+     *  attempted; reloads from the port in a `finally` so local state always matches
+     *  what it still holds afterwards, even after a partial failure; then rethrows the
+     *  first rejection (if any), after the reload, so the caller still sees it. */
     async clearAll(): Promise<void> {
+      let results: PromiseSettledResult<void>[] = [];
       try {
-        await Promise.all([
+        results = await Promise.allSettled([
           ...this.workItems.map((w) => this.repository.removeWorkItem(w.id)),
           ...this.rules.map((r) => this.repository.removeRule(r.id)),
           ...this.dispositions.map((d) => this.repository.removeDisposition(d.fingerprint)),
@@ -174,6 +196,8 @@ export const useReviewStore = defineStore('review', {
       } finally {
         await this.load();
       }
+      const rejected = results.find(isRejected);
+      if (rejected) throw rejected.reason;
     },
     /** Part 2 P5. Same reservation and persist-first ordering as `addWorkItem`.
      *  Refuses (null) a self-rule, an empty rationale, an existing pair, and a second call

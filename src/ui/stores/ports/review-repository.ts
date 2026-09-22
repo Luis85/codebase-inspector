@@ -18,7 +18,10 @@ export type WorkIntent = 'refactor' | 'tests' | 'review' | 'pairing' | 'document
 export type WorkPriority = 'high' | 'medium' | 'low';
 /** Part 4 W8: the three verification checks, in the order the editor lists them. */
 export type WorkChecks = readonly [boolean, boolean, boolean];
-export const NO_CHECKS: WorkChecks = [false, false, false];
+/** Frozen so the shared tuple can never be mutated at runtime; Vue leaves a frozen
+ *  object unproxied when it enters state, which is fine here since nothing needs to
+ *  react to changes on it — every write replaces it with a new tuple. */
+export const NO_CHECKS: WorkChecks = Object.freeze([false, false, false]);
 export const WORK_TITLE_MAX = 160;
 export const WORK_NOTES_MAX = 5000;
 
@@ -52,6 +55,17 @@ export interface WorkItemInit { priority?: WorkPriority; notes?: string; status?
 
 export function allChecksDone(checks: WorkChecks): boolean {
   return checks[0] && checks[1] && checks[2];
+}
+
+/** Controller ruling E2: a title cap must never make an existing action silently do
+ *  nothing. A generated title (e.g. built from a long package or file name) is clipped
+ *  to `WORK_TITLE_MAX` rather than refused; the last character becomes the single-char
+ *  ellipsis so the clipped result is still exactly `WORK_TITLE_MAX` long. A title the
+ *  user typed is different — `workItemProblem` still refuses that one, so the editor
+ *  can explain it instead of silently truncating what they wrote. */
+export function clipTitle(title: string): string {
+  if (title.length <= WORK_TITLE_MAX) return title;
+  return `${title.slice(0, WORK_TITLE_MAX - 1)}…`;
 }
 
 /** Part 4 W9: the one validity rule, shared by the store (which refuses) and the editor

@@ -26,8 +26,20 @@ describe('editable work items (Part 4 W8/W9)', () => {
     expect(b).toMatchObject({ priority: 'high', notes: 'why' });
     const c = await store.addWorkItem(file('e1'), 'documentation', 't3', NOW, { status: 'verified', checks: [true, false, false] });
     expect(c).toBeNull();
+    // A refused add must not consume an id (Task 6 fix round 1, #6): 'a' is wi-1, 'b' is
+    // wi-2, and 'c' was refused, so 'd' — the next successful add — is still wi-3.
     const d = await store.addWorkItem(file('e1'), 'documentation', 't3', NOW, { status: 'verified', checks: [true, true, true] });
-    expect(d).toMatchObject({ status: 'verified' });
+    expect(d).toMatchObject({ status: 'verified', id: 'wi-3' });
+  });
+
+  it('clips an over-long generated title instead of refusing it (controller ruling E2), and still produces a real item', async () => {
+    const store = useReviewStore();
+    const longTitle = 'x'.repeat(300);
+    const item = await store.addWorkItem(file('e1'), 'refactor', longTitle, NOW);
+    expect(item).not.toBeNull();
+    expect(item!.title).toHaveLength(WORK_TITLE_MAX);
+    expect(item!.title.endsWith('…')).toBe(true);
+    expect(item!.title.startsWith('x'.repeat(WORK_TITLE_MAX - 1))).toBe(true);
   });
 
   it('updates title, status, priority, notes and checks, trimming the title and stamping updatedAt', async () => {
@@ -35,6 +47,16 @@ describe('editable work items (Part 4 W8/W9)', () => {
     const next = await store.updateWorkItem(id, { title: '  Split parser  ', status: 'planned', priority: 'low', notes: 'n', checks: [true, false, false] }, LATER);
     expect(next).toMatchObject({ title: 'Split parser', status: 'planned', priority: 'low', notes: 'n', checks: [true, false, false], updatedAt: LATER.toISOString() });
     expect(store.workItems[0]).toEqual(next);
+  });
+
+  it('ignores identity fields on the patch object, even one that also carries id/target/intent/createdAt', async () => {
+    const { store, id } = await withItem();
+    const before = store.workItems[0]!;
+    const patch = {
+      title: 'renamed', id: 'wi-999', target: { kind: 'package' as const, name: 'evil' }, intent: 'tests' as const, createdAt: 'bogus',
+    };
+    const next = await store.updateWorkItem(id, patch, LATER);
+    expect(next).toMatchObject({ id: before.id, target: before.target, intent: before.intent, createdAt: before.createdAt, title: 'renamed' });
   });
 
   it('refuses verified until all three checks are done, in the store', async () => {
@@ -77,8 +99,18 @@ describe('editable work items (Part 4 W8/W9)', () => {
     expect(await secondUpdate).toBeNull();
     expect(await removedWhilePending).toBe(false);
     await first;
+    expect(store.workItems[0]!.title).toBe('b');
     expect(await store.removeWorkItem(id)).toBe(true);
     expect(store.workItems).toHaveLength(0);
+  });
+
+  it('refuses removing an unknown id, and a rejected removal leaves pendingItemIds empty', async () => {
+    const { store, id } = await withItem();
+    expect(await store.removeWorkItem('nope')).toBe(false);
+    const repo: ReviewRepository = { ...createInMemoryReviewRepository(), removeWorkItem: () => Promise.reject(new Error('disk')) };
+    store.setRepository(repo);
+    await expect(store.removeWorkItem(id)).rejects.toThrow('disk');
+    expect(store.isItemPending(id)).toBe(false);
   });
 
   it('counts open (not verified) items and clears everything through the port', async () => {
