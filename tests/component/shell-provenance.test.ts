@@ -35,6 +35,9 @@ describe('shell provenance badge (A11)', () => {
     store.navigate('workbench');
     await nextTick();
     expect(w.find('.ci-topbar__sample').exists()).toBe(false);
+    store.navigate('sources');
+    await nextTick();
+    expect(w.find('.ci-topbar__sample').exists()).toBe(false);
     w.unmount();
   });
 

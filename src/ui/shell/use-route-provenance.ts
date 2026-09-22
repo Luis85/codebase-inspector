@@ -31,6 +31,8 @@ export function useRouteProvenance(): ComputedRef<boolean> {
       case 'workbench': return false;
       // Part 4 W16: the report quotes the Overview, Hotspots and Security sample values.
       case 'report': return true;
+      // Part 4 W16: scope facts and provider states, not sample values.
+      case 'sources': return false;
       default: return false;
     }
   });

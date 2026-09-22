@@ -1,1 +1,21 @@
 /* WP-02 screens, Configure area: Data & scans and Settings (Part 4). */
+
+/* Part 4 Task 12: Data & scans. */
+:where(.codebase-inspector-root) .ci-sources__facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0 0 var(--ci-space-3); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-sources__facts dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-sources__facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-sources__run { display: flex; align-items: flex-start; gap: var(--ci-space-2); margin: 0; }
+:where(.codebase-inspector-root) .ci-sources__run--warning { color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-sources__run--success .ci-icon { color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-providers { display: flex; flex-direction: column; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-providers__title { margin: 0; }
+:where(.codebase-inspector-root) .ci-providers__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: repeat(auto-fill, minmax(16em, 1fr)); }
+:where(.codebase-inspector-root) .ci-provider {
+  display: flex; flex-direction: column; gap: var(--ci-space-2); padding: var(--ci-space-4);
+  border: 1px solid var(--ci-border); border-radius: var(--ci-radius-card); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-provider__head { display: flex; justify-content: space-between; align-items: center; }
+:where(.codebase-inspector-root) .ci-provider__icon { display: inline-flex; padding: var(--ci-space-2); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); color: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-provider__name { margin: 0; }
+:where(.codebase-inspector-root) .ci-provider__text { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-provider__routes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-top: auto; }
