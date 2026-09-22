@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ImportedReviewState } from '../../read-models/review-state-import';
 import type { SettingsTab } from './settings-tabs';
 import AboutRows from './AboutRows.vue';
 import AccessibilityRows from './AccessibilityRows.vue';
@@ -7,7 +8,7 @@ import AppearanceRows from './AppearanceRows.vue';
 import PrivacyRows from './PrivacyRows.vue';
 
 defineProps<{ tab: SettingsTab }>();
-const emit = defineEmits<{ priority: []; clear: []; export: [] }>();
+const emit = defineEmits<{ priority: []; clear: []; export: []; parsed: [state: ImportedReviewState] }>();
 </script>
 
 <template>
@@ -22,6 +23,7 @@ const emit = defineEmits<{ priority: []; clear: []; export: [] }>();
       v-else-if="tab === 'privacy'"
       @clear="emit('clear')"
       @export="emit('export')"
+      @parsed="emit('parsed', $event)"
     />
     <AboutRows v-else />
   </div>

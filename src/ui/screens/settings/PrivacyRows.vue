@@ -3,8 +3,10 @@ import {
   SETTINGS_CLEAR, SETTINGS_CLEAR_OPEN, SETTINGS_CLEAR_TEXT, SETTINGS_EXPORT, SETTINGS_NETWORK, SETTINGS_NETWORK_TEXT,
   SETTINGS_NETWORK_VALUE, SETTINGS_STORAGE, SETTINGS_STORAGE_TEXT,
 } from '../../inspector-copy';
+import type { ImportedReviewState } from '../../read-models/review-state-import';
+import ImportRow from './ImportRow.vue';
 
-const emit = defineEmits<{ clear: []; export: [] }>();
+const emit = defineEmits<{ clear: []; export: []; parsed: [state: ImportedReviewState] }>();
 </script>
 
 <template>
@@ -34,6 +36,7 @@ const emit = defineEmits<{ clear: []; export: [] }>();
       {{ SETTINGS_EXPORT }}
     </button>
   </div>
+  <ImportRow @parsed="emit('parsed', $event)" />
   <div class="ci-setting-row">
     <div>
       <h3>{{ SETTINGS_CLEAR }}</h3>

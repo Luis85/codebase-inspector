@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { nextTick, ref } from 'vue';
+import { computed, ref, shallowRef } from 'vue';
 import { JSON_MIME, useCsvExport } from '../export/use-csv-export';
 import { reviewStateJson, reviewStateSource } from '../read-models/review-state';
+import type { ImportedReviewState } from '../read-models/review-state-import';
+import { reannounce } from '../kit/reannounce';
 import { useCityStore } from '../stores/city-store';
 import { useReportStore } from '../stores/report-store';
 import { useReviewStore } from '../stores/review-store';
@@ -15,9 +17,10 @@ import Icon from '../kit/Icon.vue';
 import PriorityFormulaDialog from './hotspots/PriorityFormulaDialog.vue';
 import SettingsSections from './settings/SettingsSections.vue';
 import ClearReviewDialog from './settings/ClearReviewDialog.vue';
-import type { SettingsTab } from './settings/settings-tabs';
+import ImportReviewDialog from './settings/ImportReviewDialog.vue';
+import { SETTINGS_TABS, isSettingsTab, type SettingsTab } from './settings/settings-tabs';
 
-const TABS: readonly TabItem[] = (['appearance', 'analysis', 'accessibility', 'privacy', 'about'] as const).map((id) => ({ id, label: SETTINGS_TAB[id] }));
+const TABS: readonly TabItem[] = SETTINGS_TABS.map((id) => ({ id, label: SETTINGS_TAB[id] }));
 
 const city = useCityStore();
 const review = useReviewStore();
@@ -27,6 +30,10 @@ const liveMessage = ref('');
 const tab = ref<string>('appearance');
 const showPriority = ref(false);
 const showClear = ref(false);
+/** Part 5 V16: the parsed file waiting for confirmation. Shallow: it is handed on, never edited. */
+const importing = shallowRef<ImportedReviewState | null>(null);
+/** V27: Tabs' v-model is a plain string; narrowed here, with no cast. */
+const current = computed<SettingsTab>(() => (isSettingsTab(tab.value) ? tab.value : 'appearance'));
 const exportText = useCsvExport(root, liveMessage);
 
 /** W14 / Part 5 V11: JSON through the leaf's own document only; relative paths, never raw
@@ -38,13 +45,13 @@ function exportState(): void {
     source: reviewStateSource(city.snapshot),
   }), JSON_MIME);
 }
-/** E17-style repeat (fix round 1, Minor 3): a screen reader only announces an actual text
- *  change, so a SECOND clear (a fresh add, then clear again) must be announced again too. */
-async function cleared(message: string): Promise<void> {
+/** A dialog's real outcome (E17): the dialog closes and the Settings live region
+ *  announces it. `reannounce` (V22) makes a repeated outcome (a second clear, a second
+ *  import of the same file) heard again. */
+function announce(message: string): void {
   showClear.value = false;
-  liveMessage.value = '';
-  await nextTick();
-  liveMessage.value = message;
+  importing.value = null;
+  void reannounce(liveMessage, message);
 }
 </script>
 
@@ -81,10 +88,11 @@ async function cleared(message: string): Promise<void> {
       :label="SETTINGS_TABS_LABEL"
     >
       <SettingsSections
-        :tab="tab as SettingsTab"
+        :tab="current"
         @priority="showPriority = true"
         @clear="showClear = true"
         @export="exportState"
+        @parsed="importing = $event"
       />
     </Tabs>
     <PriorityFormulaDialog
@@ -94,7 +102,13 @@ async function cleared(message: string): Promise<void> {
     <ClearReviewDialog
       v-if="showClear"
       @close="showClear = false"
-      @done="cleared"
+      @done="announce"
+    />
+    <ImportReviewDialog
+      v-if="importing"
+      :state="importing"
+      @close="importing = null"
+      @done="announce"
     />
   </div>
 </template>

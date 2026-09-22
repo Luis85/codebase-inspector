@@ -1,4 +1,5 @@
 // Part 4: Settings. Re-exported by inspector-copy.ts.
+import type { SettingsTab } from '../screens/settings/settings-tabs';
 function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
@@ -8,7 +9,7 @@ export const SETTINGS_SUBTITLE = 'Display preferences are real; production polic
 export const SETTINGS_EXPORT = 'Export review state';
 export const SETTINGS_JSON_FILENAME = 'codebase-inspector-review-state.json';
 export const SETTINGS_TABS_LABEL = 'Settings categories';
-export const SETTINGS_TAB: Readonly<Record<'appearance' | 'analysis' | 'accessibility' | 'privacy' | 'about', string>> = {
+export const SETTINGS_TAB: Readonly<Record<SettingsTab, string>> = {
   appearance: 'Appearance', analysis: 'Analysis & scope', accessibility: 'Accessibility', privacy: 'Privacy & storage', about: 'About',
 };
 export const SETTINGS_THEME = 'Theme';
@@ -53,6 +54,8 @@ export const SETTINGS_CLEAR_CONFIRM = 'Clear everything';
 export const SETTINGS_CLEAR_CANCEL = 'Cancel';
 export const SETTINGS_CLEARED = 'Review state cleared.';
 export const SETTINGS_CLEAR_FAILED = 'Could not clear the review state.';
+/** Part 5 P1: `clearAll()` refuses (false) while a change is still pending. */
+export const SETTINGS_CLEAR_BUSY = 'Wait for the pending change to finish, then clear again.';
 export const SETTINGS_ABOUT_READS = 'What it reads';
 export const SETTINGS_ABOUT_READS_TEXT = 'File paths, sizes and line counts inside the scope you approve. Nothing outside that scope.';
 export const SETTINGS_ABOUT_NEVER = 'What it never does';
@@ -63,3 +66,31 @@ export const REVIEW_STATE_NOTE = 'Kept in memory for one session. Nothing was wr
 /** Part 5 V12: one `warnings` entry of the v2 export, per kind of item left out. */
 export const REVIEW_STATE_SKIPPED = (n: number, kind: 'work items' | 'finding decisions'): string =>
   `Left out ${plural(n, kind === 'work items' ? 'work item' : 'finding decision', kind)} whose target could not be written as a relative path.`;
+
+/* Part 5 V13–V16: Import review state. */
+export const SETTINGS_IMPORT = 'Import review state';
+export const SETTINGS_IMPORT_TEXT = 'Replace this session’s review state with a file exported from this codebase. Only the file you pick is read; nothing is read from your vault.';
+export const SETTINGS_IMPORT_OPEN = 'Import review state…';
+export const SETTINGS_IMPORT_HINT = 'Open a codebase first: imported file paths are matched to the codebase on screen.';
+/** V15: one message per refusal. `detail` is the first issue's path for `invalid` and the
+ *  file's folder label for `other-codebase`; the other codes ignore it. */
+export const IMPORT_ERROR: Readonly<Record<'too-large' | 'not-json' | 'unknown-schema' | 'invalid' | 'other-codebase' | 'read-failed', (detail: string) => string>> = {
+  'too-large': () => 'That file is larger than 1 MB, so it was not read. Nothing was imported.',
+  'not-json': () => 'That file is not valid JSON. Nothing was imported.',
+  'unknown-schema': () => 'That file is not a Codebase Inspector review state (v1 or v2). Nothing was imported.',
+  invalid: (at) => (at === '' ? 'That review state is not valid. Nothing was imported.' : `That review state is not valid at ${at}. Nothing was imported.`),
+  'other-codebase': (folder) => `That review state belongs to another codebase (${folder}). Open that codebase to import it. Nothing was imported.`,
+  'read-failed': () => 'Could not read that file. Nothing was imported.',
+};
+export const IMPORT_DIALOG_TITLE = 'Replace the review state?';
+export const IMPORT_CONFIRM_TEXT = (items: number, decisions: number, rules: number, hasNote: boolean): string =>
+  `The file holds ${plural(items, 'work item', 'work items')}, ${plural(decisions, 'finding decision', 'finding decisions')} and ${plural(rules, 'boundary rule', 'boundary rules')}${hasNote ? ', and a report note' : ''}.`;
+export const IMPORT_ORIGIN = (folder: string): string => `Exported from the codebase in “${folder}”.`;
+export const IMPORT_ORIGIN_UNKNOWN = 'Unknown origin: the file does not say which codebase it came from (a v1 file, or exported with no codebase open).';
+export const IMPORT_REPLACE_TEXT = 'Every work item, finding decision and boundary rule in this session, and the report’s sections and note, will be replaced. This cannot be undone. Export the review state first if you want a record.';
+export const IMPORT_CONFIRM = 'Replace review state';
+export const IMPORT_CANCEL = 'Cancel';
+export const IMPORTED = (items: number, decisions: number, rules: number): string =>
+  `Review state imported: ${plural(items, 'work item', 'work items')}, ${plural(decisions, 'finding decision', 'finding decisions')} and ${plural(rules, 'boundary rule', 'boundary rules')}.`;
+export const IMPORT_FAILED = 'Could not import the whole review state. The lists show what was saved.';
+export const IMPORT_BUSY = 'A review change is still being saved. Try again in a moment.';

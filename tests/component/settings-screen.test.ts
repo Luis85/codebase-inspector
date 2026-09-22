@@ -12,7 +12,7 @@ import { usePreferencesStore } from '../../src/ui/stores/preferences-store';
 import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
 import { useReportStore } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { SETTINGS_CLEAR_FAILED } from '../../src/ui/inspector-copy';
+import { SETTINGS_CLEAR_BUSY, SETTINGS_CLEAR_FAILED } from '../../src/ui/inspector-copy';
 import { repositoryDigest } from '../../src/ui/read-models/review-state';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
@@ -128,6 +128,26 @@ describe('SettingsScreen (Part 4)', () => {
     expect(w.find('.ci-clear-dialog__error').text()).toBe(SETTINGS_CLEAR_FAILED);
     expect(useReportStore().note).toBe('keep?');
     expect(w.find('.ci-settings__live').text()).toBe('');
+    w.unmount();
+  });
+
+  // Part 5 P1/E2: clearAll() refuses (false) while a change is still pending, so a save
+  // that lands after the clear can never be written back and reappear on the next load.
+  it('while a change is pending, Clear refuses with SETTINGS_CLEAR_BUSY and leaves everything in place', async () => {
+    const review = useReviewStore();
+    useReportStore().applyNote('keep?');
+    review.setRepository({ ...createInMemoryReviewRepository(), saveWorkItem: () => new Promise<void>(() => {}) });
+    void review.addWorkItemForFile('repo\0file\0src/a.ts', 'A', new Date());
+    const w = mountS();
+    await tab(w, 'privacy');
+    await w.find('.ci-settings__clear').trigger('click');
+    await w.find('.ci-clear-dialog__confirm').trigger('click');
+    await flushPromises();
+    expect(w.find('.ci-clear-dialog').exists()).toBe(true);
+    expect(w.find('.ci-clear-dialog__error').attributes('role')).toBe('alert');
+    expect(w.find('.ci-clear-dialog__error').text()).toBe(SETTINGS_CLEAR_BUSY);
+    expect(w.find('.ci-settings__live').text()).toBe('');
+    expect(useReportStore().note).toBe('keep?');
     w.unmount();
   });
 });

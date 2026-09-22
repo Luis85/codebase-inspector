@@ -3,8 +3,8 @@ import { computed, ref } from 'vue';
 import { useReportStore } from '../../stores/report-store';
 import { useReviewStore } from '../../stores/review-store';
 import {
-  SETTINGS_CLEAR_CANCEL, SETTINGS_CLEAR_CONFIRM, SETTINGS_CLEAR_DIALOG_TEXT, SETTINGS_CLEAR_DIALOG_TITLE, SETTINGS_CLEAR_FAILED,
-  SETTINGS_CLEARED,
+  SETTINGS_CLEAR_BUSY, SETTINGS_CLEAR_CANCEL, SETTINGS_CLEAR_CONFIRM, SETTINGS_CLEAR_DIALOG_TEXT, SETTINGS_CLEAR_DIALOG_TITLE,
+  SETTINGS_CLEAR_FAILED, SETTINGS_CLEARED,
 } from '../../inspector-copy';
 import CiDialog from '../../kit/Dialog.vue';
 
@@ -24,15 +24,22 @@ function requestClose(): void {
 }
 
 /** W14: everything goes through the port first (clearAll reloads from it); the report
- *  choices and note are reset with it. The dialog closes and the screen announces. */
+ *  choices and note are reset with it. The dialog closes and the screen announces.
+ *  Part 5 P1/E2: `clearAll()` refuses (false) while a change is still pending — an update
+ *  whose save lands after the clear would otherwise be written back into the port and
+ *  reappear on the next load. That refusal keeps the dialog open, resets nothing and
+ *  announces nothing (E17), same as a rejection but with its own message. */
 async function confirm(): Promise<void> {
   if (busy.value) return;
   busy.value = true;
   error.value = '';
   try {
-    await review.clearAll();
-    report.reset();
-    emit('done', SETTINGS_CLEARED);
+    if (await review.clearAll()) {
+      report.reset();
+      emit('done', SETTINGS_CLEARED);
+    } else {
+      error.value = SETTINGS_CLEAR_BUSY;
+    }
   } catch {
     error.value = SETTINGS_CLEAR_FAILED;
   } finally {
