@@ -28,6 +28,7 @@ import DependenciesScreen from './screens/DependenciesScreen.vue';
 import SecurityScreen from './screens/SecurityScreen.vue';
 import EvolutionScreen from './screens/EvolutionScreen.vue';
 import OwnershipScreen from './screens/OwnershipScreen.vue';
+import WorkbenchScreen from './screens/WorkbenchScreen.vue';
 import PlaceholderScreen from './screens/PlaceholderScreen.vue';
 
 const store = useCityStore();
@@ -135,6 +136,7 @@ defineExpose({ rendererHost });
       <SecurityScreen v-else-if="store.route === 'security'" />
       <EvolutionScreen v-else-if="store.route === 'evolution'" />
       <OwnershipScreen v-else-if="store.route === 'ownership'" />
+      <WorkbenchScreen v-else-if="store.route === 'workbench'" />
       <PlaceholderScreen
         v-else
         :route="store.route"

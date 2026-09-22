@@ -27,6 +27,8 @@ export function useRouteProvenance(): ComputedRef<boolean> {
       case 'evolution': return true;
       // The `!store.snapshot` guard above already covers the null case.
       case 'ownership': return ownership.value.usesSample;
+      // Part 4 W16: work items are the reviewer's own records, not sample values.
+      case 'workbench': return false;
       default: return false;
     }
   });
