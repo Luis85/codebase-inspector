@@ -90,3 +90,8 @@
 :where(.codebase-inspector-root) .ci-shell__scrim { position: absolute; inset: 0; z-index: 29; background: var(--background-modifier-cover); }
 /* Part 2 (A11): the shell-level sample badge. */
 :where(.codebase-inspector-root) .ci-topbar__sample { flex: none; }
+
+/* Part 4 W5: compact density tightens rows and card padding only; nothing is hidden. */
+:where(.codebase-inspector-root) .ci-shell--compact .ci-table td { padding-top: var(--ci-space-1); padding-bottom: var(--ci-space-1); }
+:where(.codebase-inspector-root) .ci-shell--compact .ci-metric-card { padding: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-shell--compact .ci-screen { gap: var(--ci-space-3); }

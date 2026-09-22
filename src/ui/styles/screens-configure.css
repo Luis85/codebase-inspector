@@ -19,3 +19,22 @@
 :where(.codebase-inspector-root) .ci-provider__name { margin: 0; }
 :where(.codebase-inspector-root) .ci-provider__text { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-provider__routes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-top: auto; }
+
+/* Part 4 Task 13: Settings. */
+:where(.codebase-inspector-root) .ci-settings__rows { display: flex; flex-direction: column; }
+:where(.codebase-inspector-root) .ci-setting-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ci-space-4);
+  padding: var(--ci-space-4) 0; border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-setting-row:last-child { border-bottom: none; }
+:where(.codebase-inspector-root) .ci-setting-row h3 { margin: 0 0 var(--ci-space-1); font-size: var(--font-ui-medium, 1em); }
+:where(.codebase-inspector-root) .ci-setting-row--stacked { flex-direction: column; align-items: stretch; }
+:where(.codebase-inspector-root) .ci-settings__shortcuts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0; }
+:where(.codebase-inspector-root) .ci-settings__shortcuts dd { margin: 0; color: var(--ci-text-muted); }
+@container (max-width: 560px) {
+  :where(.codebase-inspector-root) .ci-setting-row { flex-direction: column; align-items: flex-start; }
+}
+:where(.codebase-inspector-root) .ci-clear-dialog { display: grid; gap: var(--ci-space-3); max-width: 32em; }
+:where(.codebase-inspector-root) .ci-clear-dialog h3 { margin: 0; }
+:where(.codebase-inspector-root) .ci-clear-dialog__error { margin: 0; color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-clear-dialog__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); }

@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import App from '../../src/ui/App.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
+import { usePreferencesStore } from '../../src/ui/stores/preferences-store';
 import { useSnapshotJournal } from '../../src/ui/stores/snapshot-journal';
 import { cityInlineSize } from '../../src/ui/container-box';
 import { computeLayout } from '../../src/domain/layout/layout';
@@ -240,5 +241,14 @@ describe('workspace shell', () => {
     nav.getBoundingClientRect = () => ({ width: 220 } as DOMRect);
     expect(cityInlineSize(probe)).toBe(980);
     leaf.remove();
+  });
+
+  it('applies the compact density preference to the shell (Part 4 W5)', async () => {
+    const w = mountShell();
+    expect(w.find('.ci-shell').classes()).not.toContain('ci-shell--compact');
+    usePreferencesStore().setDensity('compact');
+    await nextTick();
+    expect(w.find('.ci-shell').classes()).toContain('ci-shell--compact');
+    w.unmount();
   });
 });

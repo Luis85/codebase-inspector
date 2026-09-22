@@ -11,6 +11,7 @@ import { DRAWER_MAX_INLINE_SIZE } from './responsive';
 import { NO_CODEBASE_LABEL } from './inspector-copy';
 import { rootFolderLabel } from './read-models/root-label';
 import { useCityStore } from './stores/city-store';
+import { usePreferencesStore } from './stores/preferences-store';
 import { useLeafWidth } from './shell/use-leaf-width';
 import { useJournalFeed } from './shell/use-journal-feed';
 import NavColumn from './shell/NavColumn.vue';
@@ -31,9 +32,10 @@ import OwnershipScreen from './screens/OwnershipScreen.vue';
 import WorkbenchScreen from './screens/WorkbenchScreen.vue';
 import ReportScreen from './screens/ReportScreen.vue';
 import SourcesScreen from './screens/SourcesScreen.vue';
-import PlaceholderScreen from './screens/PlaceholderScreen.vue';
+import SettingsScreen from './screens/SettingsScreen.vue';
 
 const store = useCityStore();
+const preferences = usePreferencesStore();
 useJournalFeed();
 const rootEl = ref<HTMLElement | null>(null);
 const leafWidth = useLeafWidth(rootEl);
@@ -95,7 +97,7 @@ defineExpose({ rendererHost });
     ref="rootEl"
     class="ci-shell"
     tabindex="-1"
-    :class="{ 'ci-shell--nav-inline': navInline, 'ci-shell--nav-open': drawerOpen }"
+    :class="{ 'ci-shell--nav-inline': navInline, 'ci-shell--nav-open': drawerOpen, 'ci-shell--compact': preferences.density === 'compact' }"
     @keydown="onShellKeydown"
   >
     <NavColumn
@@ -141,10 +143,7 @@ defineExpose({ rendererHost });
       <WorkbenchScreen v-else-if="store.route === 'workbench'" />
       <ReportScreen v-else-if="store.route === 'report'" />
       <SourcesScreen v-else-if="store.route === 'sources'" />
-      <PlaceholderScreen
-        v-else
-        :route="store.route"
-      />
+      <SettingsScreen v-else-if="store.route === 'settings'" />
     </main>
     <CommandPalette
       v-if="paletteOpen"

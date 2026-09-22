@@ -1,5 +1,6 @@
 // Spec §9 A11 / Part 2 §4: the shell-level "Includes sample data" badge. True whenever the
-// screen on show displays any sample-backed value. Placeholder routes show none.
+// screen on show displays any sample-backed value. Workbench, Data & scans and Settings
+// show none (Part 4 W16).
 import { computed, type ComputedRef } from 'vue';
 import { isSampleBacked } from '../evidence';
 import { useReadModels } from '../read-models/use-read-models';
@@ -33,6 +34,8 @@ export function useRouteProvenance(): ComputedRef<boolean> {
       case 'report': return true;
       // Part 4 W16: scope facts and provider states, not sample values.
       case 'sources': return false;
+      // Part 4 W16: display preferences and stated policies, not sample values.
+      case 'settings': return false;
       default: return false;
     }
   });

@@ -3,7 +3,6 @@
 // here and not in copy.ts (bound to that catalogue by tests/contracts/microcopy.test.ts).
 export const SAMPLE_DATA_NOTICE = 'Includes sample data';
 export const SAMPLE_DATA_DETAIL = 'Values marked Sample are illustrative, not measured from this codebase.';
-export const PLACEHOLDER_ARRIVES = (part: number): string => `This screen arrives in Part ${part} of the inspector UI.`;
 export const OVERVIEW_EYEBROW = 'Workspace / Overview';
 export const OVERVIEW_TITLE = 'A clearer picture of your codebase.';
 export const OVERVIEW_SUBTITLE = 'Understand the signals. Follow the evidence. Improve what matters.';
