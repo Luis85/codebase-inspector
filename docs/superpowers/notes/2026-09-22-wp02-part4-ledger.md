@@ -109,3 +109,21 @@ Clean review.
 | # | Ruling | Cost if wrong |
 |---|---|---|
 | E5 | Amends X18: a quoted note line must not start a Markdown block. `mdQuote` escapes each line's leading `#`, `-`, `*`, `+`, `>` or `N.` exactly as `mdLine` does, so a note never becomes a heading, list or nested quote inside the exported plan. `mdCode`'s fence is run-length aware, so a path containing backticks cannot break its code span. | None. The exported Markdown reads as the user wrote it. |
+
+### Task 8
+
+Clean review.
+- Deferred minor: the hotspots table's path cell uses `mdCode` without `mdCell`, so a literal `|` in a path could still split the cell.
+
+### Task 9
+
+Clean review.
+- Deferred minors: `findingRef` returns a fingerprint without `#` verbatim (unreachable today; it would leak a raw entity id); the review-state test covers only file targets; `formatBytes` labels 999,999 bytes as "1,000 KB".
+
+### Task 10
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E6 | The New work item editor pins its target file when it opens (`creatingFor`). A selection change or loss while the dialog is open neither unmounts it nor retargets the save, so a half-written draft is never lost and never lands on another file. If a rescan removes the pinned file, the item is still created, and its target reads "Not in this snapshot". | Low. A user could plan work against a file a rescan just removed; the label says so. |
+| E7 | The editor's checklist moves into `workbench/WorkChecklist.vue` (`defineModel<[boolean, boolean, boolean]>`), because the fix round took the editor past the 300-line threshold (X19). | None. |
+
