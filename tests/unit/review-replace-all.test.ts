@@ -18,6 +18,8 @@ const RULES: BoundaryRule[] = [{ id: 'AR-007', from: 'ui', to: 'domain', rationa
 const DECISIONS: FindingDisposition[] = [{ fingerprint: 'imported-fp', status: 'dismissed', reason: 'Generated', decidedAt: AT }];
 const IMPORTED = { workItems: ITEMS, rules: RULES, dispositions: DECISIONS };
 const hang = (): Promise<void> => new Promise<void>(() => {});
+// oxlint consistent-function-scoping: a no-arg closure that captures nothing is hoisted.
+const noop = (): void => {};
 type Store = ReturnType<typeof useReviewStore>;
 
 async function seeded(store: Store): Promise<void> {
@@ -90,6 +92,27 @@ describe('review store replaceAll (Part 5 V16)', () => {
     expect(store.workItems).toEqual(ITEMS);
     expect(store.dispositions).toEqual(DECISIONS);
     expect(store.rules).toEqual([]);
+  });
+
+  // Part 5 E20: a codebase switch (bindRepository) that lands while replaceAll is still
+  // running writes to the codebase it started for — correct, and it stays — but that
+  // codebase is no longer the one on screen, so the call did not apply to what is now
+  // bound. It resolves false, the same shape a caller already treats as "did not apply".
+  it('resolves false, without touching the newly bound codebase, when a codebase switch lands mid-run', async () => {
+    const repoA = createInMemoryReviewRepository();
+    const store = useReviewStore();
+    await store.bindRepository('repo-a');
+    let release: () => void = noop;
+    const gate = new Promise<void>((r) => { release = r; });
+    store.setRepository({ ...repoA, saveWorkItem: async (item: WorkItem) => { await gate; await repoA.saveWorkItem(item); } });
+    const running = store.replaceAll(IMPORTED);
+    await store.bindRepository('repo-b');
+    release();
+    expect(await running).toBe(false);
+    expect(store.workItems).toEqual([]);
+    expect(await repoA.listWorkItems()).toEqual(ITEMS);
+    expect(await repoA.listRules()).toEqual(RULES);
+    expect(await repoA.listDispositions()).toEqual(DECISIONS);
   });
 });
 
@@ -177,12 +200,27 @@ describe('report store restore (Part 5 V16)', () => {
     const report = useReportStore();
     report.bindRepository('repo-a');
     const sections = { summary: false, architecture: true, hotspots: true, security: false, plan: true };
-    report.restore(sections, 'Imported note.');
+    report.restore('repo-a', sections, 'Imported note.');
     expect(report.sections).toEqual(sections);
     expect(report.note).toBe('Imported note.');
     report.bindRepository('repo-b');
     report.bindRepository('repo-a');
     expect(report.note).toBe('Imported note.');
     expect(report.sections).toEqual(sections);
+  });
+
+  // Part 5 E20: a codebase switch between an import parsing and it applying must never
+  // write that import's note/sections onto the codebase now bound.
+  it('no-ops when the given repositoryId no longer matches the bound codebase', () => {
+    const report = useReportStore();
+    report.bindRepository('repo-a');
+    report.applyNote('kept');
+    const sections = { summary: false, architecture: true, hotspots: true, security: false, plan: true };
+    report.bindRepository('repo-b');
+    report.restore('repo-a', sections, 'Stale note.');
+    expect(report.note).toBe('');
+    expect(report.sections).not.toEqual(sections);
+    report.restore(null, sections, 'Also stale.');
+    expect(report.note).toBe('');
   });
 });

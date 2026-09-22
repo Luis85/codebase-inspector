@@ -291,7 +291,14 @@ export const useReviewStore = defineStore('review', {
      *  closing the race where an add started mid-run could reserve an id equal to (and
      *  later overwrite) an imported one. Cleared in `finally` alongside the reload, kept
      *  global (not gated on `this.repository === repo`, unlike the pending arrays, V9)
-     *  so it is never left set after a codebase switch mid-run. */
+     *  so it is never left set after a codebase switch mid-run.
+     *
+     *  Part 5 E20: a codebase switch (`bindRepository`) that lands while this is running
+     *  writes `state` to `repo` — the codebase that was bound when the call started,
+     *  which is correct and stays. But the codebase now bound is a DIFFERENT one, so this
+     *  call did not apply to what is now on screen: it resolves `false` (not `true`), the
+     *  same shape a caller already treats as "did not apply", even though nothing here
+     *  was actually refused. */
     async replaceAll(state: ReviewReplacement): Promise<boolean> {
       if (this.hasPendingChanges) return false;
       this.bulkBusy = true;
@@ -311,7 +318,7 @@ export const useReviewStore = defineStore('review', {
       }
       const rejected = results.find(isRejected);
       if (rejected) throw rejected.reason;
-      return true;
+      return this.repository === repo;
     },
     /** Part 2 P5. Same reservation and persist-first ordering as `addWorkItem`.
      *  Refuses (null) a self-rule, an empty rationale, an existing pair, and a second call

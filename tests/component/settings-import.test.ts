@@ -155,6 +155,11 @@ describe('Import review state (Part 5 V13–V16)', () => {
   it('Replace swaps the state in, closes the dialog and re-announces the outcome in the Settings live region', async () => {
     const snap = withSnapshot();
     const review = useReviewStore();
+    // Part 5 E20: report.restore only applies for the bound codebase (mirrors
+    // bindRepository's own guard). In the real app, App.vue's shell-level watcher binds
+    // this before Settings is ever reachable; this test mounts SettingsScreen alone, so
+    // it does the same binding App.vue would have done.
+    useReportStore().bindRepository(snap.repositoryId);
     await review.addWorkItem({ kind: 'package', name: 'old' }, 'review', 'Old item', NOW);
     const w = await openPrivacy();
     await pick(w, stateText(snap));
@@ -301,6 +306,38 @@ describe('Import review state (Part 5 V13–V16)', () => {
     await flushPromises();
     expect(w.find('.ci-import-dialog__error').text()).toBe(IMPORT_STALE);
     expect(review.workItems).toEqual([]);
+    w.unmount();
+  });
+
+  // Part 5 E20: a codebase switch that lands WHILE replaceAll is running (not just
+  // between pick and confirm, E19) must not restore the report onto, or announce success
+  // for, the codebase that ends up on screen.
+  it('applies nothing and announces nothing when the codebase on screen switches while replaceAll is still gated (E20)', async () => {
+    const snap = withSnapshot();
+    const review = useReviewStore();
+    const report = useReportStore();
+    await review.bindRepository('repo-a');
+    report.bindRepository('repo-a');
+    const repoA = review.repository;
+    let release: () => void = noop;
+    const gate = new Promise<void>((r) => { release = r; });
+    review.setRepository({ ...repoA, saveWorkItem: async (item: WorkItem) => { await gate; await repoA.saveWorkItem(item); } });
+    const w = await openPrivacy();
+    await pick(w, stateText(snap));
+    await w.find('.ci-import-dialog__confirm').trigger('click');
+
+    const other = buildSnapshotFixture({ files: 3, directories: 1, repositoryId: 'repo-b' });
+    useCityStore().setCity(other, computeLayout(other));
+    await review.bindRepository('repo-b');
+    report.bindRepository('repo-b');
+    report.applyNote('Existing note for repo-b.');
+    release();
+    await flushPromises();
+
+    expect(w.find('.ci-import-dialog').exists()).toBe(false);
+    expect(report.note).toBe('Existing note for repo-b.');
+    expect(review.workItems).toEqual([]);
+    expect(w.find('.ci-settings__live').text()).toBe('');
     w.unmount();
   });
 });

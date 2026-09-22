@@ -35,7 +35,16 @@ function requestClose(): void {
 
 /** Part 5 E19: defence in depth against SettingsScreen's own close-on-switch watcher —
  *  this check runs SYNCHRONOUSLY, before any `await`, so it catches a codebase switch that
- *  races ahead of that (deferred) watcher too. A mismatch applies nothing. */
+ *  races ahead of that (deferred) watcher too. A mismatch applies nothing.
+ *
+ *  Part 5 E20: a SECOND check after `replaceAll` resolves catches a switch that landed
+ *  WHILE it was running. That check comes before the true/false split, not after: a
+ *  `false` `replaceAll` now returned either because it was genuinely busy (repositoryId
+ *  unchanged — show IMPORT_BUSY, as before) or because the codebase changed mid-flight
+ *  (review-store's own guard) — those need different handling, and only the repositoryId
+ *  check tells them apart. On a mismatch — true or false — nothing further is applied and
+ *  nothing is announced: report.restore no-ops on its own mismatch guard regardless, and
+ *  SettingsScreen's watcher has already closed this dialog. */
 function confirm(): Promise<void> {
   return run(async () => {
     if (city.snapshot?.repositoryId !== props.candidate.repositoryId) {
@@ -43,8 +52,10 @@ function confirm(): Promise<void> {
       return;
     }
     const { workItems, rules, dispositions } = props.candidate.state;
-    if (await review.replaceAll({ workItems, rules, dispositions })) {
-      report.restore(props.candidate.state.report.sections, props.candidate.state.report.note);
+    const replaced = await review.replaceAll({ workItems, rules, dispositions });
+    if (city.snapshot?.repositoryId !== props.candidate.repositoryId) return;
+    if (replaced) {
+      report.restore(props.candidate.repositoryId, props.candidate.state.report.sections, props.candidate.state.report.note);
       emit('done', IMPORTED(workItems.length, dispositions.length, rules.length));
     } else {
       error.value = IMPORT_BUSY;

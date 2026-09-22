@@ -35,8 +35,13 @@ export const useReportStore = defineStore('report', {
       this.note = '';
     },
     /** Part 5 V16: an imported report's sections and note, for the bound codebase. The
-     *  parser has already bounded the note (REPORT_NOTE_MAX). */
-    restore(sections: Readonly<Record<ReportSection, boolean>>, note: string): void {
+     *  parser has already bounded the note (REPORT_NOTE_MAX).
+     *  Part 5 E20: takes the repositoryId the import was parsed against and no-ops on a
+     *  mismatch — the same guard `bindRepository` uses on itself — so a codebase switch
+     *  while the import was still applying can never write a stale note/sections onto the
+     *  codebase now on screen. */
+    restore(repositoryId: string | null, sections: Readonly<Record<ReportSection, boolean>>, note: string): void {
+      if (repositoryId !== this.repositoryId) return;
       this.sections = { ...sections };
       this.note = note;
     },
