@@ -6,9 +6,10 @@
 :where(.codebase-inspector-root) .ci-finding-filters__reset { display: inline-flex; align-items: center; gap: var(--ci-space-1); margin-left: auto; }
 :where(.codebase-inspector-root) .ci-findings-table__footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ci-space-3); margin-top: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-findings-table__footer .ci-note { margin: 0; }
-/* X3: the retired .ci-findings-table__empty rule is gone; its padding lives here so the
-   Quality empty state (ci-findings-table__none ci-empty) keeps its old spacing. */
-:where(.codebase-inspector-root) .ci-findings-table__none { padding: var(--ci-space-4) 0; }
+/* X3: the retired .ci-findings-table__empty rule is gone; its padding and gap live here so the
+   Quality empty state (ci-findings-table__none ci-empty) keeps its old spacing (kit .ci-empty's
+   own gap is var(--ci-space-3), one step larger than the retired rule's var(--ci-space-2)). */
+:where(.codebase-inspector-root) .ci-findings-table__none { padding: var(--ci-space-4) 0; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-findings-table__none .ci-note { margin: 0; }
 :where(.codebase-inspector-root) .ci-findings-table__evidence,
 :where(.codebase-inspector-root) .ci-findings-table__status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); min-width: 0; }
