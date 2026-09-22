@@ -10,6 +10,7 @@ import SettingsScreen from '../../src/ui/screens/SettingsScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { usePreferencesStore } from '../../src/ui/stores/preferences-store';
 import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { makeEntityId } from '../../src/domain/entity-id';
 import { useReportStore } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { SETTINGS_CLEAR_BUSY, SETTINGS_CLEAR_FAILED } from '../../src/ui/inspector-copy';
@@ -116,9 +117,13 @@ describe('SettingsScreen (Part 4)', () => {
 
   it('a rejecting repository keeps the dialog open, shows the error, and keeps the review state (fix round 1, Minor 5)', async () => {
     const review = useReviewStore();
-    await review.addWorkItemForFile('repo\0file\0src/a.ts', 'A', new Date());
+    // Part 5 V32: the rejecting repository must HOLD the item. With an empty one, the reload
+    // inside clearAll emptied the list, and "keeps the review state" was never checked.
+    const repo = createInMemoryReviewRepository();
+    review.setRepository({ ...repo, removeWorkItem: () => Promise.reject(new Error('disk')) });
+    await review.addWorkItemForFile(makeEntityId('repo', 'file', 'src/a.ts'), 'A', new Date());
+    expect(await repo.listWorkItems()).toHaveLength(1);
     useReportStore().applyNote('keep?');
-    review.setRepository({ ...createInMemoryReviewRepository(), removeWorkItem: () => Promise.reject(new Error('disk')) });
     const w = mountS();
     await tab(w, 'privacy');
     await w.find('.ci-settings__clear').trigger('click');
@@ -127,6 +132,7 @@ describe('SettingsScreen (Part 4)', () => {
     expect(w.find('.ci-clear-dialog').exists()).toBe(true);
     expect(w.find('.ci-clear-dialog__error').text()).toBe(SETTINGS_CLEAR_FAILED);
     expect(useReportStore().note).toBe('keep?');
+    expect(useReviewStore().workItems).toHaveLength(1);
     expect(w.find('.ci-settings__live').text()).toBe('');
     w.unmount();
   });

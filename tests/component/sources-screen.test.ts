@@ -48,7 +48,8 @@ describe('SourcesScreen (Part 4)', () => {
     withSnapshot();
     let routeAtCall = '';
     const scan = vi.fn(() => { routeAtCall = useCityStore().route; });
-    const select = vi.fn();
+    let routeAtSelect = '';
+    const select = vi.fn(() => { routeAtSelect = useCityStore().route; });
     const w = mountS(select, scan);
     await w.find('.ci-sources__rescan').trigger('click');
     expect(scan).toHaveBeenCalledOnce();
@@ -56,7 +57,7 @@ describe('SourcesScreen (Part 4)', () => {
     useCityStore().navigate('sources');
     await w.find('.ci-sources__change').trigger('click');
     expect(select).toHaveBeenCalledOnce();
-    expect(useCityStore().route).toBe('city');
+    expect(routeAtSelect).toBe('city');
     w.unmount();
   });
 

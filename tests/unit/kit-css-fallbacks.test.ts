@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const read = (name: string): string => readFileSync(resolve(process.cwd(), 'src', 'ui', 'styles', name), 'utf8');
 
 const SCREEN_SHEETS = ['screens.css', 'screens-explore.css', 'screens-audit.css', 'screens-act.css', 'screens-configure.css'] as const;
+
+/** Part 4 X17: the cascade order. styles.css (the WP-01 token bridge) always comes first. */
+const CASCADE = ['kit.css', 'shell.css', ...SCREEN_SHEETS] as const;
+const CASCADE_PATHS = ['styles.css', ...CASCADE.map((n) => `styles/${n}`)];
 
 // Part 2 §5 (deferred minor): every Obsidian font-size variable the WP-02 stylesheets read
 // carries an em fallback, so a theme that drops one never collapses text to the UA default.
@@ -31,11 +35,22 @@ describe('WP-02 stylesheets', () => {
     }
   });
 
-  it('main.ts imports every stylesheet in cascade order (E55)', () => {
+  it('the sheet list is the folder on disk, so a new stylesheet fails here until it is wired in (Part 4 X17)', () => {
+    const onDisk = readdirSync(resolve(process.cwd(), 'src', 'ui', 'styles')).filter((n) => n.endsWith('.css')).sort();
+    expect(onDisk).toEqual([...CASCADE].sort());
+  });
+
+  it('main.ts imports styles.css first, then every sheet in cascade order, and nothing else (E55, X17)', () => {
     const main = readFileSync(resolve(process.cwd(), 'src', 'main.ts'), 'utf8');
-    const order = ['kit.css', 'shell.css', ...SCREEN_SHEETS].map((n) => main.indexOf(`./ui/styles/${n}'`));
-    expect(order).toHaveLength(7);
-    expect(order.every((i) => i >= 0)).toBe(true);
-    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    const imported = [...main.matchAll(/^import '\.\/ui\/([\w/.-]+\.css)';/gm)].map((m) => m[1]);
+    expect(imported).toEqual(CASCADE_PATHS);
+  });
+
+  it('the harness serves the same sheets in the same order (X17)', () => {
+    const config = readFileSync(resolve(process.cwd(), 'vite.harness.config.ts'), 'utf8');
+    const list = /const pluginStylesheets = \[([\s\S]*?)\]/.exec(config);
+    expect(list, 'vite.harness.config.ts no longer declares pluginStylesheets').not.toBeNull();
+    const served = [...list![1]!.matchAll(/'([\w/.-]+\.css)'/g)].map((m) => m[1]);
+    expect(served).toEqual(CASCADE_PATHS);
   });
 });
