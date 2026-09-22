@@ -103,3 +103,9 @@ Clean review.
 |---|---|---|
 | E3 | A title cap must never make an existing action silently do nothing. `addWorkItem` **clips** a too-long generated title to `WORK_TITLE_MAX` (last character `…`); `updateWorkItem` still refuses one, because the editor validates and explains it. Package names up to 214 characters and file names up to 255 would otherwise refuse silently under E17. | Low. A clipped title loses its tail; the target and path still identify the work. |
 | E4 | `updateWorkItem` copies the five patch fields explicitly instead of spreading, so identity fields (`id`, `target`, `intent`, `createdAt`) can never change at runtime and an explicit `undefined` cannot clobber a required field. `removeWorkItem` returns `false` for an unknown id. `clearAll` uses `allSettled`, reloads, then rethrows the first rejection. `NO_CHECKS` is frozen. | None. |
+
+### Task 7
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E5 | Amends X18: a quoted note line must not start a Markdown block. `mdQuote` escapes each line's leading `#`, `-`, `*`, `+`, `>` or `N.` exactly as `mdLine` does, so a note never becomes a heading, list or nested quote inside the exported plan. `mdCode`'s fence is run-length aware, so a path containing backticks cannot break its code span. | None. The exported Markdown reads as the user wrote it. |
