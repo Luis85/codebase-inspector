@@ -23,7 +23,7 @@ const relationshipLabel = (pkg: SamplePackage): string => (pkg.relationship === 
       <div class="ci-dep-path__card">
         <span class="ci-dep-path__label">
           <code>{{ pkg.name }}</code>
-          <span class="ci-hotspots__note">{{ relationshipLabel(pkg) }} · <code>{{ pkg.version }}</code></span>
+          <span class="ci-note">{{ relationshipLabel(pkg) }} · <code>{{ pkg.version }}</code></span>
         </span>
         <button
           type="button"

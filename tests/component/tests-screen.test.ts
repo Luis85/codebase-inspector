@@ -136,7 +136,7 @@ describe('TestsScreen', () => {
     await w.find('.ci-tests__module').setValue(files[0]!.module);
     store.select(other.id);
     await nextTick();
-    expect(w.find('.ci-hotspots__selected').text()).toContain(other.name);
+    expect(w.find('.ci-selected-strip').text()).toContain(other.name);
     w.unmount();
   });
 

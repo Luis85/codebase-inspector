@@ -100,7 +100,7 @@ function openInvestigation(item: Investigation): void {
 
     <div
       v-if="!overview"
-      class="ci-overview__empty"
+      class="ci-empty"
     >
       <p>{{ OVERVIEW_NO_SNAPSHOT }}</p>
       <button
@@ -121,7 +121,7 @@ function openInvestigation(item: Investigation): void {
         {{ overview.usesSample ? SAMPLE_DATA_DETAIL : '' }}
       </Callout>
 
-      <div class="ci-overview__cards">
+      <div class="ci-screen__cards">
         <MetricCard
           v-for="card in overview.cards"
           :key="card.id"
@@ -135,7 +135,7 @@ function openInvestigation(item: Investigation): void {
         />
       </div>
 
-      <div class="ci-overview__grid">
+      <div class="ci-screen__grid">
         <Panel
           :title="OVERVIEW_SIGNALS_PANEL_TITLE"
           :subtitle="OVERVIEW_SIGNALS_PANEL_SUBTITLE"

@@ -25,7 +25,7 @@ defineProps<{ items: readonly WorkItem[] }>();
     </ul>
     <p
       v-else
-      class="ci-hotspots__note"
+      class="ci-note"
     >
       {{ FILE_NO_WORK_ITEMS }}
     </p>

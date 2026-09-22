@@ -85,7 +85,7 @@ function openFile(id: EntityId): void {
     </PageHeader>
     <NoSnapshot v-if="!model" />
     <template v-else>
-      <div class="ci-overview__cards">
+      <div class="ci-screen__cards">
         <MetricCard
           v-for="card in model.cards"
           :key="card.id"
@@ -97,7 +97,7 @@ function openFile(id: EntityId): void {
           :tone="card.tone"
         />
       </div>
-      <div class="ci-overview__grid">
+      <div class="ci-screen__grid">
         <Panel
           :title="EVOLUTION_ACTIVITY_TITLE"
           :subtitle="EVOLUTION_ACTIVITY_SUBTITLE"
@@ -119,13 +119,13 @@ function openFile(id: EntityId): void {
           />
           <p
             v-else
-            class="ci-hotspots__note"
+            class="ci-note"
           >
             {{ EVOLUTION_COVERAGE_NONE }}
           </p>
         </Panel>
       </div>
-      <div class="ci-overview__grid">
+      <div class="ci-screen__grid">
         <Panel
           :title="EVOLUTION_COUPLING_TITLE"
           :subtitle="EVOLUTION_COUPLING_SUBTITLE"

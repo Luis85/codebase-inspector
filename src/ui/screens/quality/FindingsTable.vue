@@ -25,12 +25,12 @@ const columns: readonly TableColumn<QualityFinding>[] = [
   <div class="ci-findings-table">
     <div
       v-if="rows.length === 0"
-      class="ci-findings-table__empty"
+      class="ci-findings-table__none ci-empty"
     >
-      <p class="ci-findings-table__empty-title">
+      <p class="ci-empty__title">
         {{ QUALITY_NO_MATCH_TITLE }}
       </p>
-      <p class="ci-hotspots__note">
+      <p class="ci-note">
         {{ QUALITY_NO_MATCH }}
       </p>
       <button
@@ -90,7 +90,7 @@ const columns: readonly TableColumn<QualityFinding>[] = [
         </template>
       </EvidenceTable>
       <div class="ci-findings-table__footer">
-        <span class="ci-hotspots__note">{{ QUALITY_SHOWING(Math.min(limit, rows.length), rows.length) }}</span>
+        <span class="ci-note">{{ QUALITY_SHOWING(Math.min(limit, rows.length), rows.length) }}</span>
         <button
           v-if="rows.length > limit"
           type="button"

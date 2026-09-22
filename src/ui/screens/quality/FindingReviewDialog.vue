@@ -158,7 +158,7 @@ async function addWorkItem(): Promise<void> {
         <h4 class="ci-finding-dialog__dismiss-title">
           {{ FINDING_DISMISS_TITLE }}
         </h4>
-        <p class="ci-hotspots__note">
+        <p class="ci-note">
           {{ FINDING_DISMISS_HINT }}
         </p>
         <label :for="`${base}-reason`">{{ FINDING_DISMISS_REASON }}</label>

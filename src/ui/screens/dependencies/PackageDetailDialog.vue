@@ -76,13 +76,13 @@ async function createReview(): Promise<void> {
       </Callout>
       <p
         v-else-if="pkg.status === 'unused'"
-        class="ci-hotspots__note"
+        class="ci-note"
       >
         {{ PACKAGE_UNUSED_NOTE }}
       </p>
       <p
         v-else
-        class="ci-hotspots__note"
+        class="ci-note"
       >
         {{ PACKAGE_METADATA_NOTE }}
       </p>

@@ -121,7 +121,7 @@ function exportCsv(): void {
     </p>
     <NoSnapshot v-if="!store.snapshot" />
     <template v-else>
-      <div class="ci-overview__cards">
+      <div class="ci-screen__cards">
         <MetricCard
           v-for="card in quality.cards"
           :key="card.id"
@@ -151,7 +151,7 @@ function exportCsv(): void {
           />
         </Panel>
       </section>
-      <p class="ci-hotspots__note">
+      <p class="ci-note">
         {{ QUALITY_FOOTNOTE }}
       </p>
     </template>

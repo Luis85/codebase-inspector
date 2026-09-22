@@ -38,7 +38,7 @@ function plan(f: FileSummary): void {
   <div class="ci-coverage-gaps">
     <p
       v-if="rows.length === 0"
-      class="ci-hotspots__note"
+      class="ci-note"
     >
       {{ TESTS_GAPS_NONE }}
     </p>

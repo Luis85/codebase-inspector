@@ -63,7 +63,7 @@ describe('HotspotsScreen', () => {
     expect(store.selectedEntityId).not.toBeNull();
     expect(store.route).toBe('hotspots');
     expect(store.camera).toBeNull();
-    await w.find('.ci-hotspots__selected button').trigger('click');
+    await w.find('.ci-selected-strip button').trigger('click');
     expect(store.route).toBe('file');
     w.unmount();
   });
@@ -106,12 +106,12 @@ describe('HotspotsScreen', () => {
   it('the Selected live region exists before a selection fills it (F7)', async () => {
     withSnapshot();
     const w = mountHot();
-    const status = w.find('.ci-hotspots__selected [role="status"]');
+    const status = w.find('.ci-selected-strip [role="status"]');
     expect(status.exists()).toBe(true);
     expect(status.text()).toBe('');
-    expect(w.find('.ci-hotspots__selected button').exists()).toBe(false);
+    expect(w.find('.ci-selected-strip button').exists()).toBe(false);
     await w.findAll('.ci-scatter__dot')[0]!.trigger('click');
-    expect(w.find('.ci-hotspots__selected [role="status"]').element).toBe(status.element);
+    expect(w.find('.ci-selected-strip [role="status"]').element).toBe(status.element);
     expect(status.text()).toMatch(/^Selected: /);
     w.unmount();
   });

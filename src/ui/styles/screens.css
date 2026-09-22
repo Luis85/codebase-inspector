@@ -13,13 +13,7 @@
 :where(.codebase-inspector-root) .ci-screen--city { height: 100%; padding: 0; gap: 0; }
 :where(.codebase-inspector-root) .ci-screen--city > .ci-app { flex: none; min-height: 420px; height: max(420px, 100%); }
 
-/* Task 9: the Overview screen. */
-:where(.codebase-inspector-root) .ci-overview__cards { display: grid; gap: var(--ci-space-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
-:where(.codebase-inspector-root) .ci-overview__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
-@container (max-width: 900px) {
-  :where(.codebase-inspector-root) .ci-overview__grid { grid-template-columns: minmax(0, 1fr); }
-}
-:where(.codebase-inspector-root) .ci-overview__empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-3); color: var(--ci-text-muted); }
+/* Task 9: the Overview screen. Shared cards/grid/empty looks moved to kit.css (Part 4 E55). */
 
 :where(.codebase-inspector-root) .ci-investigations { list-style: none; margin: calc(-1 * var(--ci-space-4)); padding: 0; }
 :where(.codebase-inspector-root) .ci-investigations li + li { border-top: 1px solid var(--ci-border); }

@@ -37,7 +37,7 @@ const columns: readonly TableColumn<FileSummary>[] = [
     </div>
     <p
       v-if="rows.length === 0"
-      class="ci-hotspots__note"
+      class="ci-note"
     >
       {{ HOTSPOTS_NO_RESULTS }}
     </p>

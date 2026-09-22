@@ -5,10 +5,11 @@
 :where(.codebase-inspector-root) .ci-finding-filters__query { flex: 1 1 14em; min-width: 0; }
 :where(.codebase-inspector-root) .ci-finding-filters__reset { display: inline-flex; align-items: center; gap: var(--ci-space-1); margin-left: auto; }
 :where(.codebase-inspector-root) .ci-findings-table__footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ci-space-3); margin-top: var(--ci-space-3); }
-:where(.codebase-inspector-root) .ci-findings-table__footer .ci-hotspots__note { margin: 0; }
-:where(.codebase-inspector-root) .ci-findings-table__empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-2); padding: var(--ci-space-4) 0; color: var(--ci-text-muted); }
-:where(.codebase-inspector-root) .ci-findings-table__empty-title { margin: 0; color: var(--ci-text); font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-findings-table__empty .ci-hotspots__note { margin: 0; }
+:where(.codebase-inspector-root) .ci-findings-table__footer .ci-note { margin: 0; }
+/* X3: the retired .ci-findings-table__empty rule is gone; its padding lives here so the
+   Quality empty state (ci-findings-table__none ci-empty) keeps its old spacing. */
+:where(.codebase-inspector-root) .ci-findings-table__none { padding: var(--ci-space-4) 0; }
+:where(.codebase-inspector-root) .ci-findings-table__none .ci-note { margin: 0; }
 :where(.codebase-inspector-root) .ci-findings-table__evidence,
 :where(.codebase-inspector-root) .ci-findings-table__status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); min-width: 0; }
 :where(.codebase-inspector-root) .ci-findings-table__reason {
@@ -27,7 +28,7 @@
 :where(.codebase-inspector-root) .ci-finding-dialog__meta dd { margin: 0; overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-finding-dialog__links { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-finding-dialog__dismissal { display: flex; flex-direction: column; gap: var(--ci-space-2); }
-:where(.codebase-inspector-root) .ci-finding-dialog__dismissal .ci-hotspots__note { margin: 0; }
+:where(.codebase-inspector-root) .ci-finding-dialog__dismissal .ci-note { margin: 0; }
 :where(.codebase-inspector-root) .ci-finding-dialog__dismiss-title { margin: 0; }
 :where(.codebase-inspector-root) .ci-finding-dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-finding-dialog__error { margin: 0; color: var(--ci-error); font-size: var(--font-ui-small, 0.9em); }
@@ -53,10 +54,6 @@
 :where(.codebase-inspector-root) button.ci-coverage-map__tile[aria-pressed="true"] { outline: 2px solid var(--ci-focus); outline-offset: 1px; }
 :where(.codebase-inspector-root) button.ci-coverage-map__tile:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 1px; }
 :where(.codebase-inspector-root) .ci-coverage-gaps__more { margin-top: var(--ci-space-3); }
-:where(.codebase-inspector-root) .ci-chip--danger { border-color: var(--ci-tone-danger); color: var(--ci-tone-danger); }
-:where(.codebase-inspector-root) .ci-chip--warning { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
-:where(.codebase-inspector-root) .ci-chip--success { border-color: var(--ci-tone-success); color: var(--ci-tone-success); }
-:where(.codebase-inspector-root) .ci-chip--unknown { border-color: var(--ci-border); color: var(--ci-text-faint); }
 :where(.codebase-inspector-root) .ci-tests__duration { display: inline-flex; align-items: center; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-unknown-state {
   display: flex; flex-direction: column; align-items: center; gap: var(--ci-space-2);
@@ -80,7 +77,7 @@
 :where(.codebase-inspector-root) .ci-packages__query { flex: 1 1 14em; min-width: 0; }
 /* Task 15: package name on its own line; references and the sample badge beneath it. */
 :where(.codebase-inspector-root) .ci-packages td:first-child > code:first-child { display: block; margin-bottom: var(--ci-space-1); }
-:where(.codebase-inspector-root) .ci-packages td:first-child > code:first-child + .ci-hotspots__note { margin: 0 var(--ci-space-2) 0 0; }
+:where(.codebase-inspector-root) .ci-packages td:first-child > code:first-child + .ci-note { margin: 0 var(--ci-space-2) 0 0; }
 :where(.codebase-inspector-root) .ci-manifests { margin: var(--ci-space-4) 0; }
 :where(.codebase-inspector-root) .ci-manifests__title { margin: 0 0 var(--ci-space-2); font-size: var(--font-ui-medium, 1em); }
 :where(.codebase-inspector-root) .ci-manifests__list { display: grid; gap: var(--ci-space-1); margin: 0 0 var(--ci-space-2); padding: 0; list-style: none; }

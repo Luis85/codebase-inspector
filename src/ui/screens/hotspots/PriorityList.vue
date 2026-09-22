@@ -33,7 +33,7 @@ const emit = defineEmits<{ open: [id: EntityId] }>();
   </ol>
   <p
     v-else
-    class="ci-hotspots__note"
+    class="ci-note"
   >
     {{ HOTSPOTS_NO_RESULTS }}
   </p>

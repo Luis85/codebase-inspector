@@ -14,7 +14,7 @@ function selectCodebase(): void {
 </script>
 
 <template>
-  <div class="ci-overview__empty ci-no-snapshot">
+  <div class="ci-empty ci-no-snapshot">
     <p>{{ SCREEN_NO_SNAPSHOT }}</p>
     <button
       type="button"

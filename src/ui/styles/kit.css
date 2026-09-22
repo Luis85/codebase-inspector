@@ -182,3 +182,25 @@
 :where(.codebase-inspector-root) .ci-meter__fill--danger { background: var(--ci-tone-danger); }
 :where(.codebase-inspector-root) .ci-meter__fill--accent { background: var(--ci-tone-accent); }
 :where(.codebase-inspector-root) .ci-meter__value { display: inline-flex; align-items: center; gap: var(--ci-space-2); color: var(--ci-text-muted); font-variant-numeric: tabular-nums; }
+
+/* Part 4 E55: shared looks that screens used to borrow from each other. X12: .ci-note keeps
+   the old .ci-hotspots__note margin/colour/size (zero visual change); .ci-selected-strip
+   takes the old .ci-hotspots__selected declarations verbatim, not the brief's muted/small look. */
+:where(.codebase-inspector-root) .ci-note { margin: var(--ci-space-2) 0 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-3); color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-empty__title { margin: 0; color: var(--ci-text); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-selected-strip { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ci-space-3); margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-screen__cards { display: grid; gap: var(--ci-space-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+:where(.codebase-inspector-root) .ci-screen__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+@container (max-width: 900px) {
+  :where(.codebase-inspector-root) .ci-screen__grid { grid-template-columns: minmax(0, 1fr); }
+}
+:where(.codebase-inspector-root) .ci-chip {
+  display: inline-flex; align-items: center; padding: 2px var(--ci-space-2); border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-small); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em);
+}
+:where(.codebase-inspector-root) .ci-chip--sample { border-color: var(--ci-sample); color: var(--ci-sample); }
+:where(.codebase-inspector-root) .ci-chip--danger { border-color: var(--ci-tone-danger); color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-chip--warning { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-chip--success { border-color: var(--ci-tone-success); color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-chip--unknown { border-color: var(--ci-border); color: var(--ci-text-faint); }

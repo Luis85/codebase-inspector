@@ -104,18 +104,18 @@ function exportCsv(): void {
               <code>{{ m.path }}</code>
             </li>
           </ul>
-          <p class="ci-hotspots__note">
+          <p class="ci-note">
             {{ DEPS_MANIFESTS_NOTE }}
           </p>
         </template>
         <p
           v-else
-          class="ci-hotspots__note"
+          class="ci-note"
         >
           {{ DEPS_MANIFESTS_NONE }}
         </p>
       </div>
-      <div class="ci-overview__cards">
+      <div class="ci-screen__cards">
         <MetricCard
           v-for="card in dependencies.cards"
           :key="card.id"
@@ -157,7 +157,7 @@ function exportCsv(): void {
           <LicenseTable :rows="dependencies.licenses" />
         </Panel>
       </Tabs>
-      <p class="ci-hotspots__note">
+      <p class="ci-note">
         {{ DEPS_FOOTNOTE }}
       </p>
     </template>

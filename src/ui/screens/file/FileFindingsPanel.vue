@@ -57,7 +57,7 @@ const statusOf = (fingerprint: string): FindingStatus => props.statuses.get(fing
     </ul>
     <p
       v-else
-      class="ci-hotspots__note"
+      class="ci-note"
     >
       {{ FILE_NO_FINDINGS }}
     </p>

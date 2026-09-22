@@ -100,7 +100,7 @@ function exportCsv(): void {
       >
         {{ OWNERSHIP_CALLOUT }}
       </Callout>
-      <div class="ci-overview__grid">
+      <div class="ci-screen__grid">
         <Panel
           :title="OWNERSHIP_BARS_TITLE"
           :subtitle="OWNERSHIP_BARS_SUBTITLE"
@@ -131,7 +131,7 @@ function exportCsv(): void {
         />
         <p
           v-if="ownership.hiddenModules > 0"
-          class="ci-hotspots__note"
+          class="ci-note"
         >
           {{ OWNERSHIP_HIDDEN(ownership.hiddenModules) }}
         </p>

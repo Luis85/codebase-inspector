@@ -103,7 +103,7 @@ function exportCsv(): void {
     </p>
     <NoSnapshot v-if="!store.snapshot" />
     <template v-else>
-      <div class="ci-overview__cards">
+      <div class="ci-screen__cards">
         <MetricCard
           v-for="card in security.cards"
           :key="card.id"
@@ -121,7 +121,7 @@ function exportCsv(): void {
       >
         <div
           v-if="tab === 'advisories'"
-          class="ci-overview__grid"
+          class="ci-screen__grid"
         >
           <Panel
             :title="SECURITY_ADVISORIES_TITLE"

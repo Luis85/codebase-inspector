@@ -117,17 +117,17 @@ function exportCsv(): void {
           />
           <p
             v-if="model.plottable > model.points.length"
-            class="ci-hotspots__note"
+            class="ci-note"
           >
             {{ HOTSPOTS_SHOWING(model.points.length, model.plottable) }}
           </p>
           <p
             v-if="model.unplottable > 0"
-            class="ci-hotspots__note"
+            class="ci-note"
           >
             {{ HOTSPOTS_UNPLOTTABLE(model.unplottable) }}
           </p>
-          <div class="ci-hotspots__selected">
+          <div class="ci-selected-strip">
             <!-- F7: the live region exists before its text changes, so the change is announced. -->
             <span role="status">{{ selected ? HOTSPOTS_SELECTED(selected.name) : '' }}</span>
             <button

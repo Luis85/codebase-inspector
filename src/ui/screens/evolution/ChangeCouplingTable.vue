@@ -64,13 +64,13 @@ const rateWidths = computed(() => new Map(props.rows.map((row) => [
           {{ formatMetric(row.shared) }}
         </template>
       </EvidenceTable>
-      <p class="ci-hotspots__note">
+      <p class="ci-note">
         {{ EVOLUTION_COUPLING_FOOTNOTE }}
       </p>
     </template>
     <p
       v-else
-      class="ci-hotspots__note"
+      class="ci-note"
     >
       {{ EVOLUTION_COUPLING_NONE }}
     </p>

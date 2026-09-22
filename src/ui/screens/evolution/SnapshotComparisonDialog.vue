@@ -64,7 +64,7 @@ const linesChange = computed(() => {
       </p>
       <p
         v-if="earlier.length === 0"
-        class="ci-hotspots__note"
+        class="ci-note"
       >
         {{ COMPARE_NEEDS_TWO }}
       </p>
@@ -212,7 +212,7 @@ const linesChange = computed(() => {
         </table>
         <p
           v-else
-          class="ci-hotspots__note"
+          class="ci-note"
         >
           {{ COMPARE_MODULES_NONE }}
         </p>

@@ -88,7 +88,7 @@ async function addWorkItem(): Promise<void> {
       >
         {{ liveMessage }}
       </p>
-      <div class="ci-overview__cards">
+      <div class="ci-screen__cards">
         <MetricCard
           v-for="card in fileDetail.cards"
           :key="card.id"
@@ -122,7 +122,7 @@ async function addWorkItem(): Promise<void> {
           />
           <p
             v-else
-            class="ci-hotspots__note"
+            class="ci-note"
           >
             {{ FILE_HISTORY_NONE }}
           </p>

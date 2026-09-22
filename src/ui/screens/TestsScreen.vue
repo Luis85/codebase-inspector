@@ -154,7 +154,7 @@ function exportCsv(): void {
     </p>
     <NoSnapshot v-if="!store.snapshot || !testConfidence" />
     <template v-else>
-      <div class="ci-overview__cards">
+      <div class="ci-screen__cards">
         <MetricCard
           v-for="card in testConfidence.cards"
           :key="card.id"
@@ -172,7 +172,7 @@ function exportCsv(): void {
         :label="TESTS_TABS_LABEL"
       >
         <template v-if="tab === 'map'">
-          <div class="ci-overview__grid">
+          <div class="ci-screen__grid">
             <Panel
               :title="TESTS_MAP_TITLE"
               :subtitle="TESTS_MAP_SUBTITLE"
@@ -207,11 +207,11 @@ function exportCsv(): void {
               />
               <p
                 v-if="tiles.total > tiles.tiles.length"
-                class="ci-hotspots__note"
+                class="ci-note"
               >
                 {{ TESTS_SHOWING(tiles.tiles.length, tiles.total) }}
               </p>
-              <div class="ci-hotspots__selected">
+              <div class="ci-selected-strip">
                 <!-- F7: the live region exists before its text changes, so the change is announced. -->
                 <span role="status">{{ selected ? TESTS_SELECTED(selected.name) : '' }}</span>
                 <button
@@ -233,7 +233,7 @@ function exportCsv(): void {
               />
               <p
                 v-if="testConfidence.hiddenModules > 0"
-                class="ci-hotspots__note"
+                class="ci-note"
               >
                 {{ TESTS_MODULES_HIDDEN(testConfidence.hiddenModules) }}
               </p>

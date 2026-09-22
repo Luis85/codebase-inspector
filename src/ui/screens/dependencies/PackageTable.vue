@@ -57,10 +57,10 @@ const columns: readonly TableColumn<PackageRow>[] = [
     </div>
     <p
       v-if="rows.length === 0"
-      class="ci-findings-table__empty"
+      class="ci-empty"
     >
-      <span class="ci-findings-table__empty-title">{{ DEPS_NO_MATCH_TITLE }}</span>
-      <span class="ci-hotspots__note">{{ DEPS_NO_MATCH }}</span>
+      <span class="ci-empty__title">{{ DEPS_NO_MATCH_TITLE }}</span>
+      <span class="ci-note">{{ DEPS_NO_MATCH }}</span>
     </p>
     <template v-else>
       <EvidenceTable
@@ -72,7 +72,7 @@ const columns: readonly TableColumn<PackageRow>[] = [
       >
         <template #cell-package="{ row }">
           <code>{{ row.pkg.name }}</code>
-          <span class="ci-hotspots__note">{{ DEPS_REFERENCES(formatMetric(row.references)) }}</span>
+          <span class="ci-note">{{ DEPS_REFERENCES(formatMetric(row.references)) }}</span>
           <ProvenanceBadge state="sample" />
         </template>
         <template #cell-installed="{ row }">
@@ -91,7 +91,7 @@ const columns: readonly TableColumn<PackageRow>[] = [
           >{{ DEPS_STATUS_LABEL[row.pkg.status] }}</span>
         </template>
       </EvidenceTable>
-      <p class="ci-hotspots__note">
+      <p class="ci-note">
         {{ DEPS_COUNT(rows.length) }}
       </p>
     </template>

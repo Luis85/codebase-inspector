@@ -148,7 +148,7 @@ function openFile(id: EntityId): void {
     </PageHeader>
     <NoSnapshot v-if="!store.snapshot" />
     <template v-else>
-      <div class="ci-overview__cards">
+      <div class="ci-screen__cards">
         <MetricCard
           v-for="card in architecture.cards"
           :key="card.id"

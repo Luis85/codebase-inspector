@@ -52,7 +52,7 @@ const canCompare = (i: number): boolean => currentAt.value >= 0 && i > currentAt
     </ol>
     <p
       v-if="entries.length === 1"
-      class="ci-hotspots__note"
+      class="ci-note"
     >
       {{ EVOLUTION_JOURNAL_ONE }}
     </p>
