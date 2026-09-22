@@ -34,3 +34,11 @@ describe('the inspector leaf chrome', () => {
     expect(css).not.toMatch(unscoped);
   });
 });
+
+describe('compact density (Part 4 W5, fix round 1)', () => {
+  it('the compact gap rule excludes the city screen, so screens.css\'s own gap: 0 stays authoritative', () => {
+    expect(rule('.ci-shell--compact .ci-screen:not(.ci-screen--city)')).toMatch(/(?<![-\w])gap:\s*var\(--ci-space-3\)\s*;/);
+    // Guards against regressing to the unscoped selector this fixes.
+    expect(css).not.toMatch(/\.ci-shell--compact\s+\.ci-screen\s*\{/);
+  });
+});

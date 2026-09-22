@@ -12,6 +12,7 @@ import { NO_CODEBASE_LABEL } from './inspector-copy';
 import { rootFolderLabel } from './read-models/root-label';
 import { useCityStore } from './stores/city-store';
 import { usePreferencesStore } from './stores/preferences-store';
+import { useReportStore } from './stores/report-store';
 import { useLeafWidth } from './shell/use-leaf-width';
 import { useJournalFeed } from './shell/use-journal-feed';
 import NavColumn from './shell/NavColumn.vue';
@@ -36,7 +37,17 @@ import SettingsScreen from './screens/SettingsScreen.vue';
 
 const store = useCityStore();
 const preferences = usePreferencesStore();
+const report = useReportStore();
 useJournalFeed();
+
+/** Controller ruling E11 (amends E8): the report store is bound to the current codebase
+ *  here, at the shell level, regardless of which screen is open — a reviewer note or
+ *  section choice must never survive onto a different codebase, even if Report was never
+ *  the screen open while it was scanned in. Binding on the snapshot's own repository id
+ *  (not just "a snapshot exists") clears a stale note/section choice the moment a
+ *  different codebase is scanned into this leaf; re-binding the same repository is a
+ *  no-op (report-store.ts's own guard). */
+watch(() => store.snapshot?.repositoryId, (id) => { if (id) report.bindRepository(id); }, { immediate: true });
 const rootEl = ref<HTMLElement | null>(null);
 const leafWidth = useLeafWidth(rootEl);
 /** Inline nav only when the leaf is measurably wide. 0 (hidden leaf, jsdom) keeps the

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { MARKDOWN_MIME, useCsvExport } from '../export/use-csv-export';
 import { buildReportModel, reportMarkdown } from '../read-models/report';
 import { useReadModels } from '../read-models/use-read-models';
@@ -22,10 +22,9 @@ const root = ref<HTMLElement | null>(null);
 const liveMessage = ref('');
 const exportText = useCsvExport(root, liveMessage);
 
-/** Controller ruling E8: binding on the snapshot's own repository id (not just "a
- *  snapshot exists") clears a stale note/section choice the moment a different
- *  codebase is scanned into this leaf; re-binding the same repository is a no-op. */
-watch(() => store.snapshot?.repositoryId, (id) => { if (id) report.bindRepository(id); }, { immediate: true });
+/** Controller ruling E11 (amends E8): the report store is bound to the current codebase
+ *  from App.vue, regardless of which screen is open — a reviewer note must never survive
+ *  onto a different codebase even if they never opened Report while it was scanned in. */
 
 /** E17-style repeat: an identical outcome (e.g. applying the same note twice) must be
  *  announced again, which a screen reader only does on an actual text change. */

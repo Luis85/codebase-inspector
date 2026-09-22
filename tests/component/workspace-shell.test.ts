@@ -5,6 +5,7 @@ import { nextTick } from 'vue';
 import App from '../../src/ui/App.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { usePreferencesStore } from '../../src/ui/stores/preferences-store';
+import { useReportStore } from '../../src/ui/stores/report-store';
 import { useSnapshotJournal } from '../../src/ui/stores/snapshot-journal';
 import { cityInlineSize } from '../../src/ui/container-box';
 import { computeLayout } from '../../src/domain/layout/layout';
@@ -249,6 +250,24 @@ describe('workspace shell', () => {
     usePreferencesStore().setDensity('compact');
     await nextTick();
     expect(w.find('.ci-shell').classes()).toContain('ci-shell--compact');
+    w.unmount();
+  });
+
+  it('binds the report store to the current codebase regardless of which screen is open (ruling E11)', async () => {
+    const report = useReportStore();
+    const w = mountShell();
+    const repoA = buildSnapshotFixture({ files: 4, directories: 1, repositoryId: 'repo-a' });
+    useCityStore().setCity(repoA, computeLayout(repoA));
+    await nextTick();
+    expect(report.repositoryId).toBe('repo-a');
+    expect(report.applyNote('keep?')).toBe(true);
+    // The shell is still on the city route (this describe's beforeEach), never Report:
+    // the binding must not depend on ReportScreen ever having been mounted.
+    const repoB = buildSnapshotFixture({ files: 4, directories: 1, repositoryId: 'repo-b' });
+    useCityStore().setCity(repoB, computeLayout(repoB));
+    await nextTick();
+    expect(report.repositoryId).toBe('repo-b');
+    expect(report.note).toBe('');
     w.unmount();
   });
 });

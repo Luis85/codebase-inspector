@@ -15,6 +15,14 @@ const busy = ref(false);
 const error = ref('');
 const text = computed(() => SETTINGS_CLEAR_DIALOG_TEXT(review.workItems.length, review.dispositions.length, review.rules.length));
 
+/** Fix round 1, Minor 4: while a clear is in flight, Cancel, Escape and the backdrop
+ *  click (all routed through CiDialog's `close`) are ignored — the dialog closing mid-
+ *  clear would unmount it and lose the outcome (the announcement or the error). */
+function requestClose(): void {
+  if (busy.value) return;
+  emit('close');
+}
+
 /** W14: everything goes through the port first (clearAll reloads from it); the report
  *  choices and note are reset with it. The dialog closes and the screen announces. */
 async function confirm(): Promise<void> {
@@ -36,7 +44,7 @@ async function confirm(): Promise<void> {
 <template>
   <CiDialog
     :label="SETTINGS_CLEAR_DIALOG_TITLE"
-    @close="emit('close')"
+    @close="requestClose"
   >
     <div class="ci-clear-dialog">
       <h3>{{ SETTINGS_CLEAR_DIALOG_TITLE }}</h3>
@@ -52,7 +60,8 @@ async function confirm(): Promise<void> {
         <button
           type="button"
           class="ci-clear-dialog__cancel"
-          @click="emit('close')"
+          :aria-disabled="busy ? 'true' : undefined"
+          @click="requestClose"
         >
           {{ SETTINGS_CLEAR_CANCEL }}
         </button>

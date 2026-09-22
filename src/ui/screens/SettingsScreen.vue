@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 import { JSON_MIME, useCsvExport } from '../export/use-csv-export';
 import { reviewStateJson } from '../read-models/review-state';
 import { useReportStore } from '../stores/report-store';
@@ -34,8 +34,12 @@ function exportState(): void {
     report: { sections: report.sections, note: report.note }, exportedAt: new Date(),
   }), JSON_MIME);
 }
-function cleared(message: string): void {
+/** E17-style repeat (fix round 1, Minor 3): a screen reader only announces an actual text
+ *  change, so a SECOND clear (a fresh add, then clear again) must be announced again too. */
+async function cleared(message: string): Promise<void> {
   showClear.value = false;
+  liveMessage.value = '';
+  await nextTick();
   liveMessage.value = message;
 }
 </script>
