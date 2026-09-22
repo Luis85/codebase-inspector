@@ -48,28 +48,28 @@ function resetFilters(): void {
   filter.value = { ...DEFAULT_QUALITY_FILTER };
 }
 
-/** Remembers where the opening row sat, so closing can land near it (closeReview). */
+/** Remembers which row's Review button opened the dialog, so closing can land near it (closeReview). */
 function open(finding: QualityFinding): void {
   const el = root.value;
   const active = el?.ownerDocument.activeElement ?? null;
-  const rowEls = el ? [...el.querySelectorAll<HTMLElement>('.ci-table__row')] : [];
-  const at = active ? rowEls.findIndex((r) => r === active) : -1;
+  const buttons = el ? [...el.querySelectorAll<HTMLElement>('.ci-findings-table__open')] : [];
+  const at = active ? buttons.findIndex((b) => b === active) : -1;
   openedIndex.value = at < 0 ? 0 : at;
   reviewing.value = finding.fingerprint;
 }
 
 /** The row that opened the dialog may have left the filtered list (an Open finding that
  *  was just acknowledged). CiDialog restores focus to it when it is still there;
- *  otherwise land on the row now at the same place, the last row, or the panel — never
- *  the body (Part 2 F7 pattern). */
+ *  otherwise land on the Review button now at the same place, the last one, or the panel —
+ *  never the body (Part 2 F7 pattern). */
 async function closeReview(): Promise<void> {
   reviewing.value = null;
   await nextTick();
   const el = root.value;
   const active = el?.ownerDocument.activeElement;
   if (!el || (active && el.contains(active))) return;   // CiDialog already restored focus inside the screen
-  const rowEls = [...el.querySelectorAll<HTMLElement>('.ci-table__row')];
-  (rowEls[Math.min(openedIndex.value, rowEls.length - 1)]
+  const buttons = [...el.querySelectorAll<HTMLElement>('.ci-findings-table__open')];
+  (buttons[Math.min(openedIndex.value, buttons.length - 1)]
     ?? el.querySelector<HTMLElement>('.ci-findings-table__reset')
     ?? el.querySelector<HTMLElement>('.ci-quality__panel'))?.focus();
 }

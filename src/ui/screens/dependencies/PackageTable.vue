@@ -2,9 +2,9 @@
 import { formatMetric } from '../../evidence';
 import type { PackageFilter, PackageRow } from '../../read-models/dependencies';
 import {
-  DEPS_COL_INSTALLED, DEPS_COL_LICENSE, DEPS_COL_PACKAGE, DEPS_COL_RELATIONSHIP, DEPS_COL_STATUS, DEPS_COUNT,
-  DEPS_FILTER_LABEL, DEPS_FILTER_LABELS, DEPS_FILTER_QUERY, DEPS_LICENSE_UNRESOLVED, DEPS_NO_MATCH, DEPS_NO_MATCH_TITLE,
-  DEPS_RELATIONSHIP_LABEL, DEPS_REFERENCES, DEPS_STATUS_LABEL, DEPS_TABLE_CAPTION,
+  DEPS_COL_DETAILS, DEPS_COL_INSTALLED, DEPS_COL_LICENSE, DEPS_COL_PACKAGE, DEPS_COL_RELATIONSHIP, DEPS_COL_STATUS, DEPS_COUNT,
+  DEPS_DETAILS, DEPS_DETAILS_LABEL, DEPS_FILTER_LABEL, DEPS_FILTER_LABELS, DEPS_FILTER_QUERY, DEPS_LICENSE_UNRESOLVED,
+  DEPS_NO_MATCH, DEPS_NO_MATCH_TITLE, DEPS_RELATIONSHIP_LABEL, DEPS_REFERENCES, DEPS_STATUS_LABEL, DEPS_TABLE_CAPTION,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
@@ -24,6 +24,8 @@ const columns: readonly TableColumn<PackageRow>[] = [
   { key: 'relationship', label: DEPS_COL_RELATIONSHIP },
   { key: 'license', label: DEPS_COL_LICENSE },
   { key: 'status', label: DEPS_COL_STATUS },
+  // V19 (E28/E45): the row is static; this real button is the one control per row.
+  { key: 'details', label: DEPS_COL_DETAILS },
 ];
 </script>
 
@@ -68,7 +70,7 @@ const columns: readonly TableColumn<PackageRow>[] = [
         :rows="rows"
         :row-key="(r) => r.pkg.name"
         :caption="DEPS_TABLE_CAPTION"
-        @activate="emit('inspect', $event.pkg)"
+        :interactive="false"
       >
         <template #cell-package="{ row }">
           <code>{{ row.pkg.name }}</code>
@@ -89,6 +91,16 @@ const columns: readonly TableColumn<PackageRow>[] = [
             class="ci-chip"
             :class="`ci-chip--dep-${row.pkg.status}`"
           >{{ DEPS_STATUS_LABEL[row.pkg.status] }}</span>
+        </template>
+        <template #cell-details="{ row }">
+          <button
+            type="button"
+            class="ci-packages__details"
+            :aria-label="DEPS_DETAILS_LABEL(row.pkg.name)"
+            @click="emit('inspect', row.pkg)"
+          >
+            {{ DEPS_DETAILS }}
+          </button>
         </template>
       </EvidenceTable>
       <p class="ci-note">

@@ -59,7 +59,7 @@ describe('DependenciesScreen', () => {
     const addSpy = vi.spyOn(review, 'addWorkItem');
     const w = mountD();
     expect(w.findAll('.ci-table__row')[0]!.text()).toContain('@sample/document-parser');
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-packages__details')[0]!.trigger('click');
     const dialog = w.find('.ci-package-dialog');
     expect(dialog.text()).toContain('This is not a real advisory.');
     const reviewButton = w.find('.ci-package-dialog__review');
@@ -85,7 +85,7 @@ describe('DependenciesScreen', () => {
   it('announces PACKAGE_REVIEW_ADDED after a successful add', async () => {
     withSnapshot();
     const w = mountD();
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-packages__details')[0]!.trigger('click');
     await w.find('.ci-package-dialog__review').trigger('click');
     await flush();
     expect(dialogStatus(w)).toBe(PACKAGE_REVIEW_ADDED);
@@ -97,7 +97,7 @@ describe('DependenciesScreen', () => {
     const review = useReviewStore();
     vi.spyOn(review, 'addWorkItem').mockResolvedValue(null);
     const w = mountD();
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-packages__details')[0]!.trigger('click');
     await w.find('.ci-package-dialog__review').trigger('click');
     await flush();
     expect(dialogStatus(w)).toBe('');
@@ -109,7 +109,7 @@ describe('DependenciesScreen', () => {
     const review = useReviewStore();
     vi.spyOn(review, 'addWorkItem').mockRejectedValue(new Error('boom'));
     const w = mountD();
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-packages__details')[0]!.trigger('click');
     await w.find('.ci-package-dialog__review').trigger('click');
     await flush();
     const error = w.find('.ci-package-dialog__error');
@@ -118,25 +118,25 @@ describe('DependenciesScreen', () => {
     w.unmount();
   });
 
-  it('Close and Escape close the dialog and return focus to the opener row', async () => {
+  it('Close and Escape close the dialog and return focus to the row\'s Details button', async () => {
     withSnapshot();
     const w = mountD();
-    const row = w.findAll('.ci-table__row')[0]!;
+    const details = w.findAll('.ci-packages__details')[0]!;
 
-    (row.element as HTMLElement).focus();
-    await row.trigger('click');
+    (details.element as HTMLElement).focus();
+    await details.trigger('click');
     expect(w.find('.ci-package-dialog').exists()).toBe(true);
     await w.find('.ci-package-dialog__close').trigger('click');
     await nextTick();
     expect(w.find('.ci-package-dialog').exists()).toBe(false);
-    expect(document.activeElement).toBe(row.element);
+    expect(document.activeElement).toBe(details.element);
 
-    (row.element as HTMLElement).focus();
-    await row.trigger('click');
+    (details.element as HTMLElement).focus();
+    await details.trigger('click');
     await w.find('[role="dialog"]').trigger('keydown', { key: 'Escape' });
     await nextTick();
     expect(w.find('.ci-package-dialog').exists()).toBe(false);
-    expect(document.activeElement).toBe(row.element);
+    expect(document.activeElement).toBe(details.element);
     w.unmount();
   });
 
@@ -170,7 +170,7 @@ describe('DependenciesScreen', () => {
     // Fixture order (E29): index 6 is @sample/legacy-icons, status 'unused'.
     const row = w.findAll('.ci-table__row')[6]!;
     expect(row.text()).toContain('@sample/legacy-icons');
-    await row.trigger('click');
+    await row.find('.ci-packages__details').trigger('click');
     expect(w.find('.ci-package-dialog').text()).toContain('No references in the fixture');
     w.unmount();
   });
@@ -181,7 +181,7 @@ describe('DependenciesScreen', () => {
     // Fixture order (E29): index 2 is @sample/ui-kit, status 'current', no advisory.
     const row = w.findAll('.ci-table__row')[2]!;
     expect(row.text()).toContain('@sample/ui-kit');
-    await row.trigger('click');
+    await row.find('.ci-packages__details').trigger('click');
     expect(w.find('.ci-package-dialog').text()).toContain('Metadata is illustrative.');
     w.unmount();
   });
@@ -196,6 +196,22 @@ describe('DependenciesScreen', () => {
     expect(w.text()).toContain('Policy compatibility needs a project-specific legal review.');
     await w.find('.ci-dependencies__export').trigger('click');
     expect(vi.mocked(downloadText).mock.calls[0]![1]).toBe('sample-package-inventory.csv');
+    w.unmount();
+  });
+
+  it('V19: package rows take no focus or click; each Details button is named "Details for <package>", starting with its text', async () => {
+    withSnapshot();
+    const w = mountD();
+    const rows = w.findAll('.ci-table__row');
+    expect(rows).toHaveLength(10);
+    expect(rows.every((r) => r.attributes('tabindex') === undefined)).toBe(true);
+    await rows[0]!.trigger('click');
+    expect(w.find('.ci-package-dialog').exists()).toBe(false);
+    const details = w.findAll('.ci-packages__details');
+    expect(details).toHaveLength(10);
+    expect(details.every((b) => (b.attributes('aria-label') ?? '').startsWith(b.text()))).toBe(true);
+    expect(details[0]!.text()).toBe('Details');
+    expect(details[0]!.attributes('aria-label')).toBe('Details for @sample/document-parser');
     w.unmount();
   });
 });

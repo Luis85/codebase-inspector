@@ -61,14 +61,14 @@ describe('QualityScreen', () => {
     w.unmount();
   });
 
-  it('acknowledging moves the finding out of the Open list; closing lands focus on a row, never the shell or body', async () => {
+  it('acknowledging moves the finding out of the Open list; closing lands focus on a Review button, never the shell or body', async () => {
     withSnapshot();
     const { w, done } = mountInShell();
-    const first = w.findAll('.ci-table__row')[0]!;
     // Finding ids repeat across files (CX-<module>-<n>); the id plus the file names the row.
-    const identity = first.text();
-    (first.element as HTMLElement).focus();
-    await first.trigger('click');
+    const identity = w.findAll('.ci-table__row')[0]!.text();
+    const open = w.findAll('.ci-findings-table__open')[0]!;
+    (open.element as HTMLElement).focus();
+    await open.trigger('click');
     expect(w.find('.ci-finding-dialog').exists()).toBe(true);
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
     await flush();
@@ -81,7 +81,7 @@ describe('QualityScreen', () => {
     const rows = w.findAll('.ci-table__row').map((r) => r.text());
     expect(rows.length).toBeGreaterThan(0);
     expect(rows).not.toContain(identity);
-    expect(document.activeElement?.classList.contains('ci-table__row')).toBe(true);
+    expect(document.activeElement?.classList.contains('ci-findings-table__open')).toBe(true);
     expect(document.activeElement?.classList.contains('ci-shell')).toBe(false);
     done();
   });
@@ -89,7 +89,7 @@ describe('QualityScreen', () => {
   it('focus stays inside the dialog after Acknowledge, Reopen and a dismissal save or cancel', async () => {
     withSnapshot();
     const { w, done } = mountInShell();
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     const ack = w.find('.ci-finding-dialog__acknowledge');
     (ack.element as HTMLElement).focus();
     await ack.trigger('click');
@@ -121,7 +121,7 @@ describe('QualityScreen', () => {
     const snap = buildSnapshotFixture({ files: 60, directories: 3 });
     useCityStore().setCity(snap, computeLayout(snap));
     const w = mountQ();
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     expect(w.find('.ci-finding-dialog').exists()).toBe(true);
     const other = buildSnapshotFixture({ files: 60, directories: 3, repositoryId: 'repo-other' });
     useCityStore().setCity(other, computeLayout(other));
@@ -164,7 +164,7 @@ describe('QualityScreen', () => {
     const w = mountQ();
     const review = useReviewStore();
     const spy = vi.spyOn(review, 'acknowledge').mockResolvedValue(null);
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
     await flush();
     expect(spy).toHaveBeenCalledOnce();
@@ -177,7 +177,7 @@ describe('QualityScreen', () => {
     withSnapshot();
     const w = mountQ();
     vi.spyOn(useReviewStore(), 'acknowledge').mockRejectedValue(new Error('disk'));
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
     await flush();
     expect(w.find('.ci-finding-dialog__error').text()).toBe('Could not save this decision.');
@@ -188,7 +188,7 @@ describe('QualityScreen', () => {
   it('fix round 1: a later failure clears an earlier success out of the dialog status', async () => {
     withSnapshot();
     const w = mountQ();
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
     await flush();
     expect(w.find('[role="dialog"] .ci-dialog__status').text()).toBe('Finding acknowledged. No repository suppression was written.');
@@ -203,7 +203,7 @@ describe('QualityScreen', () => {
   it('dismiss requires a reason; with one, the decision and reason are stored', async () => {
     withSnapshot();
     const w = mountQ();
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     await w.find('.ci-finding-dialog__dismiss').trigger('click');
     await w.find('.ci-finding-dialog__save-dismissal').trigger('click');
     await flush();
@@ -219,7 +219,7 @@ describe('QualityScreen', () => {
   it('reopen removes the decision; add work item records a refactor item for the file', async () => {
     withSnapshot();
     const w = mountQ();
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
     await flush();
     await w.find('.ci-finding-dialog__reopen').trigger('click');
@@ -235,7 +235,7 @@ describe('QualityScreen', () => {
     withSnapshot();
     const { w, done } = mountInShell();
     const spy = vi.spyOn(useReviewStore(), 'addWorkItemForFile');
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     const button = w.find('.ci-finding-dialog__work-item');
     const before = button.text();
     (button.element as HTMLElement).focus();
@@ -255,7 +255,7 @@ describe('QualityScreen', () => {
   it('Open file detail selects the file and navigates there', async () => {
     withSnapshot();
     const w = mountQ();
-    await w.findAll('.ci-table__row')[0]!.trigger('click');
+    await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     await w.find('.ci-finding-dialog__open-file').trigger('click');
     const store = useCityStore();
     expect(store.route).toBe('file');
@@ -283,5 +283,39 @@ describe('QualityScreen', () => {
     await w.find('.ci-quality__export').trigger('click');
     expect(w.find('.ci-quality__live').text()).toBe('Could not start the download.');
     w.unmount();
+  });
+
+  it('V19: rows take no focus or click; each Review button is named "Review <title> in <file>", starting with its text', async () => {
+    withSnapshot();
+    const w = mountQ();
+    const rows = w.findAll('.ci-table__row');
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.attributes('tabindex') === undefined)).toBe(true);
+    await rows[0]!.trigger('click');
+    expect(w.find('.ci-finding-dialog').exists()).toBe(false);
+    const buttons = w.findAll('.ci-findings-table__open');
+    expect(buttons).toHaveLength(rows.length);
+    expect(buttons.every((b) => (b.attributes('aria-label') ?? '').startsWith(b.text()))).toBe(true);
+    // The row's two .ci-file-cell__name cells: the finding title, then the file name.
+    const names = rows[0]!.findAll('.ci-file-cell__name').map((n) => n.text());
+    expect(names).toHaveLength(2);
+    expect(buttons[0]!.text()).toBe('Review');
+    expect(buttons[0]!.attributes('aria-label')).toBe(`Review ${names[0]!} in ${names[1]!}`);
+    w.unmount();
+  });
+
+  it('V19/R5: closing the dialog returns focus to the same row\'s Review button', async () => {
+    withSnapshot();
+    const { w, done } = mountInShell();
+    const buttons = w.findAll('.ci-findings-table__open');
+    expect(buttons.length).toBeGreaterThan(1);
+    const second = buttons[1]!;
+    (second.element as HTMLElement).focus();
+    await second.trigger('click');
+    expect(w.find('.ci-finding-dialog').exists()).toBe(true);
+    await w.find('.ci-finding-dialog__close').trigger('click');
+    await flush();
+    expect(document.activeElement).toBe(second.element);
+    done();
   });
 });

@@ -32,6 +32,10 @@ export const DEPS_COL_INSTALLED = 'Installed';
 export const DEPS_COL_RELATIONSHIP = 'Relationship';
 export const DEPS_COL_LICENSE = 'License';
 export const DEPS_COL_STATUS = 'Status';
+// Part 5 V19: the row's own button (the row is no longer a control); the name starts with the visible text.
+export const DEPS_COL_DETAILS = 'Details';
+export const DEPS_DETAILS = 'Details';
+export const DEPS_DETAILS_LABEL = (name: string): string => `Details for ${name}`;
 export const DEPS_REFERENCES = (n: string): string => `${n} illustrative import references`;
 export const DEPS_RELATIONSHIP_LABEL: Readonly<Record<'direct' | 'transitive' | 'development', string>> = {
   direct: 'Direct', transitive: 'Transitive', development: 'Development',

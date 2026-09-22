@@ -2,8 +2,8 @@
 import { FINDINGS_PAGE, SEVERITY_RANK, type QualityFinding } from '../../read-models/findings';
 import {
   FINDING_KIND_LABEL, FINDING_STATUS_LABEL, QUALITY_COL_EVIDENCE, QUALITY_COL_FINDING, QUALITY_COL_LOCATION,
-  QUALITY_COL_SEVERITY, QUALITY_COL_STATUS, QUALITY_LOCATION, QUALITY_NO_MATCH, QUALITY_NO_MATCH_TITLE, QUALITY_SHOWING,
-  QUALITY_TABLE_CAPTION, RESET_FILTERS, SEVERITY_LABEL, SHOW_MORE,
+  QUALITY_COL_REVIEW, QUALITY_COL_SEVERITY, QUALITY_COL_STATUS, QUALITY_LOCATION, QUALITY_NO_MATCH, QUALITY_NO_MATCH_TITLE,
+  QUALITY_REVIEW, QUALITY_REVIEW_LABEL, QUALITY_SHOWING, QUALITY_TABLE_CAPTION, RESET_FILTERS, SEVERITY_LABEL, SHOW_MORE,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
@@ -18,6 +18,8 @@ const columns: readonly TableColumn<QualityFinding>[] = [
   { key: 'location', label: QUALITY_COL_LOCATION, sortValue: (r) => r.file.path },
   { key: 'evidence', label: QUALITY_COL_EVIDENCE },
   { key: 'status', label: QUALITY_COL_STATUS },
+  // V19 (E28/E45): the row is static; this real button is the one control per row.
+  { key: 'open', label: QUALITY_COL_REVIEW },
 ];
 </script>
 
@@ -49,7 +51,7 @@ const columns: readonly TableColumn<QualityFinding>[] = [
         :caption="QUALITY_TABLE_CAPTION"
         :initial-sort="{ key: 'severity', dir: 'asc' }"
         :limit="limit"
-        @activate="emit('open', $event)"
+        :interactive="false"
       >
         <template #cell-severity="{ row }">
           <span
@@ -87,6 +89,16 @@ const columns: readonly TableColumn<QualityFinding>[] = [
               :title="row.reason"
             >{{ row.reason }}</span>
           </span>
+        </template>
+        <template #cell-open="{ row }">
+          <button
+            type="button"
+            class="ci-findings-table__open"
+            :aria-label="QUALITY_REVIEW_LABEL(row.title, row.file.name)"
+            @click="emit('open', row)"
+          >
+            {{ QUALITY_REVIEW }}
+          </button>
         </template>
       </EvidenceTable>
       <div class="ci-findings-table__footer">

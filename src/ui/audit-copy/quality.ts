@@ -35,6 +35,10 @@ export const QUALITY_COL_FINDING = 'Finding';
 export const QUALITY_COL_LOCATION = 'Location';
 export const QUALITY_COL_EVIDENCE = 'Evidence';
 export const QUALITY_COL_STATUS = 'Status';
+// Part 5 V19: the row's own button (the row is no longer a control); the name starts with the visible text.
+export const QUALITY_COL_REVIEW = 'Review';
+export const QUALITY_REVIEW = 'Review';
+export const QUALITY_REVIEW_LABEL = (title: string, file: string): string => `Review ${title} in ${file}`;
 export const QUALITY_LOCATION = (line: number | null, module: string): string => `${line === null ? 'Line unknown' : `Line ${line}`} · ${module}`;
 export const QUALITY_SHOWING = (shown: number, total: number): string => `Showing ${shown} of ${total} matching findings`;
 export const QUALITY_NO_MATCH_TITLE = 'No findings match these filters';
