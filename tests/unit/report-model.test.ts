@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { makeEntityId } from '../../src/domain/entity-id';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { buildOverviewModel } from '../../src/ui/read-models/overview';
 import { architectureGraphFor, buildArchitectureModel } from '../../src/ui/read-models/architecture';
@@ -52,6 +53,22 @@ describe('report model and Markdown (Part 4 W6/W7)', () => {
     expect(md).toContain('> Line one\n> \\# two');
     expect(md).toContain('## Scope and limitations');
   });
+  it('fix round 1 #5: marks a plan item whose file target left the snapshot, in Markdown too', () => {
+    const snapshot = buildSnapshotFixture({ files: 40, directories: 3 });
+    const files = fileSummariesFor(snapshot);
+    const graph = architectureGraphFor(files);
+    const missingId = makeEntityId(snapshot.repositoryId, 'file', 'ghost.ts');
+    const plan = buildWorkbenchModel([{
+      id: 'wi-2', target: { kind: 'file', entityId: missingId }, intent: 'refactor', title: 'Ghost file',
+      status: 'investigate', priority: 'low', notes: '', checks: NO_CHECKS, createdAt: '2026-09-22T10:00:00.000Z',
+    }], files, '').rows;
+    const m = buildReportModel({
+      snapshot, files, overview: buildOverviewModel(snapshot, files), architecture: buildArchitectureModel(graph, []),
+      security: buildSecurityModel(), plan,
+    });
+    const md = reportMarkdown(m, ALL, '');
+    expect(md).toContain('Not in this snapshot');
+  });
 });
 
 describe('report store (Part 4 W1)', () => {
@@ -67,5 +84,21 @@ describe('report store (Part 4 W1)', () => {
     r.reset();
     expect(r.sections.security).toBe(true);
     expect(r.note).toBe('');
+  });
+  it('fix round 1 #2 (E8): binding a different repository clears the note and section choices; re-binding the same one is a no-op', () => {
+    const r = useReportStore();
+    r.bindRepository('repo-a');
+    r.setSection('security', false);
+    expect(r.applyNote('about repo-a')).toBe(true);
+
+    r.bindRepository('repo-b');
+    expect(r.note).toBe('');
+    expect(r.sections).toEqual({ summary: true, architecture: true, hotspots: true, security: true, plan: true });
+
+    r.setSection('plan', false);
+    expect(r.applyNote('about repo-b')).toBe(true);
+    r.bindRepository('repo-b');
+    expect(r.note).toBe('about repo-b');
+    expect(r.sections.plan).toBe(false);
   });
 });

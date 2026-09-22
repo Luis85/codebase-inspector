@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { formatMetric, hasValue, isSampleBacked } from '../../evidence';
+import { formatMetric, hasValue, isSampleBacked, type MetricValue } from '../../evidence';
 import type { FileSummary } from '../../read-models/file-summaries';
 import { includedSections, type ReportMetric, type ReportModel, type ReportRule } from '../../read-models/report';
+import type { WorkRow } from '../../read-models/work-items';
 import type { ReportSection } from '../../stores/report-store';
 import {
   REPORT_COL_BOUNDARY, REPORT_COL_COMMITS, REPORT_COL_COMPLEXITY, REPORT_COL_COVERAGE, REPORT_COL_FILE, REPORT_COL_PRIORITY,
@@ -19,7 +20,17 @@ const props = defineProps<{ model: ReportModel; sections: Readonly<Record<Report
 const shown = computed(() => includedSections(props.sections));
 const metricsOf = (section: ReportSection): readonly ReportMetric[] =>
   (section === 'summary' ? props.model.summary : section === 'architecture' ? props.model.architecture : props.model.security);
-const alsoSample = (m: ReportMetric): boolean => m.value.state !== 'sample' && isSampleBacked(m.value);
+/** A value already `collected` can still partly rest on sample inputs (e.g. priority
+ *  aggregates sample complexity/commits/coverage); both badges then show, never just one. */
+const alsoSample = (v: MetricValue): boolean => v.state !== 'sample' && isSampleBacked(v);
+
+/** Controller ruling review Task 11 fix #1: a package/module target has no file path —
+ *  showing only `detail` ("Package"/"Module") loses which one. A file target keeps its
+ *  path, plus the "not in this snapshot" marker when it no longer resolves. */
+const planTargetText = (r: WorkRow): string => {
+  if (r.item.target.kind !== 'file') return `${r.target.detail} ${r.target.name}`;
+  return r.target.present ? r.target.detail : `${r.target.detail} · ${WORK_TARGET_MISSING}`;
+};
 
 const RULE_COLUMNS: readonly TableColumn<ReportRule>[] = [
   { key: 'id', label: REPORT_COL_RULE }, { key: 'boundary', label: REPORT_COL_BOUNDARY },
@@ -73,7 +84,7 @@ const HOTSPOT_COLUMNS: readonly TableColumn<FileSummary>[] = [
             :state="m.value.state"
           />
           <ProvenanceBadge
-            v-if="alsoSample(m)"
+            v-if="alsoSample(m.value)"
             state="sample"
           />
           <span
@@ -135,16 +146,64 @@ const HOTSPOT_COLUMNS: readonly TableColumn<FileSummary>[] = [
             </span>
           </template>
           <template #cell-priority="{ row }">
-            {{ formatMetric(row.priority) }} <ProvenanceBadge :state="row.priority.state" />
+            {{ formatMetric(row.priority) }}
+            <ProvenanceBadge
+              v-if="row.priority.state !== 'collected'"
+              :state="row.priority.state"
+            />
+            <ProvenanceBadge
+              v-if="alsoSample(row.priority)"
+              state="sample"
+            />
+            <span
+              v-if="!hasValue(row.priority) && row.priority.reason"
+              class="ci-note"
+            >{{ row.priority.reason }}</span>
           </template>
           <template #cell-complexity="{ row }">
             {{ formatMetric(row.complexity) }}
+            <ProvenanceBadge
+              v-if="row.complexity.state !== 'collected'"
+              :state="row.complexity.state"
+            />
+            <ProvenanceBadge
+              v-if="alsoSample(row.complexity)"
+              state="sample"
+            />
+            <span
+              v-if="!hasValue(row.complexity) && row.complexity.reason"
+              class="ci-note"
+            >{{ row.complexity.reason }}</span>
           </template>
           <template #cell-commits="{ row }">
             {{ formatMetric(row.commits90d) }}
+            <ProvenanceBadge
+              v-if="row.commits90d.state !== 'collected'"
+              :state="row.commits90d.state"
+            />
+            <ProvenanceBadge
+              v-if="alsoSample(row.commits90d)"
+              state="sample"
+            />
+            <span
+              v-if="!hasValue(row.commits90d) && row.commits90d.reason"
+              class="ci-note"
+            >{{ row.commits90d.reason }}</span>
           </template>
           <template #cell-coverage="{ row }">
             {{ formatMetric(row.branchCoverage, '%') }}
+            <ProvenanceBadge
+              v-if="row.branchCoverage.state !== 'collected'"
+              :state="row.branchCoverage.state"
+            />
+            <ProvenanceBadge
+              v-if="alsoSample(row.branchCoverage)"
+              state="sample"
+            />
+            <span
+              v-if="!hasValue(row.branchCoverage) && row.branchCoverage.reason"
+              class="ci-note"
+            >{{ row.branchCoverage.reason }}</span>
           </template>
         </EvidenceTable>
         <p class="ci-note">
@@ -174,12 +233,7 @@ const HOTSPOT_COLUMNS: readonly TableColumn<FileSummary>[] = [
           >
             <strong>{{ r.item.title }}</strong>
             <span class="ci-chip">{{ WORK_ITEM_STATUS_LABEL[r.item.status] }}</span>
-            <span class="ci-note">
-              {{ r.item.id }} · {{ WORK_PRIORITY_LABEL[r.item.priority] }} · {{ r.target.detail }}
-              <span
-                v-if="!r.target.present"
-              >· {{ WORK_TARGET_MISSING }}</span>
-            </span>
+            <span class="ci-note">{{ r.item.id }} · {{ WORK_PRIORITY_LABEL[r.item.priority] }} · {{ planTargetText(r) }}</span>
           </li>
         </ul>
       </template>

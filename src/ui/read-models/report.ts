@@ -12,7 +12,7 @@ import {
   REPORT_LIMITS_TITLE, REPORT_LINES, REPORT_MD_DISCLAIMER, REPORT_NO_EXCLUSIONS, REPORT_NO_NOTE, REPORT_NO_PLAN, REPORT_NO_RULES,
   REPORT_NOTE_TITLE, REPORT_PAPER_TITLE, REPORT_PLAN_LINE, REPORT_RULE_BOUNDARY, REPORT_RULE_STATUS, REPORT_RULES_TITLE,
   REPORT_SAFETY_TEXT, REPORT_SECTION_HEADING, REPORT_SECTION_LABEL, REPORT_SECURITY_NOTE, REPORT_SUMMARY_NOTE,
-  RULE_STATUS_LABEL, WORK_ITEM_STATUS_LABEL, WORK_PRIORITY_LABEL,
+  RULE_STATUS_LABEL, WORK_ITEM_STATUS_LABEL, WORK_PRIORITY_LABEL, WORK_TARGET_MISSING,
 } from '../inspector-copy';
 import type { ArchitectureModel } from './architecture';
 import { moduleLabel, type FileSummary } from './file-summaries';
@@ -76,7 +76,8 @@ const metricLines = (metrics: readonly ReportMetric[]): string[] => metrics.map(
 const tableRow = (cells: readonly string[]): string => `| ${cells.join(' | ')} |`;
 
 function planTarget(row: WorkRow): string {
-  return row.item.target.kind === 'file' ? mdCode(row.target.detail) : `${row.target.detail} ${mdCell(row.target.name)}`;
+  if (row.item.target.kind !== 'file') return `${row.target.detail} ${mdCell(row.target.name)}`;
+  return row.target.present ? mdCode(row.target.detail) : `${mdCode(row.target.detail)} (${WORK_TARGET_MISSING})`;
 }
 
 function sectionBody(model: ReportModel, section: ReportSection): string[] {

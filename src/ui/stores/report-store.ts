@@ -9,7 +9,7 @@ export const REPORT_NOTE_MAX = 5000;
 const allOn = (): Record<ReportSection, boolean> => ({ summary: true, architecture: true, hotspots: true, security: true, plan: true });
 
 export const useReportStore = defineStore('report', {
-  state: () => ({ sections: allOn(), note: '' }),
+  state: () => ({ sections: allOn(), note: '', repositoryId: null as string | null }),
   actions: {
     setSection(section: ReportSection, on: boolean): void {
       this.sections = { ...this.sections, [section]: on };
@@ -23,6 +23,15 @@ export const useReportStore = defineStore('report', {
     reset(): void {
       this.sections = allOn();
       this.note = '';
+    },
+    /** Controller ruling E8: a reviewer note about one codebase must never appear in
+     *  another codebase's report. Pinia state lives per leaf (never reset on its own),
+     *  so a snapshot switch inside the same leaf must clear the note and section choices
+     *  itself; binding the same repository again is a no-op. */
+    bindRepository(id: string): void {
+      if (this.repositoryId === id) return;
+      this.repositoryId = id;
+      this.reset();
     },
   },
 });

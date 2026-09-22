@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import { nextTick } from 'vue';
 
 vi.mock('../../src/ui/export/download', () => ({ downloadText: vi.fn() }));
 import { downloadText } from '../../src/ui/export/download';
@@ -51,12 +52,21 @@ describe('ReportScreen (Part 4)', () => {
     w.unmount();
   });
 
+  it('fix round 1 #1: a package/module plan target shows its own name, not just "Package"/"Module"', async () => {
+    withSnapshot();
+    await useReviewStore().addWorkItem({ kind: 'package', name: '@sample/x' }, 'review', 'Review x', new Date());
+    const w = mountR();
+    expect(w.find('.ci-report-paper').text()).toContain('@sample/x');
+    w.unmount();
+  });
+
   it('applies the reviewer note on request only, and announces it', async () => {
     withSnapshot();
     const w = mountR();
     await w.find('.ci-report-contents textarea').setValue('Confirm the parser boundary.');
     expect(w.find('.ci-report-paper').text()).not.toContain('Confirm the parser boundary.');
     await w.find('.ci-report-contents__apply').trigger('click');
+    await nextTick();
     expect(w.find('.ci-report-paper').text()).toContain('Confirm the parser boundary.');
     expect(w.find('.ci-report__live').text()).toBe('Reviewer note applied to the report.');
     w.unmount();
@@ -65,13 +75,25 @@ describe('ReportScreen (Part 4)', () => {
   it('exports Markdown with the chosen sections through the leaf document', async () => {
     withSnapshot();
     const w = mountR();
+    await w.find('.ci-report-contents input[value="security"]').setValue(false);
+    await w.find('.ci-report-contents textarea').setValue('Confirm the parser boundary.');
+    await w.find('.ci-report-contents__apply').trigger('click');
+    await nextTick();
     await w.find('.ci-report__export').trigger('click');
     const [host, name, text, mime] = vi.mocked(downloadText).mock.calls[0]!;
     expect(host.classList.contains('ci-screen--report')).toBe(true);
     expect(name).toBe('codebase-audit-report.md');
     expect(mime).toBe('text/markdown;charset=utf-8');
     expect(text).toContain('## 01 / Executive summary');
+    expect(text).not.toContain('Security review');
+    expect(text).toContain('> Confirm the parser boundary.');
     expect(text).toContain('(sample)');
+    w.unmount();
+  });
+
+  it('fix round 1 #6: the export button is disabled without a snapshot', () => {
+    const w = mountR();
+    expect(w.find('.ci-report__export').attributes('disabled')).toBeDefined();
     w.unmount();
   });
 });

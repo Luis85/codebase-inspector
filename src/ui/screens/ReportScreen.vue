@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { MARKDOWN_MIME, useCsvExport } from '../export/use-csv-export';
 import { buildReportModel, reportMarkdown } from '../read-models/report';
 import { useReadModels } from '../read-models/use-read-models';
@@ -21,6 +21,19 @@ const { files, overview, architecture, security } = useReadModels();
 const root = ref<HTMLElement | null>(null);
 const liveMessage = ref('');
 const exportText = useCsvExport(root, liveMessage);
+
+/** Controller ruling E8: binding on the snapshot's own repository id (not just "a
+ *  snapshot exists") clears a stale note/section choice the moment a different
+ *  codebase is scanned into this leaf; re-binding the same repository is a no-op. */
+watch(() => store.snapshot?.repositoryId, (id) => { if (id) report.bindRepository(id); }, { immediate: true });
+
+/** E17-style repeat: an identical outcome (e.g. applying the same note twice) must be
+ *  announced again, which a screen reader only does on an actual text change. */
+async function announce(message: string): Promise<void> {
+  liveMessage.value = '';
+  await nextTick();
+  liveMessage.value = message;
+}
 
 const model = computed(() => {
   const snapshot = store.snapshot;
@@ -75,7 +88,7 @@ function exportReport(): void {
         :sections="report.sections"
         :note="report.note"
       />
-      <ReportContents @announce="liveMessage = $event" />
+      <ReportContents @announce="announce" />
     </div>
   </div>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import { REPORT_NOTE_MAX, REPORT_SECTIONS, useReportStore } from '../../stores/report-store';
 import { useUniqueId } from '../../unique-id';
 import {
@@ -13,11 +13,19 @@ import Icon from '../../kit/Icon.vue';
 const emit = defineEmits<{ announce: [message: string] }>();
 const report = useReportStore();
 const noteId = useUniqueId('ci-report-note');
+const errorId = useUniqueId('ci-report-note-error');
 const draft = ref(report.note);
 const error = ref('');
 
-function apply(): void {
+// A fresh edit invalidates the previous refusal; the error only ever reflects the
+// most recent "Apply note" press.
+watch(draft, () => { error.value = ''; });
+
+/** A repeated identical refusal must be announced again (role="alert" only fires a live
+ *  region on a real text change), so the message is cleared and re-set after a tick. */
+async function apply(): Promise<void> {
   error.value = '';
+  await nextTick();
   if (report.applyNote(draft.value)) emit('announce', REPORT_NOTE_APPLIED);
   else error.value = REPORT_NOTE_TOO_LONG(REPORT_NOTE_MAX);
 }
@@ -56,9 +64,12 @@ function apply(): void {
         v-model="draft"
         class="ci-report-contents__note"
         :maxlength="REPORT_NOTE_MAX"
+        :aria-describedby="error ? errorId : undefined"
+        :aria-invalid="error ? 'true' : undefined"
       />
       <p
         v-if="error"
+        :id="errorId"
         class="ci-report-contents__error"
         role="alert"
       >
