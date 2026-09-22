@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import App from '../../src/ui/App.vue';
@@ -7,6 +7,7 @@ import CityScreen from '../../src/ui/screens/CityScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { usePreferencesStore } from '../../src/ui/stores/preferences-store';
 import { useReportStore } from '../../src/ui/stores/report-store';
+import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useSnapshotJournal } from '../../src/ui/stores/snapshot-journal';
 import { cityInlineSize } from '../../src/ui/container-box';
 import { computeLayout } from '../../src/domain/layout/layout';
@@ -294,6 +295,28 @@ describe('workspace shell', () => {
     await nextTick();
     expect(report.repositoryId).toBe('repo-b');
     expect(report.note).toBe('');
+    w.unmount();
+  });
+
+  it('shows each codebase its own work items: a switch empties the Workbench at once, and switching back restores it (Part 5 V8)', async () => {
+    const w = mountShell();
+    const repoA = buildSnapshotFixture({ files: 4, directories: 1, repositoryId: 'repo-a' });
+    useCityStore().setCity(repoA, computeLayout(repoA));
+    useCityStore().navigate('workbench');
+    await flushPromises();
+    const fileA = repoA.entities.find((e) => e.kind === 'file')!;
+    await useReviewStore().addWorkItemForFile(fileA.id, 'Split A', new Date());
+    await nextTick();
+    expect(w.findAll('.ci-work-card__title').map((t) => t.text())).toEqual(['Split A']);
+
+    const repoB = buildSnapshotFixture({ files: 4, directories: 1, repositoryId: 'repo-b' });
+    useCityStore().setCity(repoB, computeLayout(repoB));
+    await nextTick();
+    expect(w.findAll('.ci-work-card')).toHaveLength(0);
+
+    useCityStore().setCity(repoA, computeLayout(repoA));
+    await flushPromises();
+    expect(w.findAll('.ci-work-card__title').map((t) => t.text())).toEqual(['Split A']);
     w.unmount();
   });
 });

@@ -112,7 +112,7 @@ describe('report store (Part 4 W1)', () => {
     expect(r.sections.security).toBe(true);
     expect(r.note).toBe('');
   });
-  it('fix round 1 #2 (Part 4 E8): binding a different repository clears the note and section choices; re-binding the same one is a no-op', () => {
+  it('Part 4 E8 as amended by Part 5 V10: a new codebase starts from the defaults, the note never crosses codebases, and a round trip restores each one\'s own choices', () => {
     const r = useReportStore();
     r.bindRepository('repo-a');
     r.setSection('security', false);
@@ -124,6 +124,13 @@ describe('report store (Part 4 W1)', () => {
 
     r.setSection('plan', false);
     expect(r.applyNote('about repo-b')).toBe(true);
+    r.bindRepository('repo-b');
+    expect(r.note).toBe('about repo-b');
+    expect(r.sections.plan).toBe(false);
+
+    r.bindRepository('repo-a');
+    expect(r.note).toBe('about repo-a');
+    expect(r.sections).toEqual({ summary: true, architecture: true, hotspots: true, security: false, plan: true });
     r.bindRepository('repo-b');
     expect(r.note).toBe('about repo-b');
     expect(r.sections.plan).toBe(false);

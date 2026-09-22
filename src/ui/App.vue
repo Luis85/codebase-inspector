@@ -13,6 +13,7 @@ import { rootFolderLabel } from './read-models/root-label';
 import { useCityStore } from './stores/city-store';
 import { usePreferencesStore } from './stores/preferences-store';
 import { useReportStore } from './stores/report-store';
+import { useReviewStore } from './stores/review-store';
 import { useLeafWidth } from './shell/use-leaf-width';
 import { provideLeafLayout } from './shell/leaf-layout';
 import { useJournalFeed } from './shell/use-journal-feed';
@@ -40,6 +41,7 @@ import SettingsScreen from './screens/SettingsScreen.vue';
 const store = useCityStore();
 const preferences = usePreferencesStore();
 const report = useReportStore();
+const review = useReviewStore();
 useJournalFeed();
 
 /** Controller ruling Part 4 E11 (amends Part 4 E8): the report store is bound to the current codebase
@@ -48,8 +50,13 @@ useJournalFeed();
  *  the screen open while it was scanned in. Binding on the snapshot's own repository id
  *  (not just "a snapshot exists") clears a stale note/section choice the moment a
  *  different codebase is scanned into this leaf; re-binding the same repository is a
- *  no-op (report-store.ts's own guard). */
-watch(() => store.snapshot?.repositoryId, (id) => { if (id) report.bindRepository(id); }, { immediate: true });
+ *  no-op (report-store.ts's own guard). Part 5 V8/V10: the review store is bound the same
+ *  way. Both keep each codebase's state, so switching back restores it. */
+watch(() => store.snapshot?.repositoryId, (id) => {
+  if (!id) return;
+  report.bindRepository(id);
+  void review.bindRepository(id);
+}, { immediate: true });
 const rootEl = ref<HTMLElement | null>(null);
 const leafWidth = useLeafWidth(rootEl);
 /** Inline nav only when the leaf is measurably wide. 0 (hidden leaf, jsdom) keeps the

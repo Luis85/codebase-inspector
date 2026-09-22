@@ -102,6 +102,10 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
       // Part 4: the workbench and report shots need work items; three fixed ones on the
       // first three files, one per status column the prototype shows.
       const review = useReviewStore();
+      // Part 5 V8: App's repository watcher bound the review store to this snapshot and
+      // started a load. A second load settles after the first (same depth, in order), so
+      // awaiting it guarantees no load lands on top of the items added below.
+      await review.load();
       const ids = (store.layout?.lots ?? []).slice(0, 3).map((l) => l.entityId);
       const at = new Date('2026-09-17T12:00:00Z');
       if (ids[0]) await review.addWorkItem({ kind: 'file', entityId: ids[0] }, 'refactor', 'Separate calculation from persistence', at, { priority: 'high', status: 'planned', checks: [true, false, false] });

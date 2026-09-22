@@ -22,6 +22,12 @@ function isRejected(result: PromiseSettledResult<unknown>): result is PromiseRej
   return result.status === 'rejected';
 }
 
+/** Part 5 V8: one codebase's own repository and id counters. The lists are reloaded from
+ *  the repository on every switch; the counters travel with the bucket because a failed
+ *  save or a removal leaves a spent id that `load()` cannot see. */
+interface ReviewBucket { repository: ReviewRepository; nextId: number; nextRuleId: number }
+const newBucket = (): ReviewBucket => ({ repository: markRaw(createInMemoryReviewRepository()), nextId: 1, nextRuleId: 1 });
+
 interface ReviewState {
   workItems: WorkItem[];
   nextId: number;
@@ -42,21 +48,32 @@ interface ReviewState {
   /** Fingerprints with a `decide` (acknowledge/dismiss) or `reopen` in flight — same
    *  reservation pattern as `pendingWorkKeys`. */
   pendingFingerprints: string[];
+  /** Part 5 V8: every codebase bound in this leaf, by repository id; `''` is the unbound
+   *  bucket used before any snapshot. Raw: nothing renders from it. The pending arrays
+   *  above stay global (V9). */
+  buckets: Map<string, ReviewBucket>;
+  /** The key of the bucket that `repository` and the counters belong to. */
+  boundKey: string;
 }
 
 export const useReviewStore = defineStore('review', {
-  state: (): ReviewState => ({
-    workItems: [],
-    nextId: 1,
-    repository: markRaw(createInMemoryReviewRepository()),
-    rules: [],
-    nextRuleId: 1,
-    pendingRuleKeys: [],
-    pendingWorkKeys: [],
-    pendingItemIds: [],
-    dispositions: [],
-    pendingFingerprints: [],
-  }),
+  state: (): ReviewState => {
+    const unbound = newBucket();
+    return {
+      workItems: [],
+      nextId: 1,
+      repository: unbound.repository,
+      rules: [],
+      nextRuleId: 1,
+      pendingRuleKeys: [],
+      pendingWorkKeys: [],
+      pendingItemIds: [],
+      dispositions: [],
+      pendingFingerprints: [],
+      buckets: markRaw(new Map([['', unbound]])),
+      boundKey: '',
+    };
+  },
   getters: {
     workItemCount: (state): number => state.workItems.length,
     /** Part 4 W13: the nav badge counts what is still to do. */
@@ -81,15 +98,49 @@ export const useReviewStore = defineStore('review', {
     isDispositionPending: (state) => (fingerprint: string): boolean => state.pendingFingerprints.includes(fingerprint),
   },
   actions: {
+    /** Replaces the bound codebase's repository (tests; WP-05's durable adapter). */
     setRepository(repository: ReviewRepository): void {
-      this.repository = markRaw(repository);
+      const raw = markRaw(repository);
+      this.repository = raw;
+      const bucket = this.buckets.get(this.boundKey);
+      if (bucket) bucket.repository = raw;
+    },
+    /** Part 5 V8: one in-memory repository, and its own id counters, per codebase.
+     *  Steps (a)–(d) run synchronously, so the previous codebase's items never render for
+     *  even one frame; (e) loads the target codebase's own state. Binding the bound id
+     *  again is a no-op. Nothing leaves memory (WP-05 adds the durable adapter behind the
+     *  same port, keyed the same way). */
+    async bindRepository(id: string): Promise<void> {
+      if (id === this.boundKey) return;
+      const current = this.buckets.get(this.boundKey);
+      if (current) {
+        current.nextId = this.nextId; // (a)
+        current.nextRuleId = this.nextRuleId;
+      }
+      let target = this.buckets.get(id); // (b)
+      if (!target) {
+        target = newBucket();
+        this.buckets.set(id, target);
+      }
+      this.boundKey = id; // (c)
+      this.repository = target.repository;
+      this.nextId = target.nextId;
+      this.nextRuleId = target.nextRuleId;
+      this.workItems = []; // (d)
+      this.rules = [];
+      this.dispositions = [];
+      await this.load(); // (e)
     },
     /** Part 2 §5: pending-aware. A save still in flight has already reserved an id; the
-     *  counters only ever move forward, so load() can never hand that id out again. */
+     *  counters only ever move forward, so load() can never hand that id out again.
+     *  Part 5 V9: a load that settles after a codebase switch belongs to the old codebase
+     *  and changes nothing. */
     async load(): Promise<void> {
+      const repo = this.repository;
       const [items, rules, dispositions] = await Promise.all([
-        this.repository.listWorkItems(), this.repository.listRules(), this.repository.listDispositions(),
+        repo.listWorkItems(), repo.listRules(), repo.listDispositions(),
       ]);
+      if (this.repository !== repo) return;
       this.workItems = items;
       this.rules = rules;
       this.dispositions = dispositions;
@@ -114,7 +165,7 @@ export const useReviewStore = defineStore('review', {
     async addWorkItem(target: WorkTarget, intent: WorkIntent, title: string, now: Date, init: WorkItemInit = {}): Promise<WorkItem | null> {
       const key = workTargetKey(target, intent);
       if (this.hasWorkItem(target, intent) || this.pendingWorkKeys.includes(key)) return null;
-      // Controller ruling Part 4 E2: clip (never refuse) an over-long GENERATED title, so a
+      // Controller ruling Part 4 E3: clip (never refuse) an over-long GENERATED title, so a
       // long package or file name can never make the calling button silently do
       // nothing. `updateWorkItem` still refuses one via `workItemProblem` — that title
       // came from the user, and the editor can explain the refusal.
@@ -123,12 +174,15 @@ export const useReviewStore = defineStore('review', {
         priority: init.priority ?? 'medium', notes: init.notes ?? '', checks: init.checks ?? NO_CHECKS, createdAt: now.toISOString(),
       };
       if (workItemProblem(item) !== null) return null;
+      const repo = this.repository;
       this.nextId += 1;
       this.pendingWorkKeys.push(key);
       try {
-        await this.repository.saveWorkItem(item);
-        // A load() that ran mid-save may already hold it.
-        if (!this.workItems.some((w) => w.id === item.id)) this.workItems.push(item);
+        await repo.saveWorkItem(item);
+        // Part 5 V9: saved in its own codebase either way (so the real result is
+        // returned), but shown only while that codebase is still bound. A load() that
+        // ran mid-save may already hold it.
+        if (this.repository === repo && !this.workItems.some((w) => w.id === item.id)) this.workItems.push(item);
         return item;
       } finally {
         this.pendingWorkKeys = this.pendingWorkKeys.filter((k) => k !== key);
@@ -157,10 +211,12 @@ export const useReviewStore = defineStore('review', {
       if (patch.notes !== undefined) next.notes = patch.notes;
       if (patch.checks !== undefined) next.checks = patch.checks;
       if (workItemProblem(next) !== null) return null;
+      const repo = this.repository;
       this.pendingItemIds.push(id);
       try {
-        await this.repository.saveWorkItem(next);
-        this.workItems = this.workItems.map((w) => (w.id === id ? next : w));
+        await repo.saveWorkItem(next);
+        // Part 5 V9: another codebase may hold an item with the same id.
+        if (this.repository === repo) this.workItems = this.workItems.map((w) => (w.id === id ? next : w));
         return next;
       } finally {
         this.pendingItemIds = this.pendingItemIds.filter((p) => p !== id);
@@ -171,10 +227,11 @@ export const useReviewStore = defineStore('review', {
      *  while an update or removal of the same id is in flight. */
     async removeWorkItem(id: string): Promise<boolean> {
       if (!this.workItems.some((w) => w.id === id) || this.pendingItemIds.includes(id)) return false;
+      const repo = this.repository;
       this.pendingItemIds.push(id);
       try {
-        await this.repository.removeWorkItem(id);
-        this.workItems = this.workItems.filter((w) => w.id !== id);
+        await repo.removeWorkItem(id);
+        if (this.repository === repo) this.workItems = this.workItems.filter((w) => w.id !== id);
         return true;
       } finally {
         this.pendingItemIds = this.pendingItemIds.filter((p) => p !== id);
@@ -186,15 +243,17 @@ export const useReviewStore = defineStore('review', {
      *  what it still holds afterwards, even after a partial failure; then rethrows the
      *  first rejection (if any), after the reload, so the caller still sees it. */
     async clearAll(): Promise<void> {
+      const repo = this.repository;
       let results: PromiseSettledResult<void>[] = [];
       try {
         results = await Promise.allSettled([
-          ...this.workItems.map((w) => this.repository.removeWorkItem(w.id)),
-          ...this.rules.map((r) => this.repository.removeRule(r.id)),
-          ...this.dispositions.map((d) => this.repository.removeDisposition(d.fingerprint)),
+          ...this.workItems.map((w) => repo.removeWorkItem(w.id)),
+          ...this.rules.map((r) => repo.removeRule(r.id)),
+          ...this.dispositions.map((d) => repo.removeDisposition(d.fingerprint)),
         ]);
       } finally {
-        await this.load();
+        // Part 5 V9: after a switch, the bound codebase has already loaded its own state.
+        if (this.repository === repo) await this.load();
       }
       const rejected = results.find(isRejected);
       if (rejected) throw rejected.reason;
@@ -208,29 +267,32 @@ export const useReviewStore = defineStore('review', {
       const rule: BoundaryRule = {
         id: `AR-${String(this.nextRuleId).padStart(3, '0')}`, from, to, rationale: rationale.trim(), createdAt: now.toISOString(),
       };
+      const repo = this.repository;
       this.nextRuleId += 1;
       this.pendingRuleKeys.push(key);
       try {
-        await this.repository.saveRule(rule);
-        if (!this.rules.some((r) => r.id === rule.id)) this.rules.push(rule);
+        await repo.saveRule(rule);
+        if (this.repository === repo && !this.rules.some((r) => r.id === rule.id)) this.rules.push(rule);
         return rule;
       } finally {
         this.pendingRuleKeys = this.pendingRuleKeys.filter((k) => k !== key);
       }
     },
     async removeRule(id: string): Promise<void> {
-      await this.repository.removeRule(id);
-      this.rules = this.rules.filter((r) => r.id !== id);
+      const repo = this.repository;
+      await repo.removeRule(id);
+      if (this.repository === repo) this.rules = this.rules.filter((r) => r.id !== id);
     },
     /** Part 3 Q3: a decision is stored apart from the generated finding, keyed by its
      *  fingerprint. Same persist-first ordering and pending guard as work items. */
     async decide(disposition: FindingDisposition): Promise<FindingDisposition | null> {
       const fp = disposition.fingerprint;
       if (this.pendingFingerprints.includes(fp)) return null;
+      const repo = this.repository;
       this.pendingFingerprints.push(fp);
       try {
-        await this.repository.saveDisposition(disposition);
-        this.dispositions = [...this.dispositions.filter((d) => d.fingerprint !== fp), disposition];
+        await repo.saveDisposition(disposition);
+        if (this.repository === repo) this.dispositions = [...this.dispositions.filter((d) => d.fingerprint !== fp), disposition];
         return disposition;
       } finally {
         this.pendingFingerprints = this.pendingFingerprints.filter((f) => f !== fp);
@@ -250,10 +312,11 @@ export const useReviewStore = defineStore('review', {
      *  leaves the disposition in place and the rejection propagates. */
     async reopen(fingerprint: string): Promise<boolean> {
       if (this.pendingFingerprints.includes(fingerprint)) return false;
+      const repo = this.repository;
       this.pendingFingerprints.push(fingerprint);
       try {
-        await this.repository.removeDisposition(fingerprint);
-        this.dispositions = this.dispositions.filter((d) => d.fingerprint !== fingerprint);
+        await repo.removeDisposition(fingerprint);
+        if (this.repository === repo) this.dispositions = this.dispositions.filter((d) => d.fingerprint !== fingerprint);
         return true;
       } finally {
         this.pendingFingerprints = this.pendingFingerprints.filter((f) => f !== fingerprint);
