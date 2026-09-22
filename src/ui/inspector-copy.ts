@@ -290,3 +290,6 @@ export * from './audit-copy/tests';
 export * from './audit-copy/dependencies';
 export * from './audit-copy/security';
 export * from './audit-copy/ownership';
+
+/** Part 4: Act and Configure screens. */
+export * from './audit-copy/workbench';
