@@ -11,6 +11,10 @@ import './ui/styles.css';
 import './ui/styles/kit.css';
 import './ui/styles/shell.css';
 import './ui/styles/screens.css';
+import './ui/styles/screens-explore.css';
+import './ui/styles/screens-audit.css';
+import './ui/styles/screens-act.css';
+import './ui/styles/screens-configure.css';
 
 // Shared by every CityView: approve()/ScanCoordinator never read the wall clock
 // themselves (src/application/approval.ts's own constraint), so ONE Clock is

@@ -1,0 +1,184 @@
+/* WP-02 screens, Audit area: Code quality, Test confidence, Dependencies, Security, Evolution, Ownership (moved from screens.css, Part 4 E55). */
+/* Part 3 Task 8: Code quality and the Finding review dialog. */
+:where(.codebase-inspector-root) .ci-quality__panel { outline: none; }
+:where(.codebase-inspector-root) .ci-finding-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-finding-filters__query { flex: 1 1 14em; min-width: 0; }
+:where(.codebase-inspector-root) .ci-finding-filters__reset { display: inline-flex; align-items: center; gap: var(--ci-space-1); margin-left: auto; }
+:where(.codebase-inspector-root) .ci-findings-table__footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ci-space-3); margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-findings-table__footer .ci-hotspots__note { margin: 0; }
+:where(.codebase-inspector-root) .ci-findings-table__empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-2); padding: var(--ci-space-4) 0; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-findings-table__empty-title { margin: 0; color: var(--ci-text); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-findings-table__empty .ci-hotspots__note { margin: 0; }
+:where(.codebase-inspector-root) .ci-findings-table__evidence,
+:where(.codebase-inspector-root) .ci-findings-table__status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); min-width: 0; }
+:where(.codebase-inspector-root) .ci-findings-table__reason {
+  display: block; max-width: 14em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em);
+}
+:where(.codebase-inspector-root) .ci-chip--status-open { border-color: var(--ci-tone-accent); color: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-chip--status-acknowledged { border-color: var(--ci-tone-success); color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-chip--status-dismissed { border-color: var(--ci-border); color: var(--ci-text-faint); }
+:where(.codebase-inspector-root) .ci-finding-dialog { display: grid; gap: var(--ci-space-3); max-width: 36em; padding: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-finding-dialog__title { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); margin: 0; }
+:where(.codebase-inspector-root) .ci-finding-dialog__chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin: 0; }
+:where(.codebase-inspector-root) .ci-finding-dialog__summary { margin: 0; font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-finding-dialog__meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-finding-dialog__meta dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-finding-dialog__meta dd { margin: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-finding-dialog__links { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-finding-dialog__dismissal { display: flex; flex-direction: column; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-finding-dialog__dismissal .ci-hotspots__note { margin: 0; }
+:where(.codebase-inspector-root) .ci-finding-dialog__dismiss-title { margin: 0; }
+:where(.codebase-inspector-root) .ci-finding-dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-finding-dialog__error { margin: 0; color: var(--ci-error); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) button.ci-finding__review {
+  display: block; width: 100%; height: auto; padding: 0; border: none; border-radius: 0; box-shadow: none;
+  background: transparent; color: var(--ci-text); font: inherit; text-align: left; white-space: normal; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-finding__review:hover { background: var(--ci-raised); }
+:where(.codebase-inspector-root) button.ci-finding__review:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-finding__review .ci-finding__title { display: block; }
+
+/* Part 3 Task 9: Test confidence, the unknown-evidence state and the evidence-source dialog. */
+:where(.codebase-inspector-root) .ci-coverage { margin: 0; }
+:where(.codebase-inspector-root) .ci-coverage-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(1.75em, 1fr)); gap: 4px; }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile {
+  aspect-ratio: 1; inline-size: 100%; block-size: auto; min-block-size: 0; padding: 0; border: none; box-shadow: none;
+  border-radius: var(--ci-radius-small); background: var(--ci-text-faint); cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-coverage-map__tile--low { background: color-mix(in srgb, var(--ci-tone-danger) 55%, transparent); }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile--mid { background: color-mix(in srgb, var(--ci-tone-warning) 55%, transparent); }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile--high { background: color-mix(in srgb, var(--ci-tone-success) 55%, transparent); }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile--unknown { background: var(--ci-text-faint); }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile[aria-pressed="true"] { outline: 2px solid var(--ci-focus); outline-offset: 1px; }
+:where(.codebase-inspector-root) button.ci-coverage-map__tile:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 1px; }
+:where(.codebase-inspector-root) .ci-coverage-gaps__more { margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-chip--danger { border-color: var(--ci-tone-danger); color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-chip--warning { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-chip--success { border-color: var(--ci-tone-success); color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-chip--unknown { border-color: var(--ci-border); color: var(--ci-text-faint); }
+:where(.codebase-inspector-root) .ci-tests__duration { display: inline-flex; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-unknown-state {
+  display: flex; flex-direction: column; align-items: center; gap: var(--ci-space-2);
+  padding: var(--ci-space-6) var(--ci-space-4); color: var(--ci-text-muted); text-align: center;
+}
+:where(.codebase-inspector-root) .ci-unknown-state__title { margin: 0; color: var(--ci-text); font-size: var(--font-ui-medium, 1em); }
+:where(.codebase-inspector-root) .ci-unknown-state__body { max-width: 36em; margin: 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-evidence-dialog { display: grid; gap: var(--ci-space-3); max-width: 36em; padding: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-evidence-dialog__title { margin: 0; }
+:where(.codebase-inspector-root) .ci-evidence-dialog__rows { display: grid; gap: var(--ci-space-2); list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-evidence-dialog__row {
+  display: grid; grid-template-columns: minmax(0, 1fr) max-content minmax(0, 1fr); align-items: center; gap: var(--ci-space-3);
+  padding: var(--ci-space-2) 0; border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-evidence-dialog__source { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-evidence-dialog__note { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-evidence-dialog__actions { display: flex; justify-content: flex-end; }
+
+/* Part 3 Task 10: Dependencies screen and the Package detail dialog. */
+:where(.codebase-inspector-root) .ci-packages__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-packages__query { flex: 1 1 14em; min-width: 0; }
+/* Task 15: package name on its own line; references and the sample badge beneath it. */
+:where(.codebase-inspector-root) .ci-packages td:first-child > code:first-child { display: block; margin-bottom: var(--ci-space-1); }
+:where(.codebase-inspector-root) .ci-packages td:first-child > code:first-child + .ci-hotspots__note { margin: 0 var(--ci-space-2) 0 0; }
+:where(.codebase-inspector-root) .ci-manifests { margin: var(--ci-space-4) 0; }
+:where(.codebase-inspector-root) .ci-manifests__title { margin: 0 0 var(--ci-space-2); font-size: var(--font-ui-medium, 1em); }
+:where(.codebase-inspector-root) .ci-manifests__list { display: grid; gap: var(--ci-space-1); margin: 0 0 var(--ci-space-2); padding: 0; list-style: none; }
+:where(.codebase-inspector-root) .ci-manifests__list code { font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+/* Fix round 1 (Important 3): the li is the row-flex wrapper that carries the connector;
+   the bordered card is a CHILD of it, so the arrow sits BETWEEN cards, not inside one. */
+:where(.codebase-inspector-root) .ci-dep-path { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-3); margin: 0; padding: 0; list-style: none; }
+:where(.codebase-inspector-root) .ci-dep-path__step { display: flex; align-items: center; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-dep-path__step:not(:first-child)::before { content: '→' / ''; color: var(--ci-text-faint); }
+:where(.codebase-inspector-root) .ci-dep-path__card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-1); padding: var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); background: var(--ci-panel); }
+:where(.codebase-inspector-root) .ci-dep-path__label { display: flex; flex-direction: column; gap: 2px; }
+@container (max-width: 900px) {
+  :where(.codebase-inspector-root) .ci-dep-path { flex-direction: column; align-items: stretch; }
+  :where(.codebase-inspector-root) .ci-dep-path__step { flex-direction: column; align-items: stretch; }
+  :where(.codebase-inspector-root) .ci-dep-path__step:not(:first-child)::before { content: '↓' / ''; }
+}
+:where(.codebase-inspector-root) .ci-chip--dep-review { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-chip--dep-update { border-color: var(--ci-tone-accent); color: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-chip--dep-unused { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-chip--dep-current { border-color: var(--ci-tone-success); color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-package-dialog { display: grid; gap: var(--ci-space-3); max-width: 36em; padding: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-package-dialog__title { margin: 0; }
+:where(.codebase-inspector-root) .ci-package-dialog__subtitle { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-package-dialog__chips { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); margin: 0; }
+:where(.codebase-inspector-root) .ci-package-dialog__meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-package-dialog__meta dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-package-dialog__meta dd { margin: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-package-dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ci-space-2); }
+
+/* Part 3 Task 11: Security screen — advisory list, review checklist and policy table. */
+:where(.codebase-inspector-root) .ci-advisories { list-style: none; margin: calc(-1 * var(--ci-space-4)); padding: 0; }
+:where(.codebase-inspector-root) .ci-advisory { display: flex; align-items: center; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-advisory + .ci-advisory { border-top: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-advisory > .ci-provenance { flex: none; margin-right: var(--ci-space-4); }
+:where(.codebase-inspector-root) button.ci-advisory__open {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: start; gap: var(--ci-space-3);
+  flex: 1 1 auto; min-width: 0; width: 100%; height: auto; padding: var(--ci-space-4); border: none; border-radius: 0;
+  background: transparent; box-shadow: none; color: var(--ci-text); text-align: left; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-advisory__open:hover { background: var(--ci-raised); }
+:where(.codebase-inspector-root) button.ci-advisory__open:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: -2px; }
+:where(.codebase-inspector-root) .ci-advisory__open .ci-icon { color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-advisory__body { display: flex; flex-direction: column; gap: var(--ci-space-1); min-width: 0; }
+:where(.codebase-inspector-root) .ci-advisory__top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-advisory__top code { font-family: var(--ci-font-mono); }
+/* Fix round 1 (Minor 6): `display: block` here was ineffective — these spans are flex
+   items of `.ci-advisory__body`, and a flex container already blockifies its children
+   regardless of their own `display`. */
+:where(.codebase-inspector-root) .ci-advisory__name { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-advisory__summary { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-advisory__versions { color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); }
+
+:where(.codebase-inspector-root) .ci-checklist { display: grid; gap: var(--ci-space-2); margin: 0 0 var(--ci-space-3); padding: 0; list-style: none; }
+:where(.codebase-inspector-root) .ci-checklist li { display: flex; align-items: center; gap: var(--ci-space-2); }
+
+:where(.codebase-inspector-root) .ci-policy { width: 100%; border-collapse: collapse; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-policy th,
+:where(.codebase-inspector-root) .ci-policy td { padding: var(--ci-space-2) var(--ci-space-3); border-bottom: 1px solid var(--ci-border); text-align: left; }
+:where(.codebase-inspector-root) .ci-policy th { color: var(--ci-text-muted); font-weight: normal; }
+
+/* Part 3 Task 12: Evolution — change-window toggle, coupling rate bar, snapshot journal
+   and the comparison dialog. */
+:where(.codebase-inspector-root) .ci-evolution__window { display: inline-flex; padding: 2px; border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); background: var(--ci-panel); }
+:where(.codebase-inspector-root) .ci-evolution__window button { border: 1px solid transparent; background: transparent; box-shadow: none; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-evolution__window button[aria-pressed="true"] { border-color: var(--ci-border); background: var(--ci-raised); color: var(--ci-text); }
+:where(.codebase-inspector-root) .ci-coupling__note { color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); font-style: italic; }
+:where(.codebase-inspector-root) .ci-coupling__rate-cell { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-coupling__rate { display: inline-block; inline-size: 48px; block-size: 6px; border-radius: 3px; background: var(--ci-border); overflow: hidden; }
+:where(.codebase-inspector-root) .ci-coupling__rate-fill { display: block; block-size: 100%; background: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-journal { position: relative; display: grid; gap: var(--ci-space-3); margin: 0; padding: 0 0 0 var(--ci-space-4); list-style: none; border-left: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-journal__item { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-1) var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-journal__item::before {
+  content: ''; position: absolute; top: 0.45em; left: calc(-1 * var(--ci-space-4) - 5px); inline-size: 9px; block-size: 9px;
+  border: 1px solid var(--ci-border); border-radius: 50%; background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-journal__item--current::before { border-color: var(--ci-tone-accent); background: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-journal__head { display: flex; align-items: baseline; gap: var(--ci-space-2); flex: 1 1 100%; }
+:where(.codebase-inspector-root) .ci-journal__date { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-journal__summary { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-compare-dialog { display: grid; gap: var(--ci-space-3); max-width: 40em; padding: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-compare-dialog__title { margin: 0; }
+:where(.codebase-inspector-root) .ci-compare-dialog__subtitle { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-compare-dialog__caption { padding-bottom: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); text-align: left; }
+:where(.codebase-inspector-root) .ci-compare-dialog .ci-table tbody th { padding: var(--ci-space-3); border-bottom: 1px solid var(--ci-border); font-weight: normal; text-align: left; }
+:where(.codebase-inspector-root) .ci-compare-dialog__actions { display: flex; justify-content: flex-end; }
+
+/* Part 3 Task 13: Ownership — stewardship actions and the stewardship table. */
+:where(.codebase-inspector-root) .ci-steward-actions { display: grid; gap: var(--ci-space-3); margin: 0; padding: 0; list-style: none; }
+:where(.codebase-inspector-root) .ci-steward-action {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr) max-content; align-items: start; gap: var(--ci-space-3);
+  padding: var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-steward-action__text { display: flex; flex-direction: column; gap: var(--ci-space-1); min-width: 0; }
+:where(.codebase-inspector-root) .ci-steward-action__title { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-steward-action__body { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+@container (max-width: 900px) {
+  :where(.codebase-inspector-root) .ci-steward-action { grid-template-columns: max-content minmax(0, 1fr); }
+  :where(.codebase-inspector-root) .ci-steward-action__add { grid-column: 1 / -1; justify-self: start; }
+}
+:where(.codebase-inspector-root) .ci-stewardship .ci-chip { margin-right: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-stewardship__city { white-space: nowrap; }

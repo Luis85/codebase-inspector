@@ -15,8 +15,10 @@ import vue from '@vitejs/plugin-vue';
  * and `dist/` must be byte-identical across the whole of wave 0.
  */
 const obsidianMock = fileURLToPath(new URL('./tests/mocks/obsidian.ts', import.meta.url));
-const pluginStylesheets = ['styles.css', 'styles/kit.css', 'styles/shell.css', 'styles/screens.css']
-  .map((f) => fileURLToPath(new URL(`./src/ui/${f}`, import.meta.url)));
+const pluginStylesheets = [
+  'styles.css', 'styles/kit.css', 'styles/shell.css', 'styles/screens.css',
+  'styles/screens-explore.css', 'styles/screens-audit.css', 'styles/screens-act.css', 'styles/screens-configure.css',
+].map((f) => fileURLToPath(new URL(`./src/ui/${f}`, import.meta.url)));
 
 /** Answers the page's `/styles.css` from src/ui/styles.css ON DISK, so what is on
  *  screen is the CSS being edited and never a stale build. */
