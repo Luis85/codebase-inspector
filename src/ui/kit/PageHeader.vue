@@ -8,7 +8,10 @@ defineProps<{ eyebrow: string; title: string; subtitle?: string }>();
       <p class="ci-page-header__eyebrow">
         {{ eyebrow }}
       </p>
-      <h2 class="ci-page-header__title">
+      <h2
+        class="ci-page-header__title"
+        tabindex="-1"
+      >
         {{ title }}
       </h2>
       <p

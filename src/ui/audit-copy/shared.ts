@@ -10,3 +10,6 @@ export const EVIDENCE_SOURCE_NONE = 'Not collected';
 export const CHART_DATE_HEADER = 'Date';
 // E13: BarChart's SVG <desc>; the full values are in the table fallback.
 export const CHART_BARS_DESC = (n: number): string => `Bar chart of ${n} ${n === 1 ? 'interval' : 'intervals'}; the values are listed in the table that follows.`;
+// Part 5 V7: the shell's route announcement (App's visually hidden status region), said
+// only when focus stayed in the shell (nav column, top bar, palette opener).
+export const ROUTE_OPENED = (title: string): string => `${title} screen.`;

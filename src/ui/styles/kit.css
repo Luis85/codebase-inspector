@@ -51,6 +51,8 @@
   color: var(--ci-action); font-weight: var(--font-semibold);
 }
 :where(.codebase-inspector-root) .ci-page-header__title { margin: var(--ci-space-2) 0 0; font-size: 1.6em; }
+/* Part 5 V7: a focus target after navigation, never a control: no ring (like .ci-shell:focus). */
+:where(.codebase-inspector-root) .ci-page-header__title:focus { outline: none; }
 :where(.codebase-inspector-root) .ci-page-header__subtitle { margin: var(--ci-space-2) 0 0; color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-page-header__actions { display: flex; gap: var(--ci-space-2); }
 

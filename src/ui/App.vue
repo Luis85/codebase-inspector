@@ -16,6 +16,7 @@ import { useReportStore } from './stores/report-store';
 import { useLeafWidth } from './shell/use-leaf-width';
 import { provideLeafLayout } from './shell/leaf-layout';
 import { useJournalFeed } from './shell/use-journal-feed';
+import { useRouteFocus } from './shell/use-route-focus';
 import NavColumn from './shell/NavColumn.vue';
 import TopBar from './shell/TopBar.vue';
 import SnapshotSelector from './shell/SnapshotSelector.vue';
@@ -100,6 +101,11 @@ function onShellKeydown(event: KeyboardEvent): void {
   }
 }
 
+/** Part 5 V7: focus after in-leaf navigation, and the shell's own route announcement. */
+const mainEl = ref<HTMLElement | null>(null);
+const routeMessage = ref('');
+useRouteFocus(rootEl, mainEl, routeMessage);
+
 interface CityScreenExposed { rendererHost: HTMLElement | null }
 const cityScreen = ref<CityScreenExposed | null>(null);
 const rendererHost = computed(() => cityScreen.value?.rendererHost ?? null);
@@ -137,7 +143,9 @@ defineExpose({ rendererHost });
       </template>
     </TopBar>
     <main
+      ref="mainEl"
       class="ci-shell__content"
+      tabindex="-1"
       :inert="drawerOpen || undefined"
     >
       <CityScreen
@@ -159,6 +167,12 @@ defineExpose({ rendererHost });
       <SourcesScreen v-else-if="store.route === 'sources'" />
       <SettingsScreen v-else-if="store.route === 'settings'" />
     </main>
+    <p
+      class="visually-hidden ci-shell__live"
+      role="status"
+    >
+      {{ routeMessage }}
+    </p>
     <CommandPalette
       v-if="paletteOpen"
       @close="paletteOpen = false"
