@@ -91,11 +91,6 @@
 :where(.codebase-inspector-root) .ci-scatter__dot--ring.ci-scatter__dot--unknown { stroke: var(--ci-text-faint); }
 :where(.codebase-inspector-root) .ci-scatter__dot--selected { stroke: var(--ci-text); stroke-width: 2.5; opacity: 1; }
 :where(.codebase-inspector-root) .ci-scatter__dot:focus-visible { outline: 2px solid var(--ci-focus); }
-:where(.codebase-inspector-root) .ci-scatter__legend { display: flex; flex-wrap: wrap; gap: var(--ci-space-4); margin-top: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
-:where(.codebase-inspector-root) .ci-scatter__key::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: var(--ci-space-1); border-radius: 50%; background: var(--ci-text-faint); }
-:where(.codebase-inspector-root) .ci-scatter__key--low::before { background: var(--ci-tone-danger); }
-:where(.codebase-inspector-root) .ci-scatter__key--mid::before { background: var(--ci-tone-warning); }
-:where(.codebase-inspector-root) .ci-scatter__key--high::before { background: var(--ci-tone-success); }
 :where(.codebase-inspector-root) .ci-shortlist { list-style: none; margin: calc(-1 * var(--ci-space-4)); padding: 0; }
 :where(.codebase-inspector-root) .ci-shortlist li + li { border-top: 1px solid var(--ci-border); }
 :where(.codebase-inspector-root) button.ci-shortlist__item {
@@ -126,15 +121,18 @@
 :where(.codebase-inspector-root) .ci-source-context__note { margin: var(--ci-space-4) 0 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-source-context__message { min-height: 1em; margin: var(--ci-space-2) 0 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
 :where(.codebase-inspector-root) .ci-findings { list-style: none; margin: 0 0 var(--ci-space-4); padding: 0; }
-:where(.codebase-inspector-root) .ci-finding { padding: var(--ci-space-3) 0; border-bottom: 1px solid var(--ci-border); }
-:where(.codebase-inspector-root) .ci-finding__head { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; }
-:where(.codebase-inspector-root) .ci-finding__severity { padding: 1px var(--ci-space-2); border-radius: var(--ci-radius-small); font-size: var(--font-ui-smaller, 0.8em); font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-finding__severity--high { color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent); }
-:where(.codebase-inspector-root) .ci-finding__severity--medium { color: var(--ci-tone-warning); border: 1px solid var(--ci-tone-warning); }
-:where(.codebase-inspector-root) .ci-finding__severity--low { color: var(--ci-tone-success); border: 1px solid var(--ci-tone-success); }
-:where(.codebase-inspector-root) .ci-finding__id { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
-:where(.codebase-inspector-root) .ci-finding__title { margin: var(--ci-space-2) 0 var(--ci-space-1); font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-finding__meta { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+/* Part 5 V20: File detail's own finding card (was .ci-finding*); the severity pill and the id are kit classes. */
+:where(.codebase-inspector-root) .ci-file-finding { padding: var(--ci-space-3) 0; border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-file-finding__head { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; }
+:where(.codebase-inspector-root) .ci-file-finding__title { margin: var(--ci-space-2) 0 var(--ci-space-1); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-file-finding__meta { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) button.ci-file-finding__review {
+  display: block; width: 100%; height: auto; padding: 0; border: none; border-radius: 0; box-shadow: none;
+  background: transparent; color: var(--ci-text); font: inherit; text-align: left; white-space: normal; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-file-finding__review:hover { background: var(--ci-raised); }
+:where(.codebase-inspector-root) button.ci-file-finding__review:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-file-finding__review .ci-file-finding__title { display: block; }
 :where(.codebase-inspector-root) .ci-work-items { list-style: none; margin: 0; padding: 0; }
 :where(.codebase-inspector-root) .ci-work-items li { display: flex; justify-content: space-between; align-items: center; gap: var(--ci-space-3); padding: var(--ci-space-2) 0; border-bottom: 1px solid var(--ci-border); }
 

@@ -55,14 +55,14 @@ const columns: readonly TableColumn<QualityFinding>[] = [
       >
         <template #cell-severity="{ row }">
           <span
-            class="ci-finding__severity"
-            :class="`ci-finding__severity--${row.severity}`"
+            class="ci-severity"
+            :class="`ci-severity--${row.severity}`"
           >{{ SEVERITY_LABEL[row.severity] }}</span>
         </template>
         <template #cell-finding="{ row }">
           <span class="ci-file-cell">
             <span class="ci-file-cell__name">{{ row.title }}</span>
-            <code class="ci-finding__id">{{ row.id }}</code>
+            <code class="ci-ref-id">{{ row.id }}</code>
           </span>
         </template>
         <template #cell-location="{ row }">

@@ -122,12 +122,12 @@ function onDot(i: number, id: EntityId): void {
         @click="onDot(i, p.file.id)"
       />
     </svg>
-    <figcaption class="ci-scatter__legend">
+    <figcaption class="ci-band-legend">
       <span
         v-for="band in BANDS"
         :key="band"
-        class="ci-scatter__key"
-        :class="`ci-scatter__key--${band}`"
+        class="ci-band-legend__key"
+        :class="`ci-band-legend__key--${band}`"
       >{{ HOTSPOTS_BAND_LABEL[band] }}</span>
     </figcaption>
   </figure>

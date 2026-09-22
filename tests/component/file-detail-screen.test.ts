@@ -102,7 +102,7 @@ describe('FileDetailScreen', () => {
     store.select(finding.file.id);
     store.navigate('file');
     const w = mountFile();
-    const buttons = w.findAll('.ci-finding__review');
+    const buttons = w.findAll('.ci-file-finding__review');
     expect(buttons.length).toBeGreaterThan(0);
     expect(buttons[0]!.text()).toContain('Open');
     await buttons[0]!.trigger('click');

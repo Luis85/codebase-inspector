@@ -110,12 +110,12 @@ async function addWorkItem(): Promise<void> {
     <div class="ci-finding-dialog">
       <h3 class="ci-finding-dialog__title">
         {{ FINDING_DIALOG_TITLE }}
-        <code class="ci-finding__id">{{ finding.id }}</code>
+        <code class="ci-ref-id">{{ finding.id }}</code>
       </h3>
       <p class="ci-finding-dialog__chips">
         <span
-          class="ci-finding__severity"
-          :class="`ci-finding__severity--${finding.severity}`"
+          class="ci-severity"
+          :class="`ci-severity--${finding.severity}`"
         >{{ SEVERITY_LABEL[finding.severity] }}</span>
         <span
           class="ci-chip"

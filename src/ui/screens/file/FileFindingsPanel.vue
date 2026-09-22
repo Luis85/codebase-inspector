@@ -28,27 +28,27 @@ const statusOf = (fingerprint: string): FindingStatus => props.statuses.get(fing
       <li
         v-for="f in findings"
         :key="f.fingerprint"
-        class="ci-finding"
+        class="ci-file-finding"
       >
         <!-- E20: a <button> holds phrasing content only, so every block is a <span>. -->
         <button
           type="button"
-          class="ci-finding__review"
+          class="ci-file-finding__review"
           @click="emit('review', f.fingerprint)"
         >
-          <span class="ci-finding__head">
+          <span class="ci-file-finding__head">
             <span
-              class="ci-finding__severity"
-              :class="`ci-finding__severity--${f.severity}`"
+              class="ci-severity"
+              :class="`ci-severity--${f.severity}`"
             >{{ SEVERITY_LABEL[f.severity] }}</span>
             <span
               class="ci-chip"
               :class="`ci-chip--status-${statusOf(f.fingerprint)}`"
             >{{ FINDING_STATUS_LABEL[statusOf(f.fingerprint)] }}</span>
-            <code class="ci-finding__id">{{ f.id }}</code>
+            <code class="ci-ref-id">{{ f.id }}</code>
           </span>
-          <span class="ci-finding__title">{{ f.title }}</span>
-          <span class="ci-finding__meta">
+          <span class="ci-file-finding__title">{{ f.title }}</span>
+          <span class="ci-file-finding__meta">
             {{ FINDING_META(f.line) }}
             <ProvenanceBadge state="sample" />
           </span>

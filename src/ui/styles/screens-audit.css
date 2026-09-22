@@ -34,14 +34,6 @@
 :where(.codebase-inspector-root) .ci-finding-dialog__dismiss-title { margin: 0; }
 :where(.codebase-inspector-root) .ci-finding-dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-finding-dialog__error { margin: 0; color: var(--ci-error); font-size: var(--font-ui-small, 0.9em); }
-:where(.codebase-inspector-root) button.ci-finding__review {
-  display: block; width: 100%; height: auto; padding: 0; border: none; border-radius: 0; box-shadow: none;
-  background: transparent; color: var(--ci-text); font: inherit; text-align: left; white-space: normal; cursor: pointer;
-}
-:where(.codebase-inspector-root) button.ci-finding__review:hover { background: var(--ci-raised); }
-:where(.codebase-inspector-root) button.ci-finding__review:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
-:where(.codebase-inspector-root) .ci-finding__review .ci-finding__title { display: block; }
-
 /* Part 3 Task 9: Test confidence, the unknown-evidence state and the evidence-source dialog. */
 :where(.codebase-inspector-root) .ci-coverage { margin: 0; }
 :where(.codebase-inspector-root) .ci-coverage-map { display: grid; grid-template-columns: repeat(auto-fill, minmax(1.75em, 1fr)); gap: 4px; }

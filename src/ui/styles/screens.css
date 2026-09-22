@@ -1,4 +1,4 @@
-/* WP-02 screens. The city screen is a flex column holding its PageHeader, the unchanged
+/* WP-02 screens (the shared .ci-screen base is in kit.css, Part 5 V21). The city screen is a flex column holding its PageHeader, the unchanged
    `.ci-app` and the summary cards (Task 10). `.ci-app`'s own `height: 100%` (styles.css,
    pinned by stage-height.test.ts) is overridden only inside this screen: the stage keeps
    the full leaf height, floored at 420px, and never shrinks to share it with the header
@@ -6,10 +6,6 @@
    DEFINITE (a `height`, not only a `min-height` over `height: auto`): an auto height
    would size the stage row by the file list again, stage-height.test.ts's defect 5.
    Pinned by tests/unit/city-stage-floor.test.ts. */
-:where(.codebase-inspector-root) .ci-screen {
-  display: flex; flex-direction: column; gap: var(--ci-space-5);
-  padding: var(--ci-space-6); box-sizing: border-box; min-width: 0;
-}
 :where(.codebase-inspector-root) .ci-screen--city { height: 100%; padding: 0; gap: 0; }
 :where(.codebase-inspector-root) .ci-screen--city > .ci-app { flex: none; min-height: 420px; height: max(420px, 100%); }
 
@@ -34,16 +30,6 @@
 :where(.codebase-inspector-root) .ci-evidence-coverage__bar--collected { background: var(--ci-tone-success); }
 :where(.codebase-inspector-root) .ci-evidence-coverage__bar--partial { background: var(--ci-warning); }
 :where(.codebase-inspector-root) .ci-evidence-coverage__bar--sample { background: var(--ci-sample); opacity: 0.7; }
-
-:where(.codebase-inspector-root) .ci-file-cell { display: flex; flex-direction: column; }
-:where(.codebase-inspector-root) .ci-file-cell__name { font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-file-cell__path { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
-/* Task 11: a tint, not Obsidian's `--background-modifier-error` — that token is the
-   solid `--color-red`, the same colour as the text, so the score was unreadable. */
-:where(.codebase-inspector-root) .ci-priority {
-  padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small); white-space: nowrap;
-  color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent);
-}
 
 /* Task 10: the City screen's own PageHeader and summary cards. */
 :where(.codebase-inspector-root) .ci-city-screen__header { padding: var(--ci-space-5) var(--ci-space-6) 0; }

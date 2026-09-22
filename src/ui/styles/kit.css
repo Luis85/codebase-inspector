@@ -206,3 +206,32 @@
 :where(.codebase-inspector-root) .ci-chip--warning { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-chip--success { border-color: var(--ci-tone-success); color: var(--ci-tone-success); }
 :where(.codebase-inspector-root) .ci-chip--unknown { border-color: var(--ci-border); color: var(--ci-text-faint); }
+
+/* Part 5 V20/V21: looks more than one screen uses, moved here with their bodies unchanged. */
+/* The screen root (was screens.css). */
+:where(.codebase-inspector-root) .ci-screen {
+  display: flex; flex-direction: column; gap: var(--ci-space-5);
+  padding: var(--ci-space-6); box-sizing: border-box; min-width: 0;
+}
+/* Severity pill and reference id (were .ci-finding__severity* and .ci-finding__id, screens-explore.css). */
+:where(.codebase-inspector-root) .ci-severity { padding: 1px var(--ci-space-2); border-radius: var(--ci-radius-small); font-size: var(--font-ui-smaller, 0.8em); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-severity--high { color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent); }
+:where(.codebase-inspector-root) .ci-severity--medium { color: var(--ci-tone-warning); border: 1px solid var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-severity--low { color: var(--ci-tone-success); border: 1px solid var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-ref-id { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
+/* Band legend under a chart (was .ci-scatter__legend / .ci-scatter__key*, screens-explore.css). */
+:where(.codebase-inspector-root) .ci-band-legend { display: flex; flex-wrap: wrap; gap: var(--ci-space-4); margin-top: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-band-legend__key::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: var(--ci-space-1); border-radius: 50%; background: var(--ci-text-faint); }
+:where(.codebase-inspector-root) .ci-band-legend__key--low::before { background: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-band-legend__key--mid::before { background: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-band-legend__key--high::before { background: var(--ci-tone-success); }
+/* A file name over its path (was screens.css). */
+:where(.codebase-inspector-root) .ci-file-cell { display: flex; flex-direction: column; }
+:where(.codebase-inspector-root) .ci-file-cell__name { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-file-cell__path { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
+/* Priority score (was screens.css). Task 11: a tint, not Obsidian's `--background-modifier-error`
+   — that token is the solid `--color-red`, the same colour as the text, so the score was unreadable. */
+:where(.codebase-inspector-root) .ci-priority {
+  padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small); white-space: nowrap;
+  color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent);
+}

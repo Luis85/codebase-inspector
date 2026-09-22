@@ -51,12 +51,12 @@ function onTile(i: number, id: EntityId): void {
         @click="onTile(i, t.file.id)"
       />
     </div>
-    <figcaption class="ci-scatter__legend">
+    <figcaption class="ci-band-legend">
       <span
         v-for="band in BANDS"
         :key="band"
-        class="ci-scatter__key"
-        :class="`ci-scatter__key--${band}`"
+        class="ci-band-legend__key"
+        :class="`ci-band-legend__key--${band}`"
       >{{ COVERAGE_BAND_LABEL[band] }}</span>
     </figcaption>
   </figure>
