@@ -24,7 +24,7 @@ export const useReportStore = defineStore('report', {
       this.sections = allOn();
       this.note = '';
     },
-    /** Controller ruling E8: a reviewer note about one codebase must never appear in
+    /** Controller ruling Part 4 E8: a reviewer note about one codebase must never appear in
      *  another codebase's report. Pinia state lives per leaf (never reset on its own),
      *  so a snapshot switch inside the same leaf must clear the note and section choices
      *  itself; binding the same repository again is a no-op. */

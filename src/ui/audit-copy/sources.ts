@@ -29,7 +29,7 @@ export const SOURCES_RUN_CANCELLING = 'Cancelling the scan…';
 export const SOURCES_RUN_CANCELLED = 'The last scan was cancelled. Its incomplete result was discarded.';
 export const SOURCES_RUN_FAILED = (message: string): string => `The last scan failed: ${message}`;
 export const SOURCES_RUN_COMPLETE = 'The last scan completed.';
-export const SOURCES_CANCEL_HINT = 'To cancel a running scan, use the “Cancel scan” command in the command palette.';
+export const SOURCES_CANCEL_HINT = 'To cancel a running scan, use the “Cancel scan” command in Obsidian’s command palette.';
 export const SOURCES_PROVIDERS_TITLE = 'Evidence providers';
 export const SOURCES_USED_BY = 'Used by';
 export const SOURCES_SOURCE_BUILTIN = 'Built-in scan';

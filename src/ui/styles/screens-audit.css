@@ -1,4 +1,4 @@
-/* WP-02 screens, Audit area: Code quality, Test confidence, Dependencies, Security, Evolution, Ownership (moved from screens.css, Part 4 E55). */
+/* WP-02 screens, Audit area: Code quality, Test confidence, Dependencies, Security, Evolution, Ownership (moved from screens.css, E55). */
 /* Part 3 Task 8: Code quality and the Finding review dialog. */
 :where(.codebase-inspector-root) .ci-quality__panel { outline: none; }
 :where(.codebase-inspector-root) .ci-finding-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-3); }

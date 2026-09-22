@@ -22,7 +22,7 @@ const root = ref<HTMLElement | null>(null);
 const liveMessage = ref('');
 const exportText = useCsvExport(root, liveMessage);
 
-/** Controller ruling E11 (amends E8): the report store is bound to the current codebase
+/** Controller ruling Part 4 E11 (amends Part 4 E8): the report store is bound to the current codebase
  *  from App.vue, regardless of which screen is open — a reviewer note must never survive
  *  onto a different codebase even if they never opened Report while it was scanned in. */
 

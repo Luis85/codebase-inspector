@@ -4,7 +4,7 @@
 // never a bare 0.
 import { EVIDENCE_LABELS, formatMetric, hasValue, isSampleBacked, type MetricValue } from '../evidence';
 
-/** Controller ruling E5 (amends X18): a leading `#`, `>`, `*`, `+`, `-` or `N.` would
+/** Controller ruling Part 4 E5 (amends X18): a leading `#`, `>`, `*`, `+`, `-` or `N.` would
  *  start a heading, quote, or list item wherever Markdown reads it — on its own line or
  *  after a `> ` quote prefix. Shared by `mdLine` (which also flattens the text to one
  *  line first) and `mdQuote` (which escapes each line but keeps the line breaks). */
@@ -31,7 +31,7 @@ export function mdCode(s: string): string {
   return `${fence}${pad ? ' ' : ''}${t}${pad ? ' ' : ''}${fence}`;
 }
 
-/** Ruling E5: each line is escaped the same way `mdLine` escapes its whole input, so a
+/** Ruling Part 4 E5: each line is escaped the same way `mdLine` escapes its whole input, so a
  *  note line cannot start a heading, list item or nested quote once it is inside the
  *  blockquote. Line breaks are preserved (never collapsed) — only `mdLine` flattens. */
 export function mdQuote(s: string): string {

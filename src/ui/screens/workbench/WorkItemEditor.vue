@@ -56,7 +56,11 @@ const confirmButton = ref<HTMLButtonElement | null>(null);
  *  skips while it is set, and `confirmDelete` still emits `done` itself afterwards. */
 const removing = ref(false);
 
-const busy = computed(() => existing.value !== null && review.isItemPending(existing.value.id));
+// Final fix wave: create mode also tracks the pinned file's own pending save, so a
+// double submit hits `save()`'s early `if (busy) return` instead of flashing WORK_DUPLICATE.
+const busy = computed(() => (existing.value
+  ? review.isItemPending(existing.value.id)
+  : props.newFile !== null && review.isPending({ kind: 'file', entityId: props.newFile.id }, intent.value)));
 const heading = computed(() => (existing.value ? WORK_EDITOR_TITLE_EDIT(existing.value.id) : WORK_EDITOR_TITLE_NEW));
 const target = computed<TargetLabel | null>(() => {
   if (existing.value) return workTargetLabel(existing.value.target, filesById(files.value));
@@ -101,7 +105,8 @@ async function save(): Promise<void> {
     }
     if (!props.newFile) return;
     const fileTarget = { kind: 'file' as const, entityId: props.newFile.id };
-    if (review.hasWorkItem(fileTarget, intent.value) || review.isPending(fileTarget, intent.value)) { await setError(WORK_DUPLICATE); return; }
+    // A save merely in flight is `busy`, above; WORK_DUPLICATE names one that already exists.
+    if (review.hasWorkItem(fileTarget, intent.value)) { await setError(WORK_DUPLICATE); return; }
     const created = await review.addWorkItem(fileTarget, intent.value, draft.title, new Date(), {
       priority: priority.value, notes: draft.notes, status: draft.status, checks: draft.checks,
     });

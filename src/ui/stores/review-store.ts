@@ -114,7 +114,7 @@ export const useReviewStore = defineStore('review', {
     async addWorkItem(target: WorkTarget, intent: WorkIntent, title: string, now: Date, init: WorkItemInit = {}): Promise<WorkItem | null> {
       const key = workTargetKey(target, intent);
       if (this.hasWorkItem(target, intent) || this.pendingWorkKeys.includes(key)) return null;
-      // Controller ruling E2: clip (never refuse) an over-long GENERATED title, so a
+      // Controller ruling Part 4 E2: clip (never refuse) an over-long GENERATED title, so a
       // long package or file name can never make the calling button silently do
       // nothing. `updateWorkItem` still refuses one via `workItemProblem` — that title
       // came from the user, and the editor can explain the refusal.

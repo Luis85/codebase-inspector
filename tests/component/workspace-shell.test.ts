@@ -253,7 +253,7 @@ describe('workspace shell', () => {
     w.unmount();
   });
 
-  it('binds the report store to the current codebase regardless of which screen is open (ruling E11)', async () => {
+  it('binds the report store to the current codebase regardless of which screen is open (ruling Part 4 E11)', async () => {
     const report = useReportStore();
     const w = mountShell();
     const repoA = buildSnapshotFixture({ files: 4, directories: 1, repositoryId: 'repo-a' });

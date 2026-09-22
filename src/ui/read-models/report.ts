@@ -12,14 +12,14 @@ import {
   REPORT_LIMITS_TITLE, REPORT_LINES, REPORT_MD_DISCLAIMER, REPORT_NO_EXCLUSIONS, REPORT_NO_NOTE, REPORT_NO_PLAN, REPORT_NO_RULES,
   REPORT_NOTE_TITLE, REPORT_PAPER_TITLE, REPORT_PLAN_LINE, REPORT_RULE_BOUNDARY, REPORT_RULE_STATUS, REPORT_RULES_TITLE,
   REPORT_SAFETY_TEXT, REPORT_SECTION_HEADING, REPORT_SECTION_LABEL, REPORT_SECURITY_NOTE, REPORT_SUMMARY_NOTE,
-  RULE_STATUS_LABEL, WORK_ITEM_STATUS_LABEL, WORK_PRIORITY_LABEL, WORK_TARGET_MISSING,
+  RULE_STATUS_LABEL, WORK_ITEM_STATUS_LABEL, WORK_PRIORITY_LABEL,
 } from '../inspector-copy';
 import type { ArchitectureModel } from './architecture';
 import { moduleLabel, type FileSummary } from './file-summaries';
 import type { OverviewModel } from './overview';
 import { rootFolderLabel } from './root-label';
 import type { SecurityModel } from './security';
-import type { WorkRow } from './work-items';
+import { targetMarkdown, type WorkRow } from './work-items';
 
 export interface ReportFact { label: string; value: string }
 export interface ReportMetric { label: string; value: MetricValue; unit: string }
@@ -75,11 +75,6 @@ export function includedSections(sections: Readonly<Record<ReportSection, boolea
 const metricLines = (metrics: readonly ReportMetric[]): string[] => metrics.map((m) => `- ${mdLine(m.label)}: ${mdValue(m.value, m.unit)}`);
 const tableRow = (cells: readonly string[]): string => `| ${cells.join(' | ')} |`;
 
-function planTarget(row: WorkRow): string {
-  if (row.item.target.kind !== 'file') return `${row.target.detail} ${mdCell(row.target.name)}`;
-  return row.target.present ? mdCode(row.target.detail) : `${mdCode(row.target.detail)} (${WORK_TARGET_MISSING})`;
-}
-
 function sectionBody(model: ReportModel, section: ReportSection): string[] {
   switch (section) {
     case 'summary': return [...metricLines(model.summary), '', REPORT_SUMMARY_NOTE];
@@ -94,13 +89,13 @@ function sectionBody(model: ReportModel, section: ReportSection): string[] {
       tableRow([REPORT_COL_FILE, REPORT_COL_PRIORITY, REPORT_COL_COMPLEXITY, REPORT_COL_COMMITS, REPORT_COL_COVERAGE]),
       tableRow(['---', '---:', '---:', '---:', '---:']),
       ...model.hotspots.map((f) => tableRow([
-        mdCode(f.path), mdCell(mdValue(f.priority)), mdCell(mdValue(f.complexity)), mdCell(mdValue(f.commits90d)), mdCell(mdValue(f.branchCoverage, '%')),
+        mdCode(f.path).replace(/\|/g, '\\|'), mdCell(mdValue(f.priority)), mdCell(mdValue(f.complexity)), mdCell(mdValue(f.commits90d)), mdCell(mdValue(f.branchCoverage, '%')),
       ])),
       '', REPORT_HOTSPOTS_NOTE,
     ];
     case 'security': return [...metricLines(model.security), '', REPORT_SECURITY_NOTE];
     case 'plan': return model.plan.length === 0 ? [REPORT_NO_PLAN] : model.plan.map((r) => `- ${REPORT_PLAN_LINE(
-      r.item.id, mdLine(r.item.title), WORK_ITEM_STATUS_LABEL[r.item.status], WORK_PRIORITY_LABEL[r.item.priority], planTarget(r),
+      r.item.id, mdLine(r.item.title), WORK_ITEM_STATUS_LABEL[r.item.status], WORK_PRIORITY_LABEL[r.item.priority], targetMarkdown(r),
     )}`);
     default: return [];
   }

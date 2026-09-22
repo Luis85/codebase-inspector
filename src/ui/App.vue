@@ -40,7 +40,7 @@ const preferences = usePreferencesStore();
 const report = useReportStore();
 useJournalFeed();
 
-/** Controller ruling E11 (amends E8): the report store is bound to the current codebase
+/** Controller ruling Part 4 E11 (amends Part 4 E8): the report store is bound to the current codebase
  *  here, at the shell level, regardless of which screen is open — a reviewer note or
  *  section choice must never survive onto a different codebase, even if Report was never
  *  the screen open while it was scanned in. Binding on the snapshot's own repository id

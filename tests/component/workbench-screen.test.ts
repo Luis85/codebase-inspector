@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import '../mocks/obsidian';
@@ -13,7 +13,7 @@ import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
 const NOW = new Date('2026-09-22T10:00:00Z');
-const flush = async () => { await Promise.resolve(); await nextTick(); await nextTick(); };
+const flush = flushPromises;
 function withSnapshot() {
   const snap = buildSnapshotFixture({ files: 12, directories: 2 });
   useCityStore().setCity(snap, computeLayout(snap));
@@ -61,6 +61,25 @@ describe('WorkbenchScreen (Part 4)', () => {
     await flush();
     expect(useReviewStore().workItems[0]).toMatchObject({ title: 'Split the parser', priority: 'high' });
     expect(w.find('.ci-work-editor').exists()).toBe(false);
+    expect(w.find('.ci-workbench__live').text()).toBe('wi-1 updated.');
+    w.unmount();
+  });
+
+  // E17-style repeat: closing the editor with an identical outcome twice in a row must
+  // still be announced (WorkbenchScreen's closeEditor clears liveMessage, then sets it
+  // after a tick), not silently kept as unchanged text.
+  it('re-announces the same saved outcome on a second identical edit', async () => {
+    const ids = withSnapshot();
+    await useReviewStore().addWorkItemForFile(ids[0]!, 'A', NOW);
+    const w = mountW();
+    await w.find('.ci-work-card').trigger('click');
+    await w.find('.ci-work-editor__title').setValue('Split the parser');
+    await w.find('.ci-work-editor').trigger('submit');
+    await flush();
+    expect(w.find('.ci-workbench__live').text()).toBe('wi-1 updated.');
+    await w.find('.ci-work-card').trigger('click');
+    await w.find('.ci-work-editor').trigger('submit');
+    await flush();
     expect(w.find('.ci-workbench__live').text()).toBe('wi-1 updated.');
     w.unmount();
   });
@@ -170,6 +189,46 @@ describe('WorkbenchScreen (Part 4)', () => {
     useCityStore().select(ids[2]!);
     await nextTick();
     expect(w.find('.ci-work-editor').exists()).toBe(false);
+    w.unmount();
+  });
+
+  // Final fix wave: in create mode `busy` used to stay false for the whole save, so a
+  // double submit raced past the `hasWorkItem` guard and briefly flashed WORK_DUPLICATE
+  // (a false "this file already has a work item" while the FIRST save was still in
+  // flight, not because one actually existed). `busy` now also tracks
+  // `review.isPending` for the pinned create target, so `save()`'s own `if (busy) return`
+  // guard turns the second submit into a no-op and the Save button reads aria-disabled.
+  it('does not flash WORK_DUPLICATE on a double submit while creating; the Save button is aria-disabled meanwhile', async () => {
+    const ids = withSnapshot();
+    const review = useReviewStore();
+    let releaseSave: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => { releaseSave = resolve; });
+    review.setRepository({
+      listWorkItems: () => Promise.resolve([]),
+      saveWorkItem: () => gate,
+      removeWorkItem: () => Promise.resolve(),
+      listRules: () => Promise.resolve([]),
+      saveRule: () => Promise.resolve(),
+      removeRule: () => Promise.resolve(),
+      listDispositions: () => Promise.resolve([]),
+      saveDisposition: () => Promise.resolve(),
+      removeDisposition: () => Promise.resolve(),
+    });
+    const w = mountW();
+    useCityStore().select(ids[0]!);
+    await nextTick();
+    await w.find('.ci-workbench__new').trigger('click');
+    await w.find('.ci-work-editor__intent').setValue('tests');
+    const submit = w.find('.ci-work-editor').trigger('submit');
+    await nextTick();
+    expect(w.find('.ci-work-editor__save').attributes('aria-disabled')).toBe('true');
+    await w.find('.ci-work-editor').trigger('submit');
+    await nextTick();
+    expect(w.find('.ci-work-editor__error').exists()).toBe(false);
+    releaseSave?.();
+    await submit;
+    await flush();
+    expect(review.workItems).toHaveLength(1);
     w.unmount();
   });
 

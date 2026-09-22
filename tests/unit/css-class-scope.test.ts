@@ -1,4 +1,4 @@
-// Part 4 E55: a screen never borrows another screen's block class; shared looks live in kit.css.
+// E55: a screen never borrows another screen's block class; shared looks live in kit.css.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -20,7 +20,7 @@ const OWNERS: Readonly<Record<string, RegExp>> = {
 };
 const RETIRED = ['ci-hotspots__note', 'ci-hotspots__selected', 'ci-overview__cards', 'ci-overview__grid', 'ci-overview__empty', 'ci-findings-table__empty'];
 
-describe('CSS class scope (Part 4 E55)', () => {
+describe('CSS class scope (E55)', () => {
   it('finds the Vue files', () => { expect(FILES.length).toBeGreaterThan(50); });
   it('uses no retired shared-by-accident class anywhere', () => {
     for (const f of FILES) for (const cls of RETIRED) expect(f.text.includes(cls), `${f.path} uses ${cls}`).toBe(false);

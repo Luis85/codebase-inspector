@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{
 
 const shown = computed(() => formatMetric(props.value));
 const known = computed(() => hasValue(props.value));
-/** Part 4 E55: a partial/stale aggregate can still rest on sample inputs; that fact is
+/** E55: a partial/stale aggregate can still rest on sample inputs; that fact is
  *  marked in addition to its own state, never in place of it. */
 const alsoSample = computed(() => props.value.state !== 'sample' && isSampleBacked(props.value));
 </script>

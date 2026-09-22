@@ -7,7 +7,7 @@ import { buildOverviewModel } from '../../src/ui/read-models/overview';
 import { architectureGraphFor, buildArchitectureModel } from '../../src/ui/read-models/architecture';
 import { buildSecurityModel } from '../../src/ui/read-models/security';
 import { buildReportModel, includedSections, reportMarkdown } from '../../src/ui/read-models/report';
-import { buildWorkbenchModel } from '../../src/ui/read-models/work-items';
+import { buildWorkbenchModel, planMarkdown, targetMarkdown } from '../../src/ui/read-models/work-items';
 import { REPORT_NOTE_MAX, useReportStore } from '../../src/ui/stores/report-store';
 import { NO_CHECKS } from '../../src/ui/stores/ports/review-repository';
 
@@ -49,9 +49,36 @@ describe('report model and Markdown (Part 4 W6/W7)', () => {
   });
   it('escapes table cells and quotes the reviewer note; always has limitations', () => {
     const md = reportMarkdown(model(), ALL, 'Line one\n# two');
-    expect(md).toContain('@sample/a\\|b');
     expect(md).toContain('> Line one\n> \\# two');
     expect(md).toContain('## Scope and limitations');
+  });
+  // One plan-target helper (targetMarkdown): a package/module target is a code span,
+  // never a raw pipe-escaped cell — refactor-plan.md and the report agree on its form.
+  it('a package target renders identically in the plan export and the report export', () => {
+    const snapshot = buildSnapshotFixture({ files: 40, directories: 3 });
+    const files = fileSummariesFor(snapshot);
+    const rows = buildWorkbenchModel([{
+      id: 'wi-1', target: { kind: 'package', name: '@sample/a|b' }, intent: 'review', title: 'Review a',
+      status: 'planned', priority: 'high', notes: '', checks: NO_CHECKS, createdAt: '2026-09-22T10:00:00.000Z',
+    }], files, '').rows;
+    const rendered = targetMarkdown(rows[0]!);
+    expect(rendered).toBe('Package `@sample/a|b`');
+    const plan = planMarkdown(rows, 'root');
+    const md = reportMarkdown(model(), ALL, '');
+    expect(plan).toContain(rendered);
+    expect(md).toContain(rendered);
+  });
+  // A path containing '|' must not add a phantom column to the hotspots table: the
+  // fenced code span is pipe-escaped same as any other cell.
+  it('escapes a pipe in a hotspot path so the table row keeps its column count', () => {
+    const m = model();
+    const withPipe = { ...m, hotspots: [{ ...m.hotspots[0]!, path: 'src/weird|file.ts' }] };
+    const md = reportMarkdown(withPipe, ALL, '');
+    const row = md.split('\n').find((l) => l.includes('weird'));
+    expect(row).toBeDefined();
+    expect(row).toContain('weird\\|file.ts');
+    // Five cells means exactly six UNESCAPED '|' separators (leading, four between, trailing).
+    expect((row!.match(/(?<!\\)\|/g) ?? []).length).toBe(6);
   });
   it('fix round 1 #5: marks a plan item whose file target left the snapshot, in Markdown too', () => {
     const snapshot = buildSnapshotFixture({ files: 40, directories: 3 });
@@ -85,7 +112,7 @@ describe('report store (Part 4 W1)', () => {
     expect(r.sections.security).toBe(true);
     expect(r.note).toBe('');
   });
-  it('fix round 1 #2 (E8): binding a different repository clears the note and section choices; re-binding the same one is a no-op', () => {
+  it('fix round 1 #2 (Part 4 E8): binding a different repository clears the note and section choices; re-binding the same one is a no-op', () => {
     const r = useReportStore();
     r.bindRepository('repo-a');
     r.setSection('security', false);

@@ -26,7 +26,7 @@ const blocked = computed(() => exists.value || pending.value);
 
 /** E44: the button never becomes `disabled` — disabling the focused control would drop
  *  focus out of the dialog — so a blocked press is ignored here instead. The outcome is
- *  announced INSIDE the dialog (Part 4 E55), same reasoning as FindingReviewDialog. */
+ *  announced INSIDE the dialog (E55), same reasoning as FindingReviewDialog. */
 async function createReview(): Promise<void> {
   if (blocked.value) return;
   error.value = '';

@@ -1,4 +1,7 @@
 // Part 4: Settings. Re-exported by inspector-copy.ts.
+function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
 export const SETTINGS_EYEBROW = 'Configure / Settings';
 export const SETTINGS_TITLE = 'A workspace that fits your review.';
 export const SETTINGS_SUBTITLE = 'Display preferences are real; production policies are stated explicitly.';
@@ -45,7 +48,7 @@ export const SETTINGS_CLEAR_TEXT = 'Remove every work item, finding decision, bo
 export const SETTINGS_CLEAR_OPEN = 'Clear review state…';
 export const SETTINGS_CLEAR_DIALOG_TITLE = 'Clear review state?';
 export const SETTINGS_CLEAR_DIALOG_TEXT = (items: number, decisions: number, rules: number): string =>
-  `This removes ${items} work items, ${decisions} finding decisions and ${rules} boundary rules, and the report note. It cannot be undone. Export the review state first if you want a record.`;
+  `This removes ${plural(items, 'work item', 'work items')}, ${plural(decisions, 'finding decision', 'finding decisions')} and ${plural(rules, 'boundary rule', 'boundary rules')}, and the report note. It cannot be undone. Export the review state first if you want a record.`;
 export const SETTINGS_CLEAR_CONFIRM = 'Clear everything';
 export const SETTINGS_CLEAR_CANCEL = 'Cancel';
 export const SETTINGS_CLEARED = 'Review state cleared.';

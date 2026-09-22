@@ -35,7 +35,7 @@ const busy = computed(() => review.isDispositionPending(props.fingerprint));
  *  outcome is announced only when the store actually did something — a refusal
  *  (`null`, or `false` from reopen) announces nothing and is not an error either.
  *  Resolves true when the action took effect. The outcome is announced INSIDE the
- *  dialog (Part 4 E55): a region outside an aria-modal dialog is hidden from assistive
+ *  dialog (E55): a region outside an aria-modal dialog is hidden from assistive
  *  technology while the dialog is open. */
 async function run(action: () => Promise<unknown>, done: string): Promise<boolean> {
   error.value = '';

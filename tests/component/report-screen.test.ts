@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { nextTick } from 'vue';
 
 vi.mock('../../src/ui/export/download', () => ({ downloadText: vi.fn() }));
 import { downloadText } from '../../src/ui/export/download';
@@ -66,7 +65,7 @@ describe('ReportScreen (Part 4)', () => {
     await w.find('.ci-report-contents textarea').setValue('Confirm the parser boundary.');
     expect(w.find('.ci-report-paper').text()).not.toContain('Confirm the parser boundary.');
     await w.find('.ci-report-contents__apply').trigger('click');
-    await nextTick();
+    await flushPromises();
     expect(w.find('.ci-report-paper').text()).toContain('Confirm the parser boundary.');
     expect(w.find('.ci-report__live').text()).toBe('Reviewer note applied to the report.');
     w.unmount();
@@ -78,7 +77,7 @@ describe('ReportScreen (Part 4)', () => {
     await w.find('.ci-report-contents input[value="security"]').setValue(false);
     await w.find('.ci-report-contents textarea').setValue('Confirm the parser boundary.');
     await w.find('.ci-report-contents__apply').trigger('click');
-    await nextTick();
+    await flushPromises();
     await w.find('.ci-report__export').trigger('click');
     const [host, name, text, mime] = vi.mocked(downloadText).mock.calls[0]!;
     expect(host.classList.contains('ci-screen--report')).toBe(true);

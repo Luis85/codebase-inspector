@@ -5,7 +5,7 @@ import MetricCard from '../../src/ui/kit/MetricCard.vue';
 import CiDialog from '../../src/ui/kit/Dialog.vue';
 import { collected, sample, sumEvidence, unknown } from '../../src/ui/evidence';
 
-describe('MetricCard sample mark (Part 4 E55)', () => {
+describe('MetricCard sample mark (E55)', () => {
   it('marks a partial aggregate that includes sample inputs as Sample as well as Partial', () => {
     const value = sumEvidence([collected(3, 'inventory'), sample(4), unknown('x')]);
     const w = mount(MetricCard, { props: { label: 'L', icon: 'code', value } });
@@ -24,7 +24,7 @@ describe('MetricCard sample mark (Part 4 E55)', () => {
   });
 });
 
-describe('CiDialog status region (Part 4 E55)', () => {
+describe('CiDialog status region (E55)', () => {
   it('renders a role=status region inside the modal and updates its text', async () => {
     const w = mount(CiDialog, { props: { label: 'D', status: '' }, slots: { default: '<button>x</button>' }, attachTo: document.body });
     const region = w.find('[role="dialog"] .ci-dialog__status');

@@ -52,11 +52,17 @@ function openNew(): void {
   creatingFor.value = selectedFile.value;
 }
 /** CiDialog returns focus to its opener when it still exists; a deleted card is gone, so
- *  focus lands on the filter instead of the shell (Part 2 F7 pattern). */
+ *  focus lands on the filter instead of the shell (Part 2 F7 pattern).
+ *  E17-style repeat: liveMessage is cleared THEN set after a tick, so a second, identical
+ *  outcome (e.g. "wi-1 updated." twice) is announced again rather than kept as unchanged text. */
 async function closeEditor(message?: string): Promise<void> {
   editing.value = null;
   creatingFor.value = null;
-  if (message) liveMessage.value = message;
+  if (message) {
+    liveMessage.value = '';
+    await nextTick();
+    liveMessage.value = message;
+  }
   await nextTick();
   const el = root.value;
   const active = el?.ownerDocument.activeElement;

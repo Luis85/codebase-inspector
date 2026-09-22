@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 
 vi.mock('../../src/ui/export/download', () => ({ downloadText: vi.fn() }));
 import { downloadText } from '../../src/ui/export/download';
@@ -8,7 +8,7 @@ import { EXPORT_FAILED } from '../../src/ui/inspector-copy';
 
 const host = {} as HTMLElement;
 
-describe('useCsvExport (Part 4 E55)', () => {
+describe('useCsvExport (E55)', () => {
   beforeEach(() => { vi.mocked(downloadText).mockReset(); });
 
   it('hands the built text to downloadText through the root, CSV by default', () => {
@@ -21,10 +21,24 @@ describe('useCsvExport (Part 4 E55)', () => {
     useCsvExport(ref(host), ref(''))('r.md', () => '# r', MARKDOWN_MIME);
     expect(downloadText).toHaveBeenCalledWith(host, 'r.md', '# r', MARKDOWN_MIME);
   });
-  it('announces EXPORT_FAILED when the download throws, and nothing is thrown', () => {
+  it('announces EXPORT_FAILED when the download throws, and nothing is thrown', async () => {
     vi.mocked(downloadText).mockImplementation(() => { throw new Error('no window'); });
     const live = ref('');
     expect(() => useCsvExport(ref(host), live)('a.csv', () => 'x')).not.toThrow();
+    await nextTick();
+    expect(live.value).toBe(EXPORT_FAILED);
+  });
+  it('E17-style repeat: two consecutive failures both end with EXPORT_FAILED, clearing the message in between', async () => {
+    vi.mocked(downloadText).mockImplementation(() => { throw new Error('no window'); });
+    const live = ref('');
+    const run = useCsvExport(ref(host), live);
+    run('a.csv', () => 'x');
+    expect(live.value).toBe('');
+    await nextTick();
+    expect(live.value).toBe(EXPORT_FAILED);
+    run('a.csv', () => 'x');
+    expect(live.value).toBe('');
+    await nextTick();
     expect(live.value).toBe(EXPORT_FAILED);
   });
   it('does nothing without a root', () => {

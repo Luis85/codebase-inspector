@@ -5,7 +5,7 @@ const evenIntegers = (ticks: readonly number[]): boolean => ticks.length > 1
   && ticks.every((t) => Number.isInteger(t))
   && ticks.every((t, i) => i === 0 || (t - ticks[i - 1]!) === (ticks[1]! - ticks[0]!));
 
-describe('niceTicks (Part 4 E55)', () => {
+describe('niceTicks (E55)', () => {
   it('never produces 12.5-style ticks', () => {
     expect(niceTicks(50)).toEqual({ max: 60, step: 20, ticks: [0, 20, 40, 60] });
     expect(niceTicks(37)).toEqual({ max: 40, step: 10, ticks: [0, 10, 20, 30, 40] });

@@ -69,7 +69,11 @@ export function buildWorkbenchModel(items: readonly WorkItem[], files: readonly 
   };
 }
 
-function targetLine(row: WorkRow): string {
+/** One plan-target Markdown helper, shared by the plan export (`planMarkdown`) and the
+ *  report export (`report.ts`), so a target renders identically in both: a file is a
+ *  code span on its path, marked when it left the snapshot; a package/module is its
+ *  detail label plus a code span on its name. */
+export function targetMarkdown(row: WorkRow): string {
   if (row.item.target.kind !== 'file') return `${row.target.detail} ${mdCode(row.target.name)}`;
   return row.target.present ? mdCode(row.target.detail) : `${mdCode(row.target.detail)} (${WORK_TARGET_MISSING})`;
 }
@@ -85,7 +89,7 @@ export function planMarkdown(rows: readonly WorkRow[], sourceLabel: string): str
       `- ${WORK_FIELD_STATUS}: ${WORK_ITEM_STATUS_LABEL[item.status]}`,
       `- ${WORK_FIELD_PRIORITY}: ${WORK_PRIORITY_LABEL[item.priority]}`,
       `- ${WORK_FIELD_INTENT}: ${WORK_INTENT_LABEL[item.intent]}`,
-      `- ${WORK_FIELD_TARGET}: ${targetLine(row)}`, '',
+      `- ${WORK_FIELD_TARGET}: ${targetMarkdown(row)}`, '',
     );
     if (item.notes.trim() !== '') out.push(mdQuote(item.notes), '');
     WORK_CHECK_LABELS.forEach((label, i) => { out.push(`- [${item.checks[i] ? 'x' : ' '}] ${label}`); });

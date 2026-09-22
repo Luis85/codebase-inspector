@@ -1,4 +1,4 @@
-// E12 / Part 4 E55: one axis scale for every chart. The step is 1, 2, 2.5 or 5 × 10^n
+// E12 / E55: one axis scale for every chart. The step is 1, 2, 2.5 or 5 × 10^n
 // (2.5 only from 10 up, so every tick stays an integer), the ticks are evenly spaced
 // from 0, and the last tick is the axis maximum. `floor` keeps a tiny or empty series
 // from producing a 0..1 axis.

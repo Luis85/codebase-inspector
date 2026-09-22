@@ -1,4 +1,4 @@
-/* WP-02 screens, Explore area: Architecture, Hotspots, File detail (moved from screens.css, Part 4 E55). */
+/* WP-02 screens, Explore area: Architecture, Hotspots, File detail (moved from screens.css, E55). */
 /* Part 2: Architecture. */
 :where(.codebase-inspector-root) .ci-architecture__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); align-items: start; }
 @container (max-width: 900px) {

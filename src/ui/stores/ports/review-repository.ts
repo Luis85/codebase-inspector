@@ -57,7 +57,7 @@ export function allChecksDone(checks: WorkChecks): boolean {
   return checks[0] && checks[1] && checks[2];
 }
 
-/** Controller ruling E2: a title cap must never make an existing action silently do
+/** Controller ruling Part 4 E2: a title cap must never make an existing action silently do
  *  nothing. A generated title (e.g. built from a long package or file name) is clipped
  *  to `WORK_TITLE_MAX` rather than refused; the last character becomes the single-char
  *  ellipsis so the clipped result is still exactly `WORK_TITLE_MAX` long. A title the

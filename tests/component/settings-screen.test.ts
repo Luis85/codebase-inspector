@@ -86,7 +86,7 @@ describe('SettingsScreen (Part 4)', () => {
     const w = mountS();
     await tab(w, 'privacy');
     await w.find('.ci-settings__clear').trigger('click');
-    expect(w.find('.ci-clear-dialog').text()).toContain('1 work items');
+    expect(w.find('.ci-clear-dialog').text()).toContain('1 work item, 0 finding decisions and 0 boundary rules');
     await w.find('.ci-clear-dialog__cancel').trigger('click');
     expect(useReviewStore().workItems).toHaveLength(1);
     await w.find('.ci-settings__clear').trigger('click');

@@ -7,7 +7,7 @@
 }
 :where(.codebase-inspector-root) .ci-workbench__filter { flex: 0 1 18em; }
 :where(.codebase-inspector-root) .ci-workbench__views { display: inline-flex; gap: var(--ci-space-1); margin-left: auto; }
-:where(.codebase-inspector-root) .ci-workbench__view[aria-pressed="true"] { background: var(--ci-raised); color: var(--ci-text); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-workbench__view[aria-pressed="true"] { background: var(--ci-raised); color: var(--ci-text); font-weight: var(--font-semibold); box-shadow: inset 0 -2px 0 var(--ci-tone-accent); }
 :where(.codebase-inspector-root) .ci-workbench__new-hint { margin-top: calc(-1 * var(--ci-space-3)); }
 :where(.codebase-inspector-root) .ci-work-board { display: grid; gap: var(--ci-space-4); grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @container (max-width: 900px) {

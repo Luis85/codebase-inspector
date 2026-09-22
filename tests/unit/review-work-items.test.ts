@@ -32,7 +32,7 @@ describe('editable work items (Part 4 W8/W9)', () => {
     expect(d).toMatchObject({ status: 'verified', id: 'wi-3' });
   });
 
-  it('clips an over-long generated title instead of refusing it (controller ruling E2), and still produces a real item', async () => {
+  it('clips an over-long generated title instead of refusing it (controller ruling Part 4 E2), and still produces a real item', async () => {
     const store = useReviewStore();
     const longTitle = 'x'.repeat(300);
     const item = await store.addWorkItem(file('e1'), 'refactor', longTitle, NOW);
