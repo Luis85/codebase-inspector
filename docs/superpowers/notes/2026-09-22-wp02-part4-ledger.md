@@ -74,3 +74,14 @@ The pre-flight scan (one Opus reviewer, read-only) checked every task pair that 
 | X17 (F17) | Task 1's stylesheet-order test checks `expect(order).toHaveLength(7)` before `.every` (E27). | None. |
 | X18 (F18) | The copy follows the spec. `REPORT_CALLOUT` = "This is an illustrative review built partly from sample data. It is not a security certification or an audit of your repository." `SOURCES_CALLOUT_TITLE` = "Evidence sources". `SOURCES_CALLOUT` = "One real provider is connected: the built-in read-only inventory. Every other signal is sample data or not collected." Settings › Privacy & storage gets its own Export review state button (`ci-settings__export-privacy`, emitting `export`), as spec §2 lists. **Deviation kept:** the report paper's section headings are `h4` under an `h3` paper title, under the page `h2`, because a correct outline beats spec §2's "h3 sections". `mdQuote` keeping `> # …` is acceptable, and the test description says "quotes every line". | Low. |
 | X19 (F19) | Task 10: the WorkItemEditor split threshold is 300 lines, as in the plan's self-review. | None. |
+
+### Task 1
+
+Clean review.
+- Deferred minor: X17's `toHaveLength(7)` is tautological, because `order` maps a fixed seven-item literal. It meets only the letter of E27.
+
+### Task 2
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| E1 | X12's "zero visual change" governs over its own list, which named "wrap" by mistake. `.ci-selected-strip` drops `flex-wrap: wrap` and copies the old Hotspots declarations exactly. The Quality empty state keeps its old `gap: var(--ci-space-2)` on `.ci-findings-table__none`. | Low. A long strip cannot wrap at narrow widths, exactly as before Part 4. |
