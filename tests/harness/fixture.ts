@@ -18,10 +18,12 @@ export function harnessSnapshot(): CodebaseSnapshot {
     // an unknown, and neither is drawn as the other.
     measuredZero: 1,
     unavailable: 3,
-    // Part 5 V30 (Part 4 E17): a real scan marks a snapshot partial whenever a file's
-    // lines are unavailable (inventory-collector.ts), with this reason as its warning.
+    // Part 5 V30 (Part 4 E17), ruling E22: a real scan marks a snapshot partial whenever
+    // a file was skipped (inventory-collector.ts's warningReasons), carrying the walk's
+    // own skip reason verbatim. This is node-source-filesystem.ts's `readAsText` reason
+    // for a binary file, passed through unmodified by walker.ts's `reason: read.reason`.
     completeness: 'partial',
-    warnings: ['binary content: physical lines are not defined'],
+    warnings: ['file appears to contain binary content'],
   });
 }
 

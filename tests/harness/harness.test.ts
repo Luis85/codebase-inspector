@@ -54,7 +54,7 @@ describe('harness fixture', () => {
   it('is partial, with the warning a real scan writes when line counts are unavailable (Part 5 V30, Part 4 E17)', () => {
     const snapshot = harnessSnapshot();
     expect(snapshot.completeness).toBe('partial');
-    expect(snapshot.warnings).toEqual(['binary content: physical lines are not defined']);
+    expect(snapshot.warnings).toEqual(['file appears to contain binary content']);
   });
 });
 

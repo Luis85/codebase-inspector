@@ -4,6 +4,7 @@ import type { EntityId } from '../../src/domain/entity-id';
 import { initialScanLifecycleState, type ScanLifecycleState } from '../../src/application/run-state';
 import type { ReportSection } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
+import { REVIEW_STATE_SCHEMA_V1 } from '../../src/ui/read-models/review-state';
 
 const AT = new Date('2026-09-17T12:00:00Z');
 
@@ -42,7 +43,7 @@ export function runningLifecycle(): ScanLifecycleState {
 export function demoImportJson(filePath: string, sections: Readonly<Record<ReportSection, boolean>>): string {
   const at = '2026-09-17T12:00:00.000Z';
   return JSON.stringify({
-    schema: 'codebase-inspector.review-state.v1',
+    schema: REVIEW_STATE_SCHEMA_V1,
     exportedAt: at,
     note: 'Harness demo import.',
     workItems: [{
