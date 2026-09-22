@@ -84,6 +84,23 @@ describe('WorkbenchScreen (Part 4)', () => {
     w.unmount();
   });
 
+  // Fix round 1 (Minor 5): a second, identical refusal must still be announced, not
+  // silently kept as unchanged text.
+  it('re-announces the same refusal on a second identical submit', async () => {
+    const ids = withSnapshot();
+    await useReviewStore().addWorkItemForFile(ids[0]!, 'A', NOW);
+    const w = mountW();
+    await w.find('.ci-work-card').trigger('click');
+    await w.find('.ci-work-editor__status').setValue('verified');
+    await w.find('.ci-work-editor').trigger('submit');
+    await flush();
+    expect(w.find('.ci-work-editor__error').text()).toBe('Complete all three checks before marking the item Verified.');
+    await w.find('.ci-work-editor').trigger('submit');
+    await flush();
+    expect(w.find('.ci-work-editor__error').text()).toBe('Complete all three checks before marking the item Verified.');
+    w.unmount();
+  });
+
   it('deletes only after the inline confirmation', async () => {
     const ids = withSnapshot();
     await useReviewStore().addWorkItemForFile(ids[0]!, 'A', NOW);
@@ -123,6 +140,36 @@ describe('WorkbenchScreen (Part 4)', () => {
     await flush();
     expect(w.find('.ci-work-editor__error').text()).toBe('This file already has a work item with that intent.');
     expect(useReviewStore().workItems).toHaveLength(1);
+    w.unmount();
+  });
+
+  // Fix round 1 (Important 1): pinning the create target at the moment "New work item"
+  // is pressed. A live `:new-file="selectedFile"` would let a later selection change
+  // (a rescan losing the entity, the palette selecting a directory, or just picking a
+  // different file) either silently unmount the dialog with `creating` left stuck true
+  // (so a LATER selection popped a stale blank editor) or retarget the save mid-edit.
+  // Pinning fixes both: the dialog stays open and keeps saving against the file that
+  // was selected when it opened, and once it is properly closed a later selection does
+  // not reopen it.
+  it('pins the create target: a later selection change does not retarget the save, and closing leaves no stuck create flag', async () => {
+    const ids = withSnapshot();
+    const w = mountW();
+    useCityStore().select(ids[0]!);
+    await nextTick();
+    await w.find('.ci-workbench__new').trigger('click');
+    expect(w.find('.ci-work-editor').exists()).toBe(true);
+    useCityStore().clearSelection();
+    await flush();
+    expect(w.find('.ci-work-editor').exists()).toBe(true);
+    useCityStore().select(ids[1]!);
+    await flush();
+    await w.find('.ci-work-editor').trigger('submit');
+    await flush();
+    expect(useReviewStore().workItems[0]).toMatchObject({ target: { kind: 'file', entityId: ids[0] } });
+    expect(w.find('.ci-work-editor').exists()).toBe(false);
+    useCityStore().select(ids[2]!);
+    await nextTick();
+    expect(w.find('.ci-work-editor').exists()).toBe(false);
     w.unmount();
   });
 

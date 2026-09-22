@@ -38,14 +38,17 @@
 :where(.codebase-inspector-root) .ci-chip--priority-high { border-color: var(--ci-tone-danger); color: var(--ci-tone-danger); }
 :where(.codebase-inspector-root) .ci-chip--priority-medium { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-chip--priority-low { border-color: var(--ci-border); color: var(--ci-text-muted); }
-:where(.codebase-inspector-root) .ci-work-editor { display: grid; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-work-editor { display: grid; gap: var(--ci-space-2); padding: var(--ci-space-4); }
 :where(.codebase-inspector-root) .ci-work-editor__header h3 { margin: 0; }
 :where(.codebase-inspector-root) .ci-work-editor__grid { display: grid; gap: var(--ci-space-3); grid-template-columns: repeat(2, minmax(0, 1fr)); margin: var(--ci-space-2) 0; }
 :where(.codebase-inspector-root) .ci-work-editor__field { display: flex; flex-direction: column; gap: var(--ci-space-1); }
+:where(.codebase-inspector-root) .ci-work-editor__label { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-work-editor__target { overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-work-editor__notes { min-height: 6em; resize: vertical; }
 :where(.codebase-inspector-root) .ci-work-editor__checks { display: grid; gap: var(--ci-space-2); margin: var(--ci-space-2) 0 0; padding: 0; border: none; }
 :where(.codebase-inspector-root) .ci-work-editor__checks legend { margin-bottom: var(--ci-space-2); font-weight: var(--font-semibold); }
 :where(.codebase-inspector-root) .ci-work-editor__check { display: flex; align-items: center; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-work-editor__error { margin: 0; color: var(--ci-tone-danger); }
 :where(.codebase-inspector-root) .ci-work-editor__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-work-editor__confirm-text { flex: 1 1 auto; color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-work-editor__spacer { flex: 1 1 auto; }

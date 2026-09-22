@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import { MARKDOWN_MIME, useCsvExport } from '../export/use-csv-export';
+import type { FileSummary } from '../read-models/file-summaries';
 import { useReadModels } from '../read-models/use-read-models';
 import { rootFolderLabel } from '../read-models/root-label';
 import { buildWorkbenchModel, filesById, planMarkdown } from '../read-models/work-items';
@@ -27,13 +28,19 @@ const liveMessage = ref('');
 const query = ref('');
 const view = ref<'board' | 'list'>('board');
 const editing = ref<string | null>(null);
-const creating = ref(false);
+/** Fix round 1 (Important): pinned at the moment "New work item" is pressed, rather than
+ *  read live off `selectedEntityId`. Without this, a selection change while the create
+ *  editor is open (the selection disappears, or the palette selects a non-file) would
+ *  either leave `creating` stuck true with nothing to edit (a later file selection then
+ *  pops a blank editor) or silently retarget the save away from the file the title still
+ *  names. */
+const creatingFor = ref<FileSummary | null>(null);
 const hintId = useUniqueId('ci-workbench-new-hint');
 
 const model = computed(() => buildWorkbenchModel(review.workItems, files.value, query.value));
 /** W11: New work item plans work for the selected FILE only. */
 const selectedFile = computed(() => (store.selectedEntityId ? filesById(files.value).get(store.selectedEntityId) ?? null : null));
-const editorOpen = computed(() => editing.value !== null || (creating.value && selectedFile.value !== null));
+const editorOpen = computed(() => editing.value !== null || creatingFor.value !== null);
 const sourceLabel = computed(() => (store.snapshot ? rootFolderLabel(store.snapshot.scope.rootPath) : NO_CODEBASE_LABEL));
 const exportText = useCsvExport(root, liveMessage);
 
@@ -42,13 +49,13 @@ function exportPlan(): void {
 }
 function openNew(): void {
   if (!selectedFile.value) return;
-  creating.value = true;
+  creatingFor.value = selectedFile.value;
 }
 /** CiDialog returns focus to its opener when it still exists; a deleted card is gone, so
  *  focus lands on the filter instead of the shell (Part 2 F7 pattern). */
 async function closeEditor(message?: string): Promise<void> {
   editing.value = null;
-  creating.value = false;
+  creatingFor.value = null;
   if (message) liveMessage.value = message;
   await nextTick();
   const el = root.value;
@@ -174,7 +181,7 @@ async function closeEditor(message?: string): Promise<void> {
     <WorkItemEditor
       v-if="editorOpen"
       :item-id="editing"
-      :new-file="editing === null ? selectedFile : null"
+      :new-file="editing === null ? creatingFor : null"
       @close="closeEditor()"
       @done="closeEditor($event)"
     />
