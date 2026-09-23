@@ -294,3 +294,4 @@ export * from './audit-copy/city';
 export * from './audit-copy/storage';
 /** Part 6: fallow report import. */
 export * from './audit-copy/fallow';
+export * from './audit-copy/fallow-run';

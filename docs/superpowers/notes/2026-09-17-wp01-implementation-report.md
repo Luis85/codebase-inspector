@@ -261,6 +261,12 @@ listing one that does not exist, reddens that file.
 - `import-analysis-report` — "Import analysis report" (WP-02 Part 6, Y39). **Hidden unless
   the active city view shows a snapshot.** Opens Data & scans and the fallow import
   dialog. The report file is picked there; it is the only file read, and nothing runs.
+- `run-fallow-analysis` — "Run fallow analysis" (WP-02 Part 7, Z35). **Hidden unless the
+  active city view shows a snapshot and no fallow analysis is in flight for its codebase.**
+  Opens Data & scans; runs at once when the bound executable is still trusted, and
+  otherwise opens the review. Nothing runs from the palette itself.
+- `cancel-fallow-analysis` — "Cancel fallow analysis" (Z35). **Hidden unless the active
+  view's fallow analysis is checking its version or running.**
 
 <!-- checkpoint4:commands:end -->
 

@@ -5,8 +5,9 @@
 import type { CityViewDeps } from '../../src/host/city-view';
 import { createInMemoryReviewRepository, type ReviewRepository } from '../../src/ui/stores/ports/review-repository';
 import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
+import { createFakeFallowAnalysis } from './fake-fallow-analysis';
 
-export function dataPortDeps(): Pick<CityViewDeps, 'reviewRepositoryFor' | 'evidenceStore'> {
+export function dataPortDeps(): Pick<CityViewDeps, 'reviewRepositoryFor' | 'evidenceStore' | 'fallowAnalysis'> {
   const repositories = new Map<string, ReviewRepository>();
   return {
     reviewRepositoryFor: (repositoryId) => {
@@ -19,5 +20,7 @@ export function dataPortDeps(): Pick<CityViewDeps, 'reviewRepositoryFor' | 'evid
     },
     // Part 6 Y28 (Task 7): one session evidence repository per deps object, as main.ts builds one.
     evidenceStore: new InMemoryEvidenceStore(),
+    // Part 7 Z28 (Task 9): the fallow analysis service, scripted; it runs nothing.
+    fallowAnalysis: createFakeFallowAnalysis(),
   };
 }

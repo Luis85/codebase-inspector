@@ -61,13 +61,13 @@ function makePluginDouble(): PluginDouble {
 }
 
 describe('onload', () => {
-  it('registers the city view, the ribbon icon and four commands, and nothing else', () => {
+  it('registers the city view, the ribbon icon and six commands, and nothing else', () => {
     const p = makePluginDouble();
     p.onload();
     expect(p.registerView).toHaveBeenCalledWith(CITY_VIEW_TYPE, expect.any(Function));
     expect(p.addRibbonIcon).toHaveBeenCalledTimes(1);
     expect(p.addCommand.mock.calls.map((c: unknown[]) => (c[0] as { id: string }).id).sort())
-      .toEqual(['cancel-scan', 'import-analysis-report', 'open-city', 'scan-codebase']);
+      .toEqual(['cancel-fallow-analysis', 'cancel-scan', 'import-analysis-report', 'open-city', 'run-fallow-analysis', 'scan-codebase']);
   });
 
   it('registers exactly one settings tab (task 6)', () => {
@@ -88,8 +88,8 @@ describe('onload', () => {
   it('registers no command for an unimplemented capability', () => {
     const p = makePluginDouble();
     p.onload();
-    // Part 6 Y39: the fourth, import-analysis-report, is implemented; "Run fallow analysis" is Part 7.
-    expect(p.addCommand).toHaveBeenCalledTimes(4);
+    // Part 6 Y39 and Part 7 Z35: import, run and cancel an analysis are all implemented.
+    expect(p.addCommand).toHaveBeenCalledTimes(6);
   });
 
   it('does no filesystem access and starts no scan during onload', () => {
@@ -126,6 +126,16 @@ describe('onload', () => {
     p.onload();
     p.onunload();
     expect(p.app.workspace.detachLeavesOfType).not.toHaveBeenCalled();
+  });
+
+  it('Part 7 Z24: onunload shuts the fallow analysis down once, synchronously', () => {
+    const p = makePluginDouble();
+    p.onload();
+    const analysis = (p as unknown as { analysis: { shutdown(): void } }).analysis;
+    const shutdown = vi.spyOn(analysis, 'shutdown');
+    expect(p.onunload()).toBeUndefined();
+    p.onunload();
+    expect(shutdown).toHaveBeenCalledTimes(1);
   });
 
   it('types onunload as void, so teardown is never awaited', () => {

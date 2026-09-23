@@ -6,6 +6,7 @@ import type { Pinia } from 'pinia';
 import { useReviewStore } from '../ui/stores/review-store';
 import { useCityStore } from '../ui/stores/city-store';
 import { useEvidenceStore } from '../ui/stores/evidence-store';
+import { useAnalysisStore } from '../ui/stores/analysis-store';
 import type { CityViewDeps } from './city-scan-controller';
 
 /** Y11: the review store builds each codebase's repository through the plugin's registry,
@@ -16,6 +17,8 @@ export function wireDataPorts(pinia: Pinia, deps: CityViewDeps): void {
   // Part 6 Y28/Y29: the plugin's ONE evidence repository. App binds the store to the
   // snapshot's codebase; the store listens to that codebase's entry.
   useEvidenceStore(pinia).setRepository(deps.evidenceStore);
+  // Part 7 Z28: the plugin's ONE fallow analysis service; App binds the store to the codebase.
+  useAnalysisStore(pinia).setService(deps.fallowAnalysis);
 }
 
 /** R2: a closing leaf stops listening to the plugin-level repository (Task 2's `detach`),
@@ -25,6 +28,8 @@ export function unwireDataPorts(pinia: Pinia): void {
   // Part 6 Y29: the shared evidence repository outlives the leaf. The evidence store is a
   // setup store, so `$dispose` runs its `onScopeDispose` and drops its listener.
   useEvidenceStore(pinia).$dispose();
+  // Part 7 Z24/Z28: the service outlives the leaf, and a closing leaf does NOT cancel a run.
+  useAnalysisStore(pinia).$dispose();
 }
 
 /** Part 6 Y39: the `import-analysis-report` command's body. It goes to Data & scans and
@@ -33,4 +38,11 @@ export function unwireDataPorts(pinia: Pinia): void {
 export function requestReportImport(pinia: Pinia): void {
   useCityStore(pinia).navigate('sources');
   useEvidenceStore(pinia).requestImport();
+}
+
+/** Part 7 Z35: the `run-fallow-analysis` command's body. It goes to Data & scans and raises a
+ *  request; SourcesScreen starts at once when trust holds, and otherwise opens the review. */
+export function requestFallowRun(pinia: Pinia): void {
+  useCityStore(pinia).navigate('sources');
+  useAnalysisStore(pinia).requestRun();
 }

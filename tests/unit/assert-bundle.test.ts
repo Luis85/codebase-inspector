@@ -19,7 +19,8 @@ const script = fileURLToPath(new URL('../../scripts/assert-bundle.mjs', import.m
 
 // The minimum a bundle needs to clear every OTHER guard in the script, so each case
 // below turns exactly one of them red and nothing else.
-const CLEAN_MAIN = 'Object.defineProperty(exports, "__esModule", { value: true });\nexports.default = X;\n';
+// Part 7 Z38 (K23): a real bundle names node:child_process exactly once, in node-process-access.ts's window.require.
+const CLEAN_MAIN = 'Object.defineProperty(exports, "__esModule", { value: true });\nexports.default = X;\nwindow.require("node:child_process");\n';
 
 function runAgainst(mainJs: string): { status: number | null; stdout: string; stderr: string } {
   const root = mkdtempSync(join(tmpdir(), 'ci-assert-bundle-'));
@@ -57,5 +58,14 @@ describe('assert-bundle', () => {
     expect(stderr).toContain('named-CommonJS shape');
     expect(stderr).toContain('bundles Node built-in(s): fs');
     expect(stdout).not.toContain('OK');
+  });
+
+  it('Part 7 Z38: refuses a bundle that names node:child_process other than once, in window.require', () => {
+    const none = runAgainst('Object.defineProperty(exports, "__esModule", { value: true });\nexports.default = X;\n');
+    expect(none.stderr).toContain('must name node:child_process exactly once');
+    expect(none.status).toBe(1);
+    const twice = runAgainst(`${CLEAN_MAIN}const s = "node:child_process";\n`);
+    expect(twice.stderr).toContain('must name node:child_process exactly once');
+    expect(twice.status).toBe(1);
   });
 });

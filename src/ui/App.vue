@@ -15,6 +15,7 @@ import { usePreferencesStore } from './stores/preferences-store';
 import { useReportStore } from './stores/report-store';
 import { useReviewStore } from './stores/review-store';
 import { useEvidenceStore } from './stores/evidence-store';
+import { useAnalysisStore } from './stores/analysis-store';
 import { noop } from './kit/noop';
 import { useLeafWidth } from './shell/use-leaf-width';
 import { provideLeafLayout } from './shell/leaf-layout';
@@ -45,6 +46,7 @@ const preferences = usePreferencesStore();
 const report = useReportStore();
 const review = useReviewStore();
 const evidence = useEvidenceStore();
+const analysis = useAnalysisStore();
 useJournalFeed();
 
 /** Controller ruling Part 4 E11 (amends Part 4 E8): the report store is bound to the current codebase
@@ -61,6 +63,8 @@ watch(() => store.snapshot?.repositoryId, (id) => {
   void review.bindRepository(id).catch(noop); // Part 6 R1/R3: a failed read sets loadFailed; Settings says so.
   // Part 6 Y29: the evidence store too; it then follows that codebase's imported report.
   evidence.bindRepository(id);
+  // Part 7 Z28: and the analysis store, which follows that codebase's fallow run.
+  analysis.bindRepository(id);
 }, { immediate: true });
 const rootEl = ref<HTMLElement | null>(null);
 const leafWidth = useLeafWidth(rootEl);

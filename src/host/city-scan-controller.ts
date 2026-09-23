@@ -17,6 +17,7 @@ import type { SnapshotStore } from '../application/ports/snapshot-store';
 import type { Clock } from '../application/ports/clock';
 import type { ReviewRepository } from '../ui/stores/ports/review-repository';
 import type { EvidenceRepository } from '../application/ports/evidence-repository';
+import type { FallowAnalysisService } from '../application/analysis/fallow-analysis-service';
 
 /** Task 8: what a CityView needs to run a scan, beyond the plain `Plugin` reference. All
  *  of them are plugin-level singletons (main.ts constructs one of each and passes the same
@@ -32,6 +33,8 @@ export interface CityViewDeps {
   reviewRepositoryFor: (repositoryId: string) => ReviewRepository;
   /** Part 6 Y28: imported fallow evidence, session-only. ONE instance per plugin, shared by every leaf. */
   evidenceStore: EvidenceRepository;
+  /** Part 7 Z28: the plugin's ONE fallow analysis service, shared by every leaf. */
+  fallowAnalysis: FallowAnalysisService;
 }
 
 /** What the controller reads from, and reports to, the CityView that owns it. */

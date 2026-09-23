@@ -1,4 +1,4 @@
-import { Plugin, type WorkspaceLeaf } from 'obsidian';
+import { Notice, Plugin, type WorkspaceLeaf } from 'obsidian';
 import { CITY_VIEW_TYPE, CityView } from './host/city-view';
 import { openCity, registerCommands } from './host/commands';
 import { CodebaseInspectorSettingTab } from './host/settings-tab';
@@ -8,6 +8,13 @@ import { createNodeSourceFileSystem } from './adapters/filesystem/node-source-fi
 import { InMemorySnapshotStore } from './adapters/storage/in-memory-snapshot-store';
 import { InMemoryEvidenceStore } from './adapters/storage/in-memory-evidence-store';
 import { createReviewRepositoryRegistry } from './adapters/storage/review-repository-registry';
+import { createPluginDataAnalyzerStore } from './adapters/storage/plugin-data-analyzer-store';
+import { createExecutableInspector } from './adapters/fallow/executable-inspector';
+import { createFallowRunner } from './adapters/fallow/fallow-runner';
+import { AnalysisCoordinator } from './application/analysis/analysis-coordinator';
+import { createFallowAnalysisService, type FallowAnalysisService } from './application/analysis/fallow-analysis-service';
+import { createCancellationToken } from './application/scan-coordinator';
+import { watchAnalysisFailures } from './host/analysis-notices';
 import type { Clock } from './application/ports/clock';
 import './ui/styles.css';
 import './ui/styles/kit.css';
@@ -25,13 +32,18 @@ import './ui/styles/screens-configure.css';
 const SYSTEM_CLOCK: Clock = { now: () => new Date(), nowIso: () => new Date().toISOString() };
 
 export default class CodebaseInspectorPlugin extends Plugin {
+  /** Part 7 Z24: kept so onunload can shut every fallow run down. */
+  private analysis: FallowAnalysisService | null = null;
+  private unwatchAnalysis: (() => void) | null = null;
+
   override onload(): void {
     // onload REGISTERS ONLY. No scanning, no expensive work (spec 4.4). Constructing
     // the stores and reading/creating this machine's id (a single synchronous
     // localStorage read, see getOrCreateMachineId) is registration-weight, not scan
     // work — no filesystem or network access happens here.
     const profileStore = new PluginDataProfileStore(this);
-    const bindingStore = new PluginDataBindingStore(this, getOrCreateMachineId(this.app));
+    const machineId = getOrCreateMachineId(this.app);
+    const bindingStore = new PluginDataBindingStore(this, machineId);
     // Spec 4.5: SnapshotStore is in-memory for WP-01, ONE instance shared by every
     // CityView this plugin ever constructs, so reopening a second leaf for the same
     // profile can find what a first leaf already scanned instead of re-authorising a
@@ -44,11 +56,29 @@ export default class CodebaseInspectorPlugin extends Plugin {
     // leaf (one high-water mark, one cache) and purged with its profile (Y17). It builds
     // and reads nothing until a view binds a codebase.
     const reviewRegistry = createReviewRepositoryRegistry(this);
+    // Part 7 Z21/Z22/Z36: ONE fallow analysis service per plugin, shared by every leaf.
+    // Building it spawns nothing, stats nothing and reads nothing: a run starts only from
+    // "Trust and run" or a passing pre-run check.
+    const analysis = createFallowAnalysisService({
+      store: createPluginDataAnalyzerStore(this, machineId),
+      inspector: createExecutableInspector(),
+      coordinator: new AnalysisCoordinator({
+        process: createFallowRunner(), evidence: evidenceStore, snapshots: snapshotStore, clock: SYSTEM_CLOCK, createCancellationToken,
+      }),
+      snapshots: snapshotStore,
+      getFilesystem: () => createNodeSourceFileSystem(),
+      machineId,
+      clock: SYSTEM_CLOCK,
+    });
+    this.analysis = analysis;
+    // Part 7 Z34: an operational failure tells the user even off Data & scans.
+    this.unwatchAnalysis = watchAnalysisFailures(analysis, (message) => { void new Notice(message, 8000); });
 
     this.registerView(CITY_VIEW_TYPE, (leaf: WorkspaceLeaf) => new CityView(leaf, this, {
       profileStore, getFilesystem: () => createNodeSourceFileSystem(), snapshotStore, clock: SYSTEM_CLOCK,
       reviewRepositoryFor: (repositoryId) => reviewRegistry.for(repositoryId),
       evidenceStore,
+      fallowAnalysis: analysis,
     }));
     this.addRibbonIcon('building-2', 'Open codebase city', () => { void openCity(this); });
     registerCommands(this);
@@ -84,5 +114,11 @@ export default class CodebaseInspectorPlugin extends Plugin {
 
   // Typed void and never awaited. Teardown is synchronous and idempotent.
   // NEVER detachLeavesOfType here (spec 4.4).
-  override onunload(): void {}
+  override onunload(): void {
+    // Part 7 Z24: stop watching, then kill every fallow child, synchronously; idempotent.
+    this.unwatchAnalysis?.();
+    this.unwatchAnalysis = null;
+    this.analysis?.shutdown();
+    this.analysis = null;
+  }
 }

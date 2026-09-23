@@ -37,7 +37,8 @@ import { applyReconciliationTo } from './view-reconciliation';
 import { pickUiState, seedStoreFromState } from './view-state-sync';
 import { CityScanController, provideScanCallbacks, type CityViewDeps } from './city-scan-controller';
 import { createLayoutPublisher, type LayoutPublisher } from './layout-publisher';
-import { requestReportImport, unwireDataPorts, wireDataPorts } from './data-ports';
+import { requestFallowRun, requestReportImport, unwireDataPorts, wireDataPorts } from './data-ports';
+import { useAnalysisStore } from '../ui/stores/analysis-store';
 import type { CityRendererPort } from '../visualization/renderer-port';
 import type { ScanLifecycleState } from '../application/run-state';
 import type { CodebaseSnapshot, CityViewState } from '../domain/model';
@@ -126,6 +127,17 @@ export class CityView extends ItemView {
   /** Part 6 Y39: Data & scans, plus a request SourcesScreen turns into the S14 dialog.
    *  Nothing without a snapshot: the first bind would silently drop the request. */
   openReportImport(): void { if (this.pinia && this.hasSnapshot()) requestReportImport(this.pinia); }
+
+  /** Part 7 Z35: Data & scans, plus a request SourcesScreen turns into a run or the review. */
+  requestFallowRun(): void { if (this.pinia && this.hasSnapshot()) requestFallowRun(this.pinia); }
+
+  /** Part 7 Z35: this leaf's codebase has an analysis probing, running or cancelling. */
+  isAnalysisActive(): boolean { return this.pinia ? useAnalysisStore(this.pinia).active : false; }
+
+  /** Part 7 Z35 (M36): probing or running, so there is something to cancel. */
+  isAnalysisCancellable(): boolean { return this.pinia ? useAnalysisStore(this.pinia).cancellable : false; }
+
+  cancelAnalysis(): void { if (this.pinia) useAnalysisStore(this.pinia).cancel(); }
 
   override async onOpen(): Promise<void> {
     this.contentEl.classList.add('codebase-inspector-root');

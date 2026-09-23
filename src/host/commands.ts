@@ -1,6 +1,7 @@
 // Registers the commands without the plugin-id prefix (spec 5.2): the three WP-01
-// commands open-city, scan-codebase and cancel-scan, and Part 6's
-// import-analysis-report (Y39). None for an unimplemented capability (spec 1).
+// commands open-city, scan-codebase and cancel-scan, Part 6's import-analysis-report (Y39),
+// and Part 7's run-fallow-analysis and cancel-fallow-analysis (Z35). Six in all; none for
+// an unimplemented capability (spec 1).
 //
 // Task 8 wires real bodies for scan-codebase and cancel-scan, operating on the ACTIVE
 // CityView (`getActiveViewOfType`, never the deprecated `workspace.activeLeaf` — spec
@@ -14,7 +15,7 @@
 import type { Plugin } from 'obsidian';
 import { CITY_VIEW_TYPE, CityView } from './city-view';
 import { COPY_09 } from '../ui/copy';
-import { FALLOW_COMMAND_IMPORT } from '../ui/inspector-copy';
+import { FALLOW_COMMAND_CANCEL, FALLOW_COMMAND_IMPORT, FALLOW_COMMAND_RUN } from '../ui/inspector-copy';
 
 /** Always opens a NEW city tab (ruling M9, review round 2). Multiple leaves are a
  *  first-class WP-01 capability, not an edge case: spec 4.4 says "the factory may run
@@ -81,6 +82,34 @@ export function registerCommands(plugin: Plugin): void {
       if (!view || !view.hasSnapshot()) return false;
       if (checking) return true;
       view.openReportImport();
+      return true;
+    },
+  });
+
+  plugin.addCommand({
+    id: 'run-fallow-analysis',
+    name: FALLOW_COMMAND_RUN,
+    // Part 7 Z35: only while the active city view shows a snapshot and its codebase has no
+    // analysis in flight. The body opens Data & scans and raises a request: SourcesScreen
+    // starts at once when trust holds, and otherwise opens the review. Nothing runs here.
+    checkCallback: (checking: boolean): boolean => {
+      const view = plugin.app.workspace.getActiveViewOfType(CityView);
+      if (!view || !view.hasSnapshot() || view.isAnalysisActive()) return false;
+      if (checking) return true;
+      view.requestFallowRun();
+      return true;
+    },
+  });
+
+  plugin.addCommand({
+    id: 'cancel-fallow-analysis',
+    name: FALLOW_COMMAND_CANCEL,
+    // Part 7 Z35, M36's rule: offered only while there is an analysis to cancel.
+    checkCallback: (checking: boolean): boolean => {
+      const view = plugin.app.workspace.getActiveViewOfType(CityView);
+      if (!view || !view.isAnalysisCancellable()) return false;
+      if (checking) return true;
+      view.cancelAnalysis();
       return true;
     },
   });

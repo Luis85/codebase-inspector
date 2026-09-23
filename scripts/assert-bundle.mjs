@@ -55,6 +55,16 @@ if (bundledBuiltins.length > 0) {
     + 'All Node access goes through window.require in src/adapters/filesystem/node-access.ts.');
 }
 
+// Part 7 Z38 (K23). The one sanctioned route to child_process is node-process-access.ts's
+// window.require: the module is named exactly once in the whole bundle, and that once is
+// the window.require call. A second mention would be a second process path.
+const childProcessMentions = main.split('node:child_process').length - 1;
+const childProcessRequires = requires.filter((m) => m[1] === 'window' && m[3] === 'node:child_process').length;
+if (childProcessMentions !== 1 || childProcessRequires !== 1) {
+  fail(`dist/main.js must name node:child_process exactly once, in window.require(…) `
+    + `(src/adapters/fallow/node-process-access.ts): found ${childProcessMentions} mention(s) and ${childProcessRequires} window.require call(s).`);
+}
+
 // Final-wave minor 2. The check above is about Node BUILT-INS only, so an ordinary
 // dependency added to vite.config.ts's `external` list — where it looks harmless — left
 // this script printing OK for a bundle that cannot load: a clean vault has no
