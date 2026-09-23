@@ -15,12 +15,13 @@ import { readFallowReportFile, reviewFallowCandidate, type FallowCandidate } fro
 import { useReadModels } from '../../read-models/use-read-models';
 import { useCityStore } from '../../stores/city-store';
 import { useEvidenceStore } from '../../stores/evidence-store';
+import { useAnalysisStore } from '../../stores/analysis-store';
 import { useUniqueId } from '../../unique-id';
 import {
   FALLOW_ATTACH, FALLOW_ATTACH_REFUSED, FALLOW_ATTACHED, FALLOW_CANCEL, FALLOW_CHOOSE, FALLOW_DIALOG_EYEBROW,
   FALLOW_DIALOG_INTRO, FALLOW_DIALOG_TITLE, FALLOW_DISCLOSURE, FALLOW_IMPORT_ERROR, FALLOW_INSTALL_NOTE, FALLOW_MAPPING_OFFER,
   FALLOW_REPLACE_NOTE, FALLOW_REVIEW_TITLE, FALLOW_ROUTE_IMPORT_TEXT, FALLOW_ROUTE_IMPORT_TITLE, FALLOW_ROUTE_RUN_ACTION,
-  FALLOW_ROUTE_RUN_TEXT, FALLOW_ROUTE_RUN_TITLE, FALLOW_SNAPSHOT_FILES,
+  FALLOW_ROUTE_RUN_TEXT, FALLOW_ROUTE_RUN_TITLE, FALLOW_RUN_BUSY_HINT, FALLOW_SNAPSHOT_FILES,
 } from '../../inspector-copy';
 import CiDialog from '../../kit/Dialog.vue';
 import { reannounce } from '../../kit/reannounce';
@@ -35,6 +36,7 @@ const emit = defineEmits<{ close: []; done: [message: string] }>();
 const route = ref<'choose' | 'installed'>(props.initialRoute);
 const city = useCityStore();
 const evidence = useEvidenceStore();
+const analysis = useAnalysisStore();
 const { files } = useReadModels();
 /** K32: one busy action for both routes, so Cancel/Escape/backdrop stay ignored mid-step. */
 const action = useBusyAction();
@@ -42,6 +44,7 @@ const { busy, error, requestClose: requestCloseWith, run } = action;
 const importHeadingId = useUniqueId('ci-connect-fallow-import');
 const runHeadingId = useUniqueId('ci-connect-fallow-run');
 const mappingId = useUniqueId('ci-connect-fallow-mapping');
+const busyHintId = useUniqueId('ci-connect-fallow-busy');
 /** Part 4 E8/E11: the codebase this dialog was opened for. Every async step checks it again. */
 const repositoryId = city.snapshot?.repositoryId ?? '';
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -71,9 +74,15 @@ function requestClose(): void {
   requestCloseWith(() => emit('close'));
 }
 
-/** Blocked while a read is in flight (aria-disabled plus this guard, E40). */
+/** Final review (Z32/K9): an import mid-run would supersede the run, and the command and Not
+ *  analysed's Import open this dialog without the card's guard. So, while this codebase's
+ *  fallow analysis is in flight, Choose and Attach are blocked here too (E40), with the
+ *  busy hint; the dialog still opens, so the request is answered rather than dropped. */
+const importBlocked = computed(() => busy.value || analysis.active);
+
+/** Blocked while a read is in flight, or mid-run (aria-disabled plus this guard, E40). */
 function choose(): void {
-  if (busy.value) return;
+  if (importBlocked.value) return;
   fileInput.value?.click();
 }
 
@@ -129,7 +138,7 @@ async function picked(): Promise<void> {
  *  immediately before `attach`; if it changed since the pick, nothing is applied. */
 function attach(): void {
   const c = candidate.value;
-  if (busy.value || !c || !review.value) return;
+  if (importBlocked.value || !c || !review.value) return;
   if (!bound()) { drop(); return; }
   // Fix round 1 (M1): the report belongs to the snapshot on screen NOW, the one the review
   // resolved against, and is imported now. A silent same-codebase refresh after the read
@@ -178,7 +187,8 @@ function attach(): void {
           <button
             type="button"
             class="mod-cta ci-connect-fallow__choose"
-            :aria-disabled="busy ? 'true' : undefined"
+            :aria-disabled="importBlocked ? 'true' : undefined"
+            :aria-describedby="analysis.active ? busyHintId : undefined"
             @click="choose"
           >
             {{ FALLOW_CHOOSE }}
@@ -238,6 +248,13 @@ function attach(): void {
         </p>
       </template>
       <p
+        v-if="route !== 'installed' && analysis.active"
+        :id="busyHintId"
+        class="ci-note ci-connect-fallow__busy"
+      >
+        {{ FALLOW_RUN_BUSY_HINT }}
+      </p>
+      <p
         v-if="error"
         class="ci-connect-fallow__error"
         role="alert"
@@ -260,7 +277,8 @@ function attach(): void {
           v-if="review"
           type="button"
           class="mod-cta ci-connect-fallow__attach"
-          :aria-disabled="busy ? 'true' : undefined"
+          :aria-disabled="importBlocked ? 'true' : undefined"
+          :aria-describedby="analysis.active ? busyHintId : undefined"
           @click="attach"
         >
           {{ FALLOW_ATTACH }}

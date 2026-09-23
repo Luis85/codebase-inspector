@@ -38,7 +38,10 @@ export function refusalBanner(code: FallowRunErrorCode, detail: string): FallowR
   return { tone: 'warning', icon: 'alert-triangle', text: COPY_15('fallow'), reason: FALLOW_RUN_ERROR[code](detail), kept: false, log: null };
 }
 
-export function fallowRunBannerOf(state: AnalysisRunState, hasEvidence: boolean): FallowRunBanner | null {
+/** `evidenceMarkedFailed`: the CURRENT report carries `staleReason: 'failed-run'`. "Kept" is
+ *  said only when this failure marked it AND the mark is still there: a later import or
+ *  removal replaced the report the failure kept (final review). */
+export function fallowRunBannerOf(state: AnalysisRunState, hasEvidence: boolean, evidenceMarkedFailed: boolean): FallowRunBanner | null {
   switch (state.status) {
     case 'idle': return null;
     case 'probing': return info('loader', FALLOW_RUN_PROBING(hasEvidence));
@@ -51,7 +54,7 @@ export function fallowRunBannerOf(state: AnalysisRunState, hasEvidence: boolean)
       const log = state.logExcerpt.slice(-LOG_SHOWN_CHARS);
       return {
         tone: 'warning', icon: 'alert-triangle', text: COPY_15('fallow'), reason: FALLOW_RUN_ERROR[state.code](state.detail),
-        kept: state.evidenceKept, log: log === '' ? null : log,
+        kept: state.evidenceKept && evidenceMarkedFailed, log: log === '' ? null : log,
       };
     }
     default: {

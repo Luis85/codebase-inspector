@@ -207,6 +207,21 @@ describe('AnalysisCoordinator: cancelled or superseded runs never publish (accep
     expect(s.evidence.get('p1')).toBe(imported);
   });
 
+  it('final review: a failure that did not mark the evidence stale never says it was kept', async () => {
+    const superseded = setup();
+    await probed(superseded);
+    superseded.evidence.put('p1', emptyEvidenceReport(SNAPSHOT.snapshotId, 'imported.json'));
+    await superseded.process.settle(exitedWith(0, REPORT));
+    expect(superseded.coordinator.stateOf('p1')).toMatchObject({ status: 'failed', code: 'superseded', evidenceKept: false });
+    const rescanned = setup();
+    rescanned.evidence.put('p1', emptyEvidenceReport(SNAPSHOT.snapshotId));
+    await probed(rescanned);
+    rescanned.snapshots.put({ ...SNAPSHOT, snapshotId: 'snapshot-newer' });
+    await rescanned.process.settle(exitedWith(0, REPORT));
+    expect(rescanned.coordinator.stateOf('p1')).toMatchObject({ status: 'failed', code: 'snapshot-changed', evidenceKept: false });
+    expect(rescanned.evidence.get('p1')?.staleReason).toBeUndefined();
+  });
+
   it('one run per codebase: a second start is refused while active, another codebase may run', async () => {
     const s = setup();
     expect(s.coordinator.start(plan())).toBe(true);

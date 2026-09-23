@@ -183,10 +183,12 @@ export class AnalysisCoordinator {
   }
 
   /** Z23: an operational failure keeps the evidence and marks it stale; the others leave it
-   *  as it was. Fix round 1: `markStale`'s own notify is isolated, same reasoning as `put`. */
+   *  as it was. Fix round 1: `markStale`'s own notify is isolated, same reasoning as `put`.
+   *  Final review: `evidenceKept` means THIS failure kept a report and marked it stale, so a
+   *  non-operational code (superseded, snapshot-changed, …) never reports it. */
   private fail(profileId: string, runId: string, code: FallowRunErrorCode, detail: string, logExcerpt: string): void {
-    const evidenceKept = this.deps.evidence.get(profileId) !== null;
-    if (evidenceKept && OPERATIONAL_FAILURES.has(code)) this.isolate(() => { this.deps.evidence.markStale(profileId); });
+    const evidenceKept = OPERATIONAL_FAILURES.has(code) && this.deps.evidence.get(profileId) !== null;
+    if (evidenceKept) this.isolate(() => { this.deps.evidence.markStale(profileId); });
     this.dispatch(profileId, { type: 'RUN_FAILED', runId, code, detail, logExcerpt, evidenceKept, finishedAt: this.deps.clock.nowIso() });
   }
 

@@ -5,7 +5,7 @@
 // Blocked controls stay focusable (aria-disabled plus a guarded handler, E40).
 // An unread or unreadable binding (the store's `null`) reads as "No executable chosen": there
 // is no spinner to hang, and Run still asks the service, which reads the record itself.
-import { computed } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useAnalysisStore } from '../../stores/analysis-store';
 import { useUniqueId } from '../../unique-id';
 import {
@@ -20,6 +20,8 @@ import FallowRunBanner from './FallowRunBanner.vue';
 
 const props = defineProps<{
   hasSnapshot: boolean; hasEvidence: boolean; busyHintId: string;
+  /** The current report carries `staleReason: 'failed-run'` (the banner's "kept", final review). */
+  evidenceMarkedFailed: boolean;
   refusal: { code: FallowRunErrorCode; detail: string } | null;
   /** A Run or a Forget that threw (use-fallow-run.ts); '' when there is none. */
   failure: string;
@@ -34,7 +36,7 @@ const banner = computed((): Banner | null => {
   }
   return props.refusal !== null && !analysis.active
     ? refusalBanner(props.refusal.code, props.refusal.detail)
-    : fallowRunBannerOf(analysis.run, props.hasEvidence);
+    : fallowRunBannerOf(analysis.run, props.hasEvidence, props.evidenceMarkedFailed);
 });
 const bound = computed(() => (analysis.binding?.kind === 'bound' ? analysis.binding.binding : null));
 const executableText = computed(() => {
@@ -52,6 +54,17 @@ const trustText = computed(() => {
   return FALLOW_TRUST_VALUE(version, version !== null && FALLOW_TESTED_VERSIONS.includes(version));
 });
 const canForget = computed(() => analysis.binding !== null && analysis.binding.kind !== 'none' && analysis.binding.kind !== 'unsupported');
+const forgetButton = ref<HTMLButtonElement | null>(null);
+const chooseButton = ref<HTMLButtonElement | null>(null);
+/** Final review: a Forget that succeeds unmounts the focused Forget button. This watcher runs
+ *  before that render (flush 'pre'), sees the focus still on it, and moves it to "Choose
+ *  executable…", which stays mounted, instead of letting it fall to <body>. */
+watch(canForget, async (now) => {
+  const el = forgetButton.value;
+  if (now || el === null || el.ownerDocument.activeElement !== el) return;
+  await nextTick();
+  chooseButton.value?.focus();
+});
 const chooseBlocked = computed(() => analysis.active || !props.hasSnapshot);
 /** E40: ONE element for Run and Cancel analysis, so the focus stays on it when the run starts,
  *  ends or goes to cancelling under it (two v-if branches would swap in a new <button>).
@@ -121,6 +134,7 @@ function forget(): void {
         {{ primary.label }}
       </button>
       <button
+        ref="chooseButton"
         type="button"
         class="ci-fallow-run__choose"
         :aria-disabled="chooseBlocked ? 'true' : undefined"
@@ -131,6 +145,7 @@ function forget(): void {
       </button>
       <button
         v-if="canForget"
+        ref="forgetButton"
         type="button"
         class="ci-fallow-run__forget"
         :aria-disabled="analysis.active ? 'true' : undefined"

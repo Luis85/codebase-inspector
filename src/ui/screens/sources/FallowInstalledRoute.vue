@@ -37,7 +37,9 @@ const review = shallowRef<RunReview | null>(null);
 const retrust = ref(false);
 const heading = ref<HTMLElement | null>(null);
 const input = ref<HTMLInputElement | null>(null);
-const hint = computed(() => (analysis.binding?.executableName === 'fallow' ? FALLOW_EXE_HINT_POSIX : FALLOW_EXE_HINT_WINDOWS));
+/** fallow.exe unless the service says `fallow` (the path hint and the review's Environment row). */
+const windows = computed(() => analysis.binding?.executableName !== 'fallow');
+const hint = computed(() => (windows.value ? FALLOW_EXE_HINT_WINDOWS : FALLOW_EXE_HINT_POSIX));
 let disposed = false;
 onBeforeUnmount(() => { disposed = true; });
 
@@ -190,7 +192,10 @@ onMounted(() => {
       >
         {{ FALLOW_REVIEW_RETRUST }}
       </p>
-      <FallowRunReview :review="review" />
+      <FallowRunReview
+        :review="review"
+        :windows="windows"
+      />
     </template>
     <div class="ci-connect-fallow__actions">
       <button

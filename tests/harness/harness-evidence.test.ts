@@ -96,8 +96,8 @@ describe('the harness fallow run (?fallow=installed, ?analysis=…, Part 7 Z42)'
 
   it('every seeded run state has a banner', () => {
     const snapshot = harnessSnapshot();
-    expect(fallowRunBannerOf(runningAnalysisState(snapshot), true)?.tone).toBe('info');
-    expect(fallowRunBannerOf(failedAnalysisState(), true)).toMatchObject({ tone: 'warning', kept: true });
-    expect(fallowRunBannerOf(completedAnalysisState(), true)?.icon).toBe('check');
+    expect(fallowRunBannerOf(runningAnalysisState(snapshot), true, false)?.tone).toBe('info');
+    expect(fallowRunBannerOf(failedAnalysisState(), true, true)).toMatchObject({ tone: 'warning', kept: true });
+    expect(fallowRunBannerOf(completedAnalysisState(), true, false)?.icon).toBe('check');
   });
 });

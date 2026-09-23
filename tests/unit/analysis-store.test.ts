@@ -1,12 +1,21 @@
 // Part 7 Z28: the per-leaf analysis store mirrors the plugin's service for the bound
 // codebase only, reads its binding, carries the command's run request, and drops its
 // subscription when the leaf goes.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
 import type { AnalysisIdentity } from '../../src/application/analysis/analysis-state';
+import { AnalysisCoordinator } from '../../src/application/analysis/analysis-coordinator';
+import { createFallowAnalysisService } from '../../src/application/analysis/fallow-analysis-service';
+import { createCancellationToken } from '../../src/application/scan-coordinator';
+import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
+import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { createFixedClock } from '../fixtures/clock';
+import { createFakeProcessPort } from '../fixtures/fake-process-port';
+import { createFakeExecutableInspector } from '../fixtures/fake-executable-inspector';
+import { createInMemoryAnalyzerStore } from '../fixtures/in-memory-analyzer-store';
 import { createFakeFallowAnalysis, fakeRunReview } from '../fixtures/fake-fallow-analysis';
 
 const ID: AnalysisIdentity = { profileId: 'p1', snapshotId: 's1', rootFingerprint: 'a', subjectFingerprint: 'b', runId: 'r1', generation: 0 };
@@ -101,8 +110,63 @@ describe('useAnalysisStore (Z28)', () => {
     const store = useAnalysisStore();
     store.setService(fake);
     store.bindRepository('p1');
-    expect(fake.listenerCount()).toBe(1);
+    expect([fake.listenerCount(), fake.bindingListenerCount()]).toEqual([1, 1]);
     store.$dispose();
-    expect(fake.listenerCount()).toBe(0);
+    expect([fake.listenerCount(), fake.bindingListenerCount()]).toEqual([0, 0]);
+  });
+});
+
+/** The REAL service over in-memory ports: nothing here runs a process. */
+function realService() {
+  const clock = createFixedClock('2026-09-23T10:00:00.000Z');
+  const snapshots = new InMemorySnapshotStore(clock);
+  const coordinator = new AnalysisCoordinator({
+    process: createFakeProcessPort(), evidence: new InMemoryEvidenceStore(), snapshots, clock, createCancellationToken,
+  });
+  const records = createInMemoryAnalyzerStore('m');
+  const service = createFallowAnalysisService({
+    store: records, inspector: createFakeExecutableInspector('fallow'), coordinator, snapshots,
+    getFilesystem: () => { throw new Error('unused: nothing is reviewed here'); }, machineId: 'm', clock,
+  });
+  return { records, service };
+}
+
+describe('useAnalysisStore follows binding writes made elsewhere (final review)', () => {
+  it('a time-limit change and a Forget made through the service (Settings) refresh an open store', async () => {
+    const { records, service } = realService();
+    await records.bind('p1', '/opt/fallow/bin/fallow');
+    const store = useAnalysisStore();
+    store.setService(service);
+    store.bindRepository('p1');
+    await flushPromises();
+    expect(store.binding).toMatchObject({ kind: 'bound', binding: { timeoutSeconds: 120 } });
+    expect(await service.setTimeLimit('p1', 300)).toBe('saved');
+    await flushPromises();
+    expect(store.binding).toMatchObject({ kind: 'bound', binding: { timeoutSeconds: 300 } });
+    expect(await service.forget('p1')).toBe('forgotten');
+    await flushPromises();
+    expect(store.binding).toEqual({ kind: 'none', executableName: 'fallow' });
+  });
+
+  it('ignores another codebase\'s writes, and stops listening when the leaf goes', async () => {
+    const { records, service } = realService();
+    await records.bind('p1', '/opt/fallow/bin/fallow');
+    await records.bind('p2', '/opt/fallow/bin/fallow');
+    const reads = vi.spyOn(service, 'readBinding');
+    const store = useAnalysisStore();
+    store.setService(service);
+    store.bindRepository('p1');
+    await flushPromises();
+    const settled = reads.mock.calls.length;
+    await service.setTimeLimit('p2', 300);
+    await flushPromises();
+    expect(reads.mock.calls.length).toBe(settled);
+    await service.setTimeLimit('p1', 240);
+    await flushPromises();
+    expect(reads.mock.calls).toHaveLength(settled + 1);
+    store.$dispose();
+    await service.forget('p1');
+    await flushPromises();
+    expect(reads.mock.calls).toHaveLength(settled + 1);
   });
 });

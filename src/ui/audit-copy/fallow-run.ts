@@ -58,11 +58,17 @@ export const FALLOW_REVIEW_ROW_VERSION = 'Version';
 export const FALLOW_FORMAT_LABEL: Readonly<Record<ExecutableFormat, string>> = {
   pe: 'Windows executable (PE)', elf: 'Linux executable (ELF)', 'mach-o': 'macOS executable (Mach-O)',
 };
-export const FALLOW_REVIEW_ENV = 'Only PATH, SystemRoot, TEMP, TMP, TMPDIR, HOME, USERPROFILE and LOCALAPPDATA are passed on, plus NO_COLOR=1. FALLOW_* settings and NODE_OPTIONS are not.';
+/** Final review: on Windows the OS always adds its own required variables to a child's
+ *  environment (libuv's USERNAME, USERDOMAIN, HOMEDRIVE, WINDIR, …), so "only" would be false there. */
+export const FALLOW_REVIEW_ENV = (windows: boolean): string => (windows
+  ? 'PATH, SystemRoot, TEMP, TMP, TMPDIR, HOME, USERPROFILE and LOCALAPPDATA are passed on, plus NO_COLOR=1 and the variables Windows always provides, such as USERNAME, USERDOMAIN, HOMEDRIVE and WINDIR. FALLOW_* settings and NODE_OPTIONS are not.'
+  : 'Only PATH, SystemRoot, TEMP, TMP, TMPDIR, HOME, USERPROFILE and LOCALAPPDATA are passed on, plus NO_COLOR=1. FALLOW_* settings and NODE_OPTIONS are not.');
 export const FALLOW_REVIEW_LIMIT = (seconds: number): string => `Stopped after ${seconds} seconds. Change it in Obsidian’s settings for Codebase Inspector.`;
 export const FALLOW_REVIEW_VERSION_PENDING = 'Checked after you trust it: fallow runs once with --version, for at most 5 seconds.';
+/** Final review: "Trust and run" trusts again, so any fallow 3.x passes the check and the
+ *  version it reports is recorded with the new trust; the earlier version is not enforced. */
 export const FALLOW_REVIEW_VERSION_KNOWN = (version: string, tested: boolean): string =>
-  `You trusted fallow ${version}${tested ? '' : ' (untested version)'}. It is checked again before the run.`;
+  `You last trusted fallow ${version}${tested ? '' : ' (untested version)'}. After you trust it again, fallow runs once with --version, and the version it reports is recorded with the trust.`;
 export const FALLOW_REVIEW_EFFECTS_TITLE = 'What running it does';
 export const FALLOW_REVIEW_EFFECTS: readonly string[] = [
   'Writes nothing to the folder: --no-cache turns fallow’s cache off. Checked with fallow 3.27.0.',

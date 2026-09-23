@@ -18,7 +18,7 @@ import {
   FALLOW_TRUST_VALUE,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
-import { attachSyntheticReport } from '../fixtures/evidence-report';
+import { attachSyntheticReport, syntheticEvidenceReport } from '../fixtures/evidence-report';
 import { createFakeFallowAnalysis, fakeRunReview, type FakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
 
 const ID: AnalysisIdentity = { profileId: 'p1', snapshotId: 'snapshot-fixture', rootFingerprint: 'a', subjectFingerprint: 'b', runId: 'r1', generation: 0 };
@@ -44,6 +44,13 @@ function setup(options: { snapshot?: boolean; evidence?: boolean } = {}): FakeFa
     analysis.bindRepository('p1');
   }
   return fake;
+}
+
+/** What the coordinator's markStale leaves behind after an operational failure (Z23). */
+function markFailedRun(): void {
+  const evidence = useEvidenceStore();
+  if (evidence.report === null) throw new Error('test setup: no report to mark');
+  evidence.attach({ ...evidence.report, staleReason: 'failed-run' });
 }
 
 beforeEach(() => { setActivePinia(createPinia()); });
@@ -121,6 +128,24 @@ describe('the run panel (Z32)', () => {
     expect(w.find('.ci-sources__live').text()).toContain('fallow executable forgotten');
     w.unmount();
   });
+
+  it('final review: after a Forget the focus moves to Choose executable…, never to <body>', async () => {
+    const fake = setup();
+    fake.setBinding('p1', BOUND);
+    fake.forget = (profileId) => { fake.setBinding(profileId, { kind: 'none' }); return Promise.resolve('forgotten'); };
+    const w = mountS();
+    await flushPromises();
+    const forget = w.find<HTMLButtonElement>('.ci-fallow-run__forget');
+    forget.element.focus();
+    expect(document.activeElement).toBe(forget.element);
+    await forget.trigger('click');
+    await flushPromises();
+    expect(w.find('.ci-fallow-run__forget').exists()).toBe(false);
+    const choose = w.find('.ci-fallow-run__choose');
+    expect(choose.text()).toBe(FALLOW_EXE_CHOOSE);
+    expect(document.activeElement).toBe(choose.element);
+    w.unmount();
+  });
 });
 
 describe('the run banner (Z33)', () => {
@@ -136,6 +161,7 @@ describe('the run banner (Z33)', () => {
 
   it('a failure shows COPY-15, the reason, that the findings were kept, and the log as text', async () => {
     const fake = setup({ evidence: true });
+    markFailedRun();
     fake.setState('p1', { status: 'failed', runId: 'r1', code: 'analyzer-error', detail: 'bad root', logExcerpt: '<img src=x onerror=alert(1)>', evidenceKept: true, finishedAt: AT });
     const w = mountS();
     await flushPromises();
@@ -145,6 +171,32 @@ describe('the run banner (Z33)', () => {
     expect(w.find('.ci-fallow-run__kept').text()).toBe(FALLOW_RUN_KEPT);
     expect(w.find('.ci-fallow-run__log pre').text()).toBe('<img src=x onerror=alert(1)>');
     expect(w.find('.ci-fallow-run__log img').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('final review: a failed run followed by a successful import no longer says the findings were kept', async () => {
+    const fake = setup({ evidence: true });
+    markFailedRun();
+    fake.setState('p1', { status: 'failed', runId: 'r1', code: 'timed-out', detail: '120', logExcerpt: '', evidenceKept: true, finishedAt: AT });
+    const w = mountS();
+    await flushPromises();
+    expect(w.find('.ci-fallow-run__kept').text()).toBe(FALLOW_RUN_KEPT);
+    const snap = useCityStore().snapshot;
+    if (snap === null) throw new Error('test setup: no snapshot');
+    expect(useEvidenceStore().attach(syntheticEvidenceReport(snap))).toBe(true);
+    await flushPromises();
+    expect(w.find('.ci-fallow-run__banner').text()).toContain(COPY_15('fallow'));
+    expect(w.find('.ci-fallow-run__kept').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('final review: a superseded run, with findings on screen, never says they were kept', async () => {
+    const fake = setup({ evidence: true });
+    fake.setState('p1', { status: 'failed', runId: 'r1', code: 'superseded', detail: '', logExcerpt: '', evidenceKept: true, finishedAt: AT });
+    const w = mountS();
+    await flushPromises();
+    expect(w.find('.ci-fallow-run__reason').text()).toBe(FALLOW_RUN_ERROR.superseded(''));
+    expect(w.find('.ci-fallow-run__kept').exists()).toBe(false);
     w.unmount();
   });
 });

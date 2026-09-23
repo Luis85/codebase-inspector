@@ -104,6 +104,7 @@ function remove(): void {
     <FallowRunPanel
       :has-snapshot="hasSnapshot"
       :has-evidence="report !== null"
+      :evidence-marked-failed="report?.staleReason === 'failed-run'"
       :busy-hint-id="busyId"
       :refusal="refusal"
       :failure="failure"

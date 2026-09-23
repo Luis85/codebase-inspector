@@ -13,7 +13,8 @@ import {
   FALLOW_REVIEW_ROW_VERSION, FALLOW_REVIEW_VERSION_KNOWN, FALLOW_REVIEW_VERSION_PENDING,
 } from '../../inspector-copy';
 
-const props = defineProps<{ review: RunReview }>();
+/** `windows`: the platform's executable is fallow.exe (final review: the Environment row). */
+const props = defineProps<{ review: RunReview; windows: boolean }>();
 const modified = computed(() => formatAbsoluteTime(new Date(props.review.facts.mtimeMs).toISOString(), Intl));
 const realDiffers = computed(() => props.review.facts.realPath !== props.review.facts.executablePath);
 const version = computed(() => {
@@ -58,7 +59,7 @@ const version = computed(() => {
         </ol>
       </dd>
       <dt>{{ FALLOW_REVIEW_ROW_ENV }}</dt>
-      <dd>{{ FALLOW_REVIEW_ENV }}</dd>
+      <dd>{{ FALLOW_REVIEW_ENV(windows) }}</dd>
       <dt>{{ FALLOW_REVIEW_ROW_LIMIT }}</dt>
       <dd>{{ FALLOW_REVIEW_LIMIT(review.timeoutSeconds) }}</dd>
       <dt>{{ FALLOW_REVIEW_ROW_VERSION }}</dt>

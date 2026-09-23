@@ -14,26 +14,31 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
 import {
-  FALLOW_DISCLOSURE, FALLOW_EXE_HINT_WINDOWS, FALLOW_EXE_LABEL, FALLOW_EXE_REFUSED, FALLOW_INSTALL_NOTE,
-  FALLOW_REVIEW_EFFECTS, FALLOW_REVIEW_INSIDE_ROOT, FALLOW_REVIEW_TITLE_RUN, FALLOW_REVIEW_VERSION_PENDING, FALLOW_ROUTE_IMPORT_TITLE,
+  FALLOW_DISCLOSURE, FALLOW_EXE_HINT_WINDOWS, FALLOW_EXE_LABEL, FALLOW_EXE_REFUSED, FALLOW_INSTALL_NOTE, FALLOW_REVIEW_ENV,
+  FALLOW_REVIEW_EFFECTS, FALLOW_REVIEW_INSIDE_ROOT, FALLOW_REVIEW_TITLE_RUN, FALLOW_REVIEW_VERSION_KNOWN, FALLOW_REVIEW_VERSION_PENDING, FALLOW_ROUTE_IMPORT_TITLE,
   FALLOW_ROUTE_RUN_TEXT, FALLOW_ROUTE_RUN_TITLE, FALLOW_RUN_BUSY_HINT, FALLOW_RUN_ERROR, FALLOW_RUN_START_FAILED,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { syntheticFallowJson } from '../fixtures/evidence-report';
 import { createFakeFallowAnalysis, fakeRunReview, type FakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
 
-const BOUND = { kind: 'bound', binding: { profileId: 'p1', executablePath: 'D:\\bin\\fallow.exe', timeoutSeconds: 120, trust: null } } as const;
+const RUNNING = {
+  status: 'running', rootPath: '/fixture/root', startedAt: '2026-09-23T10:00:00.000Z', timeoutSeconds: 120, version: '3.27.0', tested: true,
+  identity: { profileId: 'p1', snapshotId: 'snapshot-fixture', rootFingerprint: 'a', subjectFingerprint: 'b', runId: 'r1', generation: 0 },
+} as const;
+const BOUND ={ kind: 'bound', binding: { profileId: 'p1', executablePath: 'D:\\bin\\fallow.exe', timeoutSeconds: 120, trust: null } } as const;
 const mountS = () => mount(SourcesScreen, {
   attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn(), onScanRequested: vi.fn(), onCancelScan: vi.fn() } },
 });
 type Wrapper = ReturnType<typeof mountS>;
 
-function setup(): { snap: CodebaseSnapshot; fake: FakeFallowAnalysis } {
+function setup(executableName: 'fallow.exe' | 'fallow' = 'fallow.exe'): { snap: CodebaseSnapshot; fake: FakeFallowAnalysis } {
   const snap = buildSnapshotFixture({ files: 6, repositoryId: 'p1' });
   useCityStore().setCity(snap, computeLayout(snap));
   const evidence = useEvidenceStore();
   evidence.setRepository(new InMemoryEvidenceStore());
   evidence.bindRepository('p1');
-  const fake = createFakeFallowAnalysis();
+  const fake = createFakeFallowAnalysis(executableName);
   const analysis = useAnalysisStore();
   analysis.setService(fake);
   analysis.bindRepository('p1');
@@ -270,6 +275,64 @@ describe('the installed route: focus, the bound path, failures and a codebase sw
     expect(w.find('.ci-fallow-review').exists()).toBe(false);
     expect(w.find('[role="dialog"]').exists()).toBe(false);
     expect(fake.calls.filter((c) => c.method === 'review')).toHaveLength(1);
+    w.unmount();
+  });
+});
+
+describe('final review: the review tells the truth, and an import cannot land mid-run', () => {
+  it('the Environment row names the variables Windows always adds for fallow.exe, and not for fallow', async () => {
+    for (const [name, windows] of [['fallow.exe', true], ['fallow', false]] as const) {
+      setActivePinia(createPinia());
+      setup(name);
+      const w = mountS();
+      await flushPromises();
+      await toInstalled(w);
+      await checkPath(w, name === 'fallow' ? '/opt/fallow/fallow' : 'C:\\Tools\\fallow\\fallow.exe');
+      const facts = w.find('.ci-fallow-review__facts').text();
+      expect(facts.includes('USERNAME'), name).toBe(windows);
+      expect(facts, name).toContain(FALLOW_REVIEW_ENV(windows));
+      w.unmount();
+    }
+  });
+
+  it('a previously trusted version is described as checked and recorded after you trust it, never as pinned', async () => {
+    const { snap, fake } = setup();
+    fake.next.review = { ok: true, review: fakeRunReview('p1', snap.snapshotId, snap.scope.rootPath, { trustedVersion: '3.21.0' }) };
+    const w = mountS();
+    await toInstalled(w);
+    await checkPath(w, 'C:\\Tools\\fallow\\fallow.exe');
+    const facts = w.find('.ci-fallow-review__facts').text();
+    expect(facts).toContain('recorded with the trust');
+    expect(facts).not.toContain('checked again before the run');
+    expect(facts).toContain(FALLOW_REVIEW_VERSION_KNOWN('3.21.0', true));
+    w.unmount();
+  });
+
+  it('K9/Z32: an import the command opens during a running analysis cannot choose a file or attach one', async () => {
+    const { snap, fake } = setup();
+    fake.setState('p1', RUNNING);
+    const w = mountS();
+    await flushPromises();
+    useEvidenceStore().requestImport();
+    await flushPromises();
+    expect(w.find('[role="dialog"]').exists()).toBe(true);
+    const choose = w.find('.ci-connect-fallow__choose');
+    expect(choose.attributes('aria-disabled')).toBe('true');
+    expect(w.find(`#${choose.attributes('aria-describedby') ?? 'missing'}`).text()).toBe(FALLOW_RUN_BUSY_HINT);
+    const input = w.find<HTMLInputElement>('.ci-connect-fallow__file');
+    const clicked = vi.spyOn(input.element, 'click');
+    await choose.trigger('click');
+    expect(clicked).not.toHaveBeenCalled();
+    // A file that still arrives (picked before the run started) is reviewed, but never attached.
+    Object.defineProperty(input.element, 'files', { value: [new File([syntheticFallowJson(snap)], 'r.json')], configurable: true });
+    await input.trigger('change');
+    await flushPromises();
+    const attach = w.find('.ci-connect-fallow__attach');
+    expect(attach.attributes('aria-disabled')).toBe('true');
+    await attach.trigger('click');
+    await flushPromises();
+    expect(useEvidenceStore().report).toBeNull();
+    expect(w.find('[role="dialog"]').exists()).toBe(true);
     w.unmount();
   });
 });

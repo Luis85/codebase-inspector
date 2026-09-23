@@ -65,6 +65,10 @@ export interface FallowAnalysisService {
   purgeProfile(profileId: string): Promise<void>;
   stateOf(profileId: string): AnalysisRunState;
   subscribe(listener: (profileId: string) => void): () => void;
+  /** Final review: told the profile id after every successful data.json write (bind, trust,
+   *  revoke, forget, time limit, purge), wherever it came from (Settings or a card), so
+   *  every open leaf re-reads the binding. */
+  onBindingChanged(listener: (profileId: string) => void): () => void;
   shutdown(): void;
 }
 
@@ -98,7 +102,29 @@ function normalisedPath(raw: string): string | null {
 }
 
 export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): FallowAnalysisService {
-  const { store, inspector, coordinator, snapshots, machineId, clock } = deps;
+  const { inspector, coordinator, snapshots, machineId, clock } = deps;
+  const bindingListeners = new Set<(profileId: string) => void>();
+  /** A throwing listener is surfaced on its own microtask (the coordinator's `isolate` rule):
+   *  it never fails the write that already succeeded, nor starves the other listeners. */
+  const bindingChanged = (profileId: string): void => {
+    for (const listener of Array.from(bindingListeners)) {
+      try {
+        listener(profileId);
+      } catch (e) {
+        queueMicrotask(() => { throw e; });
+      }
+    }
+  };
+  /** The binding store, announcing each write that succeeded (a rejected write changed nothing). */
+  const store: AnalyzerBindingStore = {
+    read: (profileId) => deps.store.read(profileId),
+    bind: async (profileId, executablePath) => { await deps.store.bind(profileId, executablePath); bindingChanged(profileId); },
+    setTimeoutSeconds: async (profileId, seconds) => { await deps.store.setTimeoutSeconds(profileId, seconds); bindingChanged(profileId); },
+    grantTrust: async (profileId, trust, expectedPath) => { await deps.store.grantTrust(profileId, trust, expectedPath); bindingChanged(profileId); },
+    revokeTrust: async (profileId) => { await deps.store.revokeTrust(profileId); bindingChanged(profileId); },
+    forget: async (profileId) => { await deps.store.forget(profileId); bindingChanged(profileId); },
+    purge: async (profileId) => { await deps.store.purge(profileId); bindingChanged(profileId); },
+  };
 
   async function rootIsDirectory(rootPath: string): Promise<boolean> {
     try {
@@ -243,6 +269,10 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
 
     stateOf: (profileId) => coordinator.stateOf(profileId),
     subscribe: (listener) => coordinator.subscribe(listener),
-    shutdown: () => { coordinator.shutdown(); },
+    onBindingChanged: (listener) => {
+      bindingListeners.add(listener);
+      return () => { bindingListeners.delete(listener); };
+    },
+    shutdown: () => { coordinator.shutdown(); bindingListeners.clear(); },
   };
 }

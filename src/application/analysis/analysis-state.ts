@@ -14,6 +14,9 @@ export interface AnalysisIdentity {
   generation: number;
 }
 
+/** `failed.evidenceKept`: this failure kept a report and marked it `staleReason: 'failed-run'`
+ *  (operational failures only, Z23). A later import or removal replaces that report, so the
+ *  banner also checks the CURRENT report still carries the mark (final review). */
 export type AnalysisRunState =
   | { status: 'idle' }
   | { status: 'probing'; identity: AnalysisIdentity; rootPath: string; startedAt: string; timeoutSeconds: number }

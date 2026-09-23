@@ -52,6 +52,30 @@ async function reviewed(s: ReturnType<typeof setup>) {
   return result.review;
 }
 
+describe('every binding write is announced (final review)', () => {
+  it('bind, trust, a time limit, a Forget and a purge each notify with the profile id; a refused write does not', async () => {
+    const s = setup();
+    const changed: string[] = [];
+    const off = s.service.onBindingChanged((id) => { changed.push(id); });
+    expect(await s.service.trustAndRun('p1', SNAPSHOT, await reviewed(s))).toEqual({ kind: 'started' });
+    expect(changed).toEqual(['p1']);
+    await s.process.settle(exitedWith(0, 'fallow 3.27.0\n'));
+    expect(changed).toEqual(['p1', 'p1']);
+    s.service.cancel('p1');
+    await delay(0);
+    changed.length = 0;
+    expect(await s.service.setTimeLimit('p1', 5)).toBe('invalid');
+    expect(await s.service.setTimeLimit('p1', 300)).toBe('saved');
+    expect(await s.service.forget('p1')).toBe('forgotten');
+    await s.service.purgeProfile('p2');
+    expect(changed).toEqual(['p1', 'p1', 'p2']);
+    off();
+    await trusted(s);
+    await s.service.forget('p1');
+    expect(changed).toEqual(['p1', 'p1', 'p2']);
+  });
+});
+
 describe('reading and reviewing never execute (Z22, Z36)', () => {
   it('readBinding adds the platform\'s executable name', async () => {
     const s = setup();
