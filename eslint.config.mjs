@@ -18,7 +18,7 @@ export default tseslint.config(
   // other unrelated third-party plugins' bundled main.js) — never our source.
   // tests/fixtures/fallow/project/** is Part 6's fallow fixture project (Y21): analysed by
   // fallow, excluded from tsconfig.test.json, so it cannot be type-aware linted either.
-  { ignores: ['dist/**', 'docs/**', 'node_modules/**', 'package.json', '.obsidian/**', 'tests/fixtures/fallow/project/**'] },
+  { ignores: ['dist/**', 'docs/**', 'node_modules/**', 'package.json', '.obsidian/**', 'tests/fixtures/fallow/project/**', '.fallow-bin/**'] },
   ...tseslint.configs.recommendedTypeChecked,
   ...vue.configs['flat/recommended'],
   ...obsidianmd.configs.recommended,   // no-nodejs-modules, hardcoded-config-path,

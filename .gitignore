@@ -3,3 +3,4 @@ dist/
 .env
 .obsidian
 harness-shots/
+.fallow-bin/
