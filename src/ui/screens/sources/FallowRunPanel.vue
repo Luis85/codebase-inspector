@@ -10,12 +10,12 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useAnalysisStore } from '../../stores/analysis-store';
 import { useUniqueId } from '../../unique-id';
 import {
-  FALLOW_TESTED_VERSIONS, fallowRunBannerOf, refusalBanner, type FallowRunBanner as Banner, type FallowRunErrorCode,
+  FALLOW_TESTED_VERSIONS, failureBanner, fallowRunBannerOf, refusalBanner, type FallowRunBanner as Banner, type FallowRunErrorCode,
 } from '../../read-models/fallow-run';
 import {
   FALLOW_EXE_CHANGE, FALLOW_EXE_CHOOSE, FALLOW_EXE_FORGET, FALLOW_EXE_INVALID, FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE,
   FALLOW_EXE_READ_FAILED, FALLOW_EXE_UNSUPPORTED, FALLOW_LIMIT_VALUE, FALLOW_ROW_EXECUTABLE, FALLOW_ROW_LIMIT, FALLOW_ROW_TRUST, FALLOW_RUN_ACTION,
-  FALLOW_RUN_CANCEL, FALLOW_RUN_HINT, FALLOW_TRUST_VALUE,
+  FALLOW_RUN_CANCEL, FALLOW_RUN_CANCELLING_HINT, FALLOW_RUN_HINT, FALLOW_TRUST_VALUE,
 } from '../../inspector-copy';
 import FallowRunBanner from './FallowRunBanner.vue';
 
@@ -30,10 +30,11 @@ const props = defineProps<{
 const emit = defineEmits<{ run: []; cancel: []; choose: []; forget: [] }>();
 const analysis = useAnalysisStore();
 const runHintId = useUniqueId('ci-fallow-run-hint');
+const cancellingHintId = useUniqueId('ci-fallow-run-cancelling');
 
 const banner = computed((): Banner | null => {
   if (!analysis.active && props.failure !== '') {
-    return { tone: 'warning', icon: 'alert-triangle', text: props.failure, reason: null, kept: false, log: null };
+    return failureBanner(props.failure);
   }
   return props.refusal !== null && !analysis.active
     ? refusalBanner(props.refusal.code, props.refusal.detail)
@@ -78,7 +79,7 @@ const executableId = useUniqueId('ci-fallow-run-exe');
 const primary = computed(() => {
   if (analysis.active) {
     const blocked = !analysis.cancellable;
-    return { label: FALLOW_RUN_CANCEL, className: 'ci-fallow-run__cancel', blocked, describedBy: blocked ? props.busyHintId : undefined };
+    return { label: FALLOW_RUN_CANCEL, className: 'ci-fallow-run__cancel', blocked, describedBy: blocked ? cancellingHintId : undefined };
   }
   const blocked = !props.hasSnapshot;
   return { label: FALLOW_RUN_ACTION, className: 'mod-cta ci-fallow-run__run', blocked, describedBy: blocked ? runHintId : undefined };
@@ -128,6 +129,13 @@ function forget(): void {
       class="ci-note ci-fallow-run__hint"
     >
       {{ FALLOW_RUN_HINT }}
+    </p>
+    <p
+      v-if="analysis.active && !analysis.cancellable"
+      :id="cancellingHintId"
+      class="visually-hidden"
+    >
+      {{ FALLOW_RUN_CANCELLING_HINT }}
     </p>
     <div class="ci-fallow-run__actions">
       <button

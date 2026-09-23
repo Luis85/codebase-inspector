@@ -89,6 +89,9 @@ export const FALLOW_EXE_CHANGE = 'Change executable…';
 export const FALLOW_EXE_FORGET = 'Forget executable';
 export const FALLOW_EXE_FORGOTTEN = 'fallow executable forgotten for this codebase. It runs again only after you choose and trust one.';
 export const FALLOW_ROW_EXECUTABLE = 'Executable';
+/** Polish C19: moved from audit-copy/fallow.ts, where it duplicated this string for the
+ *  evidence badge; both call sites read it from here now, through inspector-copy.ts. */
+export const FALLOW_ROW_COLLECTED = 'Collected';
 export const FALLOW_ROW_TRUST = 'Trust';
 export const FALLOW_ROW_LIMIT = 'Time limit';
 export const FALLOW_LIMIT_VALUE = (seconds: number): string => `${seconds} seconds`;
@@ -103,10 +106,14 @@ export const FALLOW_EXE_UNSUPPORTED = 'This codebase’s executable setting was 
 export const FALLOW_EXE_READ_FAILED = 'This codebase’s executable setting could not be read from the plugin’s data file. Nothing was changed. Try again, or reopen this codebase.';
 export const FALLOW_RUN_HINT = 'Open a codebase first: fallow runs on the folder of the codebase on screen.';
 export const FALLOW_RUN_BUSY_HINT = 'Wait for the fallow analysis to finish, or cancel it.';
+/** Polish C3: what a blocked Cancel analysis says while the run is already stopping. */
+export const FALLOW_RUN_CANCELLING_HINT = 'The analysis is already being stopped. It ends in a few seconds.';
 /** A check, a Run, or a Trust and run whose data-file read or write threw (the store rejects,
  *  Task 9). Inspection never throws: its failures are refusals (FALLOW_EXE_REFUSED). */
 export const FALLOW_RUN_START_FAILED = 'The fallow analysis could not be started: the plugin’s data file could not be read or updated. Nothing was run; current findings are unchanged.';
-export const FALLOW_EXE_FORGET_FAILED = 'The fallow executable could not be forgotten: the plugin’s data file could not be updated. Try again.';
+/** QF10: ends "Nothing was changed", true for every record kind Forget is offered on
+ *  (canForget excludes 'none' and 'unsupported'), instead of naming what stays. */
+export const FALLOW_EXE_FORGET_FAILED = 'The fallow executable could not be forgotten: the plugin’s data file could not be updated. Nothing was changed.';
 
 /* The run banner (Z33). K26: "current findings stay" is said only when there are some. */
 export const FALLOW_RUN_PROBING = (hasEvidence: boolean): string =>

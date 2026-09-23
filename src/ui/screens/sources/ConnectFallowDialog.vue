@@ -9,7 +9,9 @@
 //   same dialog and under its busy action); nothing runs before its "Trust and run".
 // Nothing is installed. A failure never touches the attached evidence (Y31), and report
 // text is only ever interpolated (E34).
-import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import {
+  computed, inject, nextTick, onBeforeUnmount, ref, shallowRef, watch,
+} from 'vue';
 import { formatAbsoluteTime } from '../../copy';
 import { readFallowReportFile, reviewFallowCandidate, type FallowCandidate } from '../../read-models/fallow-candidate';
 import { useReadModels } from '../../read-models/use-read-models';
@@ -53,6 +55,10 @@ const busyHintId = useUniqueId('ci-connect-fallow-busy');
 const repositoryId = city.snapshot?.repositoryId ?? '';
 const fileInput = ref<HTMLInputElement | null>(null);
 const reviewHeading = ref<HTMLElement | null>(null);
+/** Polish C17 (Y27, QF4/QF11): time comes from the host's clock when one is provided, as
+ *  SnapshotStatus reads it; renamed from `now` to avoid colliding with `attach()`'s local
+ *  `now`. A test seam only, defaulting to the wall clock (no production provider added). */
+const clockNow = inject<() => Date>('now', () => new Date());
 const candidate = shallowRef<FallowCandidate | null>(null);
 const mapped = ref(false);
 const snapshotPaths = computed<ReadonlySet<string>>(() => new Set(files.value.map((f) => f.path)));
@@ -123,7 +129,7 @@ async function picked(): Promise<void> {
     }
     // For the review only: Attach sets both again from the snapshot on screen then (M1).
     const next: FallowCandidate = {
-      raw: result.report, fileName: file.name, importedAt: new Date().toISOString(), snapshotId: city.snapshot?.snapshotId ?? '',
+      raw: result.report, fileName: file.name, importedAt: clockNow().toISOString(), snapshotId: city.snapshot?.snapshotId ?? '',
     };
     if (reviewFallowCandidate(next, snapshotPaths.value, false).mismatch) {
       await reannounce(error, FALLOW_IMPORT_ERROR['source-mismatch'](''));
@@ -147,8 +153,8 @@ function attach(): void {
   // Fix round 1 (M1): the report belongs to the snapshot on screen NOW, the one the review
   // resolved against, and is imported now. A silent same-codebase refresh after the read
   // would otherwise make the report read Stale the moment it is attached.
-  const now = { ...c, snapshotId: city.snapshot?.snapshotId ?? '', importedAt: new Date().toISOString() };
-  const r = reviewFallowCandidate(now, snapshotPaths.value, mapped.value);
+  const next = { ...c, snapshotId: city.snapshot?.snapshotId ?? '', importedAt: clockNow().toISOString() };
+  const r = reviewFallowCandidate(next, snapshotPaths.value, mapped.value);
   // E48 (M5): that refresh can also leave the report no match at all. Refused as at the
   // pick (Y26), in the dialog's alert; the attached evidence is untouched (Y31).
   if (r.mismatch) { void reannounce(error, FALLOW_IMPORT_ERROR['source-mismatch']('')); return; }
@@ -170,7 +176,17 @@ function attach(): void {
         @close="requestClose"
         @started="emit('done', '')"
         @clear-error="clearError"
-      />
+      >
+        <template #alert>
+          <p
+            v-if="error"
+            class="ci-connect-fallow__error"
+            role="alert"
+          >
+            {{ error }}
+          </p>
+        </template>
+      </FallowInstalledRoute>
       <template v-else-if="!review">
         <p class="ci-connect-fallow__eyebrow">
           {{ FALLOW_DIALOG_EYEBROW }}
@@ -259,7 +275,7 @@ function attach(): void {
         {{ FALLOW_RUN_BUSY_HINT }}
       </p>
       <p
-        v-if="error"
+        v-if="error && route !== 'installed'"
         class="ci-connect-fallow__error"
         role="alert"
       >

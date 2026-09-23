@@ -3,11 +3,13 @@
 // then the review of exactly what will run, then "Trust and run". Checking a path only
 // INSPECTS it (a stat and 4 bytes); nothing runs before "Trust and run", and the version
 // probe happens only after it. It shares the dialog's busy action (K32), so Cancel, Escape
-// and the backdrop stay ignored while a check or a start is in flight (Part 4 E13), and its
-// refusals land in the dialog's one role="alert". It never assigns to that action: clearing
-// the alert is the dialog's (`clear-error`, PF13). The codebase is checked again around each
-// async step (Part 6 E36); a late answer after a switch is dropped, and the route closes
-// once the step has settled (PF17a: while busy, the dialog ignores a close).
+// and the backdrop stay ignored while a check or a start is in flight (Part 4 E13). Polish
+// C6: the dialog passes its one role="alert" through the `alert` slot, so it sits above this
+// route's actions, as it does on the import route. It never assigns to that action. Only
+// 'Change path' clears the alert, by emitting `clear-error` (PF13); every other step replaces
+// its text through `reannounce`. The codebase is checked again around each async step (Part 6
+// E36); a late answer after a switch is dropped, and the route closes once the step has
+// settled (PF17a: while busy, the dialog ignores a close).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 import type { CodebaseSnapshot } from '../../../domain/model';
 import { useCityStore } from '../../stores/city-store';
@@ -145,7 +147,9 @@ onMounted(() => {
   const start = props.start;
   if (start?.startAt === 'review') { void showReview(start.review, start.reason === 'changed'); return; }
   if (start?.startAt === 'path' || binding?.kind !== 'bound') { void focusOn('heading'); return; }
-  void check();
+  // Polish C5: focus is inside the route before the check starts, so a refusal (which lands in
+  // the dialog's alert) or a thrown step never leaves it on the removed "Use installed fallow…".
+  void focusOn('heading').then(check);
 });
 </script>
 
@@ -198,6 +202,7 @@ onMounted(() => {
         :windows="windows"
       />
     </template>
+    <slot name="alert" />
     <div class="ci-connect-fallow__actions">
       <button
         type="button"

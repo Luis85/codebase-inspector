@@ -14,8 +14,8 @@ import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
 import {
   COPY_15, FALLOW_EXE_CHANGE, FALLOW_EXE_CHOOSE, FALLOW_EXE_FORGET_FAILED, FALLOW_EXE_NONE, FALLOW_RUN_ACTION, FALLOW_RUN_BUSY_HINT,
-  FALLOW_RUN_CANCEL, FALLOW_RUN_CANCELLED, FALLOW_RUN_COMPLETED, FALLOW_RUN_ERROR, FALLOW_RUN_HINT, FALLOW_RUN_KEPT, FALLOW_RUN_START_FAILED,
-  FALLOW_EXE_READ_FAILED, FALLOW_TRUST_VALUE,
+  FALLOW_RUN_CANCEL, FALLOW_RUN_CANCELLED, FALLOW_RUN_CANCELLING_HINT, FALLOW_RUN_COMPLETED, FALLOW_RUN_ERROR, FALLOW_RUN_HINT, FALLOW_RUN_KEPT,
+  FALLOW_RUN_START_FAILED, FALLOW_EXE_READ_FAILED, FALLOW_TRUST_VALUE,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { attachSyntheticReport, syntheticEvidenceReport } from '../fixtures/evidence-report';
@@ -293,7 +293,7 @@ describe('Run and Cancel keep the focus (E40)', () => {
     await flushPromises();
     expect(document.activeElement).toBe(button);
     expect(button.getAttribute('aria-disabled')).toBe('true');
-    expect(w.find(`#${button.getAttribute('aria-describedby') ?? 'missing'}`).text()).toBe(FALLOW_RUN_BUSY_HINT);
+    expect(w.find(`#${button.getAttribute('aria-describedby') ?? 'missing'}`).text()).toBe(FALLOW_RUN_CANCELLING_HINT);   // Polish C3
     await w.find('.ci-fallow-run__cancel').trigger('click');
     expect(fake.calls.filter((c) => c.method === 'cancel')).toHaveLength(0);
     fake.setState('p1', { status: 'cancelled', runId: 'r1' });

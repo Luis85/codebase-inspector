@@ -8,12 +8,13 @@ import { FALLOW_RUN_ERROR, FALLOW_RUN_NOTICE } from '../ui/inspector-copy';
 export function watchAnalysisFailures(
   service: Pick<FallowAnalysisService, 'subscribe' | 'stateOf'>, notify: (message: string) => void,
 ): () => void {
-  const told = new Set<string>();
+  /** Polish C12: the last run told, per codebase — not every run of the session. */
+  const told = new Map<string, string>();
   return service.subscribe((profileId) => {
     const state = service.stateOf(profileId);
-    if (state.status !== 'failed' || told.has(state.runId)) return;
+    if (state.status !== 'failed' || told.get(profileId) === state.runId) return;
     if (!OPERATIONAL_FAILURES.has(state.code) && state.code !== 'version-changed') return;
-    told.add(state.runId);
+    told.set(profileId, state.runId);
     notify(FALLOW_RUN_NOTICE(FALLOW_RUN_ERROR[state.code](state.detail)));
   });
 }

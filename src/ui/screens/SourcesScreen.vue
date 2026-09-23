@@ -107,9 +107,17 @@ const { refusal: runRefusal, failure: runFailure, run: runAnalysis, cancel: canc
 function chooseExecutable(): void {
   if (store.snapshot && !analysisStore.active) openInstalled({ startAt: 'path' });
 }
+/** Polish C4: a run the command started, with no dialog opened, leaves focus on the run's own
+ *  button (Cancel analysis), never on a control the run has just blocked (Import). */
+async function runFromCommand(): Promise<void> {
+  await runAnalysis();
+  if (connecting.value) return;
+  await nextTick();
+  root.value?.querySelector<HTMLElement>('.ci-fallow-run__cancel, .ci-fallow-run__run')?.focus();
+}
 /** Z35: the `run-fallow-analysis` command lands here with a request, consumed once. */
 watch(() => analysisStore.runRequested, (requested) => {
-  if (requested && analysisStore.consumeRunRequest()) void nextTick().then(runAnalysis);
+  if (requested && analysisStore.consumeRunRequest()) void nextTick().then(runFromCommand);
 }, { immediate: true });
 watch(() => evidenceStore.importRequested, (requested) => {
   if (requested && evidenceStore.consumeImportRequest()) void openRequested();

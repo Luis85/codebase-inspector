@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { FALLOW_RUN_ERROR_CODES } from '../../src/application/analysis/fallow-run-errors';
 import {
-  COPY_15, FALLOW_EXE_REFUSED_TEXT, FALLOW_REVIEW_EFFECTS, FALLOW_RUN_ERROR, FALLOW_RUN_PROBING, FALLOW_RUN_RUNNING,
+  COPY_15, FALLOW_EXE_FORGET_FAILED, FALLOW_EXE_REFUSED_TEXT, FALLOW_REVIEW_EFFECTS, FALLOW_RUN_ERROR, FALLOW_RUN_PROBING, FALLOW_RUN_RUNNING,
 } from '../../src/ui/inspector-copy';
 
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
@@ -48,6 +48,10 @@ describe('run copy (spec §2)', () => {
     expect(FALLOW_RUN_ERROR['version-probe-failed']('SIGSEGV')).toBe('fallow’s version check ended unexpectedly (SIGSEGV). Nothing was analysed.');
     expect(FALLOW_RUN_ERROR['exit-code']('3')).toBe('fallow ended unexpectedly with exit code 3.');
     expect(FALLOW_RUN_ERROR['output-too-large']('')).toBe('fallow’s output was larger than 16 MB, so it was stopped and nothing was read.');
+  });
+
+  it('Polish C9 (QF10): a failed Forget says nothing was changed', () => {
+    expect(FALLOW_EXE_FORGET_FAILED).toContain('Nothing was changed.');
   });
 
   it('G6: no copy claims a sandbox; the one mention says it is not one', () => {

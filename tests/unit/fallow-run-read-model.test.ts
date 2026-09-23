@@ -1,7 +1,7 @@
 // Part 7 Z33: the run banner as pure data, one row per state; a failure keeps its log tail.
 import { describe, expect, it } from 'vitest';
 import type { AnalysisIdentity } from '../../src/application/analysis/analysis-state';
-import { LOG_SHOWN_CHARS, fallowRunBannerOf, refusalBanner } from '../../src/ui/read-models/fallow-run';
+import { LOG_SHOWN_CHARS, failureBanner, fallowRunBannerOf, refusalBanner } from '../../src/ui/read-models/fallow-run';
 import { formatAbsoluteTime } from '../../src/ui/copy';
 import {
   COPY_15, FALLOW_RUN_CANCELLED, FALLOW_RUN_CANCELLING, FALLOW_RUN_COMPLETED, FALLOW_RUN_ERROR, FALLOW_RUN_PROBING, FALLOW_RUN_RUNNING,
@@ -53,5 +53,9 @@ describe('fallowRunBannerOf (Z33)', () => {
     expect(refusalBanner('root-unavailable', '')).toEqual({
       tone: 'warning', icon: 'alert-triangle', text: COPY_15('fallow'), reason: FALLOW_RUN_ERROR['root-unavailable'](''), kept: false, log: null,
     });
+  });
+
+  it('Polish C8: a thrown Run or Forget is the warning form with its text only', () => {
+    expect(failureBanner('x')).toEqual({ tone: 'warning', icon: 'alert-triangle', text: 'x', reason: null, kept: false, log: null });
   });
 });

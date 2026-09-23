@@ -38,6 +38,11 @@ export function refusalBanner(code: FallowRunErrorCode, detail: string): FallowR
   return { tone: 'warning', icon: 'alert-triangle', text: COPY_15('fallow'), reason: FALLOW_RUN_ERROR[code](detail), kept: false, log: null };
 }
 
+/** Polish C8: a Run or a Forget that threw (use-fallow-run.ts): the failed form, its text only. */
+export function failureBanner(text: string): FallowRunBanner {
+  return { tone: 'warning', icon: 'alert-triangle', text, reason: null, kept: false, log: null };
+}
+
 /** `evidenceMarkedFailed`: the CURRENT report carries `staleReason: 'failed-run'`. "Kept" is
  *  said only when this failure marked it AND the mark is still there: a later import or
  *  removal replaced the report the failure kept (final review). */

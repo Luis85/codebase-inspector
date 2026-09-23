@@ -30,4 +30,15 @@ describe('watchAnalysisFailures (Z34)', () => {
     fake.setState('p1', failed('r4', 'timed-out'));
     expect(notify).not.toHaveBeenCalled();
   });
+
+  it('Polish C12: two codebases failing in turn are each told once per run', () => {
+    const fake = createFakeFallowAnalysis();
+    const notify = vi.fn();
+    watchAnalysisFailures(fake, notify);
+    fake.setState('p1', failed('r1', 'timed-out'));
+    fake.setState('p2', failed('r2', 'timed-out'));
+    fake.setState('p1', failed('r1', 'timed-out'));
+    fake.setState('p1', failed('r3', 'timed-out'));
+    expect(notify).toHaveBeenCalledTimes(3);
+  });
 });

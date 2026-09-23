@@ -153,7 +153,7 @@ export const FALLOW_REPLACE_NOTE = (date: string, origin: EvidenceOrigin = 'impo
 export const FALLOW_ROW_REPORT = 'Report';
 export const FALLOW_ROW_FILE = 'File';
 export const FALLOW_ROW_IMPORTED = 'Imported';
-export const FALLOW_ROW_COLLECTED = 'Collected';
+// Polish C19: FALLOW_ROW_COLLECTED moved to audit-copy/fallow-run.ts (after FALLOW_ROW_EXECUTABLE).
 export const FALLOW_ROW_CATEGORIES = 'Categories';
 export const FALLOW_ROW_MATCHED = 'Matched';
 export const FALLOW_ROW_UNMATCHED = 'Unmatched paths';
