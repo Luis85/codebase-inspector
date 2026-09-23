@@ -236,3 +236,89 @@ describe('AnalysisCoordinator: shutdown (Z24)', () => {
     expect(s.coordinator.start(plan())).toBe(false);
   });
 });
+
+/** Fix round 1: `isolate` (analysis-coordinator.ts) surfaces a listener's throw via
+ *  `queueMicrotask(() => { throw e; })` — outside any promise chain, so Node reports it as
+ *  an `uncaughtException`. Captured here so a deliberately misbehaving test subscriber can
+ *  never crash the run (worker), only prove the throw actually happened. */
+function captureUncaught(): { errors: unknown[]; restore: () => void } {
+  const errors: unknown[] = [];
+  const handler = (e: unknown): void => { errors.push(e); };
+  process.on('uncaughtException', handler);
+  return { errors, restore: () => { process.off('uncaughtException', handler); } };
+}
+
+describe('AnalysisCoordinator: a throwing subscriber never corrupts a run (fix round 1)', () => {
+  it('(a) throwing on RUN_COMPLETED leaves the state completed and the evidence NOT marked stale', async () => {
+    const s = setup();
+    const { errors, restore } = captureUncaught();
+    try {
+      s.coordinator.subscribe((id) => { if (s.coordinator.stateOf(id).status === 'completed') throw new Error('boom'); });
+      await probed(s);
+      await s.process.settle(exitedWith(0, REPORT));
+      expect(s.coordinator.stateOf('p1')).toMatchObject({ status: 'completed' });
+      expect(s.evidence.get('p1')?.staleReason).toBeUndefined();
+      await delay(0);
+      expect(errors.length).toBeGreaterThan(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it('(b) throwing on PROBE_STARTED does not wedge the run: start still proceeds to running', async () => {
+    const s = setup();
+    const { errors, restore } = captureUncaught();
+    try {
+      s.coordinator.subscribe((id) => { if (s.coordinator.stateOf(id).status === 'probing') throw new Error('boom'); });
+      expect(s.coordinator.start(plan())).toBe(true);
+      await s.process.settle(exitedWith(0, 'fallow 3.27.0\n'));
+      expect(s.coordinator.stateOf('p1')).toMatchObject({ status: 'running' });
+      await delay(0);
+      expect(errors.length).toBeGreaterThan(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it('(c) throwing during shutdown does not skip killAll or the token cancels', async () => {
+    const s = setup();
+    const { errors, restore } = captureUncaught();
+    try {
+      await probed(s);
+      s.coordinator.subscribe(() => { throw new Error('boom'); });
+      s.coordinator.shutdown();
+      expect(s.process.killAllCalls()).toBe(1);
+      await delay(0);
+      expect(s.coordinator.stateOf('p1').status).toBe('cancelled');
+      expect(errors.length).toBeGreaterThan(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it('an evidence subscriber throwing inside put does not mark the just-published report stale', async () => {
+    const s = setup();
+    const { errors, restore } = captureUncaught();
+    try {
+      s.evidence.subscribe(() => { throw new Error('boom'); });
+      await probed(s);
+      await s.process.settle(exitedWith(0, REPORT));
+      expect(s.coordinator.stateOf('p1')).toMatchObject({ status: 'completed' });
+      expect(s.evidence.get('p1')?.staleReason).toBeUndefined();
+      await delay(0);
+      expect(errors.length).toBeGreaterThan(0);
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe('AnalysisCoordinator: a re-entrant cancel never leaves a run stuck (fix round 1)', () => {
+  it('an evidence subscriber cancelling on put still reaches cancelled, not stuck in cancelling', async () => {
+    const s = setup();
+    s.evidence.subscribe(() => { s.coordinator.cancel('p1'); });
+    await probed(s);
+    await s.process.settle(exitedWith(0, REPORT));
+    expect(s.coordinator.stateOf('p1').status).toBe('cancelled');
+  });
+});

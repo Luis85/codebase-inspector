@@ -90,14 +90,16 @@ export class AnalysisCoordinator {
   }
 
   /** Z24: synchronous and idempotent. Nothing publishes, every child is killed, no new run
-   *  starts, and every listener is dropped (the leaves are going away with the plugin). */
+   *  starts, and every listener is dropped (the leaves are going away with the plugin).
+   *  Fix round 1: the kill and every token's cancel happen BEFORE the state dispatch below —
+   *  even if a listener that dispatch reaches misbehaves, the children are already gone. */
   shutdown(): void {
     this.shutDown = true;
+    this.deps.process.killAll();
+    for (const cancel of Array.from(this.cancels.values())) cancel();
     for (const [profileId, state] of Array.from(this.states)) {
       if (state.status === 'probing' || state.status === 'running') this.dispatch(profileId, { type: 'CANCEL_REQUESTED', runId: state.identity.runId });
     }
-    this.deps.process.killAll();
-    for (const cancel of Array.from(this.cancels.values())) cancel();
     this.listeners.clear();
   }
 
@@ -155,13 +157,23 @@ export class AnalysisCoordinator {
         this.fail(profileId, runId, latestSnapshotId === identity.snapshotId ? 'superseded' : 'snapshot-changed', '', '');
         return;
       }
-      // The atomic swap: no await between these two lines.
-      this.deps.evidence.put(profileId, report);
+      // The atomic swap: no await between these two lines. Fix round 1: a throwing evidence
+      // subscriber is isolated — the write itself already succeeded before it notified, so
+      // it must not be misread below (or by the catch) as this run having failed.
+      this.isolate(() => { this.deps.evidence.put(profileId, report); });
       this.dispatch(profileId, {
         type: 'RUN_COMPLETED', runId, finishedAt, matchedFindings: matched.length, matchedFiles: new Set(matched.map((f) => f.path)).size,
       });
     } catch {
       if (!this.stopIfCancelled(profileId, runId)) this.fail(profileId, runId, 'spawn-failed', 'internal', '');
+    } finally {
+      // Fix round 1: a subscriber reacting to `put`/`markStale` above by calling `cancel`
+      // re-entrantly (before the terminal dispatch a few lines up, or in `fail`) flips the
+      // state to 'cancelling', and the reducer then drops that terminal dispatch — leaving
+      // the run stuck. The process has ended by the time `finally` runs either way, so
+      // confirming it here is truthful, not a guess (ScanCoordinator.start's own re-entrancy
+      // rule). A no-op whenever the state is not still 'cancelling' for this exact run.
+      this.stopIfCancelled(profileId, runId);
     }
   }
 
@@ -172,10 +184,11 @@ export class AnalysisCoordinator {
     return true;
   }
 
-  /** Z23: an operational failure keeps the evidence and marks it stale; the others leave it as it was. */
+  /** Z23: an operational failure keeps the evidence and marks it stale; the others leave it
+   *  as it was. Fix round 1: `markStale`'s own notify is isolated, same reasoning as `put`. */
   private fail(profileId: string, runId: string, code: FallowRunErrorCode, detail: string, logExcerpt: string): void {
     const evidenceKept = this.deps.evidence.get(profileId) !== null;
-    if (evidenceKept && OPERATIONAL_FAILURES.has(code)) this.deps.evidence.markStale(profileId);
+    if (evidenceKept && OPERATIONAL_FAILURES.has(code)) this.isolate(() => { this.deps.evidence.markStale(profileId); });
     this.dispatch(profileId, { type: 'RUN_FAILED', runId, code, detail, logExcerpt, evidenceKept, finishedAt: this.deps.clock.nowIso() });
   }
 
@@ -184,6 +197,20 @@ export class AnalysisCoordinator {
     const after = reduceAnalysis(before, action);
     if (after === before) return;
     this.states.set(profileId, after);
-    for (const listener of Array.from(this.listeners)) listener(profileId);
+    for (const listener of Array.from(this.listeners)) this.isolate(() => { listener(profileId); });
+  }
+
+  /** Fix round 1: isolates a call that runs untrusted listener code (one of this
+   *  coordinator's own `subscribe` listeners, or an `EvidenceRepository` subscriber reached
+   *  through `put`/`markStale`) from the run in progress. A throw is surfaced on its own
+   *  microtask — still loud, never swallowed — instead of unwinding into `dispatch`,
+   *  `execute` or `shutdown` and being misread as this run's own failure, and instead of one
+   *  bad listener starving every listener still waiting to be told (Z20 fix round 1). */
+  private isolate(fn: () => void): void {
+    try {
+      fn();
+    } catch (e) {
+      queueMicrotask(() => { throw e; });
+    }
   }
 }
