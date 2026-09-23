@@ -16,6 +16,7 @@
 -->
 <script setup lang="ts">
 import { formatDirectoryFocusLabel, formatFileListGroup } from '../copy';
+import { LENS_LIST_CELL, LENS_LIST_NONE } from '../inspector-copy';
 import type { FileGroup, RowState } from './file-list-types';
 import type { EntityId } from '../../domain/entity-id';
 
@@ -30,7 +31,7 @@ const emit = defineEmits<{
   focusDistrict: [directoryId: EntityId];
 }>();
 
-const FALLBACK_ROW_STATE: RowState = { dimmed: false, tabIndex: -1, selected: false };
+const FALLBACK_ROW_STATE: RowState = { dimmed: false, tabIndex: -1, selected: false, reported: null };
 
 /** A row whose entity fell out of `rowStates` (never expected in practice — the parent
  *  builds it from the SAME `fileEntities` this group's own entities come from — but a
@@ -72,6 +73,15 @@ function focusRow(entityId: EntityId): void {
 function focusDistrict(): void {
   emit('focusDistrict', props.group.directoryId);
 }
+
+/** Part 6 Y40: the Reported cell — the count, or an em dash for none (never a 0 that could
+ *  read as "measured clean"), with a spoken phrase after the path. */
+function reportedText(count: number | null): string {
+  return count === null || count === 0 ? LENS_LIST_NONE : String(count);
+}
+function reportedLabel(count: number | null): string {
+  return LENS_LIST_CELL(count ?? 0);
+}
 </script>
 
 <template>
@@ -94,7 +104,7 @@ function focusDistrict(): void {
     </h4>
     <ul class="ci-file-list__rows">
       <!-- `v-memo` on the row: the ONLY things that can change a row's rendering are the
-           four below, so a keystroke that changes `matchingIds` now re-patches only the
+           five below (Part 6 Y40 added the Reported count), so a keystroke that changes `matchingIds` now re-patches only the
            rows whose dimming actually flipped, instead of all ~1,000. `entity.path` is
            included because the entity list itself can change under a new snapshot, and
            because it is what `wrapSegments` above renders from. -->
@@ -106,6 +116,7 @@ function focusDistrict(): void {
           rowState(entity.id).selected,
           rowState(entity.id).dimmed,
           rowState(entity.id).tabIndex,
+          rowState(entity.id).reported,
         ]"
       >
         <button
@@ -134,6 +145,10 @@ function focusDistrict(): void {
             v-for="(segment, i) in wrapSegments(entity.path)"
             :key="i"
           >{{ segment.text }}<wbr v-if="segment.wbr"></span>
+          <span
+            v-if="rowState(entity.id).reported !== null"
+            class="ci-file-list__reported"
+          ><span aria-hidden="true">{{ reportedText(rowState(entity.id).reported) }}</span><span class="visually-hidden">{{ reportedLabel(rowState(entity.id).reported) }}</span></span>
         </button>
       </li>
     </ul>

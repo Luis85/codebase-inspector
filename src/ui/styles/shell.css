@@ -120,3 +120,11 @@
 /* One more always-present control: let the toolbar wrap in a narrow leaf instead of
    overflowing it (the WP-01 rule in styles.css sets only display, alignment and gap). */
 :where(.codebase-inspector-root) .ci-app__toolbar { flex-wrap: wrap; }
+
+/* Part 6 Y40: the findings-lens select, rendered only while this codebase has evidence. The
+   visible label is the select's accessible name (WCAG 2.5.3). */
+:where(.codebase-inspector-root) .ci-toolbar__lens-field { display: inline-flex; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-toolbar__lens-label {
+  color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); white-space: nowrap;
+}
+:where(.codebase-inspector-root) select.ci-toolbar__lens { min-height: var(--ci-control-min); }

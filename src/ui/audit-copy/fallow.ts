@@ -155,3 +155,20 @@ export const FALLOW_UNMATCHED_SUMMARY = (total: number, shown: number): string =
 /** Y25 (R4): `label` is fallowNotShownLabel(key). */
 export const FALLOW_NOT_SHOWN_ITEM = (label: string, count: number): string => `${label}: ${count.toLocaleString('en-US')}`;
 export const FALLOW_NONE = 'None';
+
+// Part 6 Task 11 (Y40): the findings lens. Counts go through nounCount, so the lens and the
+// fallow card format them the same way (E17).
+export const LENS_LABEL = 'Colour';
+export const LENS_OPTION_CATEGORY = 'Category';
+export const LENS_OPTION_FINDINGS = 'Reported findings';
+export const LENS_EYEBROW = 'fallow lens';
+export const LENS_TITLE = 'Reported findings';
+export const LENS_SUBTITLE = (findings: number, files: number): string =>
+  `${nounCount(findings, 'finding', 'findings')} · ${nounCount(files, 'file', 'files')} · imported evidence`;
+export const LENS_LEGEND_REPORTED = 'Reported finding';
+export const LENS_LEGEND_NONE = 'No finding reported · metric unavailable';
+export const LENS_LIST_COLUMN = 'Reported';
+export const LENS_LIST_NONE = '—';
+/** Screen-reader text after a row's path, so the name reads "…/file-4.ts, 3 reported findings". */
+export const LENS_LIST_CELL = (count: number): string =>
+  (count === 0 ? ', no finding reported' : `, ${nounCount(count, 'reported finding', 'reported findings')}`);

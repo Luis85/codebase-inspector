@@ -51,6 +51,8 @@ export interface CityMeshes {
   setColors(palette: CityPalette): void;
   setSelection(entityId: EntityId | null): void;
   setFilter(matching: ReadonlySet<EntityId> | null): void;
+  /** Part 6 Y40: see CityRendererPort.setReported. Colour only. */
+  setReported(ids: ReadonlySet<EntityId> | null): void;
   dispose(): void;
 }
 
@@ -232,6 +234,7 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
   let palette: CityPalette | null = null;
   let selected: EntityId | null = null;
   let matching: ReadonlySet<EntityId> | null = null;
+  let reported: ReadonlySet<EntityId> | null = null;
   let disposed = false;
 
   // The whole layout's own vertical span, computed once from the same bounds the
@@ -246,13 +249,20 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
   // reachable trigger (ruling M114).
   const locatorHeight = (layout.bounds.max[1] - layout.bounds.min[1]) * LOCATOR_CLEARANCE;
 
+  /** Part 6 Y40: the findings lens chooses between two palette members and nothing else. An
+   *  unavailable marker is always the neutral; a measured lot keeps its category colour
+   *  unless a lens is on and it is not reported. */
+  function lotColour(lot: CityLot, current: CityPalette): string {
+    if (lot.metricState === 'unavailable') return current.unavailable;
+    if (reported !== null && !reported.has(lot.entityId)) return current.unavailable;
+    return current.categories[lot.colorKey];
+  }
+
   function paintInstances(mesh: InstancedMesh, lots: readonly CityLot[], current: CityPalette): void {
     const background = new Color(current.background);
     for (let i = 0; i < lots.length; i++) {
       const lot = lots[i]!;
-      const base = new Color(
-        lot.metricState === 'unavailable' ? current.unavailable : current.categories[lot.colorKey],
-      );
+      const base = new Color(lotColour(lot, current));
       if (matching && !matching.has(lot.entityId)) base.lerp(background, DIM_MIX);
       mesh.setColorAt(i, base);
     }
@@ -322,6 +332,12 @@ export async function buildCity(layout: LayoutResult, options: BuildOptions): Pr
     setFilter(next: ReadonlySet<EntityId> | null): void {
       // null = unfiltered; an EMPTY set = no matches, so everything dims (spec 4.2).
       matching = next;
+      repaint();
+    },
+    setReported(next: ReadonlySet<EntityId> | null): void {
+      // null = category colours; a set = the findings lens. repaint() rewrites instance
+      // colours only — never setMatrixAt — so nothing moves (Y40).
+      reported = next;
       repaint();
     },
 

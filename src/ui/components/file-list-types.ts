@@ -30,4 +30,7 @@ export interface RowState {
   dimmed: boolean;
   tabIndex: number;
   selected: boolean;
+  /** Part 6 Y40: the row's reported-finding count while the list-mode Reported column is
+   *  shown (0 renders an em dash); null when the column is off. */
+  reported: number | null;
 }

@@ -57,7 +57,7 @@ export function createRecordingRenderer(): RecordingRenderer {
   return {
     calls,
     setLayout: calls.setLayout, setColors: calls.setColors, setSelection: calls.setSelection,
-    setFilter: calls.setFilter, setLabels: vi.fn(), setCameraMode: calls.setCameraMode,
+    setFilter: calls.setFilter, setReported: vi.fn(), setLabels: vi.fn(), setCameraMode: calls.setCameraMode,
     setMotion: vi.fn(), getCamera: () => camera, setCamera: calls.setCamera,
     nudgeCamera: calls.nudgeCamera, focus: calls.focus, fit: calls.fit, resize: vi.fn(),
     pause: calls.pause, resume: calls.resume, dispose: calls.dispose,

@@ -128,3 +128,12 @@ export function snapshotWithPaths(paths: readonly string[], repositoryId = 'repo
   }));
   return { ...base, entities: [...base.entities, ...files] };
 }
+
+/** Task 11: the same snapshot, same id, with only the named files kept. Handed to
+ *  syntheticFallowJson / syntheticEvidenceReport / attachSyntheticReport, it gives a report
+ *  with findings on those files alone, which is still current for the full snapshot (same
+ *  snapshotId and repositoryId). The findings lens needs files WITHOUT findings. */
+export function snapshotWithOnlyFiles(snapshot: CodebaseSnapshot, paths: readonly string[]): CodebaseSnapshot {
+  const keep = new Set(paths);
+  return { ...snapshot, entities: snapshot.entities.filter((e) => e.kind !== 'file' || keep.has(e.path)) };
+}

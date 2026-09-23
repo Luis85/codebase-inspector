@@ -20,6 +20,26 @@ import { useRunStore } from '../stores/run-store';
 import { COPY_07, COPY_09 } from '../copy';
 import { noop } from '../kit/noop';
 import FileSearch from './FileSearch.vue';
+import { useLensView } from '../read-models/use-lens-view';
+import { LENS_IDS, useLensStore, type LensId } from '../stores/lens-store';
+import { useUniqueId } from '../unique-id';
+import { LENS_LABEL, LENS_OPTION_CATEGORY, LENS_OPTION_FINDINGS } from '../inspector-copy';
+
+/** Part 6 Y40: the findings-lens control. Rendered only while the codebase ON SCREEN has
+ *  evidence (`v-if`), so it is never a disabled control. E18: gated on useLensView's index,
+ *  the one derivation the legend, heading, list column and renderer use, never on the raw
+ *  evidence store, which can still hold the previous codebase's report mid-switch. The lens
+ *  store resets itself to 'category' when the evidence goes away or the codebase changes. */
+const { evidence } = useLensView();
+const lensStore = useLensStore();
+const lensSelectId = useUniqueId('ci-toolbar-lens');
+const LENS_OPTION_LABELS: Readonly<Record<LensId, string>> = {
+  category: LENS_OPTION_CATEGORY, findings: LENS_OPTION_FINDINGS,
+};
+const lens = computed<LensId>({
+  get: () => lensStore.lens,
+  set: (next) => { lensStore.setLens(next); },
+});
 
 defineEmits<{ 'open-files-drawer': [event: MouseEvent] }>();
 
@@ -57,6 +77,30 @@ function requestScan(): void {
 <template>
   <div class="ci-app__toolbar">
     <FileSearch />
+    <!-- Part 6 Y40: the findings lens. Only while this codebase has evidence (never a
+         disabled control); the visible label is the select's accessible name. -->
+    <span
+      v-if="evidence.state !== 'none'"
+      class="ci-toolbar__lens-field"
+    >
+      <label
+        class="ci-toolbar__lens-label"
+        :for="lensSelectId"
+      >{{ LENS_LABEL }}</label>
+      <select
+        :id="lensSelectId"
+        v-model="lens"
+        class="dropdown ci-toolbar__lens"
+      >
+        <option
+          v-for="id in LENS_IDS"
+          :key="id"
+          :value="id"
+        >
+          {{ LENS_OPTION_LABELS[id] }}
+        </option>
+      </select>
+    </span>
     <!-- Unconditional, like every other toolbar control here -- Scan doubles as
          first-scan and refresh (spec 5), so it belongs regardless of whether a
          snapshot exists yet. Part 6 Y3: aria-disabled while a run is running or

@@ -30,10 +30,16 @@ import CodebaseFileListGroup from './CodebaseFileListGroup.vue';
 import type { FileGroup, RowState } from './file-list-types';
 import type { EntityId } from '../../domain/entity-id';
 import type { CodeEntity } from '../../domain/model';
+import { useLensView } from '../read-models/use-lens-view';
+import { LENS_LIST_COLUMN } from '../inspector-copy';
 
 const store = useCityStore();
 const inspectorOpener = useInspectorOpener();
 const renderer = useCityRendererHandle();
+/** Part 6 Y40: the Reported column, in list mode only — beside the canvas, the city itself
+ *  carries the lens. */
+const { active: lensActive, evidence } = useLensView();
+const reportedColumn = computed(() => lensActive.value && store.viewMode === 'list');
 
 const fileEntities = computed(() => (store.snapshot?.entities.filter((e) => e.kind === 'file') ?? []));
 const totalFileCount = computed(() => fileEntities.value.length);
@@ -94,6 +100,7 @@ const rowStates = computed<ReadonlyMap<EntityId, RowState>>(() => {
       dimmed: matchingIds.value !== null && !matchingIds.value.has(entity.id),
       tabIndex: entity.id === focusTarget.value ? 0 : -1,
       selected: entity.id === store.selectedEntityId,
+      reported: reportedColumn.value ? (evidence.value.byFile.get(entity.id)?.length ?? 0) : null,
     });
   }
   return map;
@@ -132,6 +139,11 @@ function focusDistrict(directoryId: EntityId): void {
 <template>
   <div class="ci-file-list">
     <div class="ci-file-list__header">
+      <span
+        v-if="reportedColumn"
+        class="ci-file-list__reported-head"
+        aria-hidden="true"
+      >{{ LENS_LIST_COLUMN }}</span>
       <h3 class="ci-file-list__title">
         {{ headerCopy }}
       </h3>

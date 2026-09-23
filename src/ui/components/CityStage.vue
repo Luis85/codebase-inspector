@@ -35,8 +35,13 @@ import CityHeader from './CityHeader.vue';
 import CityViewport from './CityViewport.vue';
 import CameraControls from './CameraControls.vue';
 import MetricLegend from './MetricLegend.vue';
+import LensHeading from '../screens/city/LensHeading.vue';
+import { useLensRenderer } from '../screens/city/use-lens-renderer';
 
 const store = useCityStore();
+// Part 6 Y40: the findings lens reaches the renderer from here. CityViewport.vue is at
+// 400/400 and is not edited — see use-lens-renderer.ts.
+useLensRenderer();
 
 interface CityViewportExposed { stageEl: HTMLElement | null }
 const cityViewportRef = ref<CityViewportExposed | null>(null);
@@ -57,6 +62,7 @@ defineExpose({ stageEl });
        div with this class moved. -->
   <div class="ci-app__stage-column">
     <CityHeader />
+    <LensHeading />
     <!-- Task 10 fix round 1 (ruling M75, carried unchanged from App.vue): NOT
          mounted in list mode. Spec 5.2 says the list-first fallback "creates no
          WebGL context at all", spec 4.2 says "in 'list' mode no renderer exists",

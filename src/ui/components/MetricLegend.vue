@@ -19,6 +19,8 @@ import { computed } from 'vue';
 import { useCityStore } from '../stores/city-store';
 import { CATEGORY_IDS } from '../../domain/classify';
 import { LEGEND_EQUAL_LOT, LEGEND_SELECTION_OUTLINE, LEGEND_UNKNOWN_MARKER } from '../copy';
+import { LENS_LEGEND_NONE, LENS_LEGEND_REPORTED } from '../inspector-copy';
+import { useLensView } from '../read-models/use-lens-view';
 
 const store = useCityStore();
 const scale = computed(() => store.layout?.scale ?? null);
@@ -33,6 +35,20 @@ const presentCategories = computed(() => {
 });
 
 const hasUnavailableLot = computed(() => (store.layout?.lots ?? []).some((l) => l.metricState === 'unavailable'));
+
+/** Part 6 Y40: in the findings lens the city carries two meanings, so the legend states
+ *  exactly those two. Reported lots keep their category colours (the swatches are the
+ *  categories the reported, measured lots actually have); every other measured lot is the
+ *  unavailable neutral, --ci-text-muted, the token theme-bridge.ts reads into it. */
+const { active: lensActive, reported } = useLensView();
+const reportedCategories = computed(() => {
+  const ids = reported.value;
+  if (!ids) return [];
+  const present = new Set((store.layout?.lots ?? [])
+    .filter((l) => l.metricState !== 'unavailable' && ids.has(l.entityId))
+    .map((l) => l.colorKey));
+  return CATEGORY_IDS.filter((id) => present.has(id));
+});
 </script>
 
 <template>
@@ -46,7 +62,36 @@ const hasUnavailableLot = computed(() => (store.layout?.lots ?? []).some((l) => 
     >
       {{ scale.name }} — cap {{ scale.cap }} {{ scale.unit }} per file, {{ scale.clampedCount }} clamped
     </p>
-    <ul class="ci-legend__swatches">
+    <ul
+      v-if="lensActive"
+      class="ci-legend__swatches"
+    >
+      <li class="ci-legend__entry">
+        <span
+          class="ci-legend__swatch-group"
+          aria-hidden="true"
+        >
+          <span
+            v-for="categoryId in reportedCategories"
+            :key="categoryId"
+            class="ci-legend__swatch"
+            :style="{ background: `var(--ci-cat-${categoryId})` }"
+          />
+        </span>
+        <span class="ci-legend__label">{{ LENS_LEGEND_REPORTED }}</span>
+      </li>
+      <li class="ci-legend__entry">
+        <span
+          class="ci-legend__swatch ci-legend__swatch--none"
+          aria-hidden="true"
+        />
+        <span class="ci-legend__label">{{ LENS_LEGEND_NONE }}</span>
+      </li>
+    </ul>
+    <ul
+      v-else
+      class="ci-legend__swatches"
+    >
       <li
         v-for="categoryId in presentCategories"
         :key="categoryId"

@@ -70,6 +70,11 @@ export interface CityRendererPort {
   setColors(palette: CityPalette): void;         // every colour the scene draws; re-supplied on css-change
   setSelection(selectedEntityId: EntityId | null): void;
   setFilter(matching: ReadonlySet<EntityId> | null): void;  // null = unfiltered, empty = no matches
+  /** Part 6 Y40, the findings lens. null = category colours. A set keeps categories[colorKey]
+   *  on the measured lots it contains and paints every other measured lot `unavailable`;
+   *  unavailable markers never change. A RECOLOUR ONLY: no relayout, no camera change. The
+   *  renderer keeps the set across setColors and setLayout; a NEW renderer starts at null. */
+  setReported(ids: ReadonlySet<EntityId> | null): void;
   setLabels(visible: boolean): void;
   setCameraMode(mode: '3d' | 'top'): void;
   setMotion(mode: 'standard' | 'reduced'): void; // view reads matchMedia; renderer tweens or jumps

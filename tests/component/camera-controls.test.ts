@@ -21,7 +21,7 @@ const CAMERA_CONTROLS_SOURCE_PATH = resolve(process.cwd(), 'src/ui/components/Ca
 function makeRendererDouble() {
   return {
     setLayout: vi.fn(async () => {}),
-    setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setLabels: vi.fn(),
+    setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setReported: vi.fn(), setLabels: vi.fn(),
     setCameraMode: vi.fn(), setMotion: vi.fn(),
     getCamera: vi.fn(() => ({ projection: 'orthographic' as const, mode: '3d' as const, position: [0, 0, 0] as [number, number, number], target: [0, 0, 0] as [number, number, number], up: [0, 1, 0] as [number, number, number], zoom: 1 })),
     setCamera: vi.fn(), nudgeCamera: vi.fn(), focus: vi.fn(), fit: vi.fn(), resize: vi.fn(),

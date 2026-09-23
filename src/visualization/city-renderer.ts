@@ -55,7 +55,7 @@ function makeInertPort(): CityRendererPort {
   let camera = DEFAULT_CAMERA;
   return {
     setLayout: async () => {},
-    setColors: () => {}, setSelection: () => {}, setFilter: () => {}, setLabels: () => {},
+    setColors: () => {}, setSelection: () => {}, setFilter: () => {}, setReported: () => {}, setLabels: () => {},
     setCameraMode: () => {}, setMotion: () => {},
     getCamera: () => camera,
     setCamera: (next) => { camera = next; },
@@ -110,6 +110,7 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
   let palette: CityPalette | null = null;
   let selection: EntityId | null = null;
   let filter: ReadonlySet<EntityId> | null = null;
+  let reported: ReadonlySet<EntityId> | null = null;   // Part 6 Y40: re-applied to every new city
   let labelsVisible = true;
   let cssWidth = 0;
   let cssHeight = 0;
@@ -217,6 +218,7 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
     if (!next) return;
     next.root.name = 'city-root';
     scene.add(next.root);
+    next.setReported(reported);          // before setColors, so the first paint is already the lens
     if (palette) next.setColors(palette);
     next.setFilter(filter);
     next.setSelection(selection);
@@ -265,6 +267,14 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
     setFilter(matching: ReadonlySet<EntityId> | null): void {
       filter = matching;               // null = unfiltered, empty = no matches
       city?.setFilter(matching);
+      scheduler.invalidate();
+    },
+
+    // Part 6 Y40: recolour only. Kept here as well as on the city, so a set sent before the
+    // first layout, or before a rebuilt city lands, is applied by swapCity.
+    setReported(ids: ReadonlySet<EntityId> | null): void {
+      reported = ids;
+      city?.setReported(ids);
       scheduler.invalidate();
     },
 

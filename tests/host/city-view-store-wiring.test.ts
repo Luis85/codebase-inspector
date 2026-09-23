@@ -65,7 +65,7 @@ const inertPort: CityRendererPort = {
   setLayout: setLayoutSpy,
   setColors: setColorsSpy,
   setSelection: setSelectionSpy,
-  setFilter: vi.fn(),
+  setFilter: vi.fn(), setReported: vi.fn(),
   setLabels: vi.fn(),
   setCameraMode: vi.fn(),
   setMotion: vi.fn(),
