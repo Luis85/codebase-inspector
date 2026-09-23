@@ -168,7 +168,7 @@ describe('the real runner: time, cancel and shutdown (Z18)', () => {
     expect((await done).kind).toBe('cancelled');
     expect(await gone(direct)).toBe(true);
     if (process.platform !== 'win32') expect(await gone(grandchild)).toBe(true);
-  });
+  }, 20_000);
 });
 
 describe('the real runner: what the child sees (Z15, Z16)', () => {

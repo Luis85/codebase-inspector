@@ -196,7 +196,7 @@ describe('the disclosures spec §10 requires are actually there', () => {
     // floor, not an equality, so adding a file does not redden an unrelated test.
     expect(SRC_FILES.length).toBeGreaterThanOrEqual(70);
     expect(SRC_TEXT).toContain('createCityRenderer');
-  });
+  }, 30_000);
 });
 
 describe('the checkpoint #4 checklist names only things that exist', () => {

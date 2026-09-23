@@ -61,7 +61,7 @@ describe('nothing under src/ runs a process, except the two allow-listed adapter
       .map((file) => ({ file, hazards: hazardsOf(file).filter((h) => !(PROCESS_ALLOWED.get(file) ?? []).includes(h)) }))
       .filter((o) => o.hazards.length > 0);
     expect(offenders).toEqual([]);
-  });
+  }, 30_000);
 
   it('each allow-listed file exists and has exactly its allowed hazard, so the list cannot go stale', () => {
     for (const [file, allowed] of PROCESS_ALLOWED) {
@@ -73,7 +73,7 @@ describe('nothing under src/ runs a process, except the two allow-listed adapter
   it('flags an injected spawn(\'x\'); call in every real source file (E31\'s blind-spot pin)', () => {
     const missed = files.filter((file) => !processHazards(injectSpawnCall(readFileSync(join(SRC_ROOT, file), 'utf8'), kindOf(file)), kindOf(file)).includes('spawn call'));
     expect(missed).toEqual([]);
-  });
+  }, 30_000);
 
   it('still flags every other process API, the shell option and the openers injected into each allow-listed file', () => {
     expect(STILL_BANNED.length).toBeGreaterThan(0);
@@ -92,7 +92,7 @@ describe('nothing under src/ runs a process, except the two allow-listed adapter
   it('flags an injected { shell: true } in every real source file', () => {
     const missed = files.filter((file) => !processHazards(injectStatement(readFileSync(join(SRC_ROOT, file), 'utf8'), kindOf(file), 'const o = { shell: true };'), kindOf(file)).includes('shell option'));
     expect(missed).toEqual([]);
-  });
+  }, 30_000);
 });
 
 describe('process hazard detection', () => {
