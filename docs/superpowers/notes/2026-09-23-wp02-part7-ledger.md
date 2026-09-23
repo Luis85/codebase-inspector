@@ -109,7 +109,7 @@ Four read-only tables checked every task's text against the real code at HEAD, a
 | PF17 | Installed route: (a) a codebase switch while busy closes the route once the busy step settles (dropping its late result, Part 6 E36); (b) a thrown non-FS error shows the generic read failure without the "(UNKNOWN)" code suffix; (c) the path step shows FALLOW_EXE_REFUSED['executable-missing'] when inspection says missing — spec Z29–Z31. | Small copy/flow rework. |
 | PF18 | Record-only items are left to the per-task reviews: weak/over-titled tests, unlisted signature drifts, unused RunPlan.trustedVersion, new host test file names, FALLOW_ROW_COLLECTED's location, off line anchors; reviewers may flag them; RunPlan.trustedVersion is removed if still unused after Task 5. | Review-loop churn only. |
 
-### Rulings during execution (Part 7 E1–E12)
+### Rulings during execution (Part 7 E1–E20)
 
 | # | Task | Ruling | Cost if wrong |
 |---|---|---|---|
@@ -125,6 +125,14 @@ Four read-only tables checked every task's text against the real code at HEAD, a
 | Part 7 E10 | 12 | Review Important #2 — Trust-and-run (and review's store.read) rejections from data.json use a start-failure string ("could not be read or updated", says nothing ran and what stays), not FALLOW_EXE_CHECK_FAILED; the test was updated. | One more copy string. |
 | Part 7 E11 | 12 | Accepted removal of FALLOW_EXE_CHECK_FAILED instead of keeping it — the inspector never rejects (file errors come back as refusals), so the string was unreachable. | A future rejecting inspector shows the start-failure text. |
 | Part 7 E12 | 12 | Refusals and Run/Forget failures stay announced by both the live region and the banner (the run-endings ruling, E9, is not extended to them) — a status region appearing together with its text is often not read, so the live region is the reliable path for these one-shot outcomes. | Some screen readers read these twice. |
+| Part 7 E13 | 14 | Task 14 was blocked only on `npm run lint`: `tests/component/settings-fallow.test.ts:149`'s `no-unnecessary-type-assertion` sits in a Task 10 file, not Task 14's. Ruling: route the one-line fix back to the Task 10 implementer, the file's owner, rather than fixing it inside Task 14 — landed as commit 50d6e0f. | Low: a borrowed one-line fix in Task 14's own commit would blur per-task attribution; routing it to the file's owner keeps the ledger's task boundaries honest. |
+| Part 7 E14 | final review | One fix wave covers Important 1–4, the two deferred minors the reviewer ruled must-fix (`contracts/fallow-runner.test.ts`'s `sleep(500)` → poll with a deadline; focus after a successful Forget), and final Minors 1 (the review's version copy overpromised) and 8 (G6 cited the wrong file for the real ENOENT spawn). | Small wave-scope growth. |
+| Part 7 E15 | final review | Final Minors 2–7 are parked: (2) two devices displace each other's record — safe, K2's cost restated as "once per switch between devices"; (3) an internal `grantTrust`/`revokeTrust` error is worded as a start failure; (4) an unsupported record still offers Choose; (5) blocked Cancel's odd description; (6) focus lands on the aria-disabled Import after a command-started run; (7) a raw "analyzer store: not-bound" string surfaces in Settings. None affects consent or evidence truth. | Small UX roughness ships. |
+| Part 7 E16 | final review | Recommended-not-blocking deferred minors (the Z36 wiring test, the no-freeze margin, `trustAndRun`'s busy-on-entry check) are parked; the reviewer verified Z36 by reading the code rather than by adding a test. | A later wiring regression would not be caught by a test. |
+| Part 7 E17 | final review | Spec §2 rows `FALLOW_REVIEW_ENV` / `FALLOW_REVIEW_VERSION_KNOWN`, and Z23 (`evidenceKept`), Z31 (the Environment row), Z33 (`fallowRunBannerOf`'s signature and `kept`) are corrected in place in `2026-09-23-inspector-ui-part7-design.md`, each marked "(corrected in the final review, Part 7 ledger)" — documentation of what shipped, not a design change. | None. |
+| Part 7 E18 | final review | Accepted the fix wave's own choices: `evidenceKept` narrowed to "this failure marked the report stale" with a required `evidenceMarkedFailed` argument on `fallowRunBannerOf`; a mid-run import is blocked inside `ConnectFallowDialog.vue` itself rather than making the request wait; the test fake notifies binding changes without mutating its scripted reads. | Minor rework if a later caller had wanted the old, wider `evidenceKept` meaning ("a report was there"). |
+| Part 7 E19 | final review | The re-review's new Minor B1 (`contracts/fallow-runner.test.ts`'s grandchild poll deadline of 10 s exceeds the `it`'s 5 s default timeout — a clear error is unreachable, and an orphaned poll may reap later) is parked and surfaced to the owner as a residual, rather than spending a second fix wave on it. | That contract test can still time out under load with a generic message instead of the poll's own clear one. |
+| Part 7 E20 | final review | `no-process-execution.test.ts` and `clean-vault-install`'s network sweep — both whole-`src` scans — have no explicit per-test timeout and can exceed vitest's 5 s default under full-suite load, though both pass alone; parked and surfaced to the owner as a residual, with the one-line fix (an explicit per-test timeout) left for them. | `npm run verify` can exit 1 on a loaded machine even though both tests pass alone. |
 
 ### Per task: completion, commit range and fix rounds
 
@@ -221,4 +229,30 @@ Four read-only tables checked every task's text against the real code at HEAD, a
 - `build` and `assert-bundle` OK, dist/main.js 1,128.55 kB.
 - `npm run test:fallow` 10/10 on fallow 3.27.0, win32.
 
-Final whole-branch review: pending.
+### Final whole-branch review
+
+**Verdict** (8841b4c..159e9b3, most capable model): "With fixes" — 0 Critical, 4 Important, 8 Minor. The rulings that disposed of every finding are Part 7 E13–E20 above.
+
+**Fix wave** (commits 159e9b3..950b87f, one wave, single fixer, no subagents, all edits through Edit/Write):
+
+| Commit | Finding |
+|---|---|
+| 6c6ab3e | Important 1: the banner said "kept and marked stale" when nothing was — `evidenceKept` now means "this failure marked the report stale", and `fallowRunBannerOf` takes a required `evidenceMarkedFailed` so `kept = evidenceKept && evidenceMarkedFailed`. |
+| 6c6ab3e | Important 2: the Data & scans card went stale after a Settings change — `FallowAnalysisService.onBindingChanged` notifies after every successful binding write (bind, trust grant/revoke, forget, time limit, purge), from any source; the analysis store subscribes and refreshes only the bound codebase. |
+| 6c6ab3e | Important 3: the review's Environment row was false on Windows, and the limitations doc overclaimed — `FALLOW_REVIEW_ENV` becomes a function of `windows`; the wp01 limitations note is split into what is stated where the user meets it versus stated only in the doc. |
+| 6c6ab3e | Important 4: the import command bypassed "Import is blocked mid-run" (Z32/K9) — `ConnectFallowDialog.vue`'s Choose report… and Attach are `aria-disabled` and guarded while that codebase's analysis is active; the dialog still opens, so the request is answered rather than dropped. |
+| 6c6ab3e | Must-fix minor: focus dropped to `<body>` after a successful Forget — `FallowRunPanel.vue` moves focus to "Choose executable…" when Forget unmounts under focus. |
+| 6c6ab3e | Minor: the review's version copy overpromised a pinned, re-checked version — `FALLOW_REVIEW_VERSION_KNOWN` now says the version is recorded after you trust it again. |
+| 9430840 | Must-fix minor: a flaky fixed `sleep(500)` in the runner contract — polls for the grandchild pid on a deadline instead; no `it(` was added, so the K28/PF5 test-count derivations are unchanged. |
+| 950b87f | Minor: G6 "Missing native binary" credited the wrong file for the real ENOENT spawn — the gate-evidence note now credits `tests/contracts/fallow-runner.test.ts`, and its living-suite line is refreshed with the two load-only timeouts disclosed. |
+
+**Re-review**: 8/8 findings ADDRESSED, no new breakage. New: Minor B1 (the grandchild poll's 10 s deadline exceeds the `it`'s 5 s default timeout) and a spacing nit — both parked (Part 7 E19).
+
+**Controller's verify at 950b87f** (typecheck/lint green; test not fully green):
+- 2547 passed, 1 skipped, 1 failed;
+- the 1 failure is the known `clean-vault-install` network-sweep timeout under load (the documented flake, which passes alone);
+- build and assert-bundle OK.
+
+**Residuals the owner must decide on:**
+- B1 — the runner contract's grandchild poll deadline (10 s) exceeds its `it`'s default timeout (5 s), so a hang there still reports a generic timeout instead of the poll's own clear error;
+- no explicit per-test timeout on the two whole-`src` scan tests (`no-process-execution.test.ts`; `clean-vault-install`'s network sweep), which can each exceed vitest's 5 s default under full-suite load though both pass alone.
