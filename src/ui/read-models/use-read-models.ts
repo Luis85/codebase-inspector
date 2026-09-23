@@ -42,7 +42,7 @@ function cyclesFor(graph: ArchitectureGraph): MetricValue {
  *  card and its caption (Polish E2) count open findings, read from that leaf's Quality model. */
 type OverviewEntry = { snapshot: CodebaseSnapshot; files: readonly FileSummary[]; cycles: MetricValue; model: OverviewModel };
 const overviewCache = new WeakMap<EvidenceIndex, WeakMap<object, OverviewEntry>>();
-export function overviewModelFor(
+function overviewModelFor(
   snapshot: CodebaseSnapshot, files: readonly FileSummary[], cycles: MetricValue, evidence: EvidenceIndex,
   dispositions: readonly FindingDisposition[],
 ): OverviewModel {
@@ -79,7 +79,7 @@ export function architectureModelFor(graph: ArchitectureGraph, rules: readonly B
 
 type DetailEntry = { snapshot: CodebaseSnapshot; files: readonly FileSummary[]; byId: Map<EntityId, FileDetailModel | null> };
 const detailCache = new WeakMap<EvidenceIndex, DetailEntry>();
-export function fileDetailFor(
+function fileDetailFor(
   snapshot: CodebaseSnapshot, files: readonly FileSummary[], entityId: EntityId | null, evidence: EvidenceIndex,
 ): FileDetailModel | null {
   if (!entityId) return null;
@@ -93,7 +93,7 @@ export function fileDetailFor(
  *  by every leaf on the codebase. Each leaf has its own review store, whose `dispositions`
  *  array is reassigned on every decision, so its raw identity is the inner key (E53). */
 const qualityCache = new WeakMap<EvidenceIndex, WeakMap<object, QualityModel>>();
-export function qualityModelFor(
+function qualityModelFor(
   files: readonly FileSummary[], evidence: EvidenceIndex, dispositions: readonly FindingDisposition[],
 ): QualityModel {
   let byDispositions = qualityCache.get(evidence);
@@ -105,7 +105,7 @@ export function qualityModelFor(
 }
 
 const testsCache = new WeakMap<readonly FileSummary[], { snapshot: CodebaseSnapshot; model: TestConfidenceModel }>();
-export function testConfidenceModelFor(snapshot: CodebaseSnapshot, files: readonly FileSummary[]): TestConfidenceModel {
+function testConfidenceModelFor(snapshot: CodebaseSnapshot, files: readonly FileSummary[]): TestConfidenceModel {
   const hit = testsCache.get(files);
   if (hit && hit.snapshot === snapshot) return hit.model;
   const model = buildTestConfidenceModel(snapshot, files);
@@ -114,7 +114,7 @@ export function testConfidenceModelFor(snapshot: CodebaseSnapshot, files: readon
 }
 
 const dependenciesCache = new WeakMap<CodebaseSnapshot, DependenciesModel>();
-export function dependenciesModelFor(snapshot: CodebaseSnapshot): DependenciesModel {
+function dependenciesModelFor(snapshot: CodebaseSnapshot): DependenciesModel {
   let hit = dependenciesCache.get(snapshot);
   if (!hit) { hit = buildDependenciesModel(snapshot); dependenciesCache.set(snapshot, hit); }
   return hit;
@@ -144,7 +144,7 @@ export function evolutionModelFor(
 }
 
 const ownershipCache = new WeakMap<readonly FileSummary[], OwnershipModel>();
-export function ownershipModelFor(files: readonly FileSummary[]): OwnershipModel {
+function ownershipModelFor(files: readonly FileSummary[]): OwnershipModel {
   let hit = ownershipCache.get(files);
   if (!hit) { hit = buildOwnershipModel(files); ownershipCache.set(files, hit); }
   return hit;

@@ -8,8 +8,8 @@ import { filesByPriority, moduleLabel, type FileSummary } from './file-summaries
 
 export const MAX_PLOTTED = 400;
 export const TABLE_PAGE = 100;
-export const SHORTLIST_SIZE = 5;
-export const SCATTER_TICKS = 5;
+const SHORTLIST_SIZE = 5;
+const SCATTER_TICKS = 5;
 /** The review quadrant's churn edge (half the sample range's 44). */
 export const CHURN_THRESHOLD = 22;
 

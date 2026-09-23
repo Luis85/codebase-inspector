@@ -545,6 +545,15 @@ npx vitest run tests/integration/fallow-analysis.test.ts -t "no freeze"
       Tests  1 passed | 13 skipped (14)
 ```
 
+```
+[no-freeze] hang: largest event-loop gap 23.3 ms; final parse 0.2 ms (failed)
+[no-freeze] streamed: largest event-loop gap 22.2 ms; final parse 21.4 ms (completed)
+```
+
+Observed again in the WP-02 polish pass: the largest event-loop gap was 23.3 ms against
+the 50 ms budget (Z38, K18); Part 7 observed 22–27 ms. The budget is unchanged (polish
+L5, C18).
+
 Both gaps are well under the 50 ms bound (spec §5, Z38). The final JSON parse runs on
 the UI thread and is measured, not bounded (spec §6).
 
@@ -721,20 +730,20 @@ commit; nothing standing implements it, and a reader of this document must not t
 `analyze` as the instrument. That matters out of proportion to its size, because the
 review methodology recorded throughout this document rests on question 1.
 
-**Accepted baseline at this commit: 11 findings** — 7 unused exports, 1 unused type,
+**Accepted baseline at this commit: 9 findings** — 5 unused exports, 1 unused type,
 1 unused class member, 1 duplicate export pair, 1 circular dependency. The count is
 recorded here (review M4) precisely because this gate exits non-zero permanently by
-design: without a baseline, a TWELFTH finding is indistinguishable from the eleven
+design: without a baseline, a TENTH finding is indistinguishable from the nine
 already assessed. Each one:
 
 | Finding | Assessment |
 |---|---|
-| `districts.ts` `LOT_FOOTPRINT`, `UNAVAILABLE_FOOTPRINT`, `MAX_DIRECT_SUBDISTRICTS`; `picking.ts` `DRAG_THRESHOLD_CSS_PX`, `HOVER_DWELL_MS`; `scale.ts` `SCALE_NAME` | exported for their **tests**, which assert against the constant rather than retyping the number. Used inside their own modules. Accepted. |
+| `districts.ts` `LOT_FOOTPRINT`, `MAX_DIRECT_SUBDISTRICTS`; `picking.ts` `DRAG_THRESHOLD_CSS_PX`; `work-items.ts` `entityPath` | used inside their own modules and named by their tests (`layout-districts`, `layout-determinism`, `ui-steps`, `review-state`), which cite them in comments; no test imports them. The WP-02 polish pass (X1) un-exported the three that no test named (`UNAVAILABLE_FOOTPRINT`, `HOVER_DWELL_MS`, `SCALE_NAME`), with the other module-local helpers the tool flagged. Accepted. |
 | `node-access.ts` `fs` | the single Node seam; `fsPromises` is derived from it and `tests/unit/node-access-boundary.test.ts` asserts this file is the only one in `src/` that reaches Node. Accepted. |
 | `model.ts` type `SourceReference` | named by spec §4.1's **frozen** implemented-types list. Only the user may change a §4 contract. Accepted, and must not be "cleaned up". |
 | `renderer-port.ts` `EntityId` duplicating `entity-id.ts` | both are inside frozen §4.2/§4.1 contracts. Accepted. |
 | `city-view.ts → leaf-registry.ts → city-view.ts` cycle | pre-existing and structural (the registry reaches views; views ask the registry to reconcile siblings). Not touched by task 12. |
-| **`ScanCoordinator.getLifecycle`** | **a genuine zero-caller surface.** Nothing in `src/` *or* `tests/` called it before this task. It is an inert accessor, not a fake feature, so it is not instance 10 of the branch's defect class — but it is dead code, it is outside task 12's file ownership, and it is **reported rather than removed**. |
+| **`ScanCoordinator.getLifecycle`** | **no caller; kept as public coordinator surface.** Nothing in `src/` *or* `tests/` calls it: `tests/acceptance/steps/evidence-steps.ts` names it only in comments. It is an inert accessor, not a fake feature, so it is not instance 10 of the branch's defect class. The WP-02 polish pass kept it (polish QF5, correcting L10). Accepted. |
 
 **`analyze` fetches its tool at run time, deliberately.** `npx --yes fallow@3.27.0`
 pins the exact version but is not a devDependency, so the gate needs network and
@@ -830,7 +839,7 @@ check these against the suite and against the matrix itself:
   derived (above); which test the runner skipped is a fact of the run, not of the
   repository, and no test inside the suite can read it. Re-take with `npx vitest run`.
 - The **reference hardware** rows, which describe a machine.
-- The `npm run analyze` **total of 11**. Its internal breakdown is checked, but the figure
+- The `npm run analyze` **total of 9**. Its internal breakdown is checked, but the figure
   itself needs the tool, which is not part of `npm run verify` and needs network.
 - The **living suite's own totals** named in the G8 vintage note above (204 files, 2223
   tests, 2221 passed, 1 skipped, plus `tests/unit/install-script.test.ts`'s one

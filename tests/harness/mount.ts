@@ -17,8 +17,8 @@ import { createFakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
 import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
 import {
   DEMO_FALLOW_FILE_NAME, HARNESS_BINDING, cancellingLifecycle, completedAnalysisState, demoCollectedReport,
-  demoEvidenceReport, demoFallowReportText, demoImportJson, demoRunReview, failedAnalysisState, runningAnalysisState,
-  runningLifecycle, seedDemoItems,
+  demoEvidenceReport, demoFallowReportText, demoImportJson, demoRunReview, failedAnalysisState, openFailureLog,
+  runningAnalysisState, runningLifecycle, seedDemoItems,
 } from './seed';
 import { harnessLayout, harnessSnapshot } from './fixture';
 import { HARNESS_THEME_EVENT } from './theme';
@@ -168,6 +168,7 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
     // Only the city route creates a renderer; every other screen is plain DOM and is
     // drawn once Vue has flushed.
     await nextTick();
+    if (options.analysis === 'failed') { openFailureLog(root); await nextTick(); }
     if (options.items === 'demo') {
       // Part 5 V8: App's repository watcher bound the review store to this snapshot and
       // started a load. A second load settles after the first (same depth, in order), so

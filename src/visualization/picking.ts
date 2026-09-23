@@ -14,7 +14,7 @@
 import type { EntityId } from './renderer-port';
 
 export const DRAG_THRESHOLD_CSS_PX = 5;
-export const HOVER_DWELL_MS = 200;
+const HOVER_DWELL_MS = 200;
 /** Phase 2c, ruling M104. One Chromium/Windows wheel notch is `deltaMode 0, deltaY 100`
  *  (WHEEL_DELTA 120 x the OS "lines to scroll" default of 3 x Chromium's 100/3 px per
  *  line). At the previous 0.0035 that was `exp(-100 * 0.0035) = 0.7047` -- a 29.5% cut

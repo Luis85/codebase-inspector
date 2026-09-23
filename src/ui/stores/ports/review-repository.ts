@@ -75,7 +75,7 @@ export interface WorkItemPatch { title?: string; status?: WorkItemStatus; priori
  *  `verified`. */
 export interface WorkItemInit { priority?: WorkPriority; notes?: string; status?: WorkItemStatus; checks?: WorkChecks }
 
-export function allChecksDone(checks: WorkChecks): boolean {
+function allChecksDone(checks: WorkChecks): boolean {
   return checks[0] && checks[1] && checks[2];
 }
 

@@ -69,12 +69,20 @@ section, where that gap is stated rather than closed.
   written to disk.
 - **No analyzer, no findings, no coverage, no dependency relations, no runtime
   evidence.** One provider ships, `builtin-inventory`, and the validator rejects any
-  snapshot claiming another.
-- **No note writing, no snapshot comparison.**
+  snapshot claiming another. *Superseded for findings: WP-02 Part 6 imports fallow
+  evidence and Part 7 runs an installed fallow (`tests/unit/evidence-index.test.ts`,
+  `tests/integration/fallow-analysis.test.ts`); coverage, dependency relations and runtime
+  evidence are still not collected.*
+- **No note writing, no snapshot comparison.** *Superseded for comparison: WP-02 Part 3
+  compares snapshots (`tests/component/evolution-screen.test.ts`); no note writing still
+  holds.*
 - **No source-opening or open-in-editor action.** External process execution is an
   unresolved policy question and the boundary is frozen: the plugin never installs,
-  downloads or updates any executable.
-- **No lens parameter on the city viewport.**
+  downloads or updates any executable. *Superseded: WP-02 Part 7 decided and delivered
+  the process policy (Z1–Z44; `tests/unit/no-process-execution.test.ts`, the G6 section of
+  the gate evidence). No source-opening or open-in-editor action still holds.*
+- **No lens parameter on the city viewport.** *Superseded: WP-02 Part 6 adds the findings
+  lens (Y40; `tests/component/findings-lens.test.ts`).*
 - **Symbolic links and junctions are never followed**; they are reported as skipped,
   with a reason. The **directory-junction** case is verified against a real junction
   pointing out of an approved root. The plain **file-symlink** case is *not* verified on
@@ -125,7 +133,8 @@ section, where that gap is stated rather than closed.
   duplication that used to sit beside this — COPY-28 retyped in
   `src/host/setting-definitions.ts` rather than imported — is fixed (the constant is now
   the catalogue entry, so the settings row and `src/ui/copy.ts` cannot drift), but the
-  broader property stands for every id.
+  broader property stands for every id. *Superseded: `tests/contracts/microcopy.test.ts`
+  compares the catalogue with `src/ui/copy.ts`.*
 - **Layering is only partly enforced by lint, and deliberately so.** Spec §3.4's Rule 2
   names `src/domain/**` and `src/visualization/**`, and `eslint.config.mjs` implements
   exactly that. `application`, `adapters`, `host` and `ui` carry no backwards-import ban;
@@ -223,11 +232,13 @@ Whether a factual safety claim belongs in the muted token is for a human looking
 ## Tooling and gates that are deliberately not green
 
 - **`npm run analyze` exits non-zero and is expected to.** The accepted baseline is
-  **11** findings — test-facing exported constants, the `node-access` seam, an unused
-  type named by frozen §4.1, a duplicate `EntityId` spanning two frozen contracts, and a
-  pre-existing `city-view ↔ leaf-registry` cycle. It is a **review list, not a gate**,
+  **9** findings (re-baselined in the WP-02 polish pass, X1) — four exported names their
+  tests cite, the `node-access` seam, an unused type named by frozen §4.1,
+  `ScanCoordinator.getLifecycle` (no caller; kept as public coordinator surface), a
+  duplicate `EntityId` spanning two frozen contracts, and a pre-existing
+  `city-view ↔ leaf-registry` cycle. It is a **review list, not a gate**,
   which is why it sits outside `npm run verify`, and **nobody tuned it to green** — that
-  is deliberate, and the baseline is what makes a twelfth finding visible. It also
+  is deliberate, and the baseline is what makes a tenth finding visible. It also
   fetches its tool at run time (`npx --yes fallow@3.27.0`), so it needs network and
   resolves outside the lockfile's integrity guarantees.
   **And it does not answer this branch's question 1**, which the gate-evidence document
@@ -287,7 +298,8 @@ Whether a factual safety claim belongs in the muted token is for a human looking
 - **Whether the community directory's build verification accepts a `dist/` output.**
   Irrelevant until submission is a goal, and submission is not a goal here.
 - **Whether external process execution is permitted by policy.** No official text either
-  way. WP-02's concern; the boundary is frozen for WP-01.
+  way. WP-02's concern; the boundary is frozen for WP-01. *Closed by WP-02 Part 7
+  (Z1–Z44), which the owner approved.*
 
 Items spec §11 listed as open that this increment **closed**, so the list does not carry
 them twice: whether `getSettingDefinitions()` can express a dynamic per-profile list
@@ -323,6 +335,10 @@ round-trip).
   UI thread, as a Part 6 import does. It is measured, not bounded.
 - **Machine identity is inferred.** The "another device" rule relies on
   `loadLocalStorage` not being synced (the existing `getOrCreateMachineId` risk).
+- **Two devices displace each other's binding.** The record is stamped with one device's
+  id (K2). Choosing the executable on a second device replaces the first device's record,
+  so each switch between devices asks for the executable and its review again: once per
+  switch, not once per device.
 - **Windows child environment.** On Windows the child's environment is the allow-list
   plus the variables libuv always adds; on POSIX it is exactly the allow-list. libuv adds
   its own required variables to every child's environment on Windows (`HOMEDRIVE`,
@@ -347,7 +363,8 @@ Environment row says the variables Windows always provides are passed on as well
 disclosure (Z12) says the executable setting is marked with this device and that another
 device asks again, which is the rule the machine-identity item qualifies. The Windows
 process-tree limit, a force-quit mid-run, the synchronous parse, the inferred machine
-identity itself and the POSIX paths not run here are stated only in this document.
+identity itself, the two-device displacement and the POSIX paths not run here are stated
+only in this document.
 
 ---
 
@@ -371,7 +388,7 @@ applies to this file identically, to all four counts.
 
 **TRANSCRIBED — reproduce with the command named beside them in the gate-evidence
 document; no test can check these.** Every benchmark figure, the adjacent scan timings,
-the snapshot ceiling, the concurrency comparison and the `npm run analyze` total of 11.
+the snapshot ceiling, the concurrency comparison and the `npm run analyze` total of 9.
 They are cited from `2026-09-17-wp01-gate-evidence.md` and from task 12's benchmark run,
 which writes its results outside this repository by design.
 

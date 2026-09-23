@@ -21,7 +21,7 @@ export const FALLOW_CLOSE_GRACE_MS = 2_000;
 export const FALLOW_TIMEOUT_DEFAULT_S = 120;
 export const FALLOW_TIMEOUT_MIN_S = 10;
 export const FALLOW_TIMEOUT_MAX_S = 1800;
-export const FALLOW_ERROR_MESSAGE_MAX = 500;
+const FALLOW_ERROR_MESSAGE_MAX = 500;
 const VERSION_MAX = 32;
 
 /** Z9: the versions the committed fixtures were recorded with (Y20/Y21). */

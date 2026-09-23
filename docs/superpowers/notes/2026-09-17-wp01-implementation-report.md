@@ -164,7 +164,7 @@ Three properties of the suite a reader should not have to discover:
 the `mayPublish` supersession guard is **unreachable by construction** and is pinned by a
 source-as-contract tripwire that **is not coverage**; stylesheet-as-contract tests strip
 CSS comments, because one on this branch once passed with its own defect reinstated; and
-`npm run analyze` **exits non-zero by design** with an accepted baseline of **11**
+`npm run analyze` **exits non-zero by design** with an accepted baseline of **9**
 findings and is a review list rather than a gate. All three are set out in the
 gate-evidence document.
 
@@ -563,7 +563,7 @@ The full record is `2026-09-17-wp01-limitations.md`. In summary:
 - **The scan is sequential by choice** (ruling M108), about four times slower than
   bounded concurrency measured, because concurrency opens files after a cancel and those
   reads enter the G2 evidence surface. **That trade is the user's to make.**
-- **`npm run analyze` is red by design** at a baseline of **11** findings, each assessed,
+- **`npm run analyze` is red by design** at a baseline of **9** findings, each assessed,
   and nobody tuned it to green.
 - **The shipped bundle contains an unreachable FileSaver island** carrying two
   `XMLHttpRequest` constructions, from pinia 4.0.3's own `dist/pinia.js` — the single
@@ -611,7 +611,7 @@ gate-evidence document's own Numbers block. Re-take with `npx vitest run <direct
 
 Also transcribed: the artefact byte sizes and the `npm ci` package count, taken from the
 run recorded in the G1 section; the dependency versions, taken from `package-lock.json`
-at this commit; the `npm run analyze` total of 11; and every figure cited from the G5
+at this commit; the `npm run analyze` total of 9; and every figure cited from the G5
 benchmark, which writes its results outside this repository by design.
 
 **NEITHER — prose.** Version numbers, spec section numbers, ruling numbers, COPY ids,

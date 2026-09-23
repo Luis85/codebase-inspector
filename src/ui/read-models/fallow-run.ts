@@ -9,10 +9,9 @@ import {
 } from '../inspector-copy';
 import { rootFolderLabel } from './root-label';
 
-export { isActive, isCancellable, type AnalysisRunState } from '../../application/analysis/analysis-state';
-export type { AnalyzerBindingView, ReviewResult, RunReview, StartOutcome } from '../../application/analysis/fallow-analysis-service';
+export type { AnalysisRunState } from '../../application/analysis/analysis-state';
+export type { ReviewResult, RunReview, StartOutcome } from '../../application/analysis/fallow-analysis-service';
 export type { FallowRunErrorCode } from '../../application/analysis/fallow-run-errors';
-export type { ExecutableFacts, ExecutableFormat, ExecutableRefusal } from '../../application/ports/executable-inspector';
 export { FALLOW_TESTED_VERSIONS } from '../../application/analysis/fallow-invocation';
 
 /** Z29/Z30: where the installed route opens. */

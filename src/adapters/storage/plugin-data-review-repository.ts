@@ -50,7 +50,7 @@ const refused = (code: ReviewStoreErrorCode): ReviewStoreError => new ReviewStor
 
 /** The port plus the one member the registry's purge uses (Y17). */
 export interface PluginDataReviewRepository extends ReviewRepository {
-  /** From now on every write rejects ('unsupported'), so a leaf still bound to a removed
+  /** From now on every write rejects ('retired'), so a leaf still bound to a removed
    *  profile can never recreate its set. Subscribers are told once, so they reload. */
   retire(): void;
 }

@@ -6,7 +6,7 @@
 import type { AnalyzerTrust } from '../analysis/analyzer-trust';
 import type { AnalyzerBindingRead } from '../analysis/analyzer-record';
 
-export type { AnalyzerBinding, AnalyzerBindingRead } from '../analysis/analyzer-record';
+export type { AnalyzerBindingRead } from '../analysis/analyzer-record';
 
 export interface AnalyzerBindingStore {
   read(profileId: string): Promise<AnalyzerBindingRead>;

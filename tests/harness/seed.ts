@@ -152,3 +152,11 @@ export function failedAnalysisState(): AnalysisRunState {
 export function completedAnalysisState(): AnalysisRunState {
   return { status: 'completed', runId: 'harness-fallow-run', finishedAt: AT.toISOString(), version: '3.27.0', tested: true, matchedFindings: 19, matchedFiles: 10 };
 }
+
+/** Polish H5 (L24): a headless capture cannot click, so the failed-run shot opens the banner's
+ *  "Error output (last lines)" itself, and the log text is in the picture. */
+export function openFailureLog(root: ParentNode): void {
+  const log = root.querySelector('details.ci-fallow-run__log');
+  if (log === null) throw new Error('harness: analysis=failed rendered no error output');
+  log.setAttribute('open', '');
+}

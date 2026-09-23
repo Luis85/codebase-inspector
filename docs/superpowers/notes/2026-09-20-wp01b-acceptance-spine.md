@@ -182,7 +182,7 @@ scoping rule but never counted the sheet; this package measured it.
 - `tests/unit/host-cascade.test.ts` pins the *mechanism* that scoping depends on: every
   plugin-skinned control is raised to exactly the specificity that beats Obsidian's own
   default and still loses to a user snippet scoped to the plugin root (`'and still loses
-  to a scoped user snippet'`, `'keeps the zero-specificity scope, which is what the user
+  to a user snippet scoped to our own root'`, `'keeps the zero-specificity scope, which is what the user
   snippet wins against'`) — `:where()` is not merely present, it is the thing every
   raised rule is checked against.
 - **The token bridge aliases, never redefines.** `src/ui/styles.css:4-18` declares every

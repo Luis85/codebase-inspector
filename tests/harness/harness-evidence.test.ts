@@ -5,6 +5,9 @@
 // under the ordinary suite, the way harness.test.ts keeps the page itself alive.
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+// Side-effect import: installs the createDiv/createEl helpers real Obsidian patches onto
+// HTMLElement (polish QF6), which the H5 case builds its details element with.
+import '../mocks/obsidian';
 import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
 import { resolveFindings } from '../../src/application/evidence/resolve-findings';
 import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
@@ -17,7 +20,7 @@ import { fallowRunBannerOf } from '../../src/ui/read-models/fallow-run';
 import {
   DEMO_FALLOW_FILE_NAME, DEMO_UNMATCHED_PATH, HARNESS_SYNTHETIC_FOOTER, HARNESS_BINDING,
   completedAnalysisState, demoCollectedReport, demoEvidenceReport, demoFallowReportText, demoRunReview,
-  failedAnalysisState, filePathsOf, runningAnalysisState,
+  failedAnalysisState, filePathsOf, openFailureLog, runningAnalysisState,
 } from './seed';
 import { harnessSnapshot } from './fixture';
 
@@ -99,5 +102,19 @@ describe('the harness fallow run (?fallow=installed, ?analysis=…, Part 7 Z42)'
     expect(fallowRunBannerOf(runningAnalysisState(snapshot), true, false)?.tone).toBe('info');
     expect(fallowRunBannerOf(failedAnalysisState(), true, true)).toMatchObject({ tone: 'warning', kept: true });
     expect(fallowRunBannerOf(completedAnalysisState(), true, false)?.icon).toBe('check');
+  });
+
+  it('Polish H5: the failed-run shot opens its error output, and refuses to capture without one', () => {
+    const root = document.body.createDiv();
+    const log = root.createEl('details', { cls: 'ci-fallow-run__log' });
+    log.createEl('summary', { text: 'Error output (last lines)' });
+    log.createEl('pre', { text: 'Boom' });
+    expect(log.open).toBe(false);
+    openFailureLog(root);
+    expect(log.open).toBe(true);
+    const empty = document.body.createDiv();
+    expect(() => { openFailureLog(empty); }).toThrow('rendered no error output');
+    root.remove();
+    empty.remove();
   });
 });

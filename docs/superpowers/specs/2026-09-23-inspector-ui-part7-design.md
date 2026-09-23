@@ -219,7 +219,7 @@ The new strings live in **`src/ui/audit-copy/fallow-run.ts`**, which `inspector-
 | `FALLOW_RUN_NOTICE` (reason) | {COPY_15('fallow')} {reason} |
 | `FALLOW_STALE_NOTICE` (date, cause) | snapshot: COPY_16(date); failed-run: Showing evidence from {date}. The latest fallow analysis failed, so it may not be current. |
 | `PROFILE_ANALYZER_PURGE_FAILED` | The profile was removed, but its fallow executable setting could not be removed: |
-| `SETTINGS_FALLOW_EXE_NAME` / `SETTINGS_FALLOW_LIMIT_NAME` | fallow executable / fallow time limit |
+| `SETTINGS_FALLOW_EXECUTABLE_NAME` / `SETTINGS_FALLOW_LIMIT_NAME` (corrected in the polish pass, polish ledger L4) | fallow executable / fallow time limit |
 | `SETTINGS_FALLOW_FORGET` | Forget |
 | `SETTINGS_FALLOW_LIMIT_DESC` | Seconds before a fallow analysis is stopped, from 10 to 1800. |
 | `SETTINGS_FALLOW_LIMIT_INVALID` | Enter a whole number of seconds from 10 to 1800. |

@@ -13,7 +13,7 @@ export const LOT_FOOTPRINT = 10;
 /** Ruling M10/M13: an unavailable lot gets a distinct, SMALLER marker footprint, not
  *  just a neutral colour — a height-only difference is invisible in the top-down
  *  orthographic camera mode (spec 4.2), so the silhouette itself must differ. */
-export const UNAVAILABLE_FOOTPRINT = 4;
+const UNAVAILABLE_FOOTPRINT = 4;
 
 const GUTTER = 4;               // gap between sibling boxes in a shelf-packed row/column
 const DISTRICT_PADDING = 6;     // border margin inside a district, around its contents

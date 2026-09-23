@@ -13,7 +13,7 @@ import { filesByPriority, type FileSummary } from './file-summaries';
 import { dateLabels } from './overview';
 import { compareSnapshots, type JournalEntry, type SnapshotComparison } from './snapshot-comparison';
 
-export const COUPLING_ROWS = 6;
+const COUPLING_ROWS = 6;
 export interface EvolutionCard { id: 'size' | 'window' | 'snapshots' | 'changed'; label: string; icon: string; value: MetricValue; unit: string; caption: string; tone: 'accent' | 'warning' }
 export interface CouplingRow { a: FileSummary; b: FileSummary; rate: MetricValue; shared: MetricValue }
 interface CoverageSeries { id: string; label: string; tone: 'success'; points: readonly { label: string; value: number }[] }

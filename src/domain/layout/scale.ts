@@ -32,7 +32,7 @@ export function heightFor(value: number, cap: number): number {
   return 8 + 120 * Math.sqrt(Math.min(value, cap) / cap);
 }
 
-export const SCALE_NAME = 'physical lines · square-root scale';
+const SCALE_NAME ='physical lines · square-root scale';
 
 /** Ruling M14: computeLayout's opts.metricId accepts 'physical-lines' | 'byte-size'.
  *  Both metrics share deriveCap/heightFor verbatim; only the unit and display name
