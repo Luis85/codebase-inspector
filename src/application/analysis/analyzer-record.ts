@@ -8,6 +8,7 @@
 // - Every write changes only its own profile's entry; the others are carried over verbatim.
 import { z } from 'zod';
 import { normalizeAbsolutePath } from '../../domain/path-safety';
+import { isPlainObject } from '../../domain/plain-data';
 import { FALLOW_TIMEOUT_DEFAULT_S, FALLOW_TIMEOUT_MAX_S, FALLOW_TIMEOUT_MIN_S } from './fallow-invocation';
 import type { AnalyzerTrust } from './analyzer-trust';
 
@@ -70,10 +71,6 @@ const RECORD = z.object({
   timeoutSeconds: z.number().int().min(FALLOW_TIMEOUT_MIN_S).max(FALLOW_TIMEOUT_MAX_S),
   trust: TRUST.nullable(),
 }).strict();
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function ownEntry(slice: Record<string, unknown>, profileId: string): unknown {
   return Object.prototype.hasOwnProperty.call(slice, profileId) ? slice[profileId] : undefined;

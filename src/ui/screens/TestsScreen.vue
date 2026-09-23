@@ -7,6 +7,7 @@ import type { FileSummary } from '../read-models/file-summaries';
 import { TABLE_PAGE } from '../read-models/hotspots';
 import { GAP_THRESHOLD, coverageTiles, gapsCsv } from '../read-models/test-confidence';
 import { useReadModels } from '../read-models/use-read-models';
+import { reviewFailureText } from '../read-models/review-failure';
 import { useCityStore } from '../stores/city-store';
 import { useReviewStore } from '../stores/review-store';
 import { useUniqueId } from '../unique-id';
@@ -101,8 +102,8 @@ async function planTests(f: FileSummary): Promise<void> {
   try {
     const item = await review.addWorkItem({ kind: 'file', entityId: f.id }, 'tests', TESTS_PLAN_TITLE(f.name), new Date());
     if (item) liveMessage.value = TESTS_PLAN_ADDED(f.name);
-  } catch {
-    liveMessage.value = TESTS_PLAN_FAILED;
+  } catch (e) {
+    liveMessage.value = reviewFailureText(e, TESTS_PLAN_FAILED);
   }
 }
 

@@ -18,9 +18,9 @@
 import { describe, expect, it } from 'vitest';
 import { makeEntityId } from '../../src/domain/entity-id';
 import {
-  NO_CHECKS, type BoundaryRule, type FindingDisposition, type ReviewRepository, type WorkItem,
+  NO_CHECKS, ReviewStoreError, type BoundaryRule, type FindingDisposition, type ReviewRepository, type WorkItem,
 } from '../../src/ui/stores/ports/review-repository';
-import { REVIEW_STORE_MAX_BYTES, ReviewStoreError } from '../../src/adapters/storage/plugin-data-review-repository';
+import { REVIEW_STORE_MAX_BYTES } from '../../src/adapters/storage/plugin-data-review-repository';
 
 export interface ReviewRepositoryHarness {
   repo: ReviewRepository;

@@ -5,8 +5,7 @@ import { flushPromises } from '@vue/test-utils';
 import type { Plugin as ObsidianPlugin } from 'obsidian';
 import { Plugin } from '../mocks/obsidian';
 import { createReviewRepositoryRegistry } from '../../src/adapters/storage/review-repository-registry';
-import { ReviewStoreError } from '../../src/adapters/storage/plugin-data-review-repository';
-import type { BoundaryRule } from '../../src/ui/stores/ports/review-repository';
+import { ReviewStoreError, type BoundaryRule } from '../../src/ui/stores/ports/review-repository';
 
 const AT = '2026-09-23T10:00:00.000Z';
 const rule = (id: string, to: string): BoundaryRule => ({ id, from: 'ui', to, rationale: 'Layering', createdAt: AT });
@@ -72,6 +71,6 @@ describe('review repository registry: purge (Part 6 Y17)', () => {
     expect(await readDoc(plugin)).toEqual({ reviews: 'not an object' });
     const empty = newPlugin();
     await createReviewRepositoryRegistry(empty).purge('p1');
-    expect(await readDoc(empty)).toEqual({});
+    expect(await readDoc(empty), 'Polish E7 (L17): nothing to purge writes nothing').toBeNull();
   });
 });

@@ -1,12 +1,12 @@
 // Part 5 V16: replacing the whole review state with an imported one, and the report's restore.
 // Part 5 P1 (T19): clearAll is pending-aware, the same rule as replaceAll.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useReportStore } from '../../src/ui/stores/report-store';
 import {
-  NO_CHECKS, createInMemoryReviewRepository, type BoundaryRule, type FindingDisposition, type ReviewReplaceState, type WorkItem,
+  NO_CHECKS, ReviewStoreError, createInMemoryReviewRepository, type BoundaryRule, type FindingDisposition, type ReviewReplaceState, type WorkItem,
 } from '../../src/ui/stores/ports/review-repository';
 
 const NOW = new Date('2026-09-22T10:00:00.000Z');
@@ -138,6 +138,17 @@ describe('review store replaceAll (Part 5 V16)', () => {
     expect(store.hasPendingChanges).toBe(false);
     expect(await repo.listWorkItems()).toEqual(ITEMS);
     expect((await store.addWorkItem({ kind: 'package', name: 'after' }, 'review', 'After', NOW))?.id).toBe('wi-13');
+  });
+
+  it('Polish E14: when the write and the reload both fail, the caller sees the write\'s own error', async () => {
+    const repo = createInMemoryReviewRepository();
+    const store = useReviewStore();
+    store.setRepositoryFactory(() => repo);
+    await store.bindRepository('c1');
+    vi.spyOn(repo, 'replaceAll').mockRejectedValue(new ReviewStoreError('full'));
+    vi.spyOn(repo, 'listWorkItems').mockRejectedValue(new Error('read failed'));
+    await expect(store.replaceAll({ workItems: [], rules: [], dispositions: [] })).rejects.toBeInstanceOf(ReviewStoreError);
+    expect(store.bulkBusy).toBe(false);
   });
 
   // Part 5 E20: a codebase switch (bindRepository) that lands while replaceAll is still

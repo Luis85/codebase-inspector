@@ -11,7 +11,8 @@ import {
 } from './ports/review-repository';
 import {
   EMPTY_REPLACEMENT, anyPending, beginLoad, bucketFor, createBucketState, endLoad, listenTo, ownWrite, pendingOf, release,
-  reserve, ruleKey, settleOwnWrite, stopListening, type BucketState, type ReviewPending, type ReviewRepositoryFactory,
+  reserve, ruleKey, settleOwnWrite, stopListening, type BucketState, type ReviewBucket, type ReviewPending,
+  type ReviewRepositoryFactory,
 } from './review-buckets';
 
 interface ReviewState {
@@ -118,7 +119,7 @@ export const useReviewStore = defineStore('review', {
       this.dispositions = [];
       this.storageDiagnostics = noStorageDiagnostics();
       this.loadFailed = false;
-      await this.load(); // (e)
+      await this.load(target); // (e)
     },
     /** Part 6 Y12: stops listening to the bound repository. The host calls it when the leaf
      *  closes, so a closed leaf is never reloaded by another leaf's write. */
@@ -129,10 +130,11 @@ export const useReviewStore = defineStore('review', {
      *  changes nothing. Task 2 fix round 1: nor does one that a newer load of the same bucket
      *  has overtaken (`endLoad`). Part 6 Y10: a finished load makes the bucket ready. R1: a
      *  rejected list sets `loadFailed` (only if it is the latest, still bound) and the
-     *  rejection always propagates to its caller. */
-    async load(): Promise<void> {
+     *  rejection always propagates to its caller. Polish E14: `bindRepository` passes the
+     *  bucket it bound; every other caller loads the bound one. */
+    async load(target?: ReviewBucket): Promise<void> {
       const repo = this.repository;
-      const bucket = bucketFor(this.bucketState, this.boundKey);
+      const bucket = target ?? bucketFor(this.bucketState, this.boundKey);
       const ticket = beginLoad(bucket);
       let lists: [WorkItem[], BoundaryRule[], FindingDisposition[]];
       try {
@@ -243,22 +245,30 @@ export const useReviewStore = defineStore('review', {
      *  (Part 5 E18). `bulkBusy` clears in a NESTED `finally`, once the reload has settled
      *  (fix round 3, minor 1), even
      *  when it rejects (Y16). A rejection is rethrown while the same codebase is bound; after
-     *  a switch mid-run (Part 5 E20) the call resolves `false` and never rethrows. */
+     *  a switch mid-run (Part 5 E20) the call resolves `false` and never rethrows. Polish E14:
+     *  when the write and the reload both reject, the write's own error is the one rethrown. */
     async replaceAll(state: ReviewReplaceState): Promise<boolean> {
-      if (this.boundKey === '' || !this.ready || this.loadFailed || this.hasPendingChanges) return false;
+      const codebase = this.boundKey;
+      if (codebase === '' || !this.ready || this.loadFailed || this.hasPendingChanges) return false;
       this.bulkBusy = true;
       const repo = this.repository;
+      let failure: { error: unknown } | null = null;
       try {
-        await ownWrite(bucketFor(this.bucketState, this.boundKey), () => repo.replaceAll(state), this);
+        await ownWrite(bucketFor(this.bucketState, codebase), () => repo.replaceAll(state), this);
       } catch (error: unknown) {
-        if (this.repository === repo) throw error;
-        return false;
+        failure = { error };
+      }
+      try {
+        if (this.repository === repo) await this.load();
+      } catch (reloadError: unknown) {
+        // Polish E14: when the write failed too, the caller sees the write's own error.
+        if (failure === null) throw reloadError;
       } finally {
-        try {
-          if (this.repository === repo) await this.load();
-        } finally {
-          this.bulkBusy = false;
-        }
+        this.bulkBusy = false;
+      }
+      if (failure !== null) {
+        if (this.repository === repo) throw failure.error;
+        return false;
       }
       return this.repository === repo;
     },
@@ -290,9 +300,10 @@ export const useReviewStore = defineStore('review', {
     },
     /** Part 5 E18: a no-op (not a removal) while a bulk operation is running. */
     async removeRule(id: string): Promise<void> {
+      const codebase = this.boundKey;
       if (this.bulkBusy) return;
       const repo = this.repository;
-      await ownWrite(bucketFor(this.bucketState, this.boundKey), () => repo.removeRule(id), this);
+      await ownWrite(bucketFor(this.bucketState, codebase), () => repo.removeRule(id), this);
       if (this.repository === repo) this.rules = this.rules.filter((r) => r.id !== id);
     },
     /** Part 3 Q3: a decision is stored apart from the generated finding, keyed by its

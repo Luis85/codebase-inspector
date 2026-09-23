@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
-import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
+import { evidenceBadgeFor, evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { buildOverviewModel } from '../../src/ui/read-models/overview';
 import { buildCitySummary } from '../../src/ui/read-models/city-summary';
@@ -208,5 +208,13 @@ describe('Polish E2: the Overview caption counts open findings only', () => {
     const dismissed: FindingDisposition[] = [{ fingerprint: highs[0]!.fingerprint, status: 'dismissed', reason: 'accepted', decidedAt: '2026-09-23T10:00:00.000Z' }];
     const card = buildOverviewModel(snap, files, undefined, index, buildQualityModel(files, index, dismissed)).cards.find((c) => c.id === 'findings')!;
     expect(card.caption).toBe(OVERVIEW_FINDINGS_CAPTION('6'));
+  });
+});
+
+describe('Polish E9: one badge helper for every screen', () => {
+  it('Polish E9: evidenceBadgeFor is null without a report and stale for another snapshot\'s', () => {
+    expect(evidenceBadgeFor(evidenceIndexFor(files, null, snap.snapshotId))).toBeNull();
+    expect(evidenceBadgeFor(evidenceIndexFor(files, report, 'another'))?.state).toBe('stale');
+    expect(evidenceBadgeFor(evidenceIndexFor(files, report, snap.snapshotId))?.state).toBe('imported');
   });
 });

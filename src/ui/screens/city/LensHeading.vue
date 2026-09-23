@@ -6,7 +6,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useLensView } from '../../read-models/use-lens-view';
-import { evidenceBadgeOf, staleCauseOf } from '../../read-models/evidence-index';
+import { evidenceBadgeFor, staleCauseOf } from '../../read-models/evidence-index';
 import { originOf } from '../../read-models/fallow-candidate';
 import { formatAbsoluteTime } from '../../copy';
 import { FALLOW_STALE_NOTICE, LENS_EYEBROW, LENS_SUBTITLE, LENS_TITLE } from '../../inspector-copy';
@@ -42,6 +42,6 @@ const staleNote = computed(() => (report.value && stale.value
         {{ staleNote }}
       </p>
     </div>
-    <EvidenceBadge v-bind="evidenceBadgeOf(report, stale)" />
+    <EvidenceBadge v-bind="evidenceBadgeFor(evidence)!" />
   </div>
 </template>

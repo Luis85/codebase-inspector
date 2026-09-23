@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import type { FileSummary } from '../../read-models/file-summaries';
 import { useReadModels } from '../../read-models/use-read-models';
+import { reviewFailureText } from '../../read-models/review-failure';
 import { filesById, workTargetLabel, WORK_STATUSES, type TargetLabel } from '../../read-models/work-items';
 import { useReviewStore } from '../../stores/review-store';
 import {
@@ -114,8 +115,8 @@ async function save(): Promise<void> {
     // Fix round 1 (Minor 6): `addWorkItem` also returns null when `workItemProblem`
     // refuses the item it built (title/notes length) — that is not a duplicate.
     await setError(review.hasWorkItem(fileTarget, intent.value) ? WORK_DUPLICATE : WORK_SAVE_FAILED);
-  } catch {
-    await setError(WORK_SAVE_FAILED);
+  } catch (e) {
+    await setError(reviewFailureText(e, WORK_SAVE_FAILED));
   }
 }
 
@@ -127,8 +128,8 @@ async function confirmDelete(): Promise<void> {
   removing.value = true;
   try {
     if (await review.removeWorkItem(item.id)) emit('done', WORK_DELETED(item.id));
-  } catch {
-    error.value = WORK_DELETE_FAILED;
+  } catch (e) {
+    error.value = reviewFailureText(e, WORK_DELETE_FAILED);
   } finally {
     removing.value = false;
   }

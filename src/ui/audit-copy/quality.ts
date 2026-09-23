@@ -2,6 +2,7 @@
 // Part 6 Y35/Y36: findings are an imported fallow report's: the tool's own rule, a title
 // per finding, and the review dialog's provider and rule rows.
 import type { FindingCategory, FindingDetail, FindingRule } from '../../application/evidence/model';
+import type { FindingSeverity } from '../read-models/severity';
 export const QUALITY_EYEBROW = 'Audit / Code quality';
 export const QUALITY_TITLE = 'From findings to decisions.';
 export const QUALITY_SUBTITLE = 'Triage static-analysis evidence without losing its source, scope, or uncertainty.';
@@ -40,7 +41,7 @@ export const FINDING_STATUS_LABEL: Readonly<Record<'open' | 'acknowledged' | 'di
 };
 // Part 6 Y35 (R6): the tool's own severity. A finding the tool does not rate reads "Not rated".
 const FINDING_SEVERITY_UNRATED = 'Not rated';
-export const SEVERITY_LABEL: Readonly<Record<'critical' | 'high' | 'moderate' | 'unrated', string>> = {
+export const SEVERITY_LABEL: Readonly<Record<FindingSeverity, string>> = {
   critical: 'Critical', high: 'High', moderate: 'Moderate', unrated: FINDING_SEVERITY_UNRATED,
 };
 const SEVERITY_LABELS = new Map<string, string>(Object.entries(SEVERITY_LABEL));
@@ -86,6 +87,8 @@ export const FINDING_DISMISS_TOO_LONG = (max: number): string => `Keep the reaso
 export const FINDING_DISMISS_SAVE = 'Record dismissal';
 export const FINDING_DISMISS_CANCEL = 'Cancel';
 export const FINDING_DECISION_FAILED = 'Could not save this decision.';
+/** Polish C-5a-M2: the dialog's decisions wait for the bound codebase's saved review state. */
+export const FINDING_REVIEW_LOADING = 'Loading this codebase’s saved review state… Decisions can be recorded once it is read.';
 export const FINDING_ACKNOWLEDGED = 'Finding acknowledged. No repository suppression was written.';
 export const FINDING_REOPENED = 'Finding reopened for review.';
 export const FINDING_DISMISSED = 'Dismissal and reason saved.';

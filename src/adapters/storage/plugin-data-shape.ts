@@ -1,4 +1,5 @@
 import type { Plugin } from 'obsidian';
+import { asUnknownArray } from '../../domain/plain-data';
 
 /** Obsidian gives a plugin exactly one JSON document (plugin.loadData()/saveData()),
  *  but spec 4.5 lists ProfileStore and LocalBindingStore as two separate application
@@ -64,7 +65,10 @@ export async function writePluginDataSlice(
   await withDataLock(plugin, async () => {
     const data = (await plugin.loadData()) as PluginDataShape | null | undefined;
     const shape = data ?? {};
-    shape[key] = mutate(shape[key]);
+    const next = mutate(shape[key]);
+    // Polish E7: a mutation that changed nothing (returned its input) is not written.
+    if (next === shape[key]) return;
+    shape[key] = next;
     await plugin.saveData(shape);
   });
 }
@@ -103,11 +107,4 @@ export async function updatePluginDataRecord(
  *  matching by id is a structural `unknown` check, not a cast. */
 export function isRecordWithField(value: unknown, field: string, id: string): boolean {
   return typeof value === 'object' && value !== null && (value as Record<string, unknown>)[field] === id;
-}
-
-/** `Array.isArray` narrows to `any[]` even from an `unknown` input (a long-standing
- *  lib.es5 typing quirk), which would leak `any` through every list operation built on
- *  top of it. This gives the narrowed branch an explicit `unknown[]` type instead. */
-export function asUnknownArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? (value as unknown[]) : [];
 }

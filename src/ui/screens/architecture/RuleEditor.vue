@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import type { ModuleSummary } from '../../read-models/architecture';
+import { reviewFailureText } from '../../read-models/review-failure';
 import { useReviewStore } from '../../stores/review-store';
 import { RULE_RATIONALE_MAX } from '../../stores/ports/review-repository';
 import { useUniqueId } from '../../unique-id';
@@ -36,8 +37,8 @@ async function save(): Promise<void> {
   try {
     const rule = await review.addRule(from.value, to.value, rationale.value, new Date());
     if (rule) emit('saved', rule.id); else error.value = RULE_EDITOR_DUPLICATE;
-  } catch {
-    error.value = RULE_EDITOR_FAILED;
+  } catch (e) {
+    error.value = reviewFailureText(e, RULE_EDITOR_FAILED);
   } finally {
     saving.value = false;
   }

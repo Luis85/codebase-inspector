@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import '../mocks/obsidian';
@@ -9,6 +9,8 @@ import { downloadText } from '../../src/ui/export/download';
 import TestsScreen from '../../src/ui/screens/TestsScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
+import { ReviewStoreError } from '../../src/ui/stores/ports/review-repository';
+import { REVIEW_STORE_FULL, TESTS_PLAN_FAILED } from '../../src/ui/inspector-copy';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
@@ -162,6 +164,21 @@ describe('TestsScreen', () => {
     expect(downloadText).not.toHaveBeenCalled();
     expect(w.find('.ci-tests__live').text()).toBe('');
     expect(document.activeElement).toBe(button.element);
+    w.unmount();
+  });
+
+  it('Polish E1: a refused plan names its reason; any other failure keeps the generic text', async () => {
+    withSnapshot(80);
+    const w = mountT();
+    const save = vi.spyOn(useReviewStore().repository, 'saveWorkItem');
+    save.mockRejectedValueOnce(new ReviewStoreError('full'));
+    await w.find('.ci-coverage-gaps__plan').trigger('click');
+    await flushPromises();
+    expect(w.find('.ci-tests__live').text()).toBe(REVIEW_STORE_FULL);
+    save.mockRejectedValueOnce(new Error('disk'));
+    await w.find('.ci-coverage-gaps__plan').trigger('click');
+    await flushPromises();
+    expect(w.find('.ci-tests__live').text()).toBe(TESTS_PLAN_FAILED);
     w.unmount();
   });
 });

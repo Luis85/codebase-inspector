@@ -13,6 +13,7 @@
 import { computed, ref } from 'vue';
 import { useCityStore } from '../stores/city-store';
 import { useReviewStore } from '../stores/review-store';
+import { reviewFailureText } from '../read-models/review-failure';
 import { useCityRendererHandle } from '../renderer-handle';
 import { useInspectorOpener } from '../drawer-focus';
 import { useClipboard } from '../clipboard';
@@ -52,8 +53,8 @@ async function addToPlan(): Promise<void> {
   if (!entity) return;
   try {
     await review.addWorkItemForFile(entity.id, WORK_ITEM_TITLE(entity.name), new Date());
-  } catch {
-    liveMessage.value = ADD_TO_PLAN_FAILED;
+  } catch (e) {
+    liveMessage.value = reviewFailureText(e, ADD_TO_PLAN_FAILED);
   }
 }
 

@@ -5,7 +5,8 @@
 // directly against the lock primitives, independent of any store or UI wiring.
 import { describe, expect, it } from 'vitest';
 import { Plugin } from '../mocks/obsidian';
-import { asUnknownArray, readPluginData, updatePluginDataRecord, writePluginDataSlice } from '../../src/adapters/storage/plugin-data-shape';
+import { readPluginData, updatePluginDataRecord, writePluginDataSlice } from '../../src/adapters/storage/plugin-data-shape';
+import { asUnknownArray } from '../../src/domain/plain-data';
 import type { Plugin as ObsidianPlugin } from 'obsidian';
 
 function makePlugin(): ObsidianPlugin {

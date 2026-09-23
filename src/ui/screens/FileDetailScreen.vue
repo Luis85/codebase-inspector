@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useReadModels } from '../read-models/use-read-models';
-import { evidenceBadgeOf } from '../read-models/evidence-index';
+import { evidenceBadgeFor } from '../read-models/evidence-index';
+import { reviewFailureText } from '../read-models/review-failure';
 import { useCityStore } from '../stores/city-store';
-import { useEvidenceStore } from '../stores/evidence-store';
 import { useReviewStore } from '../stores/review-store';
+import { useImportReport } from './use-import-report';
 import {
   ADD_TO_PLAN_FAILED, FILE_BROWSE_HOTSPOTS, FILE_EYEBROW, FILE_HISTORY_FOOTNOTE, FILE_HISTORY_NONE, FILE_HISTORY_SUBTITLE,
   FILE_HISTORY_TITLE, FILE_NO_SELECTION, FILE_NO_SELECTION_TITLE, WORK_ITEM_TITLE,
@@ -23,7 +24,8 @@ import FindingReviewDialog from './quality/FindingReviewDialog.vue';
 const store = useCityStore();
 const review = useReviewStore();
 const { fileDetail, quality } = useReadModels();
-const evidenceStore = useEvidenceStore();
+/** Part 6 Y36/Y39 (Polish E9): Import report goes to Data & scans and asks for the S14 dialog. */
+const importReport = useImportReport();
 const liveMessage = ref('');
 /** The fingerprint under review; the dialog is shared with Code quality. */
 const reviewing = ref<string | null>(null);
@@ -51,16 +53,9 @@ async function addWorkItem(): Promise<void> {
   if (!detail) return;
   try {
     await review.addWorkItemForFile(detail.file.id, WORK_ITEM_TITLE(detail.file.name), new Date());
-  } catch {
-    liveMessage.value = ADD_TO_PLAN_FAILED;
+  } catch (e) {
+    liveMessage.value = reviewFailureText(e, ADD_TO_PLAN_FAILED);
   }
-}
-
-/** Part 6 Y36/Y39: the S14 dialog lives on Data & scans. Go there and ask for it, as the
- *  "Import analysis report" command does. */
-function importReport(): void {
-  store.navigate('sources');
-  evidenceStore.requestImport();
 }
 </script>
 
@@ -117,7 +112,7 @@ function importReport(): void {
           :count="fileDetail.findingsCount"
           :statuses="quality.byFingerprint"
           :evidence="quality.evidence.state"
-          :badge="quality.evidence.report ? evidenceBadgeOf(quality.evidence.report, quality.evidence.state === 'stale') : null"
+          :badge="evidenceBadgeFor(quality.evidence)"
           @review="reviewing = $event"
           @import="importReport"
         />

@@ -7,9 +7,9 @@ import {
   DEFAULT_QUALITY_FILTER, FINDINGS_PAGE, filterFindings, findingsCsv, type QualityFilter, type QualityFinding,
 } from '../read-models/findings';
 import { useReadModels } from '../read-models/use-read-models';
-import { evidenceBadgeOf, staleCauseOf } from '../read-models/evidence-index';
+import { evidenceBadgeFor, staleCauseOf } from '../read-models/evidence-index';
 import { useCityStore } from '../stores/city-store';
-import { useEvidenceStore } from '../stores/evidence-store';
+import { useImportReport } from './use-import-report';
 import {
   FALLOW_STALE_NOTICE, QUALITY_CSV_FILENAME, QUALITY_EXPORT, QUALITY_EYEBROW, QUALITY_FOOTNOTE, QUALITY_SUBTITLE,
   QUALITY_NO_FINDINGS_REPORTED, QUALITY_TABLE_TITLE, QUALITY_TITLE,
@@ -27,7 +27,9 @@ import FindingsTable from './quality/FindingsTable.vue';
 import FindingReviewDialog from './quality/FindingReviewDialog.vue';
 
 const store = useCityStore();
-const evidenceStore = useEvidenceStore();
+/** Y35/Y39 (Polish E9): the S14 dialog lives on Data & scans. Go there and ask for it, exactly as
+ *  the "Import analysis report" command does; the file picker then opens from a real click in it. */
+const importReport = useImportReport();
 const { quality } = useReadModels();
 const filter = ref<QualityFilter>({ ...DEFAULT_QUALITY_FILTER });
 const shown = ref(FINDINGS_PAGE);
@@ -114,13 +116,6 @@ function openFile(id: EntityId): void {
   store.navigate('file');
 }
 
-/** Y35/Y39: the S14 dialog lives on Data & scans. Go there and ask for it, exactly as the
- *  "Import analysis report" command does; the file picker then opens from a real click in it. */
-function importReport(): void {
-  store.navigate('sources');
-  evidenceStore.requestImport();
-}
-
 /** Every filtered finding, handed to the user through this leaf's own document. */
 function exportCsv(): void {
   if (exportBlocked.value) return;
@@ -162,7 +157,7 @@ function exportCsv(): void {
         v-if="report"
         class="ci-quality__evidence"
       >
-        <EvidenceBadge v-bind="evidenceBadgeOf(report, stale)" />
+        <EvidenceBadge v-bind="evidenceBadgeFor(quality.evidence)!" />
       </div>
       <Callout
         v-if="staleNotice"

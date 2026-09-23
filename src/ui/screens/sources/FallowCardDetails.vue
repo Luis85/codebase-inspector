@@ -6,7 +6,7 @@
 import { computed } from 'vue';
 import { formatAbsoluteTime } from '../../copy';
 import type { EvidenceIndex } from '../../read-models/evidence-index';
-import { evidenceBadgeOf, staleCauseOf } from '../../read-models/evidence-index';
+import { evidenceBadgeFor, staleCauseOf } from '../../read-models/evidence-index';
 import { unmatchedOf } from '../../read-models/fallow-candidate';
 import type { FallowRunErrorCode } from '../../read-models/fallow-run';
 import { useAnalysisStore } from '../../stores/analysis-store';
@@ -46,7 +46,7 @@ function remove(): void {
 <template>
   <div class="ci-fallow-card">
     <template v-if="report">
-      <EvidenceBadge v-bind="evidenceBadgeOf(report, stale)" />
+      <EvidenceBadge v-bind="evidenceBadgeFor(index)!" />
       <p
         v-if="staleNotice"
         class="ci-note ci-fallow-card__stale"

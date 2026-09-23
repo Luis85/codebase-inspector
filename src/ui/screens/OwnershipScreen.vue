@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useCsvExport } from '../export/use-csv-export';
 import { CONCENTRATION_WARNING, stewardshipCsv, type StewardshipAction } from '../read-models/ownership';
 import { useReadModels } from '../read-models/use-read-models';
+import { reviewFailureText } from '../read-models/review-failure';
 import { useCityStore } from '../stores/city-store';
 import { useReviewStore } from '../stores/review-store';
 import {
@@ -50,8 +51,8 @@ async function addAction(a: StewardshipAction): Promise<void> {
   try {
     const item = await review.addWorkItem({ kind: 'module', module: a.module }, a.intent, a.title, new Date());
     if (item) liveMessage.value = OWNERSHIP_ACTION_DONE;
-  } catch {
-    liveMessage.value = OWNERSHIP_ACTION_FAILED;
+  } catch (e) {
+    liveMessage.value = reviewFailureText(e, OWNERSHIP_ACTION_FAILED);
   }
 }
 

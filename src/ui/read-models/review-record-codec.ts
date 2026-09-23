@@ -9,6 +9,7 @@
 // stored: its path would read back as a file of THIS codebase.
 import type { z } from 'zod';
 import { parseEntityId } from '../../domain/entity-id';
+import { asUnknownArray, isPlainObject } from '../../domain/plain-data';
 import { workTargetKey, type BoundaryRule, type FindingDisposition, type WorkItem } from '../stores/ports/review-repository';
 import { exportedDisposition, exportedRule, exportedWorkItem, findingRef } from './review-state';
 import { DISPOSITION, RULE, WORK_ITEM, toDisposition, toRule, toWorkItem } from './review-state-import';
@@ -58,8 +59,6 @@ export function encodeDisposition(decision: FindingDisposition, repositoryId: st
   return readable(DISPOSITION, exportedDisposition(decision));
 }
 
-const listOf = (value: unknown): unknown[] => (Array.isArray(value) ? (value as unknown[]) : []);
-
 /** Y7: validates each entry. One that fails, or that repeats a key an earlier entry
  *  already has, is skipped and counted. Nothing here removes anything from disk. */
 function decodeList<S, T>(
@@ -85,11 +84,11 @@ function decodeList<S, T>(
 /** Y7: one codebase's record set in the store's shapes, file paths as entity ids of
  *  `repositoryId`. Anything that is not a set reads as empty. */
 export function decodeRecords(raw: unknown, repositoryId: string): DecodedRecords {
-  const set: Record<string, unknown> = typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
-  const workItems = decodeList(listOf(set.workItems), WORK_ITEM, (w) => toWorkItem(w, repositoryId),
+  const set: Record<string, unknown> = isPlainObject(raw) ? raw : {};
+  const workItems = decodeList(asUnknownArray(set.workItems), WORK_ITEM, (w) => toWorkItem(w, repositoryId),
     (w) => [`id:${w.id}`, `key:${workTargetKey(w.target, w.intent)}`]);
-  const rules = decodeList(listOf(set.rules), RULE, (r) => toRule(r), (r) => [`id:${r.id}`, `pair:${JSON.stringify([r.from, r.to])}`]);
-  const dispositions = decodeList(listOf(set.dispositions), DISPOSITION, (d) => toDisposition(d, repositoryId), (d) => [d.fingerprint]);
+  const rules = decodeList(asUnknownArray(set.rules), RULE, (r) => toRule(r), (r) => [`id:${r.id}`, `pair:${JSON.stringify([r.from, r.to])}`]);
+  const dispositions = decodeList(asUnknownArray(set.dispositions), DISPOSITION, (d) => toDisposition(d, repositoryId), (d) => [d.fingerprint]);
   return {
     workItems: workItems.records, rules: rules.records, dispositions: dispositions.records,
     skipped: workItems.skipped + rules.skipped + dispositions.skipped,

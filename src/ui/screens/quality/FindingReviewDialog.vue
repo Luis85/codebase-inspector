@@ -3,9 +3,10 @@ import { computed, nextTick, ref } from 'vue';
 import type { EntityId } from '../../../domain/entity-id';
 import { formatAbsoluteTime } from '../../copy';
 import { useReadModels } from '../../read-models/use-read-models';
-import { evidenceBadgeOf } from '../../read-models/evidence-index';
+import { evidenceBadgeFor } from '../../read-models/evidence-index';
 import { originOf } from '../../read-models/fallow-candidate';
 import { severityTone } from '../../read-models/findings';
+import { reviewFailureText } from '../../read-models/review-failure';
 import { useReviewStore } from '../../stores/review-store';
 import { DISMISS_REASON_MAX } from '../../stores/ports/review-repository';
 import { useUniqueId } from '../../unique-id';
@@ -15,7 +16,7 @@ import {
   FINDING_DIALOG_RULE, FINDING_DIALOG_RULE_VALUE, FINDING_DIALOG_TITLE, FINDING_DISMISS, FINDING_DISMISS_CANCEL, FINDING_DISMISS_HINT,
   FINDING_DISMISS_PLACEHOLDER, FINDING_DISMISS_REASON, FINDING_DISMISS_REQUIRED, FINDING_DISMISS_SAVE, FINDING_DISMISS_TITLE,
   FINDING_DISMISS_TOO_LONG, FINDING_DISMISSED, FINDING_IN_PLAN, FINDING_OPEN_FILE, FINDING_REOPEN, FINDING_REOPENED,
-  FINDING_STATUS_LABEL, QUALITY_LOCATION, SEVERITY_TEXT, WORK_ITEM_TITLE,
+  FINDING_REVIEW_LOADING, FINDING_STATUS_LABEL, QUALITY_LOCATION, REVIEW_STORE_READ_FAILED, SEVERITY_TEXT, WORK_ITEM_TITLE,
 } from '../../inspector-copy';
 import CiDialog from '../../kit/Dialog.vue';
 import EvidenceBadge from '../../kit/EvidenceBadge.vue';
@@ -39,6 +40,13 @@ const status = ref('');
 const reasonField = ref<HTMLTextAreaElement | null>(null);
 const toggleButton = ref<HTMLButtonElement | null>(null);
 const busy = computed(() => review.isDispositionPending(props.fingerprint));
+/** Polish C-5a-M2 (Task 5b): until the bound codebase's review state is read, the store refuses
+ *  every decision and add (E3, Y10). The controls say so instead of doing nothing: blocked
+ *  (aria-disabled plus a guard, E40) and described by this hint. */
+const notReady = computed(() => !review.ready);
+const notReadyId = `${base}-not-ready`;
+const notReadyText = computed(() => (review.loadFailed ? REVIEW_STORE_READ_FAILED : FINDING_REVIEW_LOADING));
+const decisionBlocked = computed(() => busy.value || notReady.value);
 
 /** Records a decision only; no repository suppression is ever written (Q3). E17: the
  *  outcome is announced only when the store actually did something — a refusal
@@ -54,8 +62,8 @@ async function run(action: () => Promise<unknown>, done: string): Promise<boolea
     if (result === null || result === false) return false;
     status.value = done;
     return true;
-  } catch {
-    error.value = FINDING_DECISION_FAILED;
+  } catch (e) {
+    error.value = reviewFailureText(e, FINDING_DECISION_FAILED);
     return false;
   }
 }
@@ -66,7 +74,7 @@ async function run(action: () => Promise<unknown>, done: string): Promise<boolea
  *  focus too — so it is `aria-disabled` and the handler ignores the press instead. */
 async function toggleDecision(): Promise<void> {
   const f = finding.value;
-  if (!f || busy.value) return;
+  if (!f || decisionBlocked.value) return;
   if (f.status === 'open') await run(() => review.acknowledge(props.fingerprint, new Date()), FINDING_ACKNOWLEDGED);
   else await run(() => review.reopen(props.fingerprint), FINDING_REOPENED);
 }
@@ -91,7 +99,7 @@ function cancelDismissal(): Promise<void> {
   return closeDismissal();
 }
 async function saveDismissal(): Promise<void> {
-  if (busy.value) return;
+  if (decisionBlocked.value) return;
   const trimmed = reason.value.trim();
   if (trimmed === '') { error.value = FINDING_DISMISS_REQUIRED; return; }
   if (trimmed.length > DISMISS_REASON_MAX) { error.value = FINDING_DISMISS_TOO_LONG(DISMISS_REASON_MAX); return; }
@@ -101,7 +109,7 @@ async function saveDismissal(): Promise<void> {
  *  `disabled`, which would drop focus out of the modal. */
 const workItemBlocked = computed(() => {
   const f = finding.value;
-  return !f || review.hasWorkItemFor(f.file.id) || review.isPendingFor(f.file.id);
+  return !f || notReady.value || review.hasWorkItemFor(f.file.id) || review.isPendingFor(f.file.id);
 });
 async function addWorkItem(): Promise<void> {
   const f = finding.value;
@@ -132,7 +140,7 @@ async function addWorkItem(): Promise<void> {
         >{{ FINDING_STATUS_LABEL[finding.status] }}</span>
         <EvidenceBadge
           v-if="quality.evidence.report"
-          v-bind="evidenceBadgeOf(quality.evidence.report, quality.evidence.state === 'stale')"
+          v-bind="evidenceBadgeFor(quality.evidence)!"
         />
       </p>
       <p class="ci-finding-dialog__summary">
@@ -162,11 +170,19 @@ async function addWorkItem(): Promise<void> {
           type="button"
           class="ci-finding-dialog__work-item"
           :aria-disabled="workItemBlocked"
+          :aria-describedby="notReady ? notReadyId : undefined"
           @click="addWorkItem"
         >
           {{ review.hasWorkItemFor(finding.file.id) ? FINDING_IN_PLAN : FINDING_ADD_WORK_ITEM }}
         </button>
       </div>
+      <p
+        v-if="notReady"
+        :id="notReadyId"
+        class="ci-note ci-finding-dialog__not-ready"
+      >
+        {{ notReadyText }}
+      </p>
       <form
         v-if="dismissing"
         class="ci-finding-dialog__dismissal"
@@ -199,7 +215,8 @@ async function addWorkItem(): Promise<void> {
           <button
             type="submit"
             class="mod-cta ci-finding-dialog__save-dismissal"
-            :aria-disabled="busy"
+            :aria-disabled="decisionBlocked"
+            :aria-describedby="notReady ? notReadyId : undefined"
           >
             {{ FINDING_DISMISS_SAVE }}
           </button>
@@ -222,7 +239,8 @@ async function addWorkItem(): Promise<void> {
           ref="toggleButton"
           type="button"
           :class="finding.status === 'open' ? 'ci-finding-dialog__acknowledge' : 'ci-finding-dialog__reopen'"
-          :aria-disabled="busy"
+          :aria-disabled="decisionBlocked"
+          :aria-describedby="notReady ? notReadyId : undefined"
           @click="toggleDecision"
         >
           {{ finding.status === 'open' ? FINDING_ACKNOWLEDGE : FINDING_REOPEN }}

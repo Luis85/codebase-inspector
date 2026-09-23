@@ -4,6 +4,21 @@
 // diagnostics (Y7), which the durable adapter implements the same way.
 import type { EntityId } from '../../../domain/entity-id';
 
+/** Part 6 Y9/Y7, moved here by Polish E1 (L3): a refused review write — nothing was written and
+ *  nobody was told. The durable adapter throws it; a screen maps its code to words
+ *  (read-models/review-failure.ts) without importing the adapter. */
+export type ReviewStoreErrorCode = 'full' | 'unsupported' | 'unrepresentable';
+
+export class ReviewStoreError extends Error {
+  readonly code: ReviewStoreErrorCode;
+
+  constructor(code: ReviewStoreErrorCode, message = `review store: ${code}`) {
+    super(message);
+    this.name = 'ReviewStoreError';
+    this.code = code;
+  }
+}
+
 export type WorkItemStatus = 'investigate' | 'planned' | 'in-progress' | 'verified';
 
 /** Part 3 Q4: a work item's subject. A file targets an entity directly; a package or

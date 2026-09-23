@@ -41,9 +41,13 @@ const isHigh = (f: EvidenceFinding): boolean => isHighSeverity(f.severity);
 const isUnused = (f: EvidenceFinding): boolean => f.category === 'unused-exports';
 const notAnalysed = (): MetricValue => unknown(FALLOW_NOT_ANALYSED, 'fallow');
 
+/** Polish E8: whether the report analysed `c`; the counter and `category()` both read it. */
+const isAnalysed = (report: EvidenceReport | null, c: FindingCategory): boolean =>
+  report !== null && report.normalized.categories[c] === 'analysed';
+
 function counterFor(report: EvidenceReport | null, state: EvidenceIndexState): Counter {
   if (report === null) return notAnalysed;
-  const analysed = (c: FindingCategory): boolean => report.normalized.categories[c] === 'analysed';
+  const analysed = (c: FindingCategory): boolean => isAnalysed(report, c);
   const provenance = { source: 'fallow', detail: FALLOW_PROVENANCE_DETAIL(report.providerVersion, originOf(report)) };
   const present = (n: number): MetricValue => ({ state: state === 'stale' ? 'stale' : 'collected', value: n, provenance });
   const covered = FINDING_CATEGORIES.filter(analysed).length;
@@ -108,7 +112,7 @@ function build(files: readonly FileSummary[], report: EvidenceReport | null, sna
       if (!hit) { hit = evidenceOf(byFile.get(id) ?? [], count); perFileCache.set(id, hit); }
       return hit;
     },
-    category: (c) => (report !== null && report.normalized.categories[c] === 'analysed' ? 'analysed' : 'not-analysed'),
+    category: (c) => (isAnalysed(report, c) ? 'analysed' : 'not-analysed'),
     count,
   };
 }
@@ -146,6 +150,11 @@ export function evidenceBadgeOf(report: EvidenceReport, stale: boolean): Evidenc
     version: report.providerVersion, state: stale ? 'stale' : origin, origin,
     untested: report.collected !== undefined && !report.collected.versionTested,
   };
+}
+
+/** Polish E9: the badge for an index's report in the index's own state, or none without one. */
+export function evidenceBadgeFor(index: EvidenceIndex): EvidenceBadgeProps | null {
+  return index.report === null ? null : evidenceBadgeOf(index.report, index.state === 'stale');
 }
 
 /** Part 7 Z23/Z27: why stale evidence is stale, for FALLOW_STALE_NOTICE. */

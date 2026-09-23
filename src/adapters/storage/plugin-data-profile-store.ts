@@ -2,7 +2,8 @@ import type { Plugin } from 'obsidian';
 import type { ProfileStore } from '../../application/ports/profile-store';
 import type { CodebaseProfile } from '../../domain/model';
 import { validateCodebaseProfile } from '../../domain/validator';
-import { asUnknownArray, isRecordWithField, readPluginData, updatePluginDataRecord, writePluginDataSlice } from './plugin-data-shape';
+import { asUnknownArray } from '../../domain/plain-data';
+import { isRecordWithField, readPluginData, updatePluginDataRecord, writePluginDataSlice } from './plugin-data-shape';
 
 /** plugin.loadData()/saveData()-backed ProfileStore. data.json is user-editable, so
  *  EVERY read validates (spec 4.1) -- list()/get() never cast a raw record, and save()

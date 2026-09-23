@@ -2,7 +2,8 @@ import type { App, Plugin } from 'obsidian';
 import type { LocalBindingStore } from '../../application/ports/local-binding-store';
 import type { LocalBinding } from '../../domain/model';
 import { validateLocalBinding } from '../../domain/validator';
-import { asUnknownArray, isRecordWithField, readPluginData, writePluginDataSlice } from './plugin-data-shape';
+import { asUnknownArray } from '../../domain/plain-data';
+import { isRecordWithField, readPluginData, writePluginDataSlice } from './plugin-data-shape';
 
 const MACHINE_ID_KEY = 'codebase-inspector:machine-id';
 

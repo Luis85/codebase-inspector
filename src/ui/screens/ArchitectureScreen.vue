@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
 import { edgeKey, moduleNeighbours } from '../read-models/architecture';
 import { moduleOf } from '../read-models/file-summaries';
+import { reviewFailureText } from '../read-models/review-failure';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
 import { useReviewStore } from '../stores/review-store';
@@ -106,8 +107,8 @@ function onSaved(id: string): void {
 async function removeRule(id: string): Promise<void> {
   try {
     await review.removeRule(id);
-  } catch {
-    liveMessage.value = RULE_REMOVE_FAILED;
+  } catch (e) {
+    liveMessage.value = reviewFailureText(e, RULE_REMOVE_FAILED);
     return;
   }
   // F7: the removed row took focus with it; land on the empty state's add button, or the

@@ -15,12 +15,9 @@ import {
 import type { EvidenceIndex, EvidenceIndexState } from './evidence-index';
 import type { FileFinding } from './file-detail';
 import { filesByPriority, moduleLabel, type FileSummary } from './file-summaries';
-import { isHighSeverity } from './severity';
+import { FINDING_SEVERITIES, isHighSeverity, type FindingSeverity } from './severity';
 
 export type FindingStatus = 'open' | 'acknowledged' | 'dismissed';
-/** Part 6 Y35 (R6): fallow's own severities, plus `unrated` for a finding it does not rate.
- *  A word a later fallow adds is kept verbatim on the finding; it is just not in this list. */
-export type FindingSeverity = 'critical' | 'high' | 'moderate' | 'unrated';
 export interface QualityFinding extends FileFinding { file: FileSummary; moduleLabel: string; status: FindingStatus; reason: string | null }
 export interface QualityFilter { query: string; kind: FindingCategory | null; severity: string | null; module: string | null; status: FindingStatus | 'all' }
 export interface QualityCard { id: 'open' | FindingCategory; label: string; icon: string; value: MetricValue; caption: string; tone: 'accent' | 'warning' }
@@ -42,7 +39,7 @@ const SEVERITY_RANK: Readonly<Record<FindingSeverity, number>> = { critical: 0, 
 const RANKS = new Map<string, number>(Object.entries(SEVERITY_RANK));
 /** Y35: an unlisted severity ranks after moderate and before unrated. */
 const UNLISTED_RANK = 3;
-const TONES: ReadonlySet<string> = new Set<FindingSeverity>(['critical', 'high', 'moderate', 'unrated']);
+const TONES: ReadonlySet<string> = new Set<string>(FINDING_SEVERITIES);
 const isSeverity = (severity: string): severity is FindingSeverity => TONES.has(severity);
 
 export function severityRank(severity: string): number {

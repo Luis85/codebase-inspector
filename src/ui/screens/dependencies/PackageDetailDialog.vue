@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import type { SamplePackage } from '../../fixtures/sample-packages';
 import { formatMetric, sample } from '../../evidence';
+import { reviewFailureText } from '../../read-models/review-failure';
 import { useReviewStore } from '../../stores/review-store';
 import type { WorkTarget } from '../../stores/ports/review-repository';
 import {
@@ -35,8 +36,8 @@ async function createReview(): Promise<void> {
       target.value, 'review', PACKAGE_REVIEW_TITLE(props.pkg.name, props.pkg.advisory?.id ?? null), new Date(),
     );
     if (item) status.value = PACKAGE_REVIEW_ADDED;
-  } catch {
-    error.value = PACKAGE_REVIEW_FAILED;
+  } catch (e) {
+    error.value = reviewFailureText(e, PACKAGE_REVIEW_FAILED);
   }
 }
 </script>
