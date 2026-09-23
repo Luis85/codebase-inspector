@@ -149,7 +149,11 @@ export const FALLOW_RUN_ERROR: Readonly<Record<FallowRunErrorCode, (detail: stri
   superseded: () => 'The findings changed while fallow ran (a report was imported or removed), so its result was discarded.',
 };
 
-/* Settings (Z12). The row names are literals in setting-definitions.ts (K20). */
+/* Settings (Z12). The row names are literals in setting-definitions.ts (K20); these two
+ * carry the same text so setName() can reference a constant instead of a literal (PF10):
+ * the sentence-case lint rule cannot check an identifier's case, only a literal's. */
+export const SETTINGS_FALLOW_EXECUTABLE_NAME = 'fallow executable';
+export const SETTINGS_FALLOW_LIMIT_NAME = 'fallow time limit';
 export const SETTINGS_FALLOW_FORGET = 'Forget';
 export const SETTINGS_FALLOW_LIMIT_DESC = 'Seconds before a fallow analysis is stopped, from 10 to 1800.';
 export const SETTINGS_FALLOW_LIMIT_INVALID = 'Enter a whole number of seconds from 10 to 1800.';

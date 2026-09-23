@@ -11,7 +11,8 @@ import type { ProfileStore } from '../application/ports/profile-store';
 import type { LocalBindingStore } from '../application/ports/local-binding-store';
 import type { SourceFileSystemPort } from '../application/ports/source-filesystem-port';
 import type { ReviewRepositoryRegistry } from '../adapters/storage/review-repository-registry';
-import { PROFILE_REVIEW_PURGE_FAILED } from '../ui/inspector-copy';
+import { PROFILE_ANALYZER_PURGE_FAILED, PROFILE_REVIEW_PURGE_FAILED, SETTINGS_FALLOW_BUSY, SETTINGS_FALLOW_LIMIT_INVALID } from '../ui/inspector-copy';
+import type { FallowAnalysisService } from '../application/analysis/fallow-analysis-service';
 import type { CodebaseProfile } from '../domain/model';
 import { buildSettingDefinitions } from './setting-definitions';
 import type { ProfileEntry } from './setting-definitions';
@@ -45,6 +46,8 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     private readonly getFilesystem: () => SourceFileSystemPort,
     // Part 6 Y17: a removed profile's review state goes with it (main.ts passes its one registry).
     private readonly reviewRegistry: Pick<ReviewRepositoryRegistry, 'purge'>,
+    // Part 7 Z11/Z12: the plugin's fallow analysis service (main.ts passes its one instance).
+    private readonly analysis: Pick<FallowAnalysisService, 'readBinding' | 'forget' | 'setTimeLimit' | 'purgeProfile'>,
   ) {
     super(app, plugin);
   }
@@ -68,7 +71,7 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       const entries: ProfileEntry[] = [];
       for (const profile of profiles) {
         const binding = profile.bindingId === null ? null : await this.bindingStore.get(profile.bindingId);
-        entries.push({ profile, binding });
+        entries.push({ profile, binding, analyzer: await this.analysis.readBinding(profile.profileId) });
       }
       this.entries = entries;
     } catch (e) {
@@ -106,6 +109,8 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       },
       onReconnect: (id) => { this.reconnect(id); },
       onClearBinding: (id) => { this.confirmClearBinding(id); },
+      onForgetAnalyzer: (id) => { this.trackUpdate(this.forgetAnalyzer(id)); },
+      onAnalyzerTimeoutChange: (id, raw) => { this.trackUpdate(this.changeAnalyzerTimeout(id, raw)); },
     });
   }
 
@@ -141,7 +146,36 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     // purge says the profile went but its review decisions stayed, with the reason (spec 7,
     // E29); the list refreshes.
     await this.reviewRegistry.purge(id).catch((e: unknown) => { this.showFailure(e, PROFILE_REVIEW_PURGE_FAILED); });
+    // Part 7 Z11: and its fallow executable setting, whatever its format (a run in flight is cancelled).
+    await this.analysis.purgeProfile(id).catch((e: unknown) => { this.showFailure(e, PROFILE_ANALYZER_PURGE_FAILED); });
     await this.refresh();
+  }
+
+  /** Part 7 Z11: refused while this codebase's run is active; the service changes nothing then. */
+  private async forgetAnalyzer(profileId: string): Promise<void> {
+    try {
+      if ((await this.analysis.forget(profileId)) === 'busy') this.notify(SETTINGS_FALLOW_BUSY);
+    } catch (e) {
+      this.showFailure(e);
+    }
+    await this.refresh();
+  }
+
+  /** Part 7 Z10 (M62): whole seconds from 10 to 1800; otherwise refused with a reason, and
+   *  refresh() puts the stored value back in the field. */
+  private async changeAnalyzerTimeout(profileId: string, rawValue: string): Promise<void> {
+    const seconds = rawValue.trim() === '' ? Number.NaN : Number(rawValue);
+    try {
+      if ((await this.analysis.setTimeLimit(profileId, seconds)) === 'invalid') this.notify(SETTINGS_FALLOW_LIMIT_INVALID);
+    } catch (e) {
+      this.showFailure(e);
+    }
+    await this.refresh();
+  }
+
+  private notify(message: string): void {
+    const notice = new Notice(message, 8000);
+    void notice;
   }
 
   /** Ruling M62 (breakage round): the Excluded paths field is one of the two places a

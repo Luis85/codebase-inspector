@@ -7,7 +7,13 @@
 // responsibility, which is what keeps this file unit-testable without any DOM at all.
 import type { Setting, SettingDefinitionItem, SettingDefinitionPage } from 'obsidian';
 import type { CodebaseProfile, LocalBinding } from '../domain/model';
+import type { AnalyzerBindingRead } from '../application/analysis/analyzer-record';
+import { FALLOW_TESTED_VERSIONS } from '../application/analysis/fallow-invocation';
 import { COPY_28 } from '../ui/copy';
+import {
+  FALLOW_EXE_INVALID, FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE, FALLOW_EXE_UNSUPPORTED, FALLOW_TRUST_VALUE,
+  SETTINGS_FALLOW_EXECUTABLE_NAME, SETTINGS_FALLOW_FORGET, SETTINGS_FALLOW_LIMIT_DESC, SETTINGS_FALLOW_LIMIT_NAME,
+} from '../ui/inspector-copy';
 
 /** A profile paired with its resolved binding. `binding` is null both when the profile
  *  has no bindingId yet AND when LocalBindingStore.get() reports the binding
@@ -16,6 +22,8 @@ import { COPY_28 } from '../ui/copy';
 export interface ProfileEntry {
   profile: CodebaseProfile;
   binding: LocalBinding | null;
+  /** Part 7 Z12: this profile's fallow executable record, as read from data.json. */
+  analyzer: AnalyzerBindingRead;
 }
 
 export interface SettingDefinitionsCallbacks {
@@ -26,6 +34,10 @@ export interface SettingDefinitionsCallbacks {
   onMaxFileBytesChange: (profileId: string, rawValue: string) => void;
   onReconnect: (profileId: string) => void;
   onClearBinding: (profileId: string) => void;
+  /** Part 7 Z11: Forget the fallow executable (refused while a run is active). */
+  onForgetAnalyzer: (profileId: string) => void;
+  /** Part 7 Z10: the typed time limit, validated by the service. */
+  onAnalyzerTimeoutChange: (profileId: string, rawValue: string) => void;
 }
 
 // COPY-28, from the ONE catalogue (final whole-branch review, minor 1). This used to be
@@ -41,8 +53,12 @@ export const BINDING_MISSING_TEXT = COPY_28;
 export const STORAGE_DISCLOSURE_TEXT =
   'Codebase profiles, local folder bindings and each codebase’s review decisions (work items, ' +
   'boundary rules and finding decisions) are stored in this vault, in this plugin’s own data ' +
-  'file, and survive restarts. Removing a profile removes its review decisions. Imported findings ' +
-  'are kept for this session only. Nothing about them is sent anywhere else.';
+  'file, and survive restarts. When you choose a fallow executable for a codebase, its path, ' +
+  'its time limit and a fingerprint of what you trusted (the executable’s path, size and ' +
+  'modification time, the folder, the arguments and the fallow version) are stored there too, ' +
+  'marked with this device: another device never runs it without asking again. Removing a ' +
+  'profile removes its review decisions and its executable setting. fallow findings, imported ' +
+  'or collected, are kept for this session only. Nothing about them is sent anywhere else.';
 
 export const SYMLINK_POLICY_TEXT =
   'Symbolic links and junctions are never followed. They are reported as skipped, with a reason.';
@@ -108,8 +124,44 @@ function renderBindingStatusRow(setting: Setting, entry: ProfileEntry, callbacks
   });
 }
 
+/** Part 7 Z12: what the "fallow executable" row says for each record kind. */
+export function analyzerDescription(read: AnalyzerBindingRead): string {
+  switch (read.kind) {
+    case 'none': return FALLOW_EXE_NONE;
+    case 'other-machine': return FALLOW_EXE_OTHER_DEVICE;
+    case 'invalid': return FALLOW_EXE_INVALID;
+    case 'unsupported': return FALLOW_EXE_UNSUPPORTED;
+    default: {
+      const version = read.binding.trust?.version ?? null;
+      return `${read.binding.executablePath} · ${FALLOW_TRUST_VALUE(version, version !== null && FALLOW_TESTED_VERSIONS.includes(version))}`;
+    }
+  }
+}
+
+/** Part 7 Z12: choosing an executable needs the folder and the review, so it lives in Data &
+ *  scans; here the record is shown, and Forget is offered when there is one to remove. A
+ *  newer-format record is read-only (Z2), so it has no Forget. */
+function renderAnalyzerRow(setting: Setting, entry: ProfileEntry, callbacks: SettingDefinitionsCallbacks): void {
+  setting.setName(SETTINGS_FALLOW_EXECUTABLE_NAME);
+  setting.setDesc(analyzerDescription(entry.analyzer));
+  if (entry.analyzer.kind === 'none' || entry.analyzer.kind === 'unsupported') return;
+  setting.addButton((btn) => {
+    btn.setButtonText(SETTINGS_FALLOW_FORGET);
+    btn.buttonEl.setAttribute('data-action', 'forget-analyzer');
+    btn.onClick(() => { callbacks.onForgetAnalyzer(entry.profile.profileId); });
+  });
+}
+
+function renderAnalyzerLimitRow(setting: Setting, seconds: number, onChange: (rawValue: string) => void): void {
+  setting.setName(SETTINGS_FALLOW_LIMIT_NAME).setDesc(SETTINGS_FALLOW_LIMIT_DESC);
+  const input = setting.controlEl.createEl('input', { attr: { type: 'number', min: '10', max: '1800', step: '1', value: String(seconds) } });
+  input.addEventListener('change', () => { onChange(input.value); });
+}
+
 function buildProfilePage(entry: ProfileEntry, callbacks: SettingDefinitionsCallbacks): SettingDefinitionPage {
   const { profile } = entry;
+  // Part 7 Z12: the time-limit row exists only for a usable record (no disabled control).
+  const limit = entry.analyzer.kind === 'bound' ? entry.analyzer.binding.timeoutSeconds : null;
   return {
     type: 'page',
     name: profile.name,
@@ -119,6 +171,11 @@ function buildProfilePage(entry: ProfileEntry, callbacks: SettingDefinitionsCall
       { name: 'Excluded paths', render: (setting) => { renderExclusionsRow(setting, profile, (raw) => { callbacks.onExclusionsChange(profile.profileId, raw); }); } },
       { name: 'Maximum file size to read', render: (setting) => { renderMaxFileBytesRow(setting, profile, (raw) => { callbacks.onMaxFileBytesChange(profile.profileId, raw); }); } },
       { name: 'Source folder', render: (setting) => { renderBindingStatusRow(setting, entry, callbacks); } },
+      { name: 'fallow executable', render: (setting) => { renderAnalyzerRow(setting, entry, callbacks); } },
+      ...(limit === null ? [] : [{
+        name: 'fallow time limit',
+        render: (setting: Setting) => { renderAnalyzerLimitRow(setting, limit, (raw) => { callbacks.onAnalyzerTimeoutChange(profile.profileId, raw); }); },
+      }]),
     ],
   };
 }

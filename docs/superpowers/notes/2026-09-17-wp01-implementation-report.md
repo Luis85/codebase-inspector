@@ -287,11 +287,18 @@ a plugin-wide binding, and there is no keybinding for the human to look for.
 - `Source folder` — per profile; renders as Connect, Reconnect (with COPY-28 when the
   saved directory is unavailable on this machine) or Clear binding, each wired to a real
   enabled callback.
+- `fallow executable` — per profile (WP-02 Part 7, Z12): the chosen fallow executable's path
+  and whether it is trusted, or why none can be used on this device. **Forget** appears only
+  when there is a setting to remove. Choosing an executable happens in Data & scans, where
+  the folder and the review are.
+- `fallow time limit` — per profile, **only when an executable is chosen**: whole seconds
+  from 10 to 1800 before an analysis is stopped; anything else is refused with a reason.
 - `Follow symbolic links` — **static explanatory text with no control at all**, because
   links are never followed. A disabled toggle would be a rendered control for
   unimplemented behaviour.
-- `Storage` — static explanatory text: profiles and bindings are stored in this vault,
-  in this plugin's own data file, and nothing about them is sent anywhere else.
+- `Storage` — static explanatory text: profiles, bindings, review decisions and each codebase's
+  fallow executable setting are stored in this vault, in this plugin's own data file; fallow
+  findings are kept for this session only, and nothing about them is sent anywhere else.
 
 <!-- checkpoint4:settings:end -->
 

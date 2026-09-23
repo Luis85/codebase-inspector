@@ -11,6 +11,7 @@ import { createReviewRepositoryRegistry, type ReviewRepositoryRegistry } from '.
 import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
 import { createFakeBindingStoreHarness } from '../fixtures/fake-binding-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
+import { createFakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
 import type { CodebaseProfile } from '../../src/domain/model';
 import { PROFILE_REVIEW_PURGE_FAILED } from '../../src/ui/inspector-copy';
@@ -32,7 +33,7 @@ function findList(defs: SettingDefinitionItem[]): SettingDefinitionList {
 function newTab(profileStore: ProfileStore, registry: Pick<ReviewRepositoryRegistry, 'purge'>): CodebaseInspectorSettingTab {
   return new CodebaseInspectorSettingTab(
     {} as unknown as App, {} as unknown as ObsidianPlugin, profileStore, createFakeBindingStoreHarness().store,
-    () => createFakeSourceFileSystem({}).port, registry);
+    () => createFakeSourceFileSystem({}).port, registry, createFakeFallowAnalysis());
 }
 
 afterEach(() => {
