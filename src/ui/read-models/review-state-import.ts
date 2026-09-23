@@ -90,7 +90,10 @@ const targetKey = (t: ImportedTarget): string => JSON.stringify([t.kind, t.kind 
 /** Which field each `workItemProblem` answer is about. */
 const PROBLEM_FIELD = { 'title-empty': 'title', 'title-long': 'title', 'notes-long': 'notes', unverified: 'status' } as const;
 
-const WORK_ITEM = z.object({
+/** Part 6 Y7: the three record schemas are exported for the durable codec
+ *  (review-record-codec.ts), which validates every stored record with them. The list
+ *  rules (caps, duplicates) stay here, with the import. */
+export const WORK_ITEM = z.object({
   id: z.string().regex(/^wi-\d{1,6}$/),
   target: TARGET,
   intent: z.enum(['refactor', 'tests', 'review', 'pairing', 'documentation']),
@@ -113,7 +116,7 @@ const WORK_ITEMS = z.array(WORK_ITEM).max(2000).superRefine((items, ctx) => {
   }
 });
 
-const RULE = z.object({
+export const RULE = z.object({
   id: z.string().regex(/^AR-\d{3,6}$/),
   from: z.string().min(1).max(255),
   to: z.string().min(1).max(255),
@@ -126,7 +129,7 @@ const RULES = z.array(RULE).max(500).superRefine((rules, ctx) => {
   for (const i of duplicateIndexes(rules, (r) => JSON.stringify([r.from, r.to]))) ctx.addIssue({ code: 'custom', path: [i, 'to'], message: 'Duplicate rule.' });
 });
 
-const DISPOSITION = z.object({
+export const DISPOSITION = z.object({
   finding: z.string().max(PATH_MAX + 65).refine((f) => splitFinding(f) !== null, { error: 'Must be <relative path>#<finding id>.' }),
   status: z.enum(['acknowledged', 'dismissed']),
   reason: z.string().optional(),
@@ -182,27 +185,42 @@ function issueDetail(issue: z.core.$ZodIssue | undefined): string {
   return path.join('.').slice(0, DETAIL_MAX);
 }
 
-function toTarget(t: ImportedTarget, fileId: (path: string) => string): WorkTarget {
-  if (t.kind === 'file') return { kind: 'file', entityId: fileId(t.path) };
+function toTarget(t: ImportedTarget, repositoryId: string): WorkTarget {
+  if (t.kind === 'file') return { kind: 'file', entityId: makeEntityId(repositoryId, 'file', t.path) };
   return t.kind === 'package' ? { kind: 'package', name: t.name } : { kind: 'module', module: t.module };
+}
+
+/** V16 / Part 6 Y7: one validated work item in the store's shape, its file path an entity
+ *  id of `repositoryId`. Shared by `toState` and the durable codec (review-record-codec.ts). */
+export function toWorkItem(w: z.output<typeof WORK_ITEM>, repositoryId: string): WorkItem {
+  return {
+    id: w.id, target: toTarget(w.target, repositoryId), intent: w.intent, title: w.title.trim(), status: w.status,
+    priority: w.priority, notes: w.notes, checks: [w.checks[0], w.checks[1], w.checks[2]], createdAt: w.createdAt,
+    ...(w.updatedAt !== undefined ? { updatedAt: w.updatedAt } : {}),
+  };
+}
+
+export function toRule(r: z.output<typeof RULE>): BoundaryRule {
+  return { id: r.id, from: r.from, to: r.to, rationale: r.rationale.trim(), createdAt: r.createdAt };
+}
+
+/** A decision's `<path>#<findingId>` becomes `<entity id of that path>#<findingId>`. */
+export function toDisposition(d: z.output<typeof DISPOSITION>, repositoryId: string): FindingDisposition | null {
+  const ref = splitFinding(d.finding);
+  return ref === null ? null : {
+    fingerprint: `${makeEntityId(repositoryId, 'file', ref.path)}#${ref.findingId}`, status: d.status,
+    ...(d.reason !== undefined ? { reason: d.reason.trim() } : {}), decidedAt: d.decidedAt,
+  };
 }
 
 /** V16: paths become entity ids of the codebase on screen; findings become `<that id>#<findingId>`. */
 function toState(data: Parsed, repositoryId: string, origin: { folder: string } | null): ImportedReviewState {
-  const fileId = (path: string): string => makeEntityId(repositoryId, 'file', path);
   return {
-    workItems: data.workItems.map((w): WorkItem => ({
-      id: w.id, target: toTarget(w.target, fileId), intent: w.intent, title: w.title.trim(), status: w.status,
-      priority: w.priority, notes: w.notes, checks: [w.checks[0], w.checks[1], w.checks[2]], createdAt: w.createdAt,
-      ...(w.updatedAt !== undefined ? { updatedAt: w.updatedAt } : {}),
-    })),
-    rules: data.rules.map((r): BoundaryRule => ({ id: r.id, from: r.from, to: r.to, rationale: r.rationale.trim(), createdAt: r.createdAt })),
-    dispositions: data.dispositions.flatMap((d): FindingDisposition[] => {
-      const ref = splitFinding(d.finding);
-      return ref === null ? [] : [{
-        fingerprint: `${fileId(ref.path)}#${ref.findingId}`, status: d.status,
-        ...(d.reason !== undefined ? { reason: d.reason.trim() } : {}), decidedAt: d.decidedAt,
-      }];
+    workItems: data.workItems.map((w) => toWorkItem(w, repositoryId)),
+    rules: data.rules.map((r) => toRule(r)),
+    dispositions: data.dispositions.flatMap((d) => {
+      const decision = toDisposition(d, repositoryId);
+      return decision === null ? [] : [decision];
     }),
     report: { sections: { ...data.report.sections }, note: data.report.note },
     origin,

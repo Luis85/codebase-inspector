@@ -70,6 +70,37 @@ export function findingRef(fingerprint: string): string | null {
   return path === null ? null : `${path}#${findingId}`;
 }
 
+/** V12 / Part 6 Y6: one work item in path form, or null when its file target does not
+ *  parse. Shared by the export below and the durable codec (review-record-codec.ts). */
+export function exportedWorkItem(w: WorkItem): Record<string, unknown> | null {
+  const target = exportedTarget(w.target);
+  return target === null ? null : {
+    id: w.id, target, intent: w.intent, title: w.title, status: w.status,
+    priority: w.priority, notes: w.notes, checks: [...w.checks], createdAt: w.createdAt,
+    ...(w.updatedAt !== undefined ? { updatedAt: w.updatedAt } : {}),
+  };
+}
+
+export function exportedRule(r: BoundaryRule): Record<string, unknown> {
+  return { id: r.id, from: r.from, to: r.to, rationale: r.rationale, createdAt: r.createdAt };
+}
+
+/** V12 / Part 6 Y6: one decision in path form, or null when its fingerprint does not convert. */
+export function exportedDisposition(d: FindingDisposition): Record<string, unknown> | null {
+  const finding = findingRef(d.fingerprint);
+  return finding === null ? null : {
+    finding, status: d.status, ...(d.reason !== undefined ? { reason: d.reason } : {}), decidedAt: d.decidedAt,
+  };
+}
+
+/** The entries a converter could write; the caller counts the rest in `warnings`. */
+function writable<T>(entries: readonly T[], convert: (entry: T) => Record<string, unknown> | null): Record<string, unknown>[] {
+  return entries.flatMap((entry) => {
+    const out = convert(entry);
+    return out === null ? [] : [out];
+  });
+}
+
 function skippedWarnings(items: number, decisions: number): string[] {
   return [
     ...(items > 0 ? [REVIEW_STATE_SKIPPED(items, 'work items')] : []),
@@ -78,20 +109,8 @@ function skippedWarnings(items: number, decisions: number): string[] {
 }
 
 export function reviewStateJson(input: ReviewStateInput): string {
-  const workItems = input.workItems.flatMap((w) => {
-    const target = exportedTarget(w.target);
-    return target === null ? [] : [{
-      id: w.id, target, intent: w.intent, title: w.title, status: w.status,
-      priority: w.priority, notes: w.notes, checks: [...w.checks], createdAt: w.createdAt,
-      ...(w.updatedAt !== undefined ? { updatedAt: w.updatedAt } : {}),
-    }];
-  });
-  const dispositions = input.dispositions.flatMap((d) => {
-    const finding = findingRef(d.fingerprint);
-    return finding === null ? [] : [{
-      finding, status: d.status, ...(d.reason !== undefined ? { reason: d.reason } : {}), decidedAt: d.decidedAt,
-    }];
-  });
+  const workItems = writable(input.workItems, exportedWorkItem);
+  const dispositions = writable(input.dispositions, exportedDisposition);
   const warnings = skippedWarnings(input.workItems.length - workItems.length, input.dispositions.length - dispositions.length);
   const data = {
     schema: REVIEW_STATE_SCHEMA,
@@ -99,7 +118,7 @@ export function reviewStateJson(input: ReviewStateInput): string {
     note: REVIEW_STATE_NOTE,
     source: input.source === null ? null : { folder: input.source.folder, repository: input.source.repository },
     workItems,
-    rules: input.rules.map((r) => ({ id: r.id, from: r.from, to: r.to, rationale: r.rationale, createdAt: r.createdAt })),
+    rules: input.rules.map((r) => exportedRule(r)),
     dispositions,
     report: { sections: { ...input.report.sections }, note: input.report.note },
     ...(warnings.length > 0 ? { warnings } : {}),

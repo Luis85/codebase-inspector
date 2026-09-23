@@ -2,10 +2,13 @@ import type { Plugin } from 'obsidian';
 
 /** Obsidian gives a plugin exactly one JSON document (plugin.loadData()/saveData()),
  *  but spec 4.5 lists ProfileStore and LocalBindingStore as two separate application
- *  ports. Every read/write from either store goes through here. */
+ *  ports. Every read/write from either store goes through here. Part 6 Y5 (amending
+ *  Part 4 W1) adds `reviews`, `{ [repositoryId]: record set }`, owned by the durable
+ *  review adapter (plugin-data-review-repository.ts) and written under the same lock. */
 export interface PluginDataShape {
   profiles?: unknown;
   bindings?: unknown;
+  reviews?: unknown;
 }
 
 // Fix round 1, Critical 1: one promise chain per Plugin instance. There is exactly one
