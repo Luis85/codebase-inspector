@@ -127,7 +127,8 @@ describe('review store replaceAll (Part 5 V16)', () => {
 
   // Part 6 Y16 (Part 5 E25's parked test): now that a port can reject, replaceAll's own
   // reload can too. bulkBusy still clears, that rejection is what the caller sees, and the
-  // store stays usable. REGRESSION PIN: passes before Task 2 (TDD-RED exception, ruling R9).
+  // store stays usable. Verified RED before Task 2 (Part 6 E6): it failed on the id line,
+  // since the rejected reload never advanced the old counter. No TDD-RED exception applies.
   it('clears bulkBusy and surfaces the rejection when its own reload rejects (Y16)', async () => {
     const repo = createInMemoryReviewRepository();
     const store = useReviewStore();

@@ -10,8 +10,8 @@ import {
   type WorkIntent, type WorkItem, type WorkItemInit, type WorkItemPatch, type WorkTarget,
 } from './ports/review-repository';
 import {
-  EMPTY_REPLACEMENT, anyPending, bucketFor, createBucketState, listenTo, ownWrite, pendingOf, release, reserve, ruleKey,
-  stopListening, type BucketState, type ReviewPending, type ReviewRepositoryFactory,
+  EMPTY_REPLACEMENT, anyPending, beginLoad, bucketFor, createBucketState, endLoad, listenTo, ownWrite, pendingOf, release,
+  reserve, ruleKey, stopListening, type BucketState, type ReviewPending, type ReviewRepositoryFactory,
 } from './review-buckets';
 
 interface ReviewState {
@@ -124,24 +124,28 @@ export const useReviewStore = defineStore('review', {
       stopListening(this.bucketState);
     },
     /** Part 5 V9: a load that settles after a codebase switch belongs to the old codebase and
-     *  changes nothing. Part 6 Y10: a finished load makes the bucket ready. R1: a rejected list
-     *  sets `loadFailed` (while still bound) and the rejection propagates. */
+     *  changes nothing. Task 2 fix round 1: nor does one that a newer load of the same bucket
+     *  has overtaken (`endLoad`). Part 6 Y10: a finished load makes the bucket ready. R1: a
+     *  rejected list sets `loadFailed` (only if it is the latest, still bound) and the
+     *  rejection always propagates to its caller. */
     async load(): Promise<void> {
       const repo = this.repository;
+      const bucket = bucketFor(this.bucketState, this.boundKey);
+      const ticket = beginLoad(bucket);
       let lists: [WorkItem[], BoundaryRule[], FindingDisposition[]];
       try {
         lists = await Promise.all([repo.listWorkItems(), repo.listRules(), repo.listDispositions()]);
       } catch (error: unknown) {
-        if (this.repository === repo) this.loadFailed = true;
+        if (endLoad(bucket, ticket) && this.repository === repo) this.loadFailed = true;
         throw error;
       }
-      if (this.repository !== repo) return;
+      if (!endLoad(bucket, ticket) || this.repository !== repo) return;
       const [items, rules, dispositions] = lists;
       this.workItems = items;
       this.rules = rules;
       this.dispositions = dispositions;
       this.storageDiagnostics = { ...repo.diagnostics() };
-      bucketFor(this.bucketState, this.boundKey).ready = true;
+      bucket.ready = true;
       this.ready = true;
       this.loadFailed = false;
     },

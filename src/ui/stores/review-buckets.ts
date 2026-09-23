@@ -22,6 +22,10 @@ export interface ReviewBucket {
   ready: boolean;
   /** Y12: notifications still to come from this store's own writes to `repository`. */
   ownWrites: number;
+  /** Task 2 fix round 1: the ticket of the latest `load()` started, the only one that may
+   *  apply what it listed, and how many loads are still in flight. */
+  loadTicket: number;
+  loading: number;
 }
 
 export type ReviewRepositoryFactory = (repositoryId: string) => ReviewRepository;
@@ -34,21 +38,22 @@ export interface BucketState {
   unsubscribe: (() => void) | null;
 }
 
-const inMemoryBucket = (): ReviewBucket => ({ repository: markRaw(createInMemoryReviewRepository()), ready: true, ownWrites: 0 });
+const newBucket = (repository: ReviewRepository, ready: boolean): ReviewBucket =>
+  ({ repository: markRaw(repository), ready, ownWrites: 0, loadTicket: 0, loading: 0 });
+const inMemoryBucket = (): ReviewBucket => newBucket(createInMemoryReviewRepository(), true);
 
 /** Raw: nothing renders from it. Starts with the unbound `''` bucket. */
 export function createBucketState(): BucketState {
   return markRaw({ buckets: new Map([['', inMemoryBucket()]]), factory: null, unsubscribe: null });
 }
 
-/** The bucket for `id`, made on first use: from the factory when there is one, except the
- *  unbound `''` bucket, which stays in memory and is never persisted (Y14). */
+/** The bucket for `id`, made on first use: from the factory when there is one. The unbound
+ *  `''` bucket stays in memory and is never persisted (Y14); `createBucketState` makes it
+ *  up front, so the `id !== ''` test below is defence in depth, never reached today. */
 export function bucketFor(bs: BucketState, id: string): ReviewBucket {
   const existing = bs.buckets.get(id);
   if (existing) return existing;
-  const made: ReviewBucket = id !== '' && bs.factory
-    ? { repository: markRaw(bs.factory(id)), ready: false, ownWrites: 0 }
-    : inMemoryBucket();
+  const made = id !== '' && bs.factory ? newBucket(bs.factory(id), false) : inMemoryBucket();
   bs.buckets.set(id, made);
   return made;
 }
@@ -63,16 +68,37 @@ function reloadIfBound(store: Reloadable, bucket: ReviewBucket): void {
   if (store.repository === bucket.repository) void store.load().catch(noop);
 }
 
+/** Task 2 fix round 1: starts a load of `bucket` and returns its ticket. */
+export function beginLoad(bucket: ReviewBucket): number {
+  bucket.loading += 1;
+  bucket.loadTicket += 1;
+  return bucket.loadTicket;
+}
+
+/** Ends the load holding `ticket`. True only for the latest load started: an older one
+ *  (a reload that listed before a newer write) settles without touching the store. */
+export function endLoad(bucket: ReviewBucket, ticket: number): boolean {
+  bucket.loading -= 1;
+  return ticket === bucket.loadTicket;
+}
+
+/** Y12: settles one slot of this store's own-write count, for a notification that came or,
+ *  on a failed write, never will. With no slot left, a foreign notification already used it
+ *  up (skipped as this store's own), so it reloads to catch that change up; `reload` forces
+ *  a reload either way. */
+function settleSlot(bucket: ReviewBucket, store: Reloadable, reload = false): void {
+  if (bucket.ownWrites > 0) bucket.ownWrites -= 1;
+  else reload = true;
+  if (reload) reloadIfBound(store, bucket);
+}
+
 /** Y12: listens to `bucket`'s repository, dropping the previous subscription, so a store
  *  hears only the codebase it has bound. A notification one of this store's own writes
  *  caused is skipped; any other one (another leaf's write) reloads. */
 export function listenTo(bs: BucketState, bucket: ReviewBucket, store: Reloadable): void {
   bs.unsubscribe?.();
   bucket.ownWrites = 0;
-  bs.unsubscribe = bucket.repository.subscribe(() => {
-    if (bucket.ownWrites > 0) bucket.ownWrites -= 1;
-    else reloadIfBound(store, bucket);
-  });
+  bs.unsubscribe = bucket.repository.subscribe(() => { settleSlot(bucket, store); });
 }
 
 /** Y12: the leaf is closing; nothing reloads it any more. */
@@ -82,25 +108,26 @@ export function stopListening(bs: BucketState): void {
 }
 
 /** Y12: runs one of this store's own writes. The port notifies once per successful write,
- *  before that write's promise resolves, and never for a rejected one. So a rejection gives
- *  its expected notification back; if a foreign notification already used it up (and was
- *  skipped as this store's own), it reloads instead, to catch that change up.
- *  Returns the port's own promise and gives the slot back on a side branch, registered
- *  first, so it runs before the caller resumes, and a write costs the caller no extra
- *  microtask turn over awaiting the port directly (component tests count those turns). */
+ *  before that write's promise resolves, and never for a rejected one, so a rejection
+ *  settles its slot itself (`settleSlot`). Fix round 1: a write that settles while a load
+ *  of the bucket is in flight starts one more, since that load may have listed before the
+ *  write landed; being the latest, the new load is the one that applies.
+ *  Not `async`: it returns the port's own promise and does its bookkeeping on a side branch,
+ *  registered first so it runs before the caller resumes. A write therefore adds no extra
+ *  microtask turn over awaiting the port directly. */
 export function ownWrite(bucket: ReviewBucket, write: () => Promise<void>, store: Reloadable): Promise<void> {
   bucket.ownWrites += 1;
   let written: Promise<void>;
   try {
     written = write();
   } catch (error: unknown) {
-    bucket.ownWrites -= 1; // threw before writing anything, so nothing will notify
+    settleSlot(bucket, store); // threw before writing anything, so nothing will notify
     throw error;
   }
-  written.catch(() => {
-    if (bucket.ownWrites > 0) bucket.ownWrites -= 1;
-    else reloadIfBound(store, bucket);
-  });
+  written.then(
+    () => { if (bucket.loading > 0) reloadIfBound(store, bucket); },
+    () => { settleSlot(bucket, store, bucket.loading > 0); },
+  );
   return written;
 }
 
@@ -108,7 +135,8 @@ export function ownWrite(bucket: ReviewBucket, write: () => Promise<void>, store
  *  rule pairs, work-item keys (target + intent), work-item ids, and fingerprints. */
 export interface ReviewPending { rule: string[]; work: string[]; item: string[]; fingerprint: string[] }
 type PendingKind = keyof ReviewPending;
-const NONE_PENDING: Readonly<ReviewPending> = Object.freeze({ rule: [], work: [], item: [], fingerprint: [] });
+const emptyPending = (): ReviewPending => ({ rule: [], work: [], item: [], fingerprint: [] });
+const NONE_PENDING: Readonly<ReviewPending> = Object.freeze(emptyPending());
 
 export const pendingOf = (pending: ReadonlyMap<string, ReviewPending>, key: string): Readonly<ReviewPending> =>
   pending.get(key) ?? NONE_PENDING;
@@ -119,7 +147,7 @@ export const anyPending = (p: Readonly<ReviewPending>): boolean =>
 /** Marks `value` in flight in codebase `key`, before the action's first `await` (fix round
  *  2's reservation: an overlapping second call for the same key sees it and refuses). */
 export function reserve(pending: Map<string, ReviewPending>, key: string, kind: PendingKind, value: string): void {
-  const entry = pending.get(key) ?? { rule: [], work: [], item: [], fingerprint: [] };
+  const entry = pending.get(key) ?? emptyPending();
   entry[kind] = [...entry[kind], value];
   pending.set(key, entry);
 }

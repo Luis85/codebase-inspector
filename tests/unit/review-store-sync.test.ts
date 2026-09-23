@@ -105,6 +105,40 @@ describe('review store over a shared repository (Part 6 Y10, Y12)', () => {
     expect(a.workItems.map((w) => w.title)).toEqual(['B']);
   });
 
+  // Task 2 fix round 1: B's write makes A reload, and that reload lists before A's own
+  // write lands. Only the latest load of a bucket applies, and an own write that settles
+  // while a load is in flight starts one more, so the older snapshot never hides y.
+  it('a reload that listed before its own write landed never hides that write (fix round 1)', async () => {
+    const shared = createInMemoryReviewRepository();
+    const a = leaf(() => shared);
+    const b = leaf(() => shared);
+    await a.bindRepository('repo-a');
+    await b.bindRepository('repo-a');
+    void b.addWorkItem(fileIn('repo-a', 'src/x.ts'), 'refactor', 'X', NOW);
+    void a.addWorkItem(fileIn('repo-a', 'src/y.ts'), 'refactor', 'Y', NOW);
+    await flushPromises();
+    expect(a.workItems.map((w) => w.title).sort()).toEqual(['X', 'Y']);
+    expect(await a.addWorkItem(fileIn('repo-a', 'src/y.ts'), 'refactor', 'Y again', NOW)).toBeNull();
+    expect((await shared.listWorkItems()).map((w) => w.title).sort()).toEqual(['X', 'Y']);
+  });
+
+  it('a stale load that fails after a newer one succeeded changes nothing, and still rejects to its caller (fix round 1)', async () => {
+    const inner = createInMemoryReviewRepository();
+    const held = deferred();
+    let calls = 0;
+    const a = leaf(() => ({
+      ...inner,
+      listRules: async () => { calls += 1; if (calls === 2) await held.promise; return inner.listRules(); },
+    }));
+    await a.bindRepository('repo-a');
+    const stale = a.load();
+    await a.load();
+    held.reject(new Error('read failed'));
+    await expect(stale).rejects.toThrow('read failed');
+    expect(a.loadFailed).toBe(false);
+    expect(a.ready).toBe(true);
+  });
+
   it('drops its subscription on a switch, listens again on the way back, and stops on detach', async () => {
     const inner = createInMemoryReviewRepository();
     const offs: (() => void)[] = [];
