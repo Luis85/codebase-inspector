@@ -4,11 +4,14 @@ import type { Plugin } from 'obsidian';
  *  but spec 4.5 lists ProfileStore and LocalBindingStore as two separate application
  *  ports. Every read/write from either store goes through here. Part 6 Y5 (amending
  *  Part 4 W1) adds `reviews`, `{ [repositoryId]: record set }`, owned by the durable
- *  review adapter (plugin-data-review-repository.ts) and written under the same lock. */
+ *  review adapter (plugin-data-review-repository.ts) and written under the same lock.
+ *  Part 7 Z1 adds `analyzers`, `{ [profileId]: fallow executable record }`, owned by
+ *  plugin-data-analyzer-store.ts, under the same lock. */
 export interface PluginDataShape {
   profiles?: unknown;
   bindings?: unknown;
   reviews?: unknown;
+  analyzers?: unknown;
 }
 
 // Fix round 1, Critical 1: one promise chain per Plugin instance. There is exactly one
