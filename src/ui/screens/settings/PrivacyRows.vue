@@ -5,16 +5,17 @@ import {
   SETTINGS_CLEAR, SETTINGS_CLEAR_HINT, SETTINGS_CLEAR_OPEN, SETTINGS_CLEAR_TEXT, SETTINGS_EXPORT, SETTINGS_NETWORK,
   SETTINGS_NETWORK_TEXT, SETTINGS_NETWORK_VALUE, SETTINGS_STORAGE, SETTINGS_STORAGE_TEXT,
 } from '../../inspector-copy';
-import { useCityStore } from '../../stores/city-store';
 import { useReviewStore } from '../../stores/review-store';
 import { useUniqueId } from '../../unique-id';
 import type { ImportCandidate } from './import-candidate';
 import ImportRow from './ImportRow.vue';
+import { useReviewWriteGate } from './review-write-gate';
 
 const emit = defineEmits<{ clear: []; export: []; parsed: [candidate: ImportCandidate] }>();
-const city = useCityStore();
 const review = useReviewStore();
 const clearHintId = useUniqueId('ci-settings-clear-hint');
+const storageNoteId = useUniqueId('ci-settings-storage-note');
+const clearGate = useReviewWriteGate(clearHintId, storageNoteId);
 /** Part 6 Y7/R3: one line about the bound codebase's saved review state, shown only while
  *  it could not be read, is read-only, or has records that could not be read. */
 const storageNote = computed((): string => {
@@ -23,10 +24,11 @@ const storageNote = computed((): string => {
   if (unsupported) return REVIEW_STORE_UNSUPPORTED_NOTE;
   return skipped > 0 ? REVIEW_RECORDS_SKIPPED(skipped) : '';
 });
-/** Part 6 R3: blocked (aria-disabled plus this guard, E40) while no codebase is on screen —
- *  the saved review state belongs to one codebase. Announces nothing (E17). */
+/** Part 6 R3/E29: blocked (aria-disabled plus this guard, E40) while no codebase is on
+ *  screen — the saved review state belongs to one codebase — and while its saved state is
+ *  unread (review-write-gate.ts). Announces nothing (E17). */
 function requestClear(): void {
-  if (!city.snapshot) return;
+  if (clearGate.blocked.value) return;
   emit('clear');
 }
 </script>
@@ -49,6 +51,7 @@ function requestClear(): void {
       </p>
       <p
         v-if="storageNote !== ''"
+        :id="storageNoteId"
         class="ci-note ci-settings__storage-note"
       >
         {{ storageNote }}
@@ -64,7 +67,10 @@ function requestClear(): void {
       {{ SETTINGS_EXPORT }}
     </button>
   </div>
-  <ImportRow @parsed="emit('parsed', $event)" />
+  <ImportRow
+    :storage-note-id="storageNoteId"
+    @parsed="emit('parsed', $event)"
+  />
   <div class="ci-setting-row">
     <div>
       <h3>{{ SETTINGS_CLEAR }}</h3>
@@ -72,7 +78,7 @@ function requestClear(): void {
         {{ SETTINGS_CLEAR_TEXT }}
       </p>
       <p
-        v-if="!city.snapshot"
+        v-if="clearGate.noCodebase.value"
         :id="clearHintId"
         class="ci-note ci-settings__clear-hint"
       >
@@ -82,8 +88,8 @@ function requestClear(): void {
     <button
       type="button"
       class="mod-warning ci-settings__clear"
-      :aria-disabled="city.snapshot ? undefined : 'true'"
-      :aria-describedby="city.snapshot ? undefined : clearHintId"
+      :aria-disabled="clearGate.blocked.value ? 'true' : undefined"
+      :aria-describedby="clearGate.describedBy.value"
       @click="requestClear"
     >
       {{ SETTINGS_CLEAR_OPEN }}

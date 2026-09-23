@@ -11,6 +11,7 @@ import type { ProfileStore } from '../application/ports/profile-store';
 import type { LocalBindingStore } from '../application/ports/local-binding-store';
 import type { SourceFileSystemPort } from '../application/ports/source-filesystem-port';
 import type { ReviewRepositoryRegistry } from '../adapters/storage/review-repository-registry';
+import { PROFILE_REVIEW_PURGE_FAILED } from '../ui/inspector-copy';
 import type { CodebaseProfile } from '../domain/model';
 import { buildSettingDefinitions } from './setting-definitions';
 import type { ProfileEntry } from './setting-definitions';
@@ -88,8 +89,9 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
 
   /** Every reason on one line, in a Notice. `void notice` because Notice is constructed
    *  for its side effect and nothing here reads the handle back. */
-  private showFailure(e: unknown): void {
-    const notice = new Notice(validationFailureText(e), 8000);
+  private showFailure(e: unknown, describe?: (reason: string) => string): void {
+    const reason = validationFailureText(e);
+    const notice = new Notice(describe ? describe(reason) : reason, 8000);
     void notice;
   }
 
@@ -136,8 +138,9 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
   private async deleteProfile(id: string): Promise<void> {
     await this.profileStore.remove(id);
     // Part 6 Y17: only once the profile is gone, so a failed removal keeps both. A failed
-    // purge is shown with its reason (spec 7: never dropped silently); the list refreshes.
-    await this.reviewRegistry.purge(id).catch((e: unknown) => { this.showFailure(e); });
+    // purge says the profile went but its review decisions stayed, with the reason (spec 7,
+    // E29); the list refreshes.
+    await this.reviewRegistry.purge(id).catch((e: unknown) => { this.showFailure(e, PROFILE_REVIEW_PURGE_FAILED); });
     await this.refresh();
   }
 

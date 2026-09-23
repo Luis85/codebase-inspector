@@ -18,3 +18,6 @@ export const REVIEW_RECORDS_SKIPPED = (n: number): string =>
 export const REVIEW_STORE_UNSUPPORTED_NOTE = 'The saved review state for this codebase was written in a format this version cannot read. It is kept unchanged, the lists start empty, and changes to them cannot be saved.';
 /** Part 6 R1/R3: Settings › Privacy & storage, while the bound codebase's last load failed. */
 export const REVIEW_STORE_READ_FAILED = 'The saved review state for this codebase could not be read, so its lists start empty here. Nothing on disk was changed; close and reopen this tab to try again.';
+/** Part 6 Y17/E29: the plugin settings Notice when a profile was removed but its purge failed. */
+export const PROFILE_REVIEW_PURGE_FAILED = (reason: string): string =>
+  `The profile was removed, but its saved review decisions could not be deleted: ${reason}`;

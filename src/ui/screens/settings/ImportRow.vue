@@ -11,17 +11,22 @@ import {
   IMPORT_ERROR, SETTINGS_IMPORT, SETTINGS_IMPORT_HINT, SETTINGS_IMPORT_OPEN, SETTINGS_IMPORT_TEXT,
 } from '../../inspector-copy';
 import type { ImportCandidate } from './import-candidate';
+import { useReviewWriteGate } from './review-write-gate';
 
+/** Part 6 E29: `storageNoteId` is PrivacyRows' storage line, which explains a failed read. */
+const props = defineProps<{ storageNoteId: string }>();
 const emit = defineEmits<{ parsed: [candidate: ImportCandidate] }>();
 const city = useCityStore();
 const fileInput = ref<HTMLInputElement | null>(null);
 const error = ref('');
 const hintId = useUniqueId('ci-settings-import-hint');
+const gate = useReviewWriteGate(hintId, props.storageNoteId);
 
 /** Blocked (aria-disabled plus this guard, E40) while no codebase is on screen: imported
- *  paths need its repository id to become entity ids. */
+ *  paths need its repository id to become entity ids. Part 6 E29: also while that
+ *  codebase's saved state is unread (review-write-gate.ts). */
 function open(): void {
-  if (!city.snapshot) return;
+  if (gate.blocked.value) return;
   fileInput.value?.click();
 }
 
@@ -61,7 +66,7 @@ async function picked(): Promise<void> {
         {{ SETTINGS_IMPORT_TEXT }}
       </p>
       <p
-        v-if="!city.snapshot"
+        v-if="gate.noCodebase.value"
         :id="hintId"
         class="ci-note ci-settings__import-hint"
       >
@@ -78,8 +83,8 @@ async function picked(): Promise<void> {
     <button
       type="button"
       class="ci-settings__import"
-      :aria-disabled="city.snapshot ? undefined : 'true'"
-      :aria-describedby="city.snapshot ? undefined : hintId"
+      :aria-disabled="gate.blocked.value ? 'true' : undefined"
+      :aria-describedby="gate.describedBy.value"
       @click="open"
     >
       {{ SETTINGS_IMPORT_OPEN }}

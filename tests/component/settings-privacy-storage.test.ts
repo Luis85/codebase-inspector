@@ -20,6 +20,9 @@ import {
   REVIEW_RECORDS_SKIPPED, REVIEW_STORE_READ_FAILED, REVIEW_STORE_UNSUPPORTED_NOTE, SETTINGS_CLEAR_HINT, SETTINGS_STORAGE_TEXT,
 } from '../../src/ui/inspector-copy';
 
+// oxlint consistent-function-scoping: closures that capture nothing are hoisted.
+const noop = (): void => {};
+const hang = <T>(): Promise<T> => new Promise<T>(() => {});
 const mountS = () => mount(SettingsScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn() } } });
 type Wrapper = ReturnType<typeof mountS>;
 const openPrivacy = (w: Pick<Wrapper, 'find'>) => w.find('[role="tab"][data-tab-id="privacy"]').trigger('click');
@@ -98,6 +101,42 @@ describe('Settings › Privacy & storage: the saved review state (Part 6 Y7, R3)
     expect(w.find('.ci-settings__clear-hint').exists()).toBe(false);
     await w.find('.ci-settings__clear').trigger('click');
     expect(w.find('.ci-clear-dialog').exists()).toBe(true);
+    w.unmount();
+  });
+
+  // E29 (fix round 1): with the saved state unread, the lists are empty only because nothing
+  // was read; a Clear or an Import would replace a saved set the user never saw.
+  it('blocks Clear and Import, described by the storage line, while the saved state could not be read', async () => {
+    useReviewStore().setRepositoryFactory(() => ({ ...createInMemoryReviewRepository(), listWorkItems: () => Promise.reject(new Error('data.json unreadable')) }));
+    await useReviewStore().bindRepository('p1').catch(noop);
+    onScreen();
+    const w = mountS();
+    await openPrivacy(w);
+    const pick = vi.spyOn(w.find<HTMLInputElement>('.ci-settings__import-file').element, 'click');
+    for (const selector of ['.ci-settings__clear', '.ci-settings__import']) {
+      const button = w.find(selector);
+      expect(button.attributes('aria-disabled')).toBe('true');
+      expect(w.find(`#${button.attributes('aria-describedby')!}`).text()).toBe(REVIEW_STORE_READ_FAILED);
+      await button.trigger('click');
+    }
+    expect(w.find('.ci-clear-dialog').exists()).toBe(false);
+    expect(pick).not.toHaveBeenCalled();
+    w.unmount();
+  });
+
+  it('blocks Clear and Import until the saved state has been read', async () => {
+    useReviewStore().setRepositoryFactory(() => ({ ...createInMemoryReviewRepository(), listWorkItems: hang }));
+    void useReviewStore().bindRepository('p1');
+    onScreen();
+    const w = mountS();
+    await openPrivacy(w);
+    const pick = vi.spyOn(w.find<HTMLInputElement>('.ci-settings__import-file').element, 'click');
+    for (const selector of ['.ci-settings__clear', '.ci-settings__import']) {
+      expect(w.find(selector).attributes('aria-disabled')).toBe('true');
+      await w.find(selector).trigger('click');
+    }
+    expect(w.find('.ci-clear-dialog').exists()).toBe(false);
+    expect(pick).not.toHaveBeenCalled();
     w.unmount();
   });
 });

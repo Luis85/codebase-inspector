@@ -232,12 +232,14 @@ export const useReviewStore = defineStore('review', {
     /** Part 5 V16 / Part 6 R1: replaces the bound codebase's whole review state (an import, or
      *  nothing via `clearAll`) with ONE port `replaceAll`, all or nothing, persisted first.
      *  Reloads in `finally`, so the lists show what the port holds. Refused (false), touching
-     *  nothing, while unbound (Y14) or while `hasPendingChanges` (Part 5 E18). `bulkBusy`
-     *  clears in a NESTED `finally`, once the reload has settled (fix round 3, minor 1), even
+     *  nothing, while unbound (Y14), before the bound state is read or after its read failed
+     *  (E29: empty lists then only mean nothing was read), or while `hasPendingChanges`
+     *  (Part 5 E18). `bulkBusy` clears in a NESTED `finally`, once the reload has settled
+     *  (fix round 3, minor 1), even
      *  when it rejects (Y16). A rejection is rethrown while the same codebase is bound; after
      *  a switch mid-run (Part 5 E20) the call resolves `false` and never rethrows. */
     async replaceAll(state: ReviewReplaceState): Promise<boolean> {
-      if (this.boundKey === '' || this.hasPendingChanges) return false;
+      if (this.boundKey === '' || !this.ready || this.loadFailed || this.hasPendingChanges) return false;
       this.bulkBusy = true;
       const repo = this.repository;
       try {
