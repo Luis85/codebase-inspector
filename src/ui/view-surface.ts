@@ -21,6 +21,7 @@ import {
   COPY_01, COPY_12, COPY_14, COPY_28, COPY_READ_NOT_APPROVED, CONTEXT_LOST_NOTICE,
   formatCopy08, formatCopy11, formatCopy13, formatFailedRefreshNotice,
 } from './copy';
+import { CANCELLING_BANNER } from './inspector-copy';
 import type { CodebaseSnapshot } from '../domain/model';
 
 /** COPY-13's own numerator/denominator (task-9-context.md §5, D25): "measured
@@ -49,6 +50,7 @@ export type ViewSurfaceState =
   | { kind: 'read-not-approved' }
   | { kind: 'empty-scope' }
   | { kind: 'scanning-unknown-total'; processedFiles: number }
+  | { kind: 'cancelling'; hasSnapshot: boolean }
   | { kind: 'cancelled' }
   | { kind: 'failed-refresh'; message: string }
   | { kind: 'no-search-matches'; matchingFileCount: number; query: string }
@@ -99,6 +101,9 @@ export function deriveViewSurfaceState(input: ViewSurfaceInputs): ViewSurfaceSta
   if (input.runStatus === 'running') {
     return { kind: 'scanning-unknown-total', processedFiles: input.runProcessedFiles };
   }
+  // Part 6 Y1: running's slot. A banner state (not in EMPTY_STATE_KINDS), so a first scan
+  // being cancelled never falls through to 'no-source' and its "Select a codebase" action.
+  if (input.runStatus === 'cancelling') return { kind: 'cancelling', hasSnapshot: input.hasSnapshot };
   if (input.runStatus === 'cancelled') return { kind: 'cancelled' };
   if (input.runStatus === 'failed' && input.hasSnapshot) {
     return { kind: 'failed-refresh', message: input.runFailureMessage ?? 'Unknown error.' };
@@ -126,6 +131,7 @@ export function surfaceCopy(state: ViewSurfaceState): string | null {
     case 'read-not-approved': return COPY_READ_NOT_APPROVED;
     case 'empty-scope': return COPY_12;
     case 'scanning-unknown-total': return formatCopy08(state.processedFiles);
+    case 'cancelling': return CANCELLING_BANNER(state.hasSnapshot);
     case 'cancelled': return CANCELLED_BANNER;
     case 'failed-refresh': return formatFailedRefreshNotice(state.message);
     case 'no-search-matches': return formatCopy11(state.matchingFileCount, state.query);

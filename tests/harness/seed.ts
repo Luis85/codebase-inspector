@@ -38,6 +38,11 @@ export function runningLifecycle(): ScanLifecycleState {
   };
 }
 
+/** Part 6 Y4: the same run after Cancel was pressed, before the walk confirms it stopped. */
+export function cancellingLifecycle(): ScanLifecycleState {
+  return { ...runningLifecycle(), run: { status: 'cancelling', runId: 'harness-run', generation: 1 } };
+}
+
 /** Part 5 V13: a fixed v1 review-state file for `?import=demo`. v1 carries no source, so
  *  no repository digest is needed, and the dialog shows the origin as unknown. */
 export function demoImportJson(filePath: string, sections: Readonly<Record<ReportSection, boolean>>): string {

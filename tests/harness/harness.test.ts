@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createPinia, setActivePinia } from 'pinia';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { runningLifecycle, seedDemoItems } from './seed';
+import { cancellingLifecycle, runningLifecycle, seedDemoItems } from './seed';
 import { harnessLayout, harnessSnapshot } from './fixture';
 import { applyScheme } from './theme';
 
@@ -89,5 +89,8 @@ describe('harness seeding (Part 5 V30)', () => {
   });
   it('seeds a running scan for ?run=running', () => {
     expect(runningLifecycle().run).toMatchObject({ status: 'running', processedFiles: 57 });
+  });
+  it('seeds a cancelling scan for ?run=cancelling (Part 6 Y4)', () => {
+    expect(cancellingLifecycle().run).toEqual({ status: 'cancelling', runId: 'harness-run', generation: 1 });
   });
 });

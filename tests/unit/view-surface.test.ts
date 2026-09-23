@@ -48,6 +48,11 @@ describe('surfaceCopy', () => {
     expect(surfaceCopy({ kind: 'cancelled' })).toBe(CANCELLED_BANNER);
   });
 
+  it('Part 6 Y1: "cancelling" says the snapshot stays only when there is one', () => {
+    expect(surfaceCopy({ kind: 'cancelling', hasSnapshot: true })).toBe('Cancelling the scan… The current snapshot stays available.');
+    expect(surfaceCopy({ kind: 'cancelling', hasSnapshot: false })).toBe('Cancelling the scan…');
+  });
+
   it('names the previous snapshot as unchanged for "failed-refresh"', () => {
     const copy = surfaceCopy({ kind: 'failed-refresh', message: 'disk error' });
     expect(copy).toContain('disk error');
@@ -106,6 +111,21 @@ describe('deriveViewSurfaceState', () => {
 
   it('surfaces cancelled', () => {
     expect(deriveViewSurfaceState(baseInputs({ runStatus: 'cancelled' })).kind).toBe('cancelled');
+  });
+
+  // Part 6 Y1: cancelling takes running's slot — after the renderer and root checks, before
+  // cancelled and everything snapshot-derived — and carries whether a snapshot exists.
+  it('surfaces a cancelling scan over a snapshot, and over none without falling through to no-source', () => {
+    expect(deriveViewSurfaceState(baseInputs({ runStatus: 'cancelling' }))).toEqual({ kind: 'cancelling', hasSnapshot: true });
+    expect(deriveViewSurfaceState(baseInputs({ runStatus: 'cancelling', hasSnapshot: false, totalFileCount: 0 })))
+      .toEqual({ kind: 'cancelling', hasSnapshot: false });
+  });
+
+  it('cancelling outranks empty-scope, a zero-match filter and a partial read, but not root-unavailable', () => {
+    expect(deriveViewSurfaceState(baseInputs({
+      runStatus: 'cancelling', totalFileCount: 0, matchingIds: new Set(), query: 'zz', partialRead: { measured: 1, included: 2 },
+    })).kind).toBe('cancelling');
+    expect(deriveViewSurfaceState(baseInputs({ runStatus: 'cancelling', rootUnavailable: true })).kind).toBe('root-unavailable');
   });
 
   it('surfaces a failed run as failed-refresh ONLY when a previous snapshot exists', () => {
@@ -186,6 +206,7 @@ describe('isEmptyStateSurface', () => {
 
   it('classifies everything else as StatusBanner-owned', () => {
     expect(isEmptyStateSurface({ kind: 'cancelled' })).toBe(false);
+    expect(isEmptyStateSurface({ kind: 'cancelling', hasSnapshot: false })).toBe(false);
     expect(isEmptyStateSurface({ kind: 'context-lost' })).toBe(false);
   });
 });

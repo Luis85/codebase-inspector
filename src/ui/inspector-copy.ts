@@ -295,3 +295,6 @@ export * from './audit-copy/workbench';
 export * from './audit-copy/report';
 export * from './audit-copy/sources';
 export * from './audit-copy/settings';
+
+/** Part 6: the city's cancelling state. */
+export * from './audit-copy/city';

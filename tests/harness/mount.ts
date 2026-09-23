@@ -10,7 +10,7 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReportStore } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useRunStore } from '../../src/ui/stores/run-store';
-import { demoImportJson, runningLifecycle, seedDemoItems } from './seed';
+import { cancellingLifecycle, demoImportJson, runningLifecycle, seedDemoItems } from './seed';
 import { harnessLayout, harnessSnapshot } from './fixture';
 import { HARNESS_THEME_EVENT } from './theme';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
@@ -25,7 +25,7 @@ export interface HarnessOptions {
   tab?: string;
   items?: 'demo';
   edit?: 'first';
-  run?: 'running';
+  run?: 'running' | 'cancelling';
   importFile?: 'demo';
 }
 
@@ -98,9 +98,10 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
     if (target) store.select(target);
   }
 
-  if (options.run === 'running') {
+  if (options.run) {
     // Part 5 V6: the toolbar's and Data & scans' Cancel are enabled only while running.
-    useRunStore().setLifecycle(runningLifecycle());
+    // Part 6 Y4: `cancelling` shows the city's cancelling banner over the snapshot.
+    useRunStore().setLifecycle(options.run === 'running' ? runningLifecycle() : cancellingLifecycle());
   }
 
   const route = options.route ?? 'city';

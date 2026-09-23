@@ -44,6 +44,14 @@ function cancelScan(): void {
   if (!cancellable.value) return;
   onCancelScan();
 }
+/** Part 6 Y3 (T29): Scan is blocked while a run is running or cancelling: aria-disabled plus
+ *  this guarded handler, never native `disabled`, so a focused Scan keeps focus (E40/E44/E50).
+ *  A refused press announces nothing (E17); the host's withScanGuard still refuses on its own. */
+const scannable = computed(() => runStore.run.status !== 'running' && runStore.run.status !== 'cancelling');
+function requestScan(): void {
+  if (!scannable.value) return;
+  onScanRequested();
+}
 </script>
 
 <template>
@@ -51,15 +59,14 @@ function cancelScan(): void {
     <FileSearch />
     <!-- Unconditional, like every other toolbar control here -- Scan doubles as
          first-scan and refresh (spec 5), so it belongs regardless of whether a
-         snapshot exists yet. Disabled while a run is already in flight (runStore
-         mirrors the real coordinator, spec 4.1) so the toolbar itself does not
-         invite a second concurrent click; the host guard (withScanGuard) still
-         holds even if it did. -->
+         snapshot exists yet. Part 6 Y3: aria-disabled while a run is running or
+         cancelling (runStore mirrors the real coordinator, spec 4.1), with the
+         guarded handler above; the host guard (withScanGuard) still holds. -->
     <button
       type="button"
       class="ci-toolbar__scan"
-      :disabled="runStore.run.status === 'running'"
-      @click="onScanRequested"
+      :aria-disabled="scannable ? undefined : 'true'"
+      @click="requestScan"
     >
       {{ COPY_07 }}
     </button>

@@ -8,7 +8,7 @@
 //   ?tab=<id>          select a tab on a tabbed screen (after the route)
 //   ?items=demo        seed three work items (workbench, report)
 //   ?edit=first        open the first work card's editor (workbench, with items=demo)
-//   ?run=running       seed the run store with a running scan (city, sources)
+//   ?run=running|cancelling  seed the run store with a scan in flight, or being cancelled (city, sources)
 //   ?import=demo       open the import dialog with a fixed v1 file (settings, tab=privacy)
 //
 // `installObsidianDomExtensions` is called FIRST, before any other import runs its own
@@ -44,11 +44,12 @@ const askedRoute = params.get('route');
 const route = isRouteId(askedRoute) ? askedRoute : 'city';
 
 const select = params.get('select');
+const run = params.get('run');
 
 void mountHarness(leaf, {
   screen, route, ...(select ? { select } : {}), ...(params.get('tab') ? { tab: params.get('tab')! } : {}),
   ...(params.get('items') === 'demo' ? { items: 'demo' as const } : {}),
   ...(params.get('edit') === 'first' ? { edit: 'first' as const } : {}),
-  ...(params.get('run') === 'running' ? { run: 'running' as const } : {}),
+  ...(run === 'running' || run === 'cancelling' ? { run } : {}),
   ...(params.get('import') === 'demo' ? { importFile: 'demo' as const } : {}),
 });

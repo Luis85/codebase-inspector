@@ -52,6 +52,8 @@ describe('StatusBanner.vue (C16) + EmptyState.vue (C17) — every view-level sta
     ['scanning, unknown total', { kind: 'scanning-unknown-total', processedFiles: 7 },
       /Reading included files\. \d+ files read so far\./],
     ['cancelled', { kind: 'cancelled' }, 'Scan cancelled. The incomplete result was discarded.'],
+    ['cancelling over a snapshot (Part 6 Y1)', { kind: 'cancelling', hasSnapshot: true }, 'Cancelling the scan… The current snapshot stays available.'],
+    ['cancelling a first scan (Part 6 Y1)', { kind: 'cancelling', hasSnapshot: false }, 'Cancelling the scan…'],
     ['failed refresh', { kind: 'failed-refresh', message: 'disk error' }, /previous snapshot is unchanged/],
     ['empty included scope', { kind: 'empty-scope' },
       'No files are included in this scope. Review the selected directory and exclusions.'],
@@ -90,7 +92,7 @@ describe('StatusBanner.vue (C16) + EmptyState.vue (C17) — every view-level sta
 
   it('StatusBanner and EmptyState never both render text for the same state', () => {
     const states: ViewSurfaceState[] = [
-      { kind: 'no-source' }, { kind: 'cancelled' }, { kind: 'context-lost' },
+      { kind: 'no-source' }, { kind: 'cancelled' }, { kind: 'cancelling', hasSnapshot: false }, { kind: 'context-lost' },
       { kind: 'empty-scope' }, { kind: 'renderer-unavailable' },
     ];
     for (const state of states) {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import AnnouncementRegion from '../../src/ui/components/AnnouncementRegion.vue';
@@ -7,7 +7,8 @@ import { useRunStore } from '../../src/ui/stores/run-store';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../../tests/fixtures/snapshot-builder';
-import { CANCELLED_BANNER } from '../../src/application/run-state';
+import { CANCELLED_BANNER, initialScanLifecycleState } from '../../src/application/run-state';
+import { CANCELLING_BANNER } from '../../src/ui/inspector-copy';
 import type { ApprovedInventoryRun } from '../../src/domain/model';
 
 const approval: ApprovedInventoryRun = {
@@ -122,6 +123,47 @@ describe('AnnouncementRegion.vue', () => {
     nowMs.value += 100;   // now past the window
     exposed.announceProgress(3);
     expect(exposed.politeMessage).toContain('3 files read so far.');
+  });
+
+  // Part 6 Y2: the move into cancelling is a real, user-requested outcome (E17): announced
+  // once per run, in the banner's own words; a new run's cancel is heard again even while the
+  // region still holds the same text (reannounce, Part 5 V22).
+  it('announces the move into cancelling once per run, in the banner\'s words (Part 6 Y2)', async () => {
+    const snapshot = buildSnapshotFixture({ files: 1 });
+    useCityStore().setCity(snapshot, computeLayout(snapshot));
+    const runStore = useRunStore();
+    const wrapper = mountRegion({ value: 0 });
+    const exposed = wrapper.vm as unknown as { announcePolite: (m: string) => void };
+    const polite = wrapper.get('[aria-live="polite"]');
+    const cancelling = (runId: string): void => {
+      runStore.setLifecycle({ ...initialScanLifecycleState(), run: { status: 'cancelling', runId, generation: 1 } });
+    };
+    cancelling('r1');
+    await flushPromises();
+    expect(polite.text()).toBe(CANCELLING_BANNER(true));
+
+    exposed.announcePolite('Something else.');
+    cancelling('r1');
+    await flushPromises();
+    expect(polite.text(), 'the same run again is not a new outcome').toBe('Something else.');
+
+    exposed.announcePolite(CANCELLING_BANNER(true));
+    await nextTick();
+    const seen: string[] = [];
+    const observer = new MutationObserver(() => { seen.push((polite.element.textContent ?? '').trim()); });
+    observer.observe(polite.element, { childList: true, characterData: true, subtree: true });
+    cancelling('r2');
+    await flushPromises();
+    observer.disconnect();
+    expect(seen).toContain('');
+    expect(polite.text()).toBe(CANCELLING_BANNER(true));
+  });
+
+  it('with no snapshot, announces the first-scan wording (Part 6 Y2)', async () => {
+    const wrapper = mountRegion({ value: 0 });
+    useRunStore().setLifecycle({ ...initialScanLifecycleState(), run: { status: 'cancelling', runId: 'r1', generation: 1 } });
+    await flushPromises();
+    expect(wrapper.get('[aria-live="polite"]').text()).toBe(CANCELLING_BANNER(false));
   });
 
   it('exposes no aria-valuenow when the total is unknown', async () => {

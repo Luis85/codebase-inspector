@@ -60,22 +60,31 @@ describe('toolbar Scan control (F7)', () => {
     await expect(wrapper.get('.ci-toolbar__scan').trigger('click')).resolves.toBeUndefined();
   });
 
-  it('disables Scan while a run is already in progress, per the interface\'s own runStore dependency', async () => {
-    const wrapper = mount(App);
-    const runStore = useRunStore();
-    expect(wrapper.get('.ci-toolbar__scan').attributes('disabled')).toBeUndefined();
-
-    const approval = {
-      profileId: 'p1', sourceFingerprint: 'f1', scopeFingerprint: 's1',
-      approvedAt: '2026-01-01T00:00:00.000Z', operation: 'read-only-inventory' as const,
-    };
-    runStore.setLifecycle({
-      run: { status: 'running', runId: 'r1', generation: 1, approval, processedFiles: 0 },
-      approval, generation: 1, publishedSnapshotId: null, banner: null,
-      selectedEntityId: null, query: '',
-    });
+  // Part 6 Y3 (T29): Scan moves from native `disabled` to aria-disabled plus a guarded handler
+  // (E40/E44/E50), blocked while a run is running OR cancelling. It stays focusable, keeps its
+  // name (COPY_07), and a refused press reaches nothing; once the run ends it works again.
+  // (APPROVAL is the module-level constant below, read only inside the test body.)
+  it.each(['running', 'cancelling'] as const)('keeps Scan focusable but aria-disabled while a run is %s; a press does nothing', async (status) => {
+    const onScanRequested = vi.fn();
+    const wrapper = mount(App, { global: { provide: { onScanRequested } } });
+    const scan = () => wrapper.get('.ci-toolbar__scan');
+    expect(scan().attributes('aria-disabled')).toBeUndefined();
+    const run = status === 'running'
+      ? { status, runId: 'r1', generation: 1, approval: APPROVAL, processedFiles: 0 }
+      : { status, runId: 'r1', generation: 1 };
+    useRunStore().setLifecycle({ ...initialScanLifecycleState(), run });
     await nextTick();
-    expect(wrapper.get('.ci-toolbar__scan').attributes('disabled')).toBeDefined();
+    expect(scan().attributes('aria-disabled')).toBe('true');
+    expect(scan().attributes('disabled')).toBeUndefined();
+    expect(scan().text()).toBe(COPY_07);
+    await scan().trigger('click');
+    expect(onScanRequested).not.toHaveBeenCalled();
+
+    useRunStore().setLifecycle({ ...initialScanLifecycleState(), run: { status: 'cancelled', runId: 'r1' } });
+    await nextTick();
+    expect(scan().attributes('aria-disabled')).toBeUndefined();
+    await scan().trigger('click');
+    expect(onScanRequested).toHaveBeenCalledTimes(1);
   });
 });
 

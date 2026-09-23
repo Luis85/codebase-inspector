@@ -15,6 +15,8 @@ import { inject, ref, watch } from 'vue';
 import { useRunStore } from '../stores/run-store';
 import { useCityStore } from '../stores/city-store';
 import { ANNOUNCE_SCAN_COMPLETE, formatAnnounceSelected, formatCopy08 } from '../copy';
+import { CANCELLING_BANNER } from '../inspector-copy';
+import { reannounce } from '../kit/reannounce';
 
 const THROTTLE_MS = 100;
 
@@ -36,6 +38,16 @@ function announceProgress(processedFiles: number): void {
   announcePolite(formatCopy08(processedFiles));
 }
 
+/** Part 6 Y2: the move into cancelling is a real, user-requested outcome (E17), announced once
+ *  per run in StatusBanner's own words. `reannounce`, so a new run's cancel is heard again even
+ *  while the region still holds the same text (E17's re-announce rule). */
+let cancellingAnnouncedFor: string | null = null;
+function announceCancelling(runId: string): void {
+  if (runId === cancellingAnnouncedFor) return;
+  cancellingAnnouncedFor = runId;
+  void reannounce(politeMessage, CANCELLING_BANNER(cityStore.snapshot !== null));
+}
+
 // Default ('pre') flush, deliberately NOT 'sync': `runStore.setLifecycle` assigns
 // `run` and `banner` as two separate statements, so a synchronously-flushed watch
 // on `run` alone would fire BETWEEN them and read the previous `banner`. The
@@ -44,6 +56,7 @@ function announceProgress(processedFiles: number): void {
 watch(() => runStore.run, (run) => {
   if (run.status === 'running') announceProgress(run.processedFiles);
   else if (run.status === 'complete') announcePolite(ANNOUNCE_SCAN_COMPLETE);
+  else if (run.status === 'cancelling') announceCancelling(run.runId);
   // Phase 2 fix wave, M16: these two used to carry `?? 'Scan cancelled.'` /
   // `?? 'Scan failed.'` fallbacks. Both were dead -- run-state.ts sets
   // `banner: CANCELLED_BANNER` on the cancel transition and
