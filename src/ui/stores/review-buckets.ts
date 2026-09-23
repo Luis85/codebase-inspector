@@ -63,8 +63,8 @@ interface Reloadable { readonly repository: ReviewRepository; load(): Promise<vo
 
 /** Y12: reloads the store, but only while `bucket` is still the bound one. A failed reload
  *  keeps the lists as they are (nobody asked for it, so nothing is announced, E17); the
- *  next bind loads again. */
-function reloadIfBound(store: Reloadable, bucket: ReviewBucket): void {
+ *  next bind loads again. Polish E4: the store's adds and `decide` call it too. */
+export function reloadIfBound(store: Reloadable, bucket: ReviewBucket): void {
   if (store.repository === bucket.repository) void store.load().catch(noop);
 }
 

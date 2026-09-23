@@ -11,7 +11,9 @@ import type { MetricValue } from '../../src/ui/evidence';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
-import { COPY_16, FALLOW_NOT_ANALYSED, FALLOW_SOME_NOT_ANALYSED, NO_FILES_REASON } from '../../src/ui/inspector-copy';
+import { COPY_16, FALLOW_NOT_ANALYSED, FALLOW_SOME_NOT_ANALYSED, NO_FILES_REASON, OVERVIEW_FINDINGS_CAPTION } from '../../src/ui/inspector-copy';
+import { buildQualityModel } from '../../src/ui/read-models/findings';
+import type { FindingDisposition } from '../../src/ui/stores/ports/review-repository';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { attachSyntheticReport, syntheticEvidenceReport } from '../fixtures/evidence-report';
 
@@ -195,5 +197,16 @@ describe('stale after a failed run (Part 7 Z23)', () => {
     expect(marked.state).toBe('stale');
     expect(marked.matchedFindings).toBe(current.matchedFindings);
     expect(marked.totals.findings).toMatchObject({ state: 'stale', value: current.matchedFindings });
+  });
+});
+
+describe('Polish E2: the Overview caption counts open findings only', () => {
+  it('a dismissed critical finding leaves the caption as it leaves the count', () => {
+    const index = evidenceIndexFor(files, report, snap.snapshotId);
+    const highs = buildQualityModel(files, index, []).findings.filter((f) => f.severity === 'critical' || f.severity === 'high');
+    expect(highs).toHaveLength(7);
+    const dismissed: FindingDisposition[] = [{ fingerprint: highs[0]!.fingerprint, status: 'dismissed', reason: 'accepted', decidedAt: '2026-09-23T10:00:00.000Z' }];
+    const card = buildOverviewModel(snap, files, undefined, index, buildQualityModel(files, index, dismissed)).cards.find((c) => c.id === 'findings')!;
+    expect(card.caption).toBe(OVERVIEW_FINDINGS_CAPTION('6'));
   });
 });

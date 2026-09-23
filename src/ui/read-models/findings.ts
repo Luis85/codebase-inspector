@@ -4,7 +4,7 @@
 // card is unknown with FALLOW_NOT_ANALYSED, never 0 (Y33).
 import type { EntityId } from '../../domain/entity-id';
 import { originOf, type FindingCategory } from '../../application/evidence/model';
-import { unknown, type MetricValue } from '../evidence';
+import { hasValue, unknown, type MetricValue } from '../evidence';
 import { toCsv, type CsvColumn } from '../export/csv';
 import type { FindingDisposition } from '../stores/ports/review-repository';
 import {
@@ -15,6 +15,7 @@ import {
 import type { EvidenceIndex, EvidenceIndexState } from './evidence-index';
 import type { FileFinding } from './file-detail';
 import { filesByPriority, moduleLabel, type FileSummary } from './file-summaries';
+import { isHighSeverity } from './severity';
 
 export type FindingStatus = 'open' | 'acknowledged' | 'dismissed';
 /** Part 6 Y35 (R6): fallow's own severities, plus `unrated` for a finding it does not rate.
@@ -128,6 +129,14 @@ export function buildQualityModel(
  *  here, so none can count a decided finding the Quality screen does not. */
 export function openFindingsValue(model: QualityModel): MetricValue {
   return model.cards[0]!.value;
+}
+
+/** Polish E2: the Overview's "critical or high" over OPEN findings only (as openFindingsValue),
+ *  in the state and provenance of the index's own high count: unknown stays unknown, never 0. */
+export function openHighFindingsValue(model: QualityModel): MetricValue {
+  const all = model.evidence.totals.high;
+  if (!hasValue(all)) return all;
+  return { ...all, value: model.findings.filter((f) => f.status === 'open' && isHighSeverity(f.severity)).length };
 }
 
 export function filterFindings(findings: readonly QualityFinding[], filter: QualityFilter): readonly QualityFinding[] {

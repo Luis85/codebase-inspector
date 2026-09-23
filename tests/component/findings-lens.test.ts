@@ -24,7 +24,7 @@ import { computeLayout } from '../../src/domain/layout/layout';
 import { formatAbsoluteTime } from '../../src/ui/copy';
 import {
   COPY_16, LENS_EYEBROW, LENS_LABEL, LENS_LEGEND_NONE, LENS_LEGEND_REPORTED, LENS_LIST_CELL, LENS_LIST_COLUMN,
-  LENS_LIST_NONE, LENS_OPTION_CATEGORY, LENS_OPTION_FINDINGS, LENS_SUBTITLE, LENS_TITLE,
+  LENS_LIST_NONE, LENS_LIST_TEXT, LENS_OPTION_CATEGORY, LENS_OPTION_FINDINGS, LENS_SUBTITLE, LENS_TITLE,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { SYNTHETIC_VERSION, attachSyntheticReport, snapshotWithOnlyFiles } from '../fixtures/evidence-report';
@@ -289,5 +289,14 @@ describe('the list-mode Reported column (Y40)', () => {
     await nextTick();
     expect(w.find('.ci-file-list__reported').exists()).toBe(false);
     expect(w.find('.ci-file-list__reported-head').exists()).toBe(false);
+  });
+});
+
+describe('Polish E11: the Reported count reads the same shown and spoken', () => {
+  it('groups thousands in both, and shows none as a dash', () => {
+    expect(LENS_LIST_TEXT(12_345)).toBe('12,345');
+    expect(LENS_LIST_CELL(12_345)).toBe(', 12,345 reported findings');
+    expect(LENS_LIST_TEXT(0)).toBe(LENS_LIST_NONE);
+    expect(LENS_LIST_TEXT(null)).toBe(LENS_LIST_NONE);
   });
 });

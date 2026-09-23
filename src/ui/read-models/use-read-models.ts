@@ -18,7 +18,7 @@ import { buildDependenciesModel, type DependenciesModel } from './dependencies';
 import { buildEvolutionModel, type EvolutionModel } from './evolution';
 import type { ChangeWindow } from '../fixtures/sample-evolution';
 import { SAMPLE_PACKAGES, type SamplePackage } from '../fixtures/sample-packages';
-import { buildQualityModel, openFindingsValue, type QualityModel } from './findings';
+import { buildQualityModel, type QualityModel } from './findings';
 import { buildOwnershipModel, type OwnershipModel } from './ownership';
 import { buildSecurityModel, type SecurityModel } from './security';
 import type { JournalEntry } from './snapshot-comparison';
@@ -39,7 +39,7 @@ function cyclesFor(graph: ArchitectureGraph): MetricValue {
 
 /** Part 6: keyed by the evidence index, which is one object per (files, report), then (E48
  *  I1, E53) by the leaf's raw `dispositions` array, as `qualityModelFor` is: the findings
- *  card counts open findings, read from that leaf's Quality model. */
+ *  card and its caption (Polish E2) count open findings, read from that leaf's Quality model. */
 type OverviewEntry = { snapshot: CodebaseSnapshot; files: readonly FileSummary[]; cycles: MetricValue; model: OverviewModel };
 const overviewCache = new WeakMap<EvidenceIndex, WeakMap<object, OverviewEntry>>();
 export function overviewModelFor(
@@ -51,8 +51,7 @@ export function overviewModelFor(
   const key: object = toRaw(dispositions);
   const hit = byDispositions.get(key);
   if (hit && hit.snapshot === snapshot && hit.files === files && hit.cycles === cycles) return hit.model;
-  const open = openFindingsValue(qualityModelFor(files, evidence, dispositions));
-  const model = buildOverviewModel(snapshot, files, cycles, evidence, open);
+  const model = buildOverviewModel(snapshot, files, cycles, evidence, qualityModelFor(files, evidence, dispositions));
   byDispositions.set(key, { snapshot, files, cycles, model });
   return model;
 }

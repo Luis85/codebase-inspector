@@ -15,7 +15,8 @@ const reportedCache = new WeakMap<EvidenceIndex, ReadonlySet<EntityId>>();
 function reportedIdsFor(index: EvidenceIndex): ReadonlySet<EntityId> {
   let hit = reportedCache.get(index);
   if (!hit) {
-    hit = new Set([...index.byFile].filter(([, findings]) => findings.length > 0).map(([id]) => id));
+    // `groupByFile` creates a file's entry with its first finding, so none is empty (Polish E11).
+    hit = new Set(index.byFile.keys());
     reportedCache.set(index, hit);
   }
   return hit;

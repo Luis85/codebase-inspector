@@ -123,7 +123,8 @@ export const FALLOW_IMPORT_ACTION = 'Import report…';
 
 /* Part 6 Task 10 (Y31, Y37, Y38): the fallow card on Data & scans and the S14 dialog. */
 /** Shared with Task 11's lens copy below (E17), which counts the same way. */
-const nounCount = (n: number, one: string, many: string): string => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
+const formatCount = (n: number): string => n.toLocaleString('en-US');
+const nounCount = (n: number, one: string, many: string): string => `${formatCount(n)} ${n === 1 ? one : many}`;
 export const FALLOW_SOURCE = (version: string, origin: EvidenceOrigin = 'imported'): string =>
   (origin === 'collected' ? `Collected run · fallow ${version}` : `Imported report · fallow ${version}`);
 export const FALLOW_CARD_NONE = 'No findings attached. Imported and collected findings are kept for this session only, so after a restart you import or run again.';
@@ -188,6 +189,9 @@ export const LENS_LEGEND_REPORTED = 'Reported finding';
 export const LENS_LEGEND_NONE = 'No finding reported · metric unavailable';
 export const LENS_LIST_COLUMN = 'Reported';
 export const LENS_LIST_NONE = '—';
+/** Polish E11: the Reported cell's visible text, formatted exactly as LENS_LIST_CELL speaks it;
+ *  none is an em dash, never a 0 that could read as "measured clean". */
+export const LENS_LIST_TEXT = (count: number | null): string => (count === null || count === 0 ? LENS_LIST_NONE : formatCount(count));
 /** Screen-reader text after a row's path, so the name reads "…/file-4.ts, 3 reported findings". */
 export const LENS_LIST_CELL = (count: number): string =>
   (count === 0 ? ', no finding reported' : `, ${nounCount(count, 'reported finding', 'reported findings')}`);

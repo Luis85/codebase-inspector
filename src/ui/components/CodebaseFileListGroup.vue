@@ -16,7 +16,7 @@
 -->
 <script setup lang="ts">
 import { formatDirectoryFocusLabel, formatFileListGroup } from '../copy';
-import { LENS_LIST_CELL, LENS_LIST_NONE } from '../inspector-copy';
+import { LENS_LIST_CELL, LENS_LIST_TEXT } from '../inspector-copy';
 import type { FileGroup, RowState } from './file-list-types';
 import type { EntityId } from '../../domain/entity-id';
 
@@ -75,9 +75,10 @@ function focusDistrict(): void {
 }
 
 /** Part 6 Y40: the Reported cell — the count, or an em dash for none (never a 0 that could
- *  read as "measured clean"), with a spoken phrase after the path. */
+ *  read as "measured clean"), with a spoken phrase after the path. Polish E11: both are
+ *  formatted by the same copy module, so they read the same count. */
 function reportedText(count: number | null): string {
-  return count === null || count === 0 ? LENS_LIST_NONE : String(count);
+  return LENS_LIST_TEXT(count);
 }
 function reportedLabel(count: number | null): string {
   return LENS_LIST_CELL(count ?? 0);

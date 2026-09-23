@@ -9,11 +9,12 @@ import { dateLabels } from './overview';
 
 const pad2 = (n: number): string => String(n).padStart(2, '0');
 
-/** The one label for a journal entry (journal rows, comparison options, the Compare
- *  buttons' descriptions): capture date plus UTC HH:MM, which tells same-day scans apart. */
+/** The one label for a journal entry (journal rows, comparison options, the Compare buttons'
+ *  descriptions): capture date plus UTC HH:MM:SS. Polish E12: seconds, so two scans in the
+ *  same minute are told apart. */
 export function snapshotEntryLabel(capturedAt: string): string {
   const d = new Date(capturedAt);
-  return SNAPSHOT_ENTRY_LABEL(dateLabels(capturedAt, 1, 0)[0] ?? '', `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`);
+  return SNAPSHOT_ENTRY_LABEL(dateLabels(capturedAt, 1, 0)[0] ?? '', `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}`);
 }
 
 export interface JournalModule { module: string; files: number; lines: MetricValue }

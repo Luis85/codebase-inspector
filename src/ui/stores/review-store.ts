@@ -11,7 +11,7 @@ import {
 } from './ports/review-repository';
 import {
   EMPTY_REPLACEMENT, anyPending, beginLoad, bucketFor, createBucketState, endLoad, listenTo, ownWrite, pendingOf, release,
-  reserve, ruleKey, stopListening, type BucketState, type ReviewPending, type ReviewRepositoryFactory,
+  reloadIfBound, reserve, ruleKey, stopListening, type BucketState, type ReviewPending, type ReviewRepositoryFactory,
 } from './review-buckets';
 
 interface ReviewState {
@@ -170,13 +170,19 @@ export const useReviewStore = defineStore('review', {
       if (workItemProblem(fields) !== null) return null;
       const repo = this.repository;
       const item: WorkItem = { id: repo.allocateId('workItem'), ...fields };
+      const bucket = bucketFor(this.bucketState, codebase);
+      const ticket = bucket.loadTicket;
       reserve(this.pending, codebase, 'work', key);
       try {
-        await ownWrite(bucketFor(this.bucketState, codebase), () => repo.saveWorkItem(item), this);
+        await ownWrite(bucket, () => repo.saveWorkItem(item), this);
         // Part 5 V9: saved in its own codebase either way (so the real result is returned),
-        // but shown only while that codebase is still bound. A load() that ran mid-save may
-        // already hold it.
-        if (this.repository === repo && !this.workItems.some((w) => w.id === item.id)) this.workItems.push(item);
+        // but shown only while that codebase is still bound. Polish E4 (L16): a load that
+        // started during the write may hold it, or may reflect another leaf removing it, so
+        // the stored truth is reloaded instead of pushed.
+        if (this.repository === repo) {
+          if (bucket.loadTicket !== ticket) reloadIfBound(this, bucket);
+          else if (!this.workItems.some((w) => w.id === item.id)) this.workItems.push(item);
+        }
         return item;
       } finally {
         release(this.pending, codebase, 'work', key);
@@ -270,10 +276,16 @@ export const useReviewStore = defineStore('review', {
         || this.hasRule(from, to) || pendingOf(this.pending, codebase).rule.includes(key)) return null;
       const repo = this.repository;
       const rule: BoundaryRule = { id: repo.allocateId('rule'), from, to, rationale: trimmed, createdAt: now.toISOString() };
+      const bucket = bucketFor(this.bucketState, codebase);
+      const ticket = bucket.loadTicket;
       reserve(this.pending, codebase, 'rule', key);
       try {
-        await ownWrite(bucketFor(this.bucketState, codebase), () => repo.saveRule(rule), this);
-        if (this.repository === repo && !this.rules.some((r) => r.id === rule.id)) this.rules.push(rule);
+        await ownWrite(bucket, () => repo.saveRule(rule), this);
+        if (this.repository === repo) {
+          // Polish E4 (L16): as addWorkItem, a load that started during the write wins.
+          if (bucket.loadTicket !== ticket) reloadIfBound(this, bucket);
+          else if (!this.rules.some((r) => r.id === rule.id)) this.rules.push(rule);
+        }
         return rule;
       } finally {
         release(this.pending, codebase, 'rule', key);
@@ -291,12 +303,20 @@ export const useReviewStore = defineStore('review', {
     async decide(disposition: FindingDisposition): Promise<FindingDisposition | null> {
       const fp = disposition.fingerprint;
       const codebase = this.boundKey;
-      if (this.bulkBusy || this.isDispositionPending(fp)) return null;
+      // Polish E3: refused before the bound codebase is read, as the adds are (Y10).
+      if (!this.ready || this.bulkBusy || this.isDispositionPending(fp)) return null;
       const repo = this.repository;
+      const bucket = bucketFor(this.bucketState, codebase);
+      const ticket = bucket.loadTicket;
       reserve(this.pending, codebase, 'fingerprint', fp);
       try {
-        await ownWrite(bucketFor(this.bucketState, codebase), () => repo.saveDisposition(disposition), this);
-        if (this.repository === repo) this.dispositions = [...this.dispositions.filter((d) => d.fingerprint !== fp), disposition];
+        await ownWrite(bucket, () => repo.saveDisposition(disposition), this);
+        if (this.repository === repo) {
+          // Polish E4 (L16): a load that started during this write reflects another leaf's
+          // change; an upsert now could put back what that change removed. Reload instead.
+          if (bucket.loadTicket !== ticket) reloadIfBound(this, bucket);
+          else this.dispositions = [...this.dispositions.filter((d) => d.fingerprint !== fp), disposition];
+        }
         return disposition;
       } finally {
         release(this.pending, codebase, 'fingerprint', fp);

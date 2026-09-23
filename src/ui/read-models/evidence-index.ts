@@ -15,6 +15,7 @@ import { resolveFindings } from '../../application/evidence/resolve-findings';
 import { unknown, type MetricValue } from '../evidence';
 import { FALLOW_NOT_ANALYSED, FALLOW_PROVENANCE_DETAIL, FALLOW_SOME_NOT_ANALYSED, NO_FILES_REASON } from '../inspector-copy';
 import type { FileSummary } from './file-summaries';
+import { isHighSeverity } from './severity';
 
 export type EvidenceIndexState = 'none' | 'current' | 'stale';
 export interface FileEvidence { findings: MetricValue; high: MetricValue; unused: MetricValue }
@@ -35,9 +36,8 @@ export interface EvidenceIndex {
 
 type Counter = (n: number, c: FindingCategory | null) => MetricValue;
 
-/** Y34: `high` counts the tool's two top severities. */
-const HIGH_SEVERITIES: readonly string[] = ['critical', 'high'];
-const isHigh = (f: EvidenceFinding): boolean => f.severity !== null && HIGH_SEVERITIES.includes(f.severity);
+/** Y34: `high` counts the tool's two top severities (severity.ts, Polish E2). */
+const isHigh = (f: EvidenceFinding): boolean => isHighSeverity(f.severity);
 const isUnused = (f: EvidenceFinding): boolean => f.category === 'unused-exports';
 const notAnalysed = (): MetricValue => unknown(FALLOW_NOT_ANALYSED, 'fallow');
 

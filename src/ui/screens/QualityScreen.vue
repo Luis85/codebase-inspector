@@ -59,6 +59,17 @@ watch(() => quality.value.severities, (severities) => {
   const s = filter.value.severity;
   if (s !== null && !severities.includes(s)) filter.value = { ...filter.value, severity: null };
 });
+/** Polish E13 (L19): another leaf can remove the report, or replace it with one that reports
+ *  nothing, while focus is inside the findings panel. The focused control unmounts; focus moves
+ *  to what replaced it — NotAnalysed's Import, or the panel itself — never to <body>. */
+watch([() => report.value === null, () => quality.value.findings.length === 0], async () => {
+  const el = root.value;
+  const active = el?.ownerDocument.activeElement ?? null;
+  if (!el || !active || !el.querySelector('.ci-quality__panel')?.contains(active)) return;
+  await nextTick();
+  if (active.isConnected) return;
+  (el.querySelector<HTMLElement>('.ci-not-analysed__import') ?? el.querySelector<HTMLElement>('.ci-quality__panel'))?.focus();
+});
 
 /** Fix round 1: a rescan can drop the finding under review. Forget it, so the dialog
  *  cannot come back on its own when a later snapshot brings the fingerprint back. */

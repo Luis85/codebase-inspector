@@ -203,6 +203,8 @@ describe('snapshotEntryLabel', () => {
     const a = snapshotEntryLabel('2026-09-22T09:05:00.000Z');
     const b = snapshotEntryLabel('2026-09-22T14:30:00.000Z');
     expect(a).not.toBe(b);
-    expect(a).toBe('Sep 22 · 09:05 UTC');
+    expect(a).toBe('Sep 22 · 09:05:00 UTC');
+    // Polish E12: two scans in the same minute are told apart too.
+    expect(snapshotEntryLabel('2026-09-22T09:05:10.000Z')).not.toBe(snapshotEntryLabel('2026-09-22T09:05:40.000Z'));
   });
 });
