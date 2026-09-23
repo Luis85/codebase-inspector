@@ -26,6 +26,15 @@ export class InMemoryEvidenceStore implements EvidenceRepository {
     if (this.byRepository.delete(repositoryId)) this.notify(repositoryId);
   }
 
+  /** Part 7 Z23: a failed run never clears evidence; it marks it. A NEW object, so every
+   *  memo keyed on the report (E53) recomputes. */
+  markStale(repositoryId: string): void {
+    const report = this.byRepository.get(repositoryId);
+    if (report === undefined || report.staleReason === 'failed-run') return;
+    this.byRepository.set(repositoryId, { ...report, staleReason: 'failed-run' });
+    this.notify(repositoryId);
+  }
+
   subscribe(listener: (repositoryId: string) => void): () => void {
     const subscription: Subscription = { listener };
     this.subscriptions.add(subscription);

@@ -83,7 +83,9 @@ function groupByFile(files: readonly FileSummary[], findings: readonly EvidenceF
 }
 
 function build(files: readonly FileSummary[], report: EvidenceReport | null, snapshotId: string): EvidenceIndex {
-  const state: EvidenceIndexState = report === null ? 'none' : report.snapshotId === snapshotId ? 'current' : 'stale';
+  // Part 7 Z23: stale for another snapshot (Y30), or after a failed run on this one.
+  const state: EvidenceIndexState = report === null ? 'none'
+    : report.snapshotId === snapshotId && report.staleReason === undefined ? 'current' : 'stale';
   const count = counterFor(report, state);
   const { byFile, unmatchedPaths } = report === null
     ? { byFile: new Map<EntityId, EvidenceFinding[]>(), unmatchedPaths: [] }

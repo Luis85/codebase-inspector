@@ -65,4 +65,40 @@ describe('InMemoryEvidenceStore (Part 6 Y28)', () => {
     store.put('p1', emptyEvidenceReport('s2'));
     expect(added.mock.calls).toEqual([['p1']]);
   });
+
+  it('Part 7 Z23: markStale marks the stored report stale once, as a new object, and notifies', () => {
+    const store = new InMemoryEvidenceStore();
+    const listener = vi.fn();
+    const report = emptyEvidenceReport('s1');
+    store.put('p1', report);
+    store.subscribe(listener);
+    store.markStale('p1');
+    const marked = store.get('p1');
+    expect(marked).not.toBe(report);
+    expect(marked).toEqual({ ...report, staleReason: 'failed-run' });
+    expect(report).not.toHaveProperty('staleReason');
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith('p1');
+    store.markStale('p1');
+    expect(store.get('p1')).toBe(marked);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('Part 7 Z23: markStale with no report does nothing and notifies nobody', () => {
+    const store = new InMemoryEvidenceStore();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.markStale('p1');
+    expect(store.get('p1')).toBeNull();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('Part 7 Z23: a later put replaces the marked report with an unmarked one', () => {
+    const store = new InMemoryEvidenceStore();
+    store.put('p1', emptyEvidenceReport('s1'));
+    store.markStale('p1');
+    const fresh = emptyEvidenceReport('s2');
+    store.put('p1', fresh);
+    expect(store.get('p1')).toBe(fresh);
+  });
 });

@@ -186,3 +186,14 @@ describe('evidence through useReadModels (E53, R7)', () => {
     expect(useReadModels().evidence.value.state).toBe('none');
   });
 });
+
+describe('stale after a failed run (Part 7 Z23)', () => {
+  it('a report marked after a failed run is stale even for its own snapshot, and keeps its counts', () => {
+    const current = evidenceIndexFor(files, report, snap.snapshotId);
+    const marked = evidenceIndexFor(files, { ...report, staleReason: 'failed-run' }, snap.snapshotId);
+    expect(current.state).toBe('current');
+    expect(marked.state).toBe('stale');
+    expect(marked.matchedFindings).toBe(current.matchedFindings);
+    expect(marked.totals.findings).toMatchObject({ state: 'stale', value: current.matchedFindings });
+  });
+});

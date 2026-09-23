@@ -70,4 +70,33 @@ export interface EvidenceReport {
   snapshotId: string;
   stripPrefix: string | null;
   normalized: NormalizedEvidence;
+  /** Part 7 Z25: present only for a run the user started; an imported report never has it.
+   *  For a collected report `fileName` is the executable's base name, `importedAt` is when
+   *  the result was attached, and `stripPrefix` is null. */
+  collected?: CollectedRunProvenance;
+  /** Part 7 Z23: set by EvidenceRepository.markStale after an operational run failure. */
+  staleReason?: 'failed-run';
+}
+
+/** Part 7 Z25: where a collected report came from. Held in memory only (Y28): the absolute
+ *  paths are never persisted, exported or put in getState(). "Verified" means the run's
+ *  root was the snapshot's own scope.rootPath and that snapshot was still the latest when
+ *  the result was published (Z20). */
+export interface CollectedRunProvenance {
+  origin: 'collected';
+  sourceMatch: 'verified';
+  runId: string;
+  rootPath: string;
+  executablePath: string;
+  args: readonly string[];
+  exitCode: 0 | 1;
+  startedAt: string;
+  durationMs: number;
+  versionTested: boolean;
+}
+
+export type EvidenceOrigin = 'imported' | 'collected';
+
+export function originOf(report: EvidenceReport): EvidenceOrigin {
+  return report.collected === undefined ? 'imported' : 'collected';
 }

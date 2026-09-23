@@ -12,4 +12,7 @@ export interface EvidenceRepository {
   remove(repositoryId: string): void;
   /** Called with the codebase whose report changed. Returns the unsubscribe function. */
   subscribe(listener: (repositoryId: string) => void): () => void;
+  /** Part 7 Z23: after an operational run failure. Replaces the report with a copy marked
+   *  `staleReason: 'failed-run'` and notifies; nothing when there is none or it is marked. */
+  markStale(repositoryId: string): void;
 }

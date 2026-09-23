@@ -46,6 +46,7 @@ function counting(): { repository: EvidenceRepository; live: () => number } {
     get: (id) => inner.get(id),
     put: (id, report) => { inner.put(id, report); },
     remove: (id) => { inner.remove(id); },
+    markStale: (id) => { inner.markStale(id); },
     subscribe: (listener) => {
       live += 1;
       const off = inner.subscribe(listener);
