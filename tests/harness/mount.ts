@@ -10,7 +10,13 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReportStore } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useRunStore } from '../../src/ui/stores/run-store';
-import { cancellingLifecycle, demoImportJson, runningLifecycle, seedDemoItems } from './seed';
+import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
+import { useLensStore } from '../../src/ui/stores/lens-store';
+import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
+import {
+  DEMO_FALLOW_FILE_NAME, cancellingLifecycle, demoEvidenceReport, demoFallowReportText, demoImportJson,
+  runningLifecycle, seedDemoItems,
+} from './seed';
 import { harnessLayout, harnessSnapshot } from './fixture';
 import { HARNESS_THEME_EVENT } from './theme';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
@@ -27,6 +33,9 @@ export interface HarnessOptions {
   edit?: 'first';
   run?: 'running' | 'cancelling';
   importFile?: 'demo';
+  report?: 'demo';
+  lens?: 'findings';
+  fallow?: 'review';
 }
 
 export async function mountHarness(root: HTMLElement, options: HarnessOptions): Promise<void> {
@@ -49,7 +58,12 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
   // an unsafe value.
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- see comment above: vue-tsc, not eslint's type-aware linting, is the accurate check here
   const app = createApp(App);
-  app.use(createPinia());
+  const pinia = createPinia();
+  app.use(pinia);
+  // Part 6 Y28: what wireDataPorts gives a real CityView — one session evidence repository.
+  // The harness has one leaf, so one instance. Set before mount, so App's repository watcher
+  // binds the evidence store against it.
+  useEvidenceStore(pinia).setRepository(new InMemoryEvidenceStore());
 
   const handle = shallowRef<CityRendererPort | null>(null);
   app.provide(CITY_RENDERER_KEY, handle);
@@ -104,6 +118,24 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
     useRunStore().setLifecycle(options.run === 'running' ? runningLifecycle() : cancellingLifecycle());
   }
 
+  if (options.report === 'demo') {
+    // Part 6 §5: a SYNTHETIC fallow report (seed.ts) through the real reader, builder and
+    // evidence store, so every surface says "fallow · imported report" because it took the
+    // real path. Bound here rather than left to App's repository watcher, which runs only on
+    // the next flush; binding the same id again is a no-op (R7).
+    const snapshot = store.snapshot;
+    if (!snapshot) throw new Error('harness: report=demo found no snapshot');
+    const evidence = useEvidenceStore();
+    evidence.bindRepository(snapshot.repositoryId);
+    if (!evidence.attach(demoEvidenceReport(snapshot))) throw new Error('harness: report=demo was refused by the evidence store');
+  }
+  if (options.lens === 'findings') {
+    // Part 6 Y40: the select exists only with evidence, and so does the lens.
+    const lens = useLensStore();
+    lens.setLens('findings');
+    if (lens.lens !== 'findings') throw new Error('harness: lens=findings needs report=demo');
+  }
+
   const route = options.route ?? 'city';
   store.navigate(route);
   if (route !== 'city') {
@@ -144,6 +176,25 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
       input.files = transfer.files;
       input.dispatchEvent(new Event('change'));
       await until(() => root.querySelector('.ci-dialog') !== null);
+    }
+    if (options.fallow === 'review') {
+      // Part 6 Y38: the S14 dialog at its review step. requestImport() is the command's own
+      // path (Y39): SourcesScreen consumes it and opens the dialog a tick later. As for
+      // import=demo, a capture cannot use the file picker, so the dialog's own hidden input
+      // (Task 10: `.ci-connect-fallow__file`, outside the CiDialog focus trap) gets the
+      // synthetic report and the `change` event a real pick fires. The review step is the
+      // one that renders Attach.
+      const snapshot = store.snapshot;
+      if (route !== 'sources' || !snapshot) throw new Error('harness: fallow=review needs route=sources and a snapshot');
+      useEvidenceStore().requestImport();
+      await until(() => root.querySelector('.ci-connect-fallow__file') !== null);
+      const input = root.querySelector<HTMLInputElement>('.ci-connect-fallow__file');
+      if (!input) throw new Error('harness: fallow=review found no file input in the dialog');
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([demoFallowReportText(snapshot)], DEMO_FALLOW_FILE_NAME, { type: 'application/json' }));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change'));
+      await until(() => root.querySelector('.ci-connect-fallow__attach') !== null);
     }
     document.body.dataset.ciHarnessReady = 'true';
     return;

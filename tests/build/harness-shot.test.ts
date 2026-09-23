@@ -67,6 +67,23 @@ describe('harness-shot SHOTS', () => {
     expect(shotQuery('wp02-settings-import-dark').get('import')).toBe('demo');
     expect(shotQuery('wp02-settings-import-dark').get('tab')).toBe('privacy');
   });
+
+  it('captures the Part 6 states: cancelling, the fallow card, the S14 review step, real findings, the lens', () => {
+    expect(shotQuery('wp02-city-cancelling-dark').get('run')).toBe('cancelling');
+    for (const id of ['wp02-sources-fallow-dark', 'wp02-quality-fallow-dark', 'wp02-city-lens-dark', 'wp02-city-lens-light']) {
+      expect(shotQuery(id).get('report'), id).toBe('demo');
+    }
+    expect(shotQuery('wp02-sources-fallow-dark').get('route')).toBe('sources');
+    expect(shotQuery('wp02-quality-fallow-dark').get('route')).toBe('quality');
+    expect(shotQuery('wp02-connect-fallow-review-dark').get('route')).toBe('sources');
+    expect(shotQuery('wp02-connect-fallow-review-dark').get('fallow')).toBe('review');
+    for (const theme of ['dark', 'light']) {
+      const q = shotQuery(`wp02-city-lens-${theme}`);
+      expect(q.get('theme')).toBe(theme);
+      expect(q.get('route')).toBe('city');
+      expect(q.get('lens')).toBe('findings');
+    }
+  });
 });
 
 describe('chromium resolution', () => {

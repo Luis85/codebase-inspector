@@ -5,6 +5,11 @@ import { initialScanLifecycleState, type ScanLifecycleState } from '../../src/ap
 import type { ReportSection } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { REVIEW_STATE_SCHEMA_V1 } from '../../src/ui/read-models/review-state';
+import type { CodebaseSnapshot } from '../../src/domain/model';
+import type { EvidenceReport } from '../../src/application/evidence/model';
+import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
+import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
+import { snapshotWithOnlyFiles, syntheticFallowJson } from '../fixtures/evidence-report';
 
 const AT = new Date('2026-09-17T12:00:00Z');
 
@@ -59,4 +64,45 @@ export function demoImportJson(filePath: string, sections: Readonly<Record<Repor
     dispositions: [],
     report: { sections: { ...sections }, note: '' },
   }, null, 2);
+}
+
+/** Part 6 §5: the synthetic report's own file name says what it is on every surface that
+ *  shows it (the fallow card's diagnostics, the S14 review step). */
+export const DEMO_FALLOW_FILE_NAME = 'synthetic-harness-fallow-report.json';
+/** Not a harness path, so the review step and the fallow card show one unmatched path. */
+export const DEMO_UNMATCHED_PATH = 'generated/schema.ts';
+/** page.ts's caption whenever the synthetic report is on the page. */
+export const HARNESS_SYNTHETIC_FOOTER = 'Harness · synthetic fallow report built from the fixture’s own paths · not a repository analysis';
+const DEMO_WARNING = 'Synthetic harness diagnostic: package exports were not resolved.';
+/** Ten MEASURED files (1–3 are the fixture's unavailable ones), spread over all six
+ *  districts, so the lens shows reported lots among unreported ones. */
+const DEMO_FILE_INDEXES: readonly number[] = [4, 10, 23, 31, 40, 57, 66, 86, 101, 120];
+
+export function filePathsOf(snapshot: CodebaseSnapshot): string[] {
+  return snapshot.entities.filter((e) => e.kind === 'file').map((e) => e.path);
+}
+
+/** R5: the shared fixture's real-shaped fallow 3.27.0 JSON, for the ten demo files plus one
+ *  path the snapshot does not have. It is the file `?fallow=review` picks. */
+export function demoFallowReportText(snapshot: CodebaseSnapshot): string {
+  const paths = filePathsOf(snapshot);
+  const demoPaths = DEMO_FILE_INDEXES.map((i) => {
+    const path = paths[i];
+    if (path === undefined) throw new Error(`harness: report=demo needs a file at index ${i}`);
+    return path;
+  });
+  return syntheticFallowJson(snapshotWithOnlyFiles(snapshot, demoPaths), {
+    unmatchedPaths: [DEMO_UNMATCHED_PATH], warning: DEMO_WARNING,
+  });
+}
+
+/** What the S14 dialog attaches for that file: the real reader, then the real builder. A
+ *  refusal throws, and the page error fails `npm run harness-shot`. */
+export function demoEvidenceReport(snapshot: CodebaseSnapshot): EvidenceReport {
+  const read = parseFallowReportText(demoFallowReportText(snapshot));
+  if (!read.ok) throw new Error(`harness: report=demo was refused by the real reader (${read.code} ${read.detail})`);
+  return buildEvidenceReport({
+    raw: read.report, fileName: DEMO_FALLOW_FILE_NAME, importedAt: AT.toISOString(),
+    snapshotId: snapshot.snapshotId, stripPrefix: null,
+  });
 }

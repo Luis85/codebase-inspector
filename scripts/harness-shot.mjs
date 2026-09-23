@@ -126,6 +126,17 @@ export const SHOTS = [
   { id: 'wp02-sources-running-dark', query: '?screen=s05&theme=dark&route=sources&run=running' },
   { id: 'wp02-city-running-dark', query: '?screen=s05&theme=dark&route=city&run=running' },
   { id: 'wp02-settings-import-dark', query: '?screen=s05&theme=dark&route=settings&tab=privacy&import=demo' },
+  // WP-02 Part 6: compare against docs/concept/prototype/screenshots/scan-progress-dark.png
+  // (cancelling), sources-dark.png (the fallow card), source-wizard-dark.png (the S14 review
+  // step), quality-dark.png and finding-review-dark.png (real findings), city-{dark,light}.png,
+  // and the design mockups docs/concept/design/mockups/s12-cancelled.png, s14-provider.png and
+  // s15-findings.png. report=demo and fallow=review use a SYNTHETIC report (tests/harness/seed.ts).
+  { id: 'wp02-city-cancelling-dark', query: '?screen=s05&theme=dark&route=city&run=cancelling' },
+  { id: 'wp02-sources-fallow-dark', query: '?screen=s05&theme=dark&route=sources&report=demo' },
+  { id: 'wp02-connect-fallow-review-dark', query: '?screen=s05&theme=dark&route=sources&fallow=review' },
+  { id: 'wp02-quality-fallow-dark', query: '?screen=s05&theme=dark&route=quality&report=demo' },
+  { id: 'wp02-city-lens-dark', query: '?screen=s05&theme=dark&route=city&report=demo&lens=findings' },
+  { id: 'wp02-city-lens-light', query: '?screen=s05&theme=light&route=city&report=demo&lens=findings' },
 ];
 
 async function main() {

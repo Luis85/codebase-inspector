@@ -25,3 +25,12 @@ body { margin: 0; }
   width: 100%;
   overflow: hidden;
 }
+
+/* Part 6 §5: the synthetic-data caption (page.ts). Fixed, so it never changes the leaf's box,
+   and outside .codebase-inspector-root, like everything else in this sheet. */
+.ci-harness-footer {
+  position: fixed; right: 8px; bottom: 6px; margin: 0; padding: 2px 6px;
+  font: 11px/1.4 var(--font-interface, sans-serif); color: var(--text-muted);
+  background: var(--background-primary); border: 1px solid var(--background-modifier-border);
+  border-radius: 4px; pointer-events: none;
+}

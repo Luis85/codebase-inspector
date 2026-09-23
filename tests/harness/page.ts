@@ -10,6 +10,9 @@
 //   ?edit=first        open the first work card's editor (workbench, with items=demo)
 //   ?run=running|cancelling  seed the run store with a scan in flight, or being cancelled (city, sources)
 //   ?import=demo       open the import dialog with a fixed v1 file (settings, tab=privacy)
+//   ?report=demo       attach a SYNTHETIC fallow report built from the fixture's paths (any route)
+//   ?lens=findings     turn the findings lens on (city, with report=demo)
+//   ?fallow=review     open the Connect fallow dialog at its review step (sources)
 //
 // `installObsidianDomExtensions` is called FIRST, before any other import runs its own
 // top-level code: the harness page has no Obsidian, and the REAL renderer reads
@@ -24,6 +27,7 @@ installObsidianDomExtensions(window);
 import { applyWantedScheme } from './theme';
 import { mountHarness, type ScreenId } from './mount';
 import { isRouteId } from '../../src/domain/route-ids';
+import { HARNESS_SYNTHETIC_FOOTER } from './seed';
 
 const SCREENS: readonly ScreenId[] = ['s05', 's06', 's07', 's08', 's09', 's10', 's11'];
 
@@ -40,6 +44,12 @@ const leaf = document.body.createDiv({ cls: 'ci-harness-leaf' });
 const width = params.get('width');
 if (width !== null && /^\d+$/.test(width)) leaf.style.width = `${width}px`;
 
+// Part 6 §5: a page carrying the synthetic fallow report says so, outside the plugin's own
+// root, the way the design mockups carry their "synthetic data" caption.
+if (params.get('report') === 'demo' || params.get('fallow') === 'review') {
+  document.body.createEl('footer', { cls: 'ci-harness-footer', text: HARNESS_SYNTHETIC_FOOTER });
+}
+
 const askedRoute = params.get('route');
 const route = isRouteId(askedRoute) ? askedRoute : 'city';
 
@@ -52,4 +62,7 @@ void mountHarness(leaf, {
   ...(params.get('edit') === 'first' ? { edit: 'first' as const } : {}),
   ...(run === 'running' || run === 'cancelling' ? { run } : {}),
   ...(params.get('import') === 'demo' ? { importFile: 'demo' as const } : {}),
+  ...(params.get('report') === 'demo' ? { report: 'demo' as const } : {}),
+  ...(params.get('lens') === 'findings' ? { lens: 'findings' as const } : {}),
+  ...(params.get('fallow') === 'review' ? { fallow: 'review' as const } : {}),
 });
