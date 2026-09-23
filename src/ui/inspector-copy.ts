@@ -300,3 +300,5 @@ export * from './audit-copy/settings';
 export * from './audit-copy/city';
 /** Part 6: durable review state. */
 export * from './audit-copy/storage';
+/** Part 6: fallow report import. */
+export * from './audit-copy/fallow';
