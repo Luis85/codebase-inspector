@@ -9,9 +9,6 @@ export interface FileSignals {
   commits90d: number;
   branchesTotal: number;
   branchesCovered: number;
-  findings: number;
-  highFindings: number;
-  unusedExports: number;
   directDependents: number;
 }
 
@@ -22,10 +19,9 @@ export function sampleFileSignals(entityId: EntityId): FileSignals {
   const branchesTotal = 20 + Math.floor(r() * 160);
   const branchesCovered = Math.round(branchesTotal * (0.4 + r() * 0.59));
   const directDependents = 1 + Math.floor(r() * 18);
-  const unusedExports = r() > 0.75 ? 1 + Math.floor(r() * 4) : 0;
-  const highFindings = complexity >= 30 ? 1 : 0;
-  const findings = Math.floor(r() * 4) + highFindings;
-  return { complexity, commits90d, branchesTotal, branchesCovered, findings, highFindings, unusedExports, directDependents };
+  // Part 6 Y34: no sample findings any more. The draws above keep their order, so every
+  // remaining sample value is unchanged.
+  return { complexity, commits90d, branchesTotal, branchesCovered, directDependents };
 }
 
 /** A sample history that ENDS at the real current value, walking backwards by at most

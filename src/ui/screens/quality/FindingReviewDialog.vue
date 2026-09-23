@@ -2,6 +2,7 @@
 import { computed, nextTick, ref } from 'vue';
 import type { EntityId } from '../../../domain/entity-id';
 import { useReadModels } from '../../read-models/use-read-models';
+import { severityTone } from '../../read-models/findings';
 import { useReviewStore } from '../../stores/review-store';
 import { DISMISS_REASON_MAX } from '../../stores/ports/review-repository';
 import { useUniqueId } from '../../unique-id';
@@ -11,10 +12,9 @@ import {
   FINDING_DIALOG_REASON, FINDING_DIALOG_TITLE, FINDING_DISMISS, FINDING_DISMISS_CANCEL, FINDING_DISMISS_HINT,
   FINDING_DISMISS_PLACEHOLDER, FINDING_DISMISS_REASON, FINDING_DISMISS_REQUIRED, FINDING_DISMISS_SAVE, FINDING_DISMISS_TITLE,
   FINDING_DISMISS_TOO_LONG, FINDING_DISMISSED, FINDING_IN_PLAN, FINDING_OPEN_FILE, FINDING_REOPEN, FINDING_REOPENED,
-  FINDING_STATUS_LABEL, QUALITY_LOCATION, SEVERITY_LABEL, WORK_ITEM_TITLE,
+  FINDING_STATUS_LABEL, QUALITY_LOCATION, SEVERITY_TEXT, WORK_ITEM_TITLE,
 } from '../../inspector-copy';
 import CiDialog from '../../kit/Dialog.vue';
-import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
 
 const props = defineProps<{ fingerprint: string }>();
 const emit = defineEmits<{ close: []; openFile: [id: EntityId] }>();
@@ -115,13 +115,12 @@ async function addWorkItem(): Promise<void> {
       <p class="ci-finding-dialog__chips">
         <span
           class="ci-severity"
-          :class="`ci-severity--${finding.severity}`"
-        >{{ SEVERITY_LABEL[finding.severity] }}</span>
+          :class="`ci-severity--${severityTone(finding.severity)}`"
+        >{{ SEVERITY_TEXT(finding.severity) }}</span>
         <span
           class="ci-chip"
           :class="`ci-chip--status-${finding.status}`"
         >{{ FINDING_STATUS_LABEL[finding.status] }}</span>
-        <ProvenanceBadge state="sample" />
       </p>
       <p class="ci-finding-dialog__summary">
         {{ finding.title }}

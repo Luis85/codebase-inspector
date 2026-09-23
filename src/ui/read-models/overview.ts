@@ -11,9 +11,10 @@ import {
 import { sampleTrend } from '../fixtures/sample-signals';
 import {
   IMPORT_GRAPH_UNKNOWN_REASON, INVESTIGATE_FILE_TITLE, INVESTIGATE_HOTSPOT_DETAIL, INVESTIGATE_HOTSPOT_TITLE,
-  INVESTIGATE_LARGEST_DETAIL, INVESTIGATE_MODULE_DETAIL, INVESTIGATE_NO_LINES, NO_FILES_REASON, OVERVIEW_ARCH_CAPTION,
-  PROTECT_MODULE_TITLE,
+  EVIDENCE_SOURCE_NONE, INVESTIGATE_LARGEST_DETAIL, INVESTIGATE_MODULE_DETAIL, INVESTIGATE_NO_LINES, NO_FILES_REASON,
+  OVERVIEW_ARCH_CAPTION, OVERVIEW_FALLOW_ROW, OVERVIEW_FALLOW_SOURCE, OVERVIEW_FINDINGS_CAPTION, PROTECT_MODULE_TITLE,
 } from '../inspector-copy';
+import { evidenceIndexFor, type EvidenceIndex, type EvidenceIndexState } from './evidence-index';
 import { filesByPriority, ROOT_MODULE, type FileSummary } from './file-summaries';
 import { moduleCoverage } from './module-coverage';
 
@@ -22,6 +23,8 @@ export const HIGH_COMPLEXITY = 30;
 export const TREND_POINTS = 7;
 const TREND_SPACING_DAYS = 14;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+/** R6: the fallow row's state follows the evidence index. It is never sample. */
+const FALLOW_ROW_STATE: Readonly<Record<EvidenceIndexState, EvidenceState>> = { none: 'unknown', current: 'collected', stale: 'stale' };
 
 export interface OverviewCard {
   id: 'findings' | 'coverage' | 'architecture' | 'hotspots';
@@ -82,12 +85,14 @@ function investigations(files: readonly FileSummary[]): Investigation[] {
 export function buildOverviewModel(
   snapshot: CodebaseSnapshot, files: readonly FileSummary[],
   cycles: MetricValue = unknown(IMPORT_GRAPH_UNKNOWN_REASON),
+  evidence: EvidenceIndex = evidenceIndexFor(files, null, snapshot.snapshotId),
 ): OverviewModel {
   const covered = sumEvidence(files.map((f) => f.branchesCovered), NO_FILES_REASON);
   const total = sumEvidence(files.map((f) => f.branchesTotal), NO_FILES_REASON);
   const coverage = files.length ? ratioEvidence(covered, total) : unknown(NO_FILES_REASON);
-  const findings = sumEvidence(files.map((f) => f.findings), NO_FILES_REASON);
-  const high = sumEvidence(files.map((f) => f.highFindings), NO_FILES_REASON);
+  // Part 6 Y34: imported fallow evidence, or unknown (Not analysed), never a sample count.
+  const findings = evidence.totals.findings;
+  const high = evidence.totals.high;
   const hotspots = countEvidence(files.map((f) => f.priority), (v) => v >= HOTSPOT_THRESHOLD, NO_FILES_REASON);
   const highComplexity = countEvidence(files.map((f) => f.complexity), (v) => v >= HIGH_COMPLEXITY, NO_FILES_REASON);
 
@@ -99,7 +104,7 @@ export function buildOverviewModel(
 
   const cards: OverviewCard[] = [
     { id: 'findings', label: 'Open quality findings', icon: 'code', unit: '', tone: 'warning', trend: null,
-      value: findings, caption: `${formatMetric(high)} high-priority findings · sample rules` },
+      value: findings, caption: OVERVIEW_FINDINGS_CAPTION(formatMetric(high)) },
     { id: 'coverage', label: 'Branch coverage', icon: 'flask-conical', unit: '%', tone: 'success', trend: coverageTrend,
       value: coverage, caption: `${formatMetric(covered)} / ${formatMetric(total)} instrumented branches` },
     { id: 'architecture', label: 'Architecture exceptions', icon: 'network', unit: '', tone: 'danger', trend: null,
@@ -116,7 +121,8 @@ export function buildOverviewModel(
   const importsSampled = cycles.state !== 'unknown';
   const coverageRows: EvidenceCoverageRow[] = [
     { id: 'inventory', label: 'File inventory', state: snapshot.completeness === 'partial' ? 'partial' : 'collected', source: 'Built-in scan' },
-    { id: 'static', label: 'Static signals', state: 'sample', source: 'Sample provider' },
+    { id: 'fallow', label: OVERVIEW_FALLOW_ROW, state: FALLOW_ROW_STATE[evidence.state],
+      source: evidence.report ? OVERVIEW_FALLOW_SOURCE(evidence.report.providerVersion) : EVIDENCE_SOURCE_NONE },
     { id: 'history', label: 'Git history', state: 'sample', source: 'Sample provider' },
     { id: 'coverage', label: 'Test coverage', state: 'sample', source: 'Sample provider' },
     { id: 'imports', label: 'Import graph', state: importsSampled ? 'sample' : 'unknown', source: importsSampled ? 'Sample provider' : 'Not collected' },

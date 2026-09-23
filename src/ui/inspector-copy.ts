@@ -115,11 +115,6 @@ export const FILE_CARD_PRIORITY = 'Review priority';
 export const FILE_CARD_PRIORITY_CAPTION = 'Heuristic, not a failure probability';
 export const FILE_HISTORY_COMPLEXITY = 'Max. complexity';
 export const FILE_HISTORY_COVERAGE = 'Branch coverage (%)';
-export const FINDING_TITLE: Readonly<Record<'complexity' | 'duplication' | 'unused-exports', string>> = {
-  complexity: 'Complex function needs review',
-  duplication: 'Repeated implementation detected',
-  'unused-exports': 'Potentially unused export',
-};
 
 /** Part 2 §2.1: Architecture screen. */
 export const SCREEN_NO_SNAPSHOT = 'No snapshot yet. Select a codebase and run a scan to see this screen.';
@@ -263,7 +258,6 @@ export const FILE_NO_FINDINGS = 'No sample findings for this file.';
 export const FILE_FINDINGS_CAVEAT_TITLE = 'No findings does not imply no defects.';
 export const FILE_FINDINGS_CAVEAT = 'Dynamic imports, reflection, configuration and runtime behaviour may need additional review.';
 export const FINDING_META = (line: number | null): string => (line === null ? 'Sample finding · line unknown' : `Sample finding · line ${line}`);
-export const SEVERITY_LABEL: Readonly<Record<'high' | 'medium' | 'low', string>> = { high: 'High', medium: 'Medium', low: 'Low' };
 export const FILE_HISTORY_TITLE = 'Change & test history';
 export const FILE_HISTORY_SUBTITLE = 'Sample per-file trends.';
 export const FILE_HISTORY_FOOTNOTE = 'Complexity and branch coverage use different units.';

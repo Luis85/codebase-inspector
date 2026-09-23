@@ -89,3 +89,16 @@ export const fallowNotShownLabel = (key: string): string =>
 
 // Part 6 Y39: the command palette entry.
 export const FALLOW_COMMAND_IMPORT = 'Import analysis report';
+
+// Part 6 Y30/Y33/Y34 (Task 8): imported evidence in the read models.
+export const FALLOW_NOT_ANALYSED = 'Not analysed. No imported fallow report covers this.';
+export const FALLOW_SOME_NOT_ANALYSED = 'Some finding categories were not analysed in the imported report.';
+/** MetricValue provenance detail for an imported value (Y33). */
+export const FALLOW_PROVENANCE_DETAIL = (version: string): string => `imported report ${version}`;
+/** Overview findings card caption; `high` is already formatted (a count, or the no-value mark). */
+export const OVERVIEW_FINDINGS_CAPTION = (high: string): string => `${high} critical or high severity`;
+/** Overview evidence-coverage row (R6: replaces the sample "Static signals" row). */
+export const OVERVIEW_FALLOW_ROW = 'Static findings (fallow)';
+export const OVERVIEW_FALLOW_SOURCE = (version: string): string => `Imported fallow ${version} report`;
+/** S22 / COPY-16 (Y30): the stale-evidence notice. Tasks 9 and 11 show it. */
+export const COPY_16 = (absoluteDate: string): string => `Showing evidence from ${absoluteDate}. It is not current for this snapshot.`;

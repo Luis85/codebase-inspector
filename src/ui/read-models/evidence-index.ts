@@ -1,0 +1,128 @@
+// Part 6 Y30/Y33/Y34: the attached fallow report, resolved against the files on screen.
+// Every findings count on every screen reads from here. Each count is a MetricValue:
+// - `collected` (source 'fallow') while the report was imported against this snapshot;
+// - `stale` when it was imported against another snapshot (Y30), re-resolved against
+//   this snapshot's paths;
+// - `partial`, for the total only, when just some categories were analysed;
+// - `unknown` with FALLOW_NOT_ANALYSED when there is no report or the report did not
+//   analyse the category.
+// Never a 0 that nothing measured (Y33).
+import type { EntityId } from '../../domain/entity-id';
+import {
+  FINDING_CATEGORIES, type EvidenceFinding, type EvidenceReport, type FindingCategory,
+} from '../../application/evidence/model';
+import { resolveFindings } from '../../application/evidence/resolve-findings';
+import { unknown, type MetricValue } from '../evidence';
+import { FALLOW_NOT_ANALYSED, FALLOW_PROVENANCE_DETAIL, FALLOW_SOME_NOT_ANALYSED, NO_FILES_REASON } from '../inspector-copy';
+import type { FileSummary } from './file-summaries';
+
+export type EvidenceIndexState = 'none' | 'current' | 'stale';
+export interface FileEvidence { findings: MetricValue; high: MetricValue; unused: MetricValue }
+export interface EvidenceIndex {
+  state: EvidenceIndexState;
+  report: EvidenceReport | null;
+  byFile: ReadonlyMap<EntityId, readonly EvidenceFinding[]>;
+  perFile(id: EntityId): FileEvidence;
+  totals: FileEvidence;
+  matchedFindings: number;
+  matchedFiles: number;
+  unmatchedPaths: readonly string[];
+  category(c: FindingCategory): 'analysed' | 'not-analysed';
+  /** `n` in this index's evidence state. Unknown when `c` (or, for `null`, every category)
+   *  was not analysed; partial when `c` is null and only some were. */
+  count(n: number, c: FindingCategory | null): MetricValue;
+}
+
+type Counter = (n: number, c: FindingCategory | null) => MetricValue;
+
+/** Y34: `high` counts the tool's two top severities. */
+const HIGH_SEVERITIES: readonly string[] = ['critical', 'high'];
+const isHigh = (f: EvidenceFinding): boolean => f.severity !== null && HIGH_SEVERITIES.includes(f.severity);
+const isUnused = (f: EvidenceFinding): boolean => f.category === 'unused-exports';
+const notAnalysed = (): MetricValue => unknown(FALLOW_NOT_ANALYSED, 'fallow');
+
+function counterFor(report: EvidenceReport | null, state: EvidenceIndexState): Counter {
+  if (report === null) return notAnalysed;
+  const analysed = (c: FindingCategory): boolean => report.normalized.categories[c] === 'analysed';
+  const provenance = { source: 'fallow', detail: FALLOW_PROVENANCE_DETAIL(report.providerVersion) };
+  const present = (n: number): MetricValue => ({ state: state === 'stale' ? 'stale' : 'collected', value: n, provenance });
+  const covered = FINDING_CATEGORIES.filter(analysed).length;
+  return (n, c) => {
+    if (c !== null) return analysed(c) ? present(n) : notAnalysed();
+    if (covered === 0) return notAnalysed();
+    return covered === FINDING_CATEGORIES.length ? present(n) : { ...present(n), state: 'partial', reason: FALLOW_SOME_NOT_ANALYSED };
+  };
+}
+
+function evidenceOf(list: readonly EvidenceFinding[], count: Counter): FileEvidence {
+  return {
+    findings: count(list.length, null),
+    high: count(list.filter(isHigh).length, 'complexity'),
+    unused: count(list.filter(isUnused).length, 'unused-exports'),
+  };
+}
+
+function noFiles(): FileEvidence {
+  return { findings: unknown(NO_FILES_REASON), high: unknown(NO_FILES_REASON), unused: unknown(NO_FILES_REASON) };
+}
+
+/** Y26: findings whose path is not in the snapshot never reach a file; their paths are listed. */
+function groupByFile(files: readonly FileSummary[], findings: readonly EvidenceFinding[]): {
+  byFile: Map<EntityId, EvidenceFinding[]>; unmatchedPaths: readonly string[];
+} {
+  const byPath = new Map<string, EntityId>(files.map((f) => [f.path, f.id]));
+  const { matched, unmatchedPaths } = resolveFindings(findings, new Set(byPath.keys()));
+  const byFile = new Map<EntityId, EvidenceFinding[]>();
+  for (const f of matched) {
+    const id = byPath.get(f.path);
+    if (id === undefined) continue;
+    const list = byFile.get(id);
+    if (list) list.push(f); else byFile.set(id, [f]);
+  }
+  return { byFile, unmatchedPaths };
+}
+
+function build(files: readonly FileSummary[], report: EvidenceReport | null, snapshotId: string): EvidenceIndex {
+  const state: EvidenceIndexState = report === null ? 'none' : report.snapshotId === snapshotId ? 'current' : 'stale';
+  const count = counterFor(report, state);
+  const { byFile, unmatchedPaths } = report === null
+    ? { byFile: new Map<EntityId, EvidenceFinding[]>(), unmatchedPaths: [] }
+    : groupByFile(files, report.normalized.findings);
+  const matched = [...byFile.values()].flat();
+  const perFileCache = new Map<EntityId, FileEvidence>();
+  return {
+    state,
+    report,
+    byFile,
+    unmatchedPaths,
+    matchedFindings: matched.length,
+    matchedFiles: byFile.size,
+    totals: files.length === 0 ? noFiles() : evidenceOf(matched, count),
+    perFile(id: EntityId): FileEvidence {
+      let hit = perFileCache.get(id);
+      if (!hit) { hit = evidenceOf(byFile.get(id) ?? [], count); perFileCache.set(id, hit); }
+      return hit;
+    },
+    category: (c) => (report !== null && report.normalized.categories[c] === 'analysed' ? 'analysed' : 'not-analysed'),
+    count,
+  };
+}
+
+/** The no-report key: a WeakMap key must be an object. */
+const NO_REPORT: object = {};
+const cache = new WeakMap<readonly FileSummary[], WeakMap<object, { snapshotId: string; index: EvidenceIndex }>>();
+
+/** Y30/Y34: memoised per (files array, raw report) in a WeakMap of WeakMaps. Both keys are
+ *  shared by every leaf on the codebase, so two leaves with the same inputs share one index,
+ *  and a leaf with other inputs never reads it (E53: no single slot). `files` is one array
+ *  per snapshot, so this is also the Y30 (report, snapshot) pair. Callers pass the RAW report. */
+export function evidenceIndexFor(files: readonly FileSummary[], report: EvidenceReport | null, snapshotId: string): EvidenceIndex {
+  let byReport = cache.get(files);
+  if (!byReport) { byReport = new WeakMap(); cache.set(files, byReport); }
+  const key: object = report ?? NO_REPORT;
+  const hit = byReport.get(key);
+  if (hit && (report === null || hit.snapshotId === snapshotId)) return hit.index;
+  const index = build(files, report, snapshotId);
+  byReport.set(key, { snapshotId, index });
+  return index;
+}

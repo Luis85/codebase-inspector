@@ -12,6 +12,7 @@ import { useReviewStore } from '../../src/ui/stores/review-store';
 import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { attachSyntheticReport } from '../fixtures/evidence-report';
 import { FINDING_ACKNOWLEDGED, FINDING_REOPENED } from '../../src/ui/inspector-copy';
 
 describe('Finding dialog status (Part 5 V32, Part 4 E2)', () => {
@@ -20,6 +21,7 @@ describe('Finding dialog status (Part 5 V32, Part 4 E2)', () => {
   it('is "" while a decision is in flight, between the previous outcome and the new one', async () => {
     const snap = buildSnapshotFixture({ files: 60, directories: 3 });
     useCityStore().setCity(snap, computeLayout(snap));
+    attachSyntheticReport(snap);
     const review = useReviewStore();
     const inner = createInMemoryReviewRepository();
     let release: (() => void) | undefined;

@@ -11,10 +11,14 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { attachSyntheticReport } from '../fixtures/evidence-report';
 
+/** Part 6 Y34: findings come from an imported report; this attaches a synthetic one. */
 function withSnapshot(files = 60, directories = 3) {
   const snap = buildSnapshotFixture({ files, directories });
   useCityStore().setCity(snap, computeLayout(snap));
+  attachSyntheticReport(snap);
+  return snap;
 }
 const mountQ = () => mount(QualityScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn() } } });
 /** Fix round 1: a focusable `.ci-shell` around the screen, as App.vue provides, so
@@ -37,7 +41,7 @@ describe('QualityScreen', () => {
     w.unmount();
   });
 
-  it('shows four sample cards and the open findings, 100 at a time', async () => {
+  it('shows four cards and the open findings, 100 at a time', async () => {
     withSnapshot(400, 4);
     const w = mountQ();
     expect(w.findAll('.ci-metric-card')).toHaveLength(4);
@@ -64,7 +68,7 @@ describe('QualityScreen', () => {
   it('acknowledging moves the finding out of the Open list; closing lands focus on a Review button, never the shell or body', async () => {
     withSnapshot();
     const { w, done } = mountInShell();
-    // Finding ids repeat across files (CX-<module>-<n>); the id plus the file names the row.
+    // The finding id plus the file names the row.
     const identity = w.findAll('.ci-table__row')[0]!.text();
     const open = w.findAll('.ci-findings-table__open')[0]!;
     (open.element as HTMLElement).focus();
@@ -118,8 +122,7 @@ describe('QualityScreen', () => {
   });
 
   it('a rescan that drops the finding closes the review for good', async () => {
-    const snap = buildSnapshotFixture({ files: 60, directories: 3 });
-    useCityStore().setCity(snap, computeLayout(snap));
+    const snap = withSnapshot();
     const w = mountQ();
     await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     expect(w.find('.ci-finding-dialog').exists()).toBe(true);
@@ -272,7 +275,8 @@ describe('QualityScreen', () => {
     const [host, name, text] = vi.mocked(downloadText).mock.calls[0]!;
     expect(host.classList.contains('ci-screen--quality')).toBe(true);
     expect(name).toBe('codebase-quality-findings.csv');
-    expect(text).toContain('id,path,module,kind,severity,line,line_state,status,reason,provenance');
+    expect(text).toContain('id,path,module,kind,rule,severity,line,line_state,status,reason,provenance');
+    expect(text).toContain('fallow 3.27.0 imported');
     w.unmount();
   });
 

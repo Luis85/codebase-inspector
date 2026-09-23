@@ -1,19 +1,18 @@
 <script setup lang="ts">
-import { FINDINGS_PAGE, SEVERITY_RANK, type QualityFinding } from '../../read-models/findings';
+import { FINDINGS_PAGE, severityRank, severityTone, type QualityFinding } from '../../read-models/findings';
 import {
   FINDING_KIND_LABEL, FINDING_STATUS_LABEL, QUALITY_COL_EVIDENCE, QUALITY_COL_FINDING, QUALITY_COL_LOCATION,
   QUALITY_COL_REVIEW, QUALITY_COL_SEVERITY, QUALITY_COL_STATUS, QUALITY_LOCATION, QUALITY_NO_MATCH, QUALITY_NO_MATCH_TITLE,
-  QUALITY_REVIEW, QUALITY_REVIEW_LABEL, QUALITY_SHOWING, QUALITY_TABLE_CAPTION, RESET_FILTERS, SEVERITY_LABEL, SHOW_MORE,
+  QUALITY_REVIEW, QUALITY_REVIEW_LABEL, QUALITY_SHOWING, QUALITY_TABLE_CAPTION, RESET_FILTERS, SEVERITY_TEXT, SHOW_MORE,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
-import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
 
 defineProps<{ rows: readonly QualityFinding[]; limit: number }>();
 const emit = defineEmits<{ open: [finding: QualityFinding]; more: []; reset: [] }>();
 
 const columns: readonly TableColumn<QualityFinding>[] = [
-  { key: 'severity', label: QUALITY_COL_SEVERITY, sortValue: (r) => SEVERITY_RANK[r.severity] },
+  { key: 'severity', label: QUALITY_COL_SEVERITY, sortValue: (r) => severityRank(r.severity) },
   { key: 'finding', label: QUALITY_COL_FINDING },
   { key: 'location', label: QUALITY_COL_LOCATION, sortValue: (r) => r.file.path },
   { key: 'evidence', label: QUALITY_COL_EVIDENCE },
@@ -56,8 +55,8 @@ const columns: readonly TableColumn<QualityFinding>[] = [
         <template #cell-severity="{ row }">
           <span
             class="ci-severity"
-            :class="`ci-severity--${row.severity}`"
-          >{{ SEVERITY_LABEL[row.severity] }}</span>
+            :class="`ci-severity--${severityTone(row.severity)}`"
+          >{{ SEVERITY_TEXT(row.severity) }}</span>
         </template>
         <template #cell-finding="{ row }">
           <span class="ci-file-cell">
@@ -74,7 +73,6 @@ const columns: readonly TableColumn<QualityFinding>[] = [
         <template #cell-evidence="{ row }">
           <span class="ci-findings-table__evidence">
             <span class="ci-chip">{{ FINDING_KIND_LABEL[row.kind] }}</span>
-            <ProvenanceBadge state="sample" />
           </span>
         </template>
         <template #cell-status="{ row }">

@@ -28,7 +28,6 @@ describe('sampleFileSignals', () => {
       expect(s.commits90d).toBeLessThanOrEqual(43);
       expect(s.branchesTotal).toBeGreaterThanOrEqual(20);
       expect(s.branchesCovered).toBeLessThanOrEqual(s.branchesTotal);
-      expect(s.highFindings).toBeLessThanOrEqual(s.findings);
     }
   });
 });

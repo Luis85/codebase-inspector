@@ -13,16 +13,17 @@ const emit = defineEmits<{ navigate: [route: RouteId]; close: [] }>();
 
 const store = useCityStore();
 const review = useReviewStore();
-const { overview } = useReadModels();
+const { evidence } = useReadModels();
 const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
 
-/** Only COLLECTED counts become nav badges: a nav badge carries no Sample label, so a
- *  sample findings count would read as measured (spec §9 A11 — none are collected in
- *  Part 1, so the Code quality badge is absent). Work items are real, in-memory. */
+/** Only COLLECTED counts become nav badges: a nav badge carries no evidence label, so a
+ *  stale, partial or unknown count would read as current (spec §9 A11). Part 6 Y34: the
+ *  Code quality badge is the imported fallow findings total, shown only while that total
+ *  is collected (a current report). Work items are real. */
 const badges = computed<Partial<Record<RouteId, number>>>(() => {
-  const findings = overview.value?.cards.find((c) => c.id === 'findings')?.value;
+  const findings = evidence.value.totals.findings;
   return {
-    quality: findings?.state === 'collected' ? findings.value : undefined,
+    quality: findings.state === 'collected' ? findings.value : undefined,
     // Part 4 W13: items not yet verified.
     workbench: review.openWorkItemCount || undefined,
   };

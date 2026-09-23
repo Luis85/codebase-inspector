@@ -11,6 +11,7 @@ import { buildOverviewModel, HOTSPOT_THRESHOLD } from '../../src/ui/read-models/
 import { buildCitySummary } from '../../src/ui/read-models/city-summary';
 import { evolutionModelFor } from '../../src/ui/read-models/use-read-models';
 import { journalEntryFor } from '../../src/ui/read-models/snapshot-comparison';
+import { attachSyntheticReport } from '../fixtures/evidence-report';
 
 describe('file summaries', () => {
   it('derives the module from the first path segment', () => {
@@ -236,6 +237,7 @@ describe('read-model memoization', () => {
     const store = useCityStore();
     const snap = buildSnapshotFixture({ files: 20, directories: 2 });
     store.setCity(snap, computeLayout(snap));
+    attachSyntheticReport(snap);
     const a = useReadModels();
     const b = useReadModels();
     const before = a.quality.value;

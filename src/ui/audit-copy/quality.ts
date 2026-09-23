@@ -24,9 +24,23 @@ export const QUALITY_ALL_STATUSES = 'All statuses';
 export const FINDING_KIND_LABEL: Readonly<Record<'complexity' | 'duplication' | 'unused-exports', string>> = {
   complexity: 'Complexity', duplication: 'Duplication', 'unused-exports': 'Unused exports',
 };
+/** Moved from inspector-copy.ts in Part 6 (R6), unchanged: the per-category fallback title. */
+export const FINDING_TITLE: Readonly<Record<'complexity' | 'duplication' | 'unused-exports', string>> = {
+  complexity: 'Complex function needs review',
+  duplication: 'Repeated implementation detected',
+  'unused-exports': 'Potentially unused export',
+};
 export const FINDING_STATUS_LABEL: Readonly<Record<'open' | 'acknowledged' | 'dismissed', string>> = {
   open: 'Open', acknowledged: 'Acknowledged', dismissed: 'Dismissed',
 };
+// Part 6 Y35 (R6): the tool's own severity. A finding the tool does not rate reads "Not rated".
+export const FINDING_SEVERITY_UNRATED = 'Not rated';
+export const SEVERITY_LABEL: Readonly<Record<'critical' | 'high' | 'moderate' | 'unrated', string>> = {
+  critical: 'Critical', high: 'High', moderate: 'Moderate', unrated: FINDING_SEVERITY_UNRATED,
+};
+const SEVERITY_LABELS = new Map<string, string>(Object.entries(SEVERITY_LABEL));
+/** A word a later fallow adds is shown verbatim, as text. A Map, so no report word reaches an Object.prototype member. */
+export const SEVERITY_TEXT = (severity: string): string => SEVERITY_LABELS.get(severity) ?? severity;
 export const QUALITY_RESET = 'Reset';
 export const QUALITY_TABLE_TITLE = 'Findings';
 export const QUALITY_TABLE_CAPTION = 'Static findings, one row per finding';

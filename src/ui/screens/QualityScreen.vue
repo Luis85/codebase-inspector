@@ -82,7 +82,7 @@ function openFile(id: EntityId): void {
 }
 
 /** Every filtered finding, handed to the user through this leaf's own document. */
-function exportCsv(): void { exportText(QUALITY_CSV_FILENAME, () => findingsCsv(rows.value)); }
+function exportCsv(): void { exportText(QUALITY_CSV_FILENAME, () => findingsCsv(rows.value, quality.value.evidence)); }
 </script>
 
 <template>

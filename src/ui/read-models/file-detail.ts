@@ -4,12 +4,13 @@ import type { EntityId } from '../../domain/entity-id';
 import type { CodebaseSnapshot } from '../../domain/model';
 import { collected, formatMetric, hasValue, isSampleBacked, unknown, type MetricValue } from '../evidence';
 import { sampleTrend } from '../fixtures/sample-signals';
-import type { SampleFinding } from '../fixtures/sample-findings';
+import type { FindingCategory, FindingDetail } from '../../application/evidence/model';
 import {
   FILE_CARD_COMPLEXITY, FILE_CARD_COMPLEXITY_CAPTION, FILE_CARD_COVERAGE, FILE_CARD_COVERAGE_CAPTION,
   FILE_CARD_DEPENDENTS, FILE_CARD_DEPENDENTS_CAPTION, FILE_CARD_PRIORITY, FILE_CARD_PRIORITY_CAPTION,
   FILE_HISTORY_COMPLEXITY, FILE_HISTORY_COVERAGE, NOT_MEASURED_REASON, PRIORITY_SCALE_SUFFIX,
 } from '../inspector-copy';
+import { evidenceIndexFor, type EvidenceIndex } from './evidence-index';
 import { titledFindings } from './findings';
 import { moduleLabel, type FileSummary } from './file-summaries';
 import { TREND_POINTS, trendLabels } from './overview';
@@ -18,7 +19,12 @@ export interface FileDetailCard {
   id: 'complexity' | 'coverage' | 'dependents' | 'priority'; label: string; icon: string;
   value: MetricValue; unit: string; caption: string; tone: 'warning' | 'success' | 'accent';
 }
-export interface FileFinding extends SampleFinding { title: string; fingerprint: string }
+/** Part 6 Y34/Y35: one imported finding, as File detail and Code quality show it.
+ *  `severity` is the tool's own word, or 'unrated' when the tool gives none. */
+export interface FileFinding {
+  id: string; kind: FindingCategory; rule: string; severity: string; line: number | null; endLine: number | null;
+  symbol: string | null; detail: FindingDetail; title: string; fingerprint: string;
+}
 export interface FileHistorySeries {
   id: 'complexity' | 'coverage'; label: string; tone: 'accent' | 'success';
   points: readonly { label: string; value: number }[];
@@ -41,7 +47,10 @@ function bytesOf(snapshot: CodebaseSnapshot, id: EntityId): MetricValue {
   return obs.status === 'measured' && obs.value !== null ? collected(obs.value, 'inventory') : unknown(obs.reason ?? NOT_MEASURED_REASON, 'inventory');
 }
 
-export function buildFileDetail(snapshot: CodebaseSnapshot, files: readonly FileSummary[], entityId: EntityId | null): FileDetailModel | null {
+export function buildFileDetail(
+  snapshot: CodebaseSnapshot, files: readonly FileSummary[], entityId: EntityId | null,
+  evidence: EvidenceIndex = evidenceIndexFor(files, null, snapshot.snapshotId),
+): FileDetailModel | null {
   if (!entityId) return null;
   const file = files.find((f) => f.id === entityId);
   if (!file) return null;
@@ -67,8 +76,8 @@ export function buildFileDetail(snapshot: CodebaseSnapshot, files: readonly File
     category: snapshot.entities.find((e) => e.id === file.id)?.category ?? null,
     bytes: bytesOf(snapshot, file.id),
     cards,
-    findingsCount: file.findings,
-    findings: titledFindings(file),
+    findingsCount: evidence.perFile(file.id).findings,
+    findings: titledFindings(file, evidence),
     history,
     usesSample: cards.some((c) => isSampleBacked(c.value)),
   };

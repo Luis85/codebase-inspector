@@ -1,4 +1,6 @@
 // Final whole-branch review, items 2 and 4: NavColumn's badges and its Escape handling.
+// Part 6 Y34: the Code quality badge is the imported fallow findings total. It shows only
+// while that total is collected (a current report), never for stale or absent evidence.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
@@ -6,28 +8,14 @@ import NavColumn from '../../src/ui/shell/NavColumn.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { computeLayout } from '../../src/domain/layout/layout';
-import { collected } from '../../src/ui/evidence';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { attachSyntheticReport } from '../fixtures/evidence-report';
+import type { CodebaseSnapshot } from '../../src/domain/model';
 
-/** Part 1 has no provider that COLLECTS findings; this flag lets one test stand in for
- *  Part 2's first real provider without changing what every other test sees. */
-const forced = vi.hoisted(() => ({ collectedFindings: null as number | null }));
-vi.mock('../../src/ui/read-models/overview', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../../src/ui/read-models/overview')>();
-  return {
-    ...original,
-    buildOverviewModel: (...args: Parameters<typeof original.buildOverviewModel>) => {
-      const model = original.buildOverviewModel(...args);
-      const count = forced.collectedFindings;
-      if (count === null) return model;
-      return { ...model, cards: model.cards.map((c) => (c.id === 'findings' ? { ...c, value: collected(count, 'test provider') } : c)) };
-    },
-  };
-});
-
-function withSnapshot(): void {
+function withSnapshot(): CodebaseSnapshot {
   const snap = buildSnapshotFixture({ files: 30, directories: 3 });
   useCityStore().setCity(snap, computeLayout(snap));
+  return snap;
 }
 
 function mountNav(drawer: boolean) {
@@ -46,21 +34,27 @@ function badgeFor(w: ReturnType<typeof mountNav>, title: string): string | null 
 }
 
 describe('NavColumn badges', () => {
-  beforeEach(() => { setActivePinia(createPinia()); forced.collectedFindings = null; });
+  beforeEach(() => { setActivePinia(createPinia()); });
   afterEach(() => { document.body.innerHTML = ''; });
 
-  it('shows no Code quality badge while the findings count is only sample data', () => {
+  it('shows no Code quality badge without an imported report', () => {
     withSnapshot();
     const w = mountNav(false);
     expect(badgeFor(w, 'Code quality')).toBeNull();
     w.unmount();
   });
 
-  it('shows the Code quality badge once the findings count is collected', () => {
-    forced.collectedFindings = 7;
-    withSnapshot();
+  it('shows the findings total as the Code quality badge while the report is current (Part 6 Y34)', () => {
+    const report = attachSyntheticReport(withSnapshot());
     const w = mountNav(false);
-    expect(badgeFor(w, 'Code quality')).toBe('7');
+    expect(badgeFor(w, 'Code quality')).toBe(String(report.normalized.findings.length));
+    w.unmount();
+  });
+
+  it('shows no Code quality badge for stale evidence (Y30)', () => {
+    attachSyntheticReport(withSnapshot(), { snapshotId: 'an-older-snapshot' });
+    const w = mountNav(false);
+    expect(badgeFor(w, 'Code quality')).toBeNull();
     w.unmount();
   });
 

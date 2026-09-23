@@ -64,9 +64,9 @@ const definedInKit = (root: string): boolean =>
 
 const RETIRED = [
   'ci-hotspots__note', 'ci-hotspots__selected', 'ci-overview__cards', 'ci-overview__grid', 'ci-overview__empty', 'ci-findings-table__empty',
-  'ci-finding__', 'ci-scatter__legend', 'ci-scatter__key',
+  'ci-finding__', 'ci-scatter__legend', 'ci-scatter__key', 'ci-severity--medium', 'ci-severity--low',
 ];
-const RETIRED_SELECTORS = ['.ci-finding__', '.ci-finding {', '.ci-scatter__legend', '.ci-scatter__key'];
+const RETIRED_SELECTORS = ['.ci-finding__', '.ci-finding {', '.ci-scatter__legend', '.ci-scatter__key', '.ci-severity--medium', '.ci-severity--low'];
 
 const SNIPPET = [
   '<!-- ci-commented__out -->',
@@ -129,7 +129,7 @@ describe('CSS class scope (E55, Part 5 V21)', () => {
   it('kit.css defines the shared classes', () => {
     for (const cls of [
       '.ci-note', '.ci-empty', '.ci-empty__title', '.ci-selected-strip', '.ci-screen__cards', '.ci-screen__grid', '.ci-chip ', '.ci-chip--sample',
-      '.ci-screen ', '.ci-severity ', '.ci-severity--high', '.ci-severity--medium', '.ci-severity--low', '.ci-ref-id',
+      '.ci-screen ', '.ci-severity ', '.ci-severity--critical', '.ci-severity--high', '.ci-severity--moderate', '.ci-severity--unrated', '.ci-ref-id',
       '.ci-band-legend ', '.ci-band-legend__key::before', '.ci-band-legend__key--low', '.ci-band-legend__key--mid', '.ci-band-legend__key--high',
       '.ci-file-cell ', '.ci-file-cell__name', '.ci-file-cell__path', '.ci-priority ',
     ]) {

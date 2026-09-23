@@ -226,9 +226,11 @@
 }
 /* Severity pill and reference id (were .ci-finding__severity* and .ci-finding__id, screens-explore.css). */
 :where(.codebase-inspector-root) .ci-severity { padding: 1px var(--ci-space-2); border-radius: var(--ci-radius-small); font-size: var(--font-ui-smaller, 0.8em); font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-severity--high { color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent); }
-:where(.codebase-inspector-root) .ci-severity--medium { color: var(--ci-tone-warning); border: 1px solid var(--ci-tone-warning); }
-:where(.codebase-inspector-root) .ci-severity--low { color: var(--ci-tone-success); border: 1px solid var(--ci-tone-success); }
+/* Part 6 Y35 (R6): fallow's own severities. Critical keeps the old high fill; high and moderate are borders; unrated is muted. */
+:where(.codebase-inspector-root) .ci-severity--critical { color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent); }
+:where(.codebase-inspector-root) .ci-severity--high { color: var(--ci-tone-danger); border: 1px solid var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-severity--moderate { color: var(--ci-tone-warning); border: 1px solid var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-severity--unrated { color: var(--ci-text-muted); border: 1px solid var(--ci-border); }
 :where(.codebase-inspector-root) .ci-ref-id { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
 /* Band legend under a chart (was .ci-scatter__legend / .ci-scatter__key*, screens-explore.css). */
 :where(.codebase-inspector-root) .ci-band-legend { display: flex; flex-wrap: wrap; gap: var(--ci-space-4); margin-top: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }

@@ -8,6 +8,7 @@ import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { attachSyntheticReport } from '../fixtures/evidence-report';
 
 function withSelection() {
   const snap = buildSnapshotFixture({ files: 12, directories: 2 });
@@ -98,6 +99,7 @@ describe('FileDetailScreen', () => {
     const snap = buildSnapshotFixture({ files: 12, directories: 2 });
     const store = useCityStore();
     store.setCity(snap, computeLayout(snap));
+    attachSyntheticReport(snap);
     const finding = useReadModels().quality.value.findings[0]!;
     store.select(finding.file.id);
     store.navigate('file');

@@ -2,11 +2,13 @@ import { computed, toRaw } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
 import type { CodebaseSnapshot } from '../../domain/model';
 import { useCityStore } from '../stores/city-store';
+import { useEvidenceStore } from '../stores/evidence-store';
 import { useReviewStore } from '../stores/review-store';
 import { isSampleBacked, type MetricValue } from '../evidence';
 import { fileSummariesFor, type FileSummary } from './file-summaries';
 import { buildOverviewModel, type OverviewModel } from './overview';
 import { buildCitySummary } from './city-summary';
+import { evidenceIndexFor, type EvidenceIndex } from './evidence-index';
 import type { BoundaryRule, FindingDisposition } from '../stores/ports/review-repository';
 import {
   architectureGraphFor, buildArchitectureModel, cyclesValue, type ArchitectureGraph, type ArchitectureModel,
@@ -35,12 +37,16 @@ function cyclesFor(graph: ArchitectureGraph): MetricValue {
   return hit;
 }
 
-const overviewCache = new WeakMap<readonly FileSummary[], { snapshot: CodebaseSnapshot; cycles: MetricValue; model: OverviewModel }>();
-export function overviewModelFor(snapshot: CodebaseSnapshot, files: readonly FileSummary[], cycles: MetricValue): OverviewModel {
-  const hit = overviewCache.get(files);
-  if (hit && hit.snapshot === snapshot && hit.cycles === cycles) return hit.model;
-  const model = buildOverviewModel(snapshot, files, cycles);
-  overviewCache.set(files, { snapshot, cycles, model });
+/** Part 6: keyed by the evidence index, which is one object per (files, report). */
+type OverviewEntry = { snapshot: CodebaseSnapshot; files: readonly FileSummary[]; cycles: MetricValue; model: OverviewModel };
+const overviewCache = new WeakMap<EvidenceIndex, OverviewEntry>();
+export function overviewModelFor(
+  snapshot: CodebaseSnapshot, files: readonly FileSummary[], cycles: MetricValue, evidence: EvidenceIndex,
+): OverviewModel {
+  const hit = overviewCache.get(evidence);
+  if (hit && hit.snapshot === snapshot && hit.files === files && hit.cycles === cycles) return hit.model;
+  const model = buildOverviewModel(snapshot, files, cycles, evidence);
+  overviewCache.set(evidence, { snapshot, files, cycles, model });
   return model;
 }
 
@@ -65,23 +71,31 @@ export function architectureModelFor(graph: ArchitectureGraph, rules: readonly B
   return model;
 }
 
-const detailCache = new WeakMap<readonly FileSummary[], { snapshot: CodebaseSnapshot; byId: Map<EntityId, FileDetailModel | null> }>();
-export function fileDetailFor(snapshot: CodebaseSnapshot, files: readonly FileSummary[], entityId: EntityId | null): FileDetailModel | null {
+type DetailEntry = { snapshot: CodebaseSnapshot; files: readonly FileSummary[]; byId: Map<EntityId, FileDetailModel | null> };
+const detailCache = new WeakMap<EvidenceIndex, DetailEntry>();
+export function fileDetailFor(
+  snapshot: CodebaseSnapshot, files: readonly FileSummary[], entityId: EntityId | null, evidence: EvidenceIndex,
+): FileDetailModel | null {
   if (!entityId) return null;
-  let entry = detailCache.get(files);
-  if (!entry || entry.snapshot !== snapshot) { entry = { snapshot, byId: new Map() }; detailCache.set(files, entry); }
-  if (!entry.byId.has(entityId)) entry.byId.set(entityId, buildFileDetail(snapshot, files, entityId));
+  let entry = detailCache.get(evidence);
+  if (!entry || entry.snapshot !== snapshot || entry.files !== files) { entry = { snapshot, files, byId: new Map() }; detailCache.set(evidence, entry); }
+  if (!entry.byId.has(entityId)) entry.byId.set(entityId, buildFileDetail(snapshot, files, entityId, evidence));
   return entry.byId.get(entityId) ?? null;
 }
 
-const qualityCache = new WeakMap<readonly FileSummary[], { dispositions: readonly FindingDisposition[]; model: QualityModel }>();
-/** `review.dispositions` is reassigned on every decision, so its identity is the key. */
-export function qualityModelFor(files: readonly FileSummary[], dispositions: readonly FindingDisposition[]): QualityModel {
-  const hit = qualityCache.get(files);
-  if (hit && hit.dispositions === dispositions) return hit.model;
-  const model = buildQualityModel(files, dispositions);
-  qualityCache.set(files, { dispositions, model });
-  return model;
+/** Part 6: one Quality model per (evidence index, leaf dispositions). The index is shared
+ *  by every leaf on the codebase. Each leaf has its own review store, whose `dispositions`
+ *  array is reassigned on every decision, so its raw identity is the inner key (E53). */
+const qualityCache = new WeakMap<EvidenceIndex, WeakMap<object, QualityModel>>();
+export function qualityModelFor(
+  files: readonly FileSummary[], evidence: EvidenceIndex, dispositions: readonly FindingDisposition[],
+): QualityModel {
+  let byDispositions = qualityCache.get(evidence);
+  if (!byDispositions) { byDispositions = new WeakMap(); qualityCache.set(evidence, byDispositions); }
+  const key: object = toRaw(dispositions);
+  let hit = byDispositions.get(key);
+  if (!hit) { hit = buildQualityModel(files, evidence, dispositions); byDispositions.set(key, hit); }
+  return hit;
 }
 
 const testsCache = new WeakMap<readonly FileSummary[], { snapshot: CodebaseSnapshot; model: TestConfidenceModel }>();
@@ -134,14 +148,23 @@ export function ownershipModelFor(files: readonly FileSummary[]): OwnershipModel
 export function useReadModels() {
   const store = useCityStore();
   const review = useReviewStore();
+  const evidenceStore = useEvidenceStore();
   const files = computed(() => (store.snapshot ? fileSummariesFor(store.snapshot) : NO_FILES));
+  /** Part 6 Y34 (R7): the bound codebase's imported evidence, resolved against these files.
+   *  A report bound to another codebase (a switch App has not rebound yet) is never shown. */
+  const evidence = computed(() => {
+    const snapshot = store.snapshot;
+    const report = snapshot && evidenceStore.repositoryId === snapshot.repositoryId ? evidenceStore.report : null;
+    return evidenceIndexFor(files.value, report ? toRaw(report) : null, snapshot?.snapshotId ?? '');
+  });
   const graph = computed(() => architectureGraphFor(files.value));
   const cycles = computed(() => cyclesFor(graph.value));
-  const overview = computed(() => (store.snapshot ? overviewModelFor(store.snapshot, files.value, cycles.value) : null));
-  const citySummary = computed(() => buildCitySummary(files.value, cycles.value));
+  const overview = computed(() => (store.snapshot ? overviewModelFor(store.snapshot, files.value, cycles.value, evidence.value) : null));
+  const citySummary = computed(() => buildCitySummary(files.value, cycles.value, evidence.value));
   const architecture = computed(() => architectureModelFor(graph.value, review.rules));
-  const fileDetail = computed(() => (store.snapshot ? fileDetailFor(store.snapshot, files.value, store.selectedEntityId) : null));
-  const quality = computed(() => qualityModelFor(files.value, review.dispositions));
+  const fileDetail = computed(() => (store.snapshot
+    ? fileDetailFor(store.snapshot, files.value, store.selectedEntityId, evidence.value) : null));
+  const quality = computed(() => qualityModelFor(files.value, evidence.value, review.dispositions));
   const testConfidence = computed(() => (store.snapshot ? testConfidenceModelFor(store.snapshot, files.value) : null));
   const dependencies = computed(() => (store.snapshot ? dependenciesModelFor(store.snapshot) : null));
   const security = computed(() => securityModelFor(SAMPLE_PACKAGES));
@@ -149,7 +172,7 @@ export function useReadModels() {
   /** A11: the Hotspots screen shows sample values whenever any file's plotted signal does. */
   const filesUseSample = computed(() => files.value.some((f) => isSampleBacked(f.priority) || isSampleBacked(f.complexity)));
   return {
-    files, overview, citySummary, architecture, fileDetail, quality, testConfidence, dependencies, security,
+    files, evidence, overview, citySummary, architecture, fileDetail, quality, testConfidence, dependencies, security,
     ownership, filesUseSample,
   };
 }

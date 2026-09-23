@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { syntheticEvidenceReport } from '../fixtures/evidence-report';
 import { fileSummariesFor, type FileSummary } from '../../src/ui/read-models/file-summaries';
 import { buildFileDetail } from '../../src/ui/read-models/file-detail';
-import { sampleFindings } from '../../src/ui/fixtures/sample-findings';
-import { sample, unknown } from '../../src/ui/evidence';
+import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
+import { unknown } from '../../src/ui/evidence';
+import { FALLOW_NOT_ANALYSED, FINDING_TITLE } from '../../src/ui/inspector-copy';
 
 const snap = buildSnapshotFixture({ files: 12, directories: 2, unavailable: 1 });
 const files = fileSummariesFor(snap);
@@ -37,28 +39,26 @@ describe('file detail model', () => {
   });
 });
 
-describe('sample findings', () => {
-  it('is deterministic, matches the file\'s count, and puts high findings first', () => {
-    const f: FileSummary = { ...files[2]!, findings: sample(3), highFindings: sample(1) };
-    const list = sampleFindings(f);
-    expect(sampleFindings(f)).toEqual(list);
-    expect(list).toHaveLength(3);
-    expect(list.map((x) => x.severity)).toEqual(['high', 'medium', 'low']);
-    expect(list[0]?.id).toMatch(/^CX-dir-\d-0$/);
+describe('file detail findings (Part 6 Y34)', () => {
+  it('without a report the count is unknown with its reason and the list is empty, never 0', () => {
+    const d = buildFileDetail(snap, files, files[0]!.id)!;
+    expect(d.findingsCount).toMatchObject({ state: 'unknown', reason: FALLOW_NOT_ANALYSED });
+    expect(d.findingsCount.value).toBeUndefined();
+    expect(d.findings).toEqual([]);
   });
-  it('never puts a finding beyond the file\'s known lines, and has no line when lines are unknown', () => {
-    for (const f of files) {
-      for (const x of sampleFindings({ ...f, findings: sample(4), highFindings: sample(0) })) {
-        if (f.lines.value === undefined) {
-          expect(x.line).toBeNull();
-        } else {
-          expect(x.line).toBeGreaterThanOrEqual(1);
-          expect(x.line).toBeLessThanOrEqual(f.lines.value);
-        }
-      }
-    }
+  it('lists the file\'s imported findings with their title and fingerprint, and counts them as collected', () => {
+    const report = syntheticEvidenceReport(snap);
+    const file = files[0]!;
+    const d = buildFileDetail(snap, files, file.id, evidenceIndexFor(files, report, snap.snapshotId))!;
+    const own = report.normalized.findings.filter((f) => f.path === file.path);
+    expect(own.length).toBeGreaterThan(0);
+    expect(d.findings.map((f) => f.id)).toEqual(own.map((f) => f.id));
+    expect(d.findingsCount).toMatchObject({ state: 'collected', value: own.length, provenance: { source: 'fallow' } });
+    expect(d.findings[0]).toMatchObject({ fingerprint: `${file.id}#${own[0]!.id}`, title: FINDING_TITLE[own[0]!.category] });
   });
-  it('has no findings when the count is unknown', () => {
-    expect(sampleFindings({ ...files[0]!, findings: unknown('x') })).toEqual([]);
+  it('keeps the tool\'s own severity, and reads "unrated" where the tool gives none (Y35)', () => {
+    const evidence = evidenceIndexFor(files, syntheticEvidenceReport(snap), snap.snapshotId);
+    const d = buildFileDetail(snap, files, files[0]!.id, evidence)!;
+    expect(d.findings.map((f) => [f.kind, f.severity])).toEqual([['complexity', 'critical'], ['duplication', 'unrated'], ['unused-exports', 'unrated']]);
   });
 });
