@@ -46,6 +46,16 @@ async function gone(pid: number, withinMs = 3_000): Promise<boolean> {
   }
   return !alive(pid);
 }
+/** The grandchild's pid once the fake has written it whole: polled every 50 ms for up to 10 s. */
+async function grandchildPid(file: string, withinMs = 10_000): Promise<number> {
+  const until = Date.now() + withinMs;
+  while (Date.now() < until) {
+    const pid = Number(await readFile(file, 'utf8').catch(() => ''));
+    if (Number.isInteger(pid) && pid > 0) return pid;
+    await sleep(50);
+  }
+  throw new Error(`the fake never wrote a grandchild pid to ${file} within ${withinMs} ms`);
+}
 afterEach(async () => {
   runner.killAll();
   for (const pid of pids.splice(0)) if (alive(pid)) { try { process.kill(pid, 'SIGKILL'); } catch { /* already gone */ } }
@@ -149,9 +159,10 @@ describe('the real runner: time, cancel and shutdown (Z18)', () => {
     const root = await rootNamed();
     const { token, cancel } = createCancellationToken();
     const done = runner.run(request('grandchild', root), token);
-    await sleep(500);
+    // Final review: polled with a deadline, never a fixed sleep (a loaded machine starts the
+    // fake late), and registered for afterEach at once, so it cannot leak if a check fails.
+    const grandchild = await grandchildPid(join(root, 'grandchild.pid'));
     const direct = pids[pids.length - 1]!;
-    const grandchild = Number(await readFile(join(root, 'grandchild.pid'), 'utf8'));
     pids.push(grandchild);
     cancel();
     expect((await done).kind).toBe('cancelled');
