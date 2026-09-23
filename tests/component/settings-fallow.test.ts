@@ -5,7 +5,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { Setting } from '../mocks/obsidian';
-import type { App, Plugin, Setting as ObsidianSetting, SettingDefinitionItem, SettingDefinitionList,
+import type { App, Plugin, Setting as ObsidianSetting, SettingDefinitionList,
   SettingDefinitionPage, SettingDefinitionRender, SettingGroup } from 'obsidian';
 import { CodebaseInspectorSettingTab } from '../../src/host/settings-tab';
 import { STORAGE_DISCLOSURE_TEXT, analyzerDescription } from '../../src/host/setting-definitions';
@@ -146,6 +146,6 @@ describe('the settings definitions stay declarative', () => {
   it('uses no SettingDefinitionItem with a control for the time limit when nothing is bound', async () => {
     const { tab } = await makeTab({ kind: 'invalid' });
     expect(rowNames(tab)).not.toContain('fallow time limit');
-    expect((tab.getSettingDefinitions() as SettingDefinitionItem[]).length).toBeGreaterThan(0);
+    expect(tab.getSettingDefinitions().length).toBeGreaterThan(0);
   });
 });
