@@ -14,6 +14,7 @@ import { ScanCoordinator } from '../../src/application/scan-coordinator';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
+import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
 import { migrationCallbacks } from '../mocks/obsidian';
@@ -124,7 +125,7 @@ function makeDeps(overrides: Partial<CityViewDeps> = {}): CityViewDeps {
     profileStore: makeProfileStoreDouble(),
     getFilesystem: () => port,
     snapshotStore: new InMemorySnapshotStore(createFixedClock()),
-    clock: createFixedClock(),
+    clock: createFixedClock(), ...dataPortDeps(),
     ...overrides,
   };
 }
@@ -229,7 +230,7 @@ describe('no orphans after shutdown', () => {
     const { port: filesystemPort } = createFakeSourceFileSystem({ 'a.ts': 'x' });
     const snapshotStore = new InMemorySnapshotStore(createFixedClock());
     const profileStore = makeProfileStoreDouble([{ profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 }]);
-    const deps: CityViewDeps = { profileStore, getFilesystem: () => filesystemPort, snapshotStore, clock: createFixedClock() };
+    const deps: CityViewDeps = { profileStore, getFilesystem: () => filesystemPort, snapshotStore, clock: createFixedClock(), ...dataPortDeps() };
     const view = await newViewWithSnapshot(deps, 'p1', 0);
 
     const runPromise = view.startScan();

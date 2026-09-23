@@ -40,7 +40,7 @@ async function makeTab(
   for (const p of profiles) await profileHarness.store.save(p);
   for (const b of bindings) await bindingHarness.store.save(b);
   const tab = new CodebaseInspectorSettingTab(
-    app, {} as unknown as Plugin, profileHarness.store, bindingHarness.store, () => filesystem);
+    app, {} as unknown as Plugin, profileHarness.store, bindingHarness.store, () => filesystem, { purge: () => Promise.resolve() });
   await tab.refresh();
   return { tab, profileStore: profileHarness.store, bindingStore: bindingHarness.store };
 }

@@ -19,6 +19,11 @@ import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
 const mountS = () => mount(SettingsScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn() } } });
 const tab = (w: ReturnType<typeof mountS>, id: string) => w.find(`[role="tab"][data-tab-id="${id}"]`).trigger('click');
+/** Part 6 R3: Clear is aria-disabled until a codebase is on screen. */
+function onScreen(): void {
+  const snap = buildSnapshotFixture({ files: 1, repositoryId: 'repo' });
+  useCityStore().setCity(snap, computeLayout(snap));
+}
 
 describe('SettingsScreen (Part 4)', () => {
   beforeEach(() => { setActivePinia(createPinia()); vi.mocked(downloadText).mockClear(); });
@@ -98,6 +103,7 @@ describe('SettingsScreen (Part 4)', () => {
 
   it('clears the review state only after confirmation, and announces it', async () => {
     await useReviewStore().bindRepository('repo'); // Part 6 Y14: only a bound codebase is cleared
+    onScreen();
     await useReviewStore().addWorkItemForFile('repo\0file\0src/a.ts', 'A', new Date());
     useReportStore().applyNote('keep?');
     const w = mountS();
@@ -119,6 +125,7 @@ describe('SettingsScreen (Part 4)', () => {
   it('a rejecting repository keeps the dialog open, shows the error, and keeps the review state (fix round 1, Minor 5)', async () => {
     const review = useReviewStore();
     await review.bindRepository('repo'); // Part 6 Y14
+    onScreen();
     // Part 5 V32: the rejecting repository must HOLD the item. With an empty one, the reload
     // inside clearAll emptied the list, and "keeps the review state" was never checked.
     const repo = createInMemoryReviewRepository();
@@ -144,6 +151,7 @@ describe('SettingsScreen (Part 4)', () => {
   it('while a change is pending, Clear refuses with SETTINGS_CLEAR_BUSY and leaves everything in place', async () => {
     const review = useReviewStore();
     await review.bindRepository('repo'); // Part 6 Y14: refused for the pending save, not for being unbound
+    onScreen();
     useReportStore().applyNote('keep?');
     review.setRepository({ ...createInMemoryReviewRepository(), saveWorkItem: () => new Promise<void>(() => {}) });
     void review.addWorkItemForFile('repo\0file\0src/a.ts', 'A', new Date());

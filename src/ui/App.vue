@@ -14,6 +14,7 @@ import { useCityStore } from './stores/city-store';
 import { usePreferencesStore } from './stores/preferences-store';
 import { useReportStore } from './stores/report-store';
 import { useReviewStore } from './stores/review-store';
+import { noop } from './kit/noop';
 import { useLeafWidth } from './shell/use-leaf-width';
 import { provideLeafLayout } from './shell/leaf-layout';
 import { useJournalFeed } from './shell/use-journal-feed';
@@ -55,7 +56,7 @@ useJournalFeed();
 watch(() => store.snapshot?.repositoryId, (id) => {
   if (!id) return;
   report.bindRepository(id);
-  void review.bindRepository(id);
+  void review.bindRepository(id).catch(noop); // Part 6 R1/R3: a failed read sets loadFailed; Settings says so.
 }, { immediate: true });
 const rootEl = ref<HTMLElement | null>(null);
 const leafWidth = useLeafWidth(rootEl);

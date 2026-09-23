@@ -11,6 +11,7 @@ import { openCity } from '../../src/host/commands';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
+import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
 import type { CameraBookmark, CodebaseProfile, CodebaseSnapshot } from '../../src/domain/model';
@@ -92,7 +93,7 @@ function makeHarness(): {
     profileStore: makeProfileStoreDouble(),
     getFilesystem: () => port,
     snapshotStore,
-    clock: createFixedClock(),
+    clock: createFixedClock(), ...dataPortDeps(),
   };
   const leaves: { view: unknown; width: number; height: number }[] = [];
   let factory: ((leaf: unknown) => unknown) | null = null;

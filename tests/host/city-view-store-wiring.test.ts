@@ -11,14 +11,14 @@ import { CityView } from '../../src/host/city-view';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
+import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
 import { installControllableResizeObserver } from '../mocks/window-harness';
 import { makeEntityId } from '../../src/domain/entity-id';
-import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
+import type { CameraBookmark, CodebaseProfile, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityRendererEvent, CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
-import type { CodebaseProfile } from '../../src/domain/model';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
 
 const FAKE_ROOT_SCOPE = { rootPath: '/fake-root', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false as const };
@@ -134,7 +134,7 @@ function makeDepsDouble(overrides: Partial<CityViewDeps> = {}): CityViewDeps {
     profileStore: makeProfileStoreDouble(),
     getFilesystem: () => port,
     snapshotStore: new InMemorySnapshotStore(createFixedClock()),
-    clock: createFixedClock(),
+    clock: createFixedClock(), ...dataPortDeps(),
     ...overrides,
   };
 }
@@ -146,7 +146,7 @@ function depsWithSnapshot(): { deps: CityViewDeps; snapshotStore: InMemorySnapsh
   const profileStore = makeProfileStoreDouble([
     { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 },
   ]);
-  return { deps: { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock() }, snapshotStore };
+  return { deps: { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock(), ...dataPortDeps() }, snapshotStore };
 }
 
 async function viewWithSnapshot(deps: CityViewDeps): Promise<CityView> {

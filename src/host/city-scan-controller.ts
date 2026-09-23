@@ -15,9 +15,10 @@ import type { ProfileStore } from '../application/ports/profile-store';
 import type { SourceFileSystemPort } from '../application/ports/source-filesystem-port';
 import type { SnapshotStore } from '../application/ports/snapshot-store';
 import type { Clock } from '../application/ports/clock';
+import type { ReviewRepository } from '../ui/stores/ports/review-repository';
 
 /** Task 8: what a CityView needs to run a scan, beyond the plain `Plugin` reference. All
- *  four are plugin-level singletons (main.ts constructs one of each and passes the same
+ *  of them are plugin-level singletons (main.ts constructs one of each and passes the same
  *  instances to every CityView); `getFilesystem` stays a LAZY factory (task 7's pattern),
  *  so the real Node-backed port is never built earlier than a view that might use it. */
 export interface CityViewDeps {
@@ -25,6 +26,9 @@ export interface CityViewDeps {
   getFilesystem: () => SourceFileSystemPort;
   snapshotStore: SnapshotStore;
   clock: Clock;
+  /** Part 6 Y11: the plugin's review repository registry (`registry.for`), one repository
+   *  per codebase shared by every leaf. `wireDataPorts` hands it to the review store. */
+  reviewRepositoryFor: (repositoryId: string) => ReviewRepository;
 }
 
 /** What the controller reads from, and reports to, the CityView that owns it. */

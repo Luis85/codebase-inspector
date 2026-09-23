@@ -22,7 +22,7 @@ function makeProfile(overrides: Partial<CodebaseProfile> = {}): CodebaseProfile 
 function newTab(profileStore: ProfileStore): CodebaseInspectorSettingTab {
   return new CodebaseInspectorSettingTab(
     {} as unknown as App, {} as unknown as Plugin, profileStore, createFakeBindingStoreHarness().store,
-    () => createFakeSourceFileSystem({}).port);
+    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() });
 }
 
 async function makeTab(profiles: readonly CodebaseProfile[]) {

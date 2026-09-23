@@ -8,6 +8,7 @@ import { CityView, CITY_VIEW_TYPE } from '../../src/host/city-view';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
+import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
@@ -125,7 +126,7 @@ function makeDepsDouble(overrides: Partial<CityViewDeps> = {}): CityViewDeps {
     profileStore: makeProfileStoreDouble(),
     getFilesystem: () => port,
     snapshotStore: new InMemorySnapshotStore(createFixedClock()),
-    clock: createFixedClock(),
+    clock: createFixedClock(), ...dataPortDeps(),
     ...overrides,
   };
 }
@@ -374,7 +375,7 @@ describe('CityView', () => {
     const profileStore = makeProfileStoreDouble([
       { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 },
     ]);
-    const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock() };
+    const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock(), ...dataPortDeps() };
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
     await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1' }, {} as never);
     await view.onOpen();
@@ -399,7 +400,7 @@ describe('CityView', () => {
     const profileStore = makeProfileStoreDouble([
       { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 },
     ]);
-    const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock() };
+    const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock(), ...dataPortDeps() };
     const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
     await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1' }, {} as never);
     await view.onOpen();

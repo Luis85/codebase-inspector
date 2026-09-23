@@ -39,8 +39,10 @@ export const BINDING_MISSING_TEXT = COPY_28;
 // Neither "Read-only source access" nor "Source remains unchanged" appears here —
 // ruling M25: those two strings ship only after task 12 records the G2 evidence.
 export const STORAGE_DISCLOSURE_TEXT =
-  'Codebase profiles and local folder bindings are stored in this vault, in this ' +
-  'plugin’s own data file. Nothing about them is sent anywhere else.';
+  'Codebase profiles, local folder bindings and each codebase’s review decisions (work items, ' +
+  'boundary rules and finding decisions) are stored in this vault, in this plugin’s own data ' +
+  'file, and survive restarts. Removing a profile removes its review decisions. Imported findings ' +
+  'are kept for this session only. Nothing about them is sent anywhere else.';
 
 export const SYMLINK_POLICY_TEXT =
   'Symbolic links and junctions are never followed. They are reported as skipped, with a reason.';

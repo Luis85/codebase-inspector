@@ -12,6 +12,7 @@ import { defaultCityViewState } from '../../src/host/view-state';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
+import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { rendererControl } from './world';
 import type { World, RendererCall } from './world';
@@ -73,7 +74,7 @@ export function makeViewHarness(world: World, options: ViewHarnessOptions = {}):
   const port = options.port ?? createFakeSourceFileSystem({ 'src/a.ts': 'export const a = 1;\n' }).port;
   const deps: CityViewDeps = {
     profileStore: makeProfileStoreDouble(options.profiles ?? []), getFilesystem: () => port,
-    snapshotStore, clock: createFixedClock(),
+    snapshotStore, clock: createFixedClock(), ...dataPortDeps(),
   };
   const cssChange: (() => void)[] = [];
   const views: CityView[] = [];

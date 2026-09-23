@@ -6,6 +6,7 @@ import { PluginDataProfileStore } from './adapters/storage/plugin-data-profile-s
 import { PluginDataBindingStore, getOrCreateMachineId } from './adapters/storage/plugin-data-binding-store';
 import { createNodeSourceFileSystem } from './adapters/filesystem/node-source-filesystem';
 import { InMemorySnapshotStore } from './adapters/storage/in-memory-snapshot-store';
+import { createReviewRepositoryRegistry } from './adapters/storage/review-repository-registry';
 import type { Clock } from './application/ports/clock';
 import './ui/styles.css';
 import './ui/styles/kit.css';
@@ -35,9 +36,14 @@ export default class CodebaseInspectorPlugin extends Plugin {
     // profile can find what a first leaf already scanned instead of re-authorising a
     // scan just to look at data that already exists.
     const snapshotStore = new InMemorySnapshotStore(SYSTEM_CLOCK);
+    // Part 6 Y11: ONE review repository per codebase for the whole plugin, shared by every
+    // leaf (one high-water mark, one cache) and purged with its profile (Y17). It builds
+    // and reads nothing until a view binds a codebase.
+    const reviewRegistry = createReviewRepositoryRegistry(this);
 
     this.registerView(CITY_VIEW_TYPE, (leaf: WorkspaceLeaf) => new CityView(leaf, this, {
       profileStore, getFilesystem: () => createNodeSourceFileSystem(), snapshotStore, clock: SYSTEM_CLOCK,
+      reviewRepositoryFor: (repositoryId) => reviewRegistry.for(repositoryId),
     }));
     this.addRibbonIcon('building-2', 'Open codebase city', () => { void openCity(this); });
     registerCommands(this);
@@ -47,7 +53,7 @@ export default class CodebaseInspectorPlugin extends Plugin {
     // only, so building the real Node-backed port is deferred to the moment Connect/
     // Reconnect is actually clicked, never during onload itself.
     const settingTab = new CodebaseInspectorSettingTab(
-      this.app, this, profileStore, bindingStore, () => createNodeSourceFileSystem());
+      this.app, this, profileStore, bindingStore, () => createNodeSourceFileSystem(), reviewRegistry);
     this.addSettingTab(settingTab);
     void settingTab.refresh();
 

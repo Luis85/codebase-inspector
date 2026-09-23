@@ -15,6 +15,7 @@ import { ScanCoordinator } from '../../src/application/scan-coordinator';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
+import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
 import { createPopoutWindow, destroyAllPopoutWindows, installControllableResizeObserver, migrateElement } from '../mocks/window-harness';
@@ -134,7 +135,7 @@ async function openViewWithSnapshot(): Promise<{ view: CityView; deps: CityViewD
   snapshotStore.put(snapshot);
   const { port } = createFakeSourceFileSystem({});
   const profileStore = makeProfileStoreDouble([{ profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 }]);
-  const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock() };
+  const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock(), ...dataPortDeps() };
   const view = new CityView({ width: 1000, height: 700 } as never, makePluginDouble() as never, deps);
   await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1', route: 'city' }, {} as never);
   await view.onOpen();
@@ -163,7 +164,7 @@ describe('pop-out migration', () => {
   it('is signalled by HTMLElement.onWindowMigrated on containerEl', async () => {
     const view = new CityView({ width: 1000, height: 700 } as never, makePluginDouble() as never, {
       profileStore: makeProfileStoreDouble(), getFilesystem: () => createFakeSourceFileSystem({}).port,
-      snapshotStore: new InMemorySnapshotStore(createFixedClock()), clock: createFixedClock(),
+      snapshotStore: new InMemorySnapshotStore(createFixedClock()), clock: createFixedClock(), ...dataPortDeps(),
     });
     const spy = vi.spyOn(view.containerEl, 'onWindowMigrated');
     await view.onOpen();

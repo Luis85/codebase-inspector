@@ -9,6 +9,7 @@ import { CityView } from '../../src/host/city-view';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
+import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
 import type { CameraBookmark, CodebaseProfile, CodebaseSnapshot } from '../../src/domain/model';
@@ -78,7 +79,7 @@ async function openRefreshableView(route: 'city' | 'sources') {
   const profileStore = makeProfileStoreDouble([
     { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 },
   ]);
-  const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock() };
+  const deps: CityViewDeps = { profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock(), ...dataPortDeps() };
   const view = new CityView({ width: 1000 } as never, makePluginDouble() as never, deps);
   await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1', route }, {} as never);
   await view.onOpen();

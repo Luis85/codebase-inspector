@@ -42,10 +42,13 @@ export const SETTINGS_SHORTCUT_LIST: readonly { keys: string; action: string }[]
 export const SETTINGS_NETWORK = 'No network requests';
 export const SETTINGS_NETWORK_TEXT = 'Everything the inspector shows is computed locally. No analytics, remote assets or registries.';
 export const SETTINGS_NETWORK_VALUE = 'Local only';
-export const SETTINGS_STORAGE = 'Session-only review state';
-export const SETTINGS_STORAGE_TEXT = 'Work items, finding decisions, boundary rules and report notes live in this leaf’s memory. They are lost when the leaf closes. Nothing is written to your vault.';
+/** Part 6 Y5/R3: review decisions are saved per codebase; imported findings and the report stay per session. */
+export const SETTINGS_STORAGE = 'Saved review state';
+export const SETTINGS_STORAGE_TEXT = 'Work items, finding decisions and boundary rules are saved for each codebase in this plugin’s own data for this vault, so they survive restarts. Imported findings and the report screen’s sections and note are kept for this session only. No note in your vault is created or changed.';
 export const SETTINGS_CLEAR = 'Clear review state';
-export const SETTINGS_CLEAR_TEXT = 'Remove every work item, finding decision, boundary rule and the report note from this session. No repository content is affected.';
+export const SETTINGS_CLEAR_TEXT = 'Remove every work item, finding decision and boundary rule saved for this codebase, and this session’s report note. No repository content is affected.';
+/** Part 6 R3: Clear is aria-disabled while no codebase is on screen (the Import hint's pattern). */
+export const SETTINGS_CLEAR_HINT = 'Open a codebase first: review state is saved for each codebase.';
 export const SETTINGS_CLEAR_OPEN = 'Clear review state…';
 export const SETTINGS_CLEAR_DIALOG_TITLE = 'Clear review state?';
 export const SETTINGS_CLEAR_DIALOG_TEXT = (items: number, decisions: number, rules: number): string =>
@@ -62,14 +65,14 @@ export const SETTINGS_ABOUT_NEVER = 'What it never does';
 export const SETTINGS_ABOUT_NEVER_TEXT = 'Change, delete or move source files; install packages; run tools; send data anywhere.';
 export const SETTINGS_ABOUT_SAMPLE = 'Sample data';
 export const SETTINGS_ABOUT_SAMPLE_TEXT = 'Signals without a real provider are sample data and are labelled everywhere they appear. Missing evidence is unknown, never zero.';
-export const REVIEW_STATE_NOTE = 'Kept in memory for one session. Nothing was written to the vault.';
+export const REVIEW_STATE_NOTE = 'Review decisions are saved in the plugin’s own data for this vault; the report’s sections and note are kept for this session only. Nothing in the repository was changed.';
 /** Part 5 V12: one `warnings` entry of the v2 export, per kind of item left out. */
 export const REVIEW_STATE_SKIPPED = (n: number, kind: 'work items' | 'finding decisions'): string =>
   `Left out ${plural(n, kind === 'work items' ? 'work item' : 'finding decision', kind)} whose target could not be written as a relative path.`;
 
 /* Part 5 V13–V16: Import review state. */
 export const SETTINGS_IMPORT = 'Import review state';
-export const SETTINGS_IMPORT_TEXT = 'Replace this session’s review state with a file exported from this codebase. Only the file you pick is read; nothing is read from your vault.';
+export const SETTINGS_IMPORT_TEXT = 'Replace this codebase’s saved review state with a file exported from it. Only the file you pick is read; nothing is read from your vault.';
 export const SETTINGS_IMPORT_OPEN = 'Import review state…';
 export const SETTINGS_IMPORT_HINT = 'Open a codebase first: imported file paths are matched to the codebase on screen.';
 /** V15: one message per refusal. `detail` is the first issue's path for `invalid` and the
@@ -87,7 +90,7 @@ export const IMPORT_CONFIRM_TEXT = (items: number, decisions: number, rules: num
   `The file holds ${plural(items, 'work item', 'work items')}, ${plural(decisions, 'finding decision', 'finding decisions')} and ${plural(rules, 'boundary rule', 'boundary rules')}${hasNote ? ', and a report note' : ''}.`;
 export const IMPORT_ORIGIN = (folder: string): string => `Exported from the codebase in “${folder}”.`;
 export const IMPORT_ORIGIN_UNKNOWN = 'Unknown origin: the file does not say which codebase it came from (a v1 file, or exported with no codebase open).';
-export const IMPORT_REPLACE_TEXT = 'Every work item, finding decision and boundary rule in this session, and the report’s sections and note, will be replaced. This cannot be undone. Export the review state first if you want a record.';
+export const IMPORT_REPLACE_TEXT = 'Every work item, finding decision and boundary rule saved for this codebase, and the report’s sections and note, will be replaced. This cannot be undone. Export the review state first if you want a record.';
 export const IMPORT_CONFIRM = 'Replace review state';
 export const IMPORT_CANCEL = 'Cancel';
 export const IMPORTED = (items: number, decisions: number, rules: number): string =>

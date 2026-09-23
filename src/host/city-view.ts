@@ -37,6 +37,7 @@ import { applyReconciliationTo } from './view-reconciliation';
 import { pickUiState, seedStoreFromState } from './view-state-sync';
 import { CityScanController, provideScanCallbacks, type CityViewDeps } from './city-scan-controller';
 import { createLayoutPublisher, type LayoutPublisher } from './layout-publisher';
+import { unwireDataPorts, wireDataPorts } from './data-ports';
 import type { CityRendererPort } from '../visualization/renderer-port';
 import type { ScanLifecycleState } from '../application/run-state';
 import type { CodebaseSnapshot, CityViewState } from '../domain/model';
@@ -128,6 +129,7 @@ export class CityView extends ItemView {
     // share data even if Vue's own per-app resolution were ever bypassed.
     this.cityStore = useCityStore(this.pinia);
     this.runStore = useRunStore(this.pinia);
+    wireDataPorts(this.pinia, this.deps); // Part 6 Y11: before mount, so App's first bind uses the registry.
     // typescript-eslint's type-aware linting resolves a cross-file .vue import as an
     // untyped/error module (it has no Vue SFC language-service plugin, unlike vue-tsc,
     // which DOES type-check this correctly — see `npm run typecheck`). Real behaviour
@@ -214,6 +216,7 @@ export class CityView extends ItemView {
     // double-dispose ruling M68 warned about.
     this.vueApp?.unmount();
     this.vueApp = null;
+    if (this.pinia) unwireDataPorts(this.pinia); // Part 6 R2: the plugin's ports outlive this leaf.
     this.pinia = null;
     this.cityStore = null;
     this.runStore = null;

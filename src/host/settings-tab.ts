@@ -10,6 +10,7 @@ import type { App, Plugin, SettingDefinitionItem } from 'obsidian';
 import type { ProfileStore } from '../application/ports/profile-store';
 import type { LocalBindingStore } from '../application/ports/local-binding-store';
 import type { SourceFileSystemPort } from '../application/ports/source-filesystem-port';
+import type { ReviewRepositoryRegistry } from '../adapters/storage/review-repository-registry';
 import type { CodebaseProfile } from '../domain/model';
 import { buildSettingDefinitions } from './setting-definitions';
 import type { ProfileEntry } from './setting-definitions';
@@ -41,6 +42,8 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     // construction time. Deferring construction to the moment Connect/Reconnect is
     // actually clicked keeps onload() free of it entirely -- see main.ts's call site.
     private readonly getFilesystem: () => SourceFileSystemPort,
+    // Part 6 Y17: a removed profile's review state goes with it (main.ts passes its one registry).
+    private readonly reviewRegistry: Pick<ReviewRepositoryRegistry, 'purge'>,
   ) {
     super(app, plugin);
   }
@@ -132,6 +135,9 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
 
   private async deleteProfile(id: string): Promise<void> {
     await this.profileStore.remove(id);
+    // Part 6 Y17: only once the profile is gone, so a failed removal keeps both. A failed
+    // purge is shown with its reason (spec 7: never dropped silently); the list refreshes.
+    await this.reviewRegistry.purge(id).catch((e: unknown) => { this.showFailure(e); });
     await this.refresh();
   }
 

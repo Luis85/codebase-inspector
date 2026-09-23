@@ -5,6 +5,7 @@ import { CodebaseInspectorSettingTab } from '../../src/host/settings-tab';
 import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
 import { createFakeBindingStoreHarness } from '../fixtures/fake-binding-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
+import type { SettingDefinitionItem, SettingDefinitionList } from 'obsidian';
 
 // A hand-rolled double: bypasses the real Plugin constructor entirely (no `new`), so
 // this never needs a working Obsidian App/Plugin runtime — only enough for onload's
@@ -151,7 +152,7 @@ function makeTab(): CodebaseInspectorSettingTab {
   return new CodebaseInspectorSettingTab(
     {} as never, {} as never,
     createFakeProfileStoreHarness().store, createFakeBindingStoreHarness().store,
-    () => createFakeSourceFileSystem({}).port);
+    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() });
 }
 
 describe('the settings tab is rendered, not merely refreshed', () => {
@@ -184,5 +185,35 @@ describe('the settings tab is rendered, not merely refreshed', () => {
     } finally {
       update.mockRestore();
     }
+  });
+});
+
+// Part 6 Y11/Y17: onload builds ONE review registry and hands it to the settings tab, so
+// removing a profile removes its saved review state. (The CityView half,
+// `reviewRepositoryFor`, needs a DOM to construct a view: tests/host/city-view-data-ports
+// and the typecheck cover it.)
+describe('the review registry (Part 6 Y11, Y17)', () => {
+  it('reaches the settings tab: removing a profile purges its saved review state', async () => {
+    const p = makePluginDouble();
+    let data: unknown = {
+      profiles: [{ profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 1_000_000 }],
+      reviews: { p1: { v: 1, workItems: [], rules: [], dispositions: [] }, p2: { v: 1 } },
+    };
+    // Own promise-returning doubles (not mockImplementation on the void-typed vi.fn():
+    // @typescript-eslint/no-misused-promises), over one in-memory data.json.
+    Object.assign(p, {
+      loadData: vi.fn(() => Promise.resolve(JSON.parse(JSON.stringify(data)) as unknown)),
+      saveData: vi.fn((next: unknown) => {
+        data = JSON.parse(JSON.stringify(next)) as unknown;
+        return Promise.resolve();
+      }),
+    });
+    p.onload();
+    const tab = p.addSettingTab.mock.calls[0]?.[0] as CodebaseInspectorSettingTab;
+    await tab.refresh();
+    const list = tab.getSettingDefinitions().find((d: SettingDefinitionItem): d is SettingDefinitionList => 'type' in d && d.type === 'list');
+    expect(list?.onDelete).toBeDefined();
+    list?.onDelete?.(0);
+    await vi.waitFor(() => { expect(data).toEqual({ profiles: [], reviews: { p2: { v: 1 } } }); });
   });
 });
