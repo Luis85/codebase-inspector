@@ -5,6 +5,7 @@
 // - run starts only with current trust; otherwise it returns the review.
 // - trustAndRun binds, then starts; trust is written only once the probe passed.
 // - run and trustAndRun hold a per-profile reservation from entry to the start (busy otherwise).
+// - after purgeProfile, each start, check, Forget and time limit is refused: `profile-removed`.
 import { normalizeAbsolutePath } from '../../domain/path-safety';
 import type { CodebaseSnapshot } from '../../domain/model';
 import type { AnalyzerBindingStore } from '../ports/analyzer-binding-store';
@@ -39,7 +40,7 @@ export interface RunReview {
 
 export type ReviewResult =
   | { ok: true; review: RunReview }
-  | { ok: false; code: 'executable-refused' | 'executable-missing' | 'root-unavailable'; detail: string };
+  | { ok: false; code: 'executable-refused' | 'executable-missing' | 'root-unavailable' | 'profile-removed'; detail: string };
 
 export type TrustCheck =
   | { kind: 'trusted' }
@@ -63,8 +64,8 @@ export interface FallowAnalysisService {
   run(profileId: string, snapshot: CodebaseSnapshot): Promise<StartOutcome>;
   trustAndRun(profileId: string, snapshot: CodebaseSnapshot, review: RunReview): Promise<StartOutcome>;
   cancel(profileId: string): void;
-  forget(profileId: string): Promise<'forgotten' | 'busy'>;
-  setTimeLimit(profileId: string, seconds: number): Promise<'saved' | 'invalid'>;
+  forget(profileId: string): Promise<'forgotten' | 'busy' | 'removed'>;
+  setTimeLimit(profileId: string, seconds: number): Promise<'saved' | 'invalid' | 'removed'>;
   purgeProfile(profileId: string): Promise<void>;
   stateOf(profileId: string): AnalysisRunState;
   subscribe(listener: (profileId: string) => void): () => void;
@@ -112,9 +113,9 @@ function refusedTrustWrite(e: unknown): 'store-unsupported' | 'changed-since-rev
   return e.code === 'unsupported' ? 'store-unsupported' : 'changed-since-review';
 }
 
-/** Polish B1 fix round 2: what a reserved start answers once its profile was purged under it —
- *  the truth about the store (no record), never a bind or a start. */
-const PURGED: StartOutcome = { kind: 'choose-executable', read: { kind: 'none' } };
+/** Final review: what a start or a check answers for a removed profile, including one purged
+ *  under a reserved start: never "choose an executable", which would bind the removed id again. */
+const REMOVED = { kind: 'refused', code: 'profile-removed', detail: '' } as const;
 
 export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): FallowAnalysisService {
   const { inspector, coordinator, snapshots, machineId, clock } = deps;
@@ -145,19 +146,20 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
    *  `coordinator.start` (read, stat, inspect, bind). `isActive` alone cannot see them, so a
    *  second start could read a binding the first is replacing. Held until the start itself. */
   const starting = new Set<string>();
-  /** Fix round 2: reserved profiles purged meanwhile. The mark lives only as long as the
-   *  reservation, so an id that comes back later starts clean. */
-  const purgedWhileStarting = new Set<string>();
-  const purged = (profileId: string): boolean => purgedWhileStarting.has(profileId);
+  /** Final review: every profile purged this session. A view left open on it must never bind,
+   *  run or write for it again. Profile ids are crypto.randomUUID() (scan-flow.ts) and never
+   *  reused, so the mark is permanent; a start already reserved checks it after each await. */
+  const removed = new Set<string>();
+  const purged = (profileId: string): boolean => removed.has(profileId);
   const reserved = (profileId: string): boolean => starting.has(profileId) || isActive(coordinator.stateOf(profileId));
   async function reserve(profileId: string, body: () => Promise<StartOutcome>): Promise<StartOutcome> {
+    if (purged(profileId)) return REMOVED;
     if (reserved(profileId)) return { kind: 'busy' };
     starting.add(profileId);
     try {
       return await body();
     } finally {
       starting.delete(profileId);
-      purgedWhileStarting.delete(profileId);
     }
   }
 
@@ -233,6 +235,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
     },
 
     async review(profileId, snapshot, executablePath) {
+      if (purged(profileId)) return { ok: false, code: 'profile-removed', detail: '' };
       const path = normalisedPath(executablePath);
       if (path === null) return { ok: false, code: 'executable-refused', detail: 'not-absolute' };
       if (!(await rootIsDirectory(snapshot.scope.rootPath))) return { ok: false, code: 'root-unavailable', detail: '' };
@@ -245,6 +248,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
     },
 
     async checkTrust(profileId, snapshot) {
+      if (purged(profileId)) return REMOVED;
       const checked = await precheck(profileId, snapshot);
       return checked.kind === 'trusted' ? { kind: 'trusted' } : checked;
     },
@@ -252,7 +256,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
     run: (profileId, snapshot) => reserve(profileId, async () => {
       if (!isLatest(profileId, snapshot)) return { kind: 'refused', code: 'snapshot-changed', detail: '' };
       const checked = await precheck(profileId, snapshot);
-      if (purged(profileId)) return PURGED;
+      if (purged(profileId)) return REMOVED;
       switch (checked.kind) {
         case 'trusted': return startPlan(profileId, snapshot, checked.subject, checked.binding.timeoutSeconds, checked.version);
         case 'review': return { kind: 'review', review: checked.review, reason: checked.reason };
@@ -275,7 +279,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
       // Polish B1, defence in depth: the reservation keeps the service's own starts out; this
       // still refuses a run started on the coordinator directly during the awaits above.
       if (isActive(coordinator.stateOf(profileId))) return { kind: 'busy' };
-      if (purged(profileId)) return PURGED;
+      if (purged(profileId)) return REMOVED;
       try {
         await store.bind(profileId, reviewed.facts.executablePath);
       } catch (e) {
@@ -285,7 +289,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
       // Fix round 2: a purge may land before the bind's own write; then the bind is undone and
       // nothing starts. The record is read again, so a time limit saved meanwhile is the one used.
       const bound = await store.read(profileId);
-      if (purged(profileId)) { await store.purge(profileId); return PURGED; }
+      if (purged(profileId)) { await store.purge(profileId); return REMOVED; }
       const timeoutSeconds = bound.kind === 'bound' ? bound.binding.timeoutSeconds : FALLOW_TIMEOUT_DEFAULT_S;
       return startPlan(profileId, snapshot, subject, timeoutSeconds, null);
     }),
@@ -295,19 +299,21 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
     },
 
     async forget(profileId) {
+      if (purged(profileId)) return 'removed';
       if (reserved(profileId)) return 'busy';
       await store.forget(profileId);
       return 'forgotten';
     },
 
     async setTimeLimit(profileId, seconds) {
+      if (purged(profileId)) return 'removed';
       if (!isValidTimeoutSeconds(seconds)) return 'invalid';
       await store.setTimeoutSeconds(profileId, seconds);
       return 'saved';
     },
 
     async purgeProfile(profileId) {
-      if (starting.has(profileId)) purgedWhileStarting.add(profileId);
+      removed.add(profileId);
       coordinator.cancel(profileId);
       await store.purge(profileId);
     },

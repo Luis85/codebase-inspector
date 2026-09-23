@@ -108,9 +108,9 @@ describe('run error codes (Z19)', () => {
     expect(fromImportCode('read-failed')).toBe('output-incomplete');
   });
 
-  it('treats exactly fourteen of the twenty codes as operational failures', () => {
-    expect(FALLOW_RUN_ERROR_CODES).toHaveLength(20);
-    const quiet: FallowRunErrorCode[] = ['changed-since-review', 'store-unsupported', 'version-changed', 'source-mismatch', 'snapshot-changed', 'superseded'];
+  it('treats exactly fourteen of the twenty-one codes as operational failures (final review: profile-removed is not one)', () => {
+    expect(FALLOW_RUN_ERROR_CODES).toHaveLength(21);
+    const quiet: FallowRunErrorCode[] = ['changed-since-review', 'store-unsupported', 'version-changed', 'source-mismatch', 'snapshot-changed', 'superseded', 'profile-removed'];
     for (const code of quiet) expect(OPERATIONAL_FAILURES.has(code), code).toBe(false);
     expect(OPERATIONAL_FAILURES.size).toBe(14);
     for (const code of FALLOW_RUN_ERROR_CODES.filter((c) => !quiet.includes(c))) expect(OPERATIONAL_FAILURES.has(code), code).toBe(true);

@@ -115,6 +115,9 @@ export const FALLOW_RUN_START_FAILED = 'The fallow analysis could not be started
 /** QF10: ends "Nothing was changed", true for every record kind Forget is offered on
  *  (canForget excludes 'none' and 'unsupported'), instead of naming what stays. */
 export const FALLOW_EXE_FORGET_FAILED = 'The fallow executable could not be forgotten: the plugin’s data file could not be updated. Nothing was changed.';
+/** Final review: a start, a check, a Forget or a time limit for a codebase whose profile was
+ *  removed in Settings, from a view still open on it (FallowRunErrorCode `profile-removed`). */
+export const FALLOW_PROFILE_REMOVED = 'This codebase’s profile was removed in settings, so nothing was run or changed.';
 
 /* The run banner (Z33). K26: "current findings stay" is said only when there are some. */
 export const FALLOW_RUN_PROBING = (hasEvidence: boolean): string =>
@@ -167,6 +170,7 @@ export const FALLOW_RUN_ERROR: Readonly<Record<FallowRunErrorCode, (detail: stri
   'source-mismatch': () => 'None of fallow’s findings names a file in the current snapshot. Nothing was attached.',
   'snapshot-changed': () => 'The codebase was rescanned while fallow ran, so its result was discarded. Run it again.',
   superseded: () => 'The findings changed while fallow ran (a report was imported or removed), so its result was discarded.',
+  'profile-removed': () => FALLOW_PROFILE_REMOVED,
 };
 
 /* Settings (Z12). The row names are literals in setting-definitions.ts (K20); these two
@@ -177,7 +181,9 @@ export const SETTINGS_FALLOW_LIMIT_NAME = 'fallow time limit';
 export const SETTINGS_FALLOW_FORGET = 'Forget';
 export const SETTINGS_FALLOW_LIMIT_DESC = 'Seconds before a fallow analysis is stopped, from 10 to 1800.';
 export const SETTINGS_FALLOW_LIMIT_INVALID = 'Enter a whole number of seconds from 10 to 1800.';
-export const SETTINGS_FALLOW_BUSY = 'Cancel the fallow analysis for this codebase first.';
+/** Final review: also shown while a start is still being prepared, when there is no analysis
+ *  to cancel yet, so it gives no advice that only fits a running one. */
+export const SETTINGS_FALLOW_BUSY = 'A fallow analysis for this codebase is starting or running, so nothing was changed. Try again when it has finished.';
 /** Polish D1: a refused analyzer write in Settings, by AnalyzerStoreError code — never the
  *  store's own "analyzer store: <code>" message. */
 export const SETTINGS_FALLOW_STORE_FAILED: Readonly<Record<AnalyzerStoreErrorCode, string>> = {

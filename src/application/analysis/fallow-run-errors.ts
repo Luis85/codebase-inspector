@@ -8,15 +8,17 @@ export const FALLOW_RUN_ERROR_CODES = [
   'root-unavailable', 'executable-missing', 'executable-refused', 'changed-since-review', 'store-unsupported',
   'version-probe-failed', 'version-unsupported', 'version-changed', 'spawn-failed', 'timed-out',
   'output-too-large', 'output-incomplete', 'output-not-json', 'output-unsupported', 'output-invalid',
-  'analyzer-error', 'exit-code', 'source-mismatch', 'snapshot-changed', 'superseded',
+  'analyzer-error', 'exit-code', 'source-mismatch', 'snapshot-changed', 'superseded', 'profile-removed',
 ] as const;
 
 export type FallowRunErrorCode = (typeof FALLOW_RUN_ERROR_CODES)[number];
 
 /** Not operational: a changed trust subject, a newer data format, a newer snapshot or
- *  newer evidence, or a report that matches nothing. None of these marks evidence stale. */
+ *  newer evidence, a report that matches nothing, or (final review) a codebase removed in
+ *  Settings, whose evidence is already gone (D5). None of these marks evidence stale. */
 const NOT_OPERATIONAL: readonly FallowRunErrorCode[] = [
   'changed-since-review', 'store-unsupported', 'version-changed', 'source-mismatch', 'snapshot-changed', 'superseded',
+  'profile-removed',
 ];
 
 /** Z19/Z23: only these mark the old evidence stale, and only these (with `version-changed`)

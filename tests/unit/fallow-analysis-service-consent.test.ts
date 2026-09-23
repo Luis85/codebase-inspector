@@ -18,7 +18,8 @@ const refusing = (inner: AnalyzerBindingStore, member: 'grantTrust' | 'revokeTru
 /** Polish B1 fix rounds: every `bind` waits in `saves` until the test releases it. */
 const holdingBind = (inner: AnalyzerBindingStore, saves: (() => void)[]): AnalyzerBindingStore =>
   ({ ...inner, bind: (id, path) => new Promise<void>((resolve) => { saves.push(() => { void inner.bind(id, path).then(resolve); }); }) });
-const PURGED = { kind: 'choose-executable', read: { kind: 'none' } };
+/** Final review: a purge under a start answers profile-removed, never an invitation to choose again. */
+const PURGED = { kind: 'refused', code: 'profile-removed', detail: '' };
 
 describe('Polish B1: the busy re-check before the bind', () => {
   it('B1: a run that starts while Trust and run awaits its checks is not bound over', async () => {
@@ -78,7 +79,7 @@ describe('Polish B1: the busy re-check before the bind', () => {
     expect(s.process.requests).toEqual([]);
   });
 
-  it('B1 fix round 2: a profile removed during the checks of run or Trust and run binds nothing and runs nothing; the id starts clean later', async () => {
+  it('B1 fix round 2: a profile removed during the checks of run or Trust and run binds nothing and runs nothing; the id stays removed', async () => {
     for (const via of ['run', 'trustAndRun'] as const) {
       const inner = createInMemoryAnalyzerStore('m');
       const binds: string[] = [];
@@ -95,7 +96,7 @@ describe('Polish B1: the busy re-check before the bind', () => {
       expect(s.process.requests, via).toEqual([]);
       s.inspector.answer = inspect;
       await trusted(s);
-      expect(await s.service.run('p1', SNAPSHOT), via).toEqual({ kind: 'started' });
+      expect(await s.service.run('p1', SNAPSHOT), via).toEqual(PURGED);   // final review: ids are never reused
     }
   });
 

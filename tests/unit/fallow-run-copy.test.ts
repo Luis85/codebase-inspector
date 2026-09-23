@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { FALLOW_RUN_ERROR_CODES } from '../../src/application/analysis/fallow-run-errors';
 import {
   COPY_15, FALLOW_EXE_FORGET_FAILED, FALLOW_EXE_REFUSED_TEXT, FALLOW_REVIEW_EFFECTS, FALLOW_RUN_ERROR, FALLOW_RUN_PROBING, FALLOW_RUN_RUNNING,
+  SETTINGS_FALLOW_BUSY,
 } from '../../src/ui/inspector-copy';
 
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
@@ -52,6 +53,12 @@ describe('run copy (spec §2)', () => {
 
   it('Polish C9 (QF10): a failed Forget says nothing was changed', () => {
     expect(FALLOW_EXE_FORGET_FAILED).toContain('Nothing was changed.');
+  });
+
+  it('final review: the Settings busy text also fits a start still being prepared, where there is nothing to cancel', () => {
+    expect(SETTINGS_FALLOW_BUSY).toContain('starting');
+    expect(SETTINGS_FALLOW_BUSY).not.toMatch(/cancel/i);
+    expect(SETTINGS_FALLOW_BUSY).toContain('nothing was changed');
   });
 
   it('G6: no copy claims a sandbox; the one mention says it is not one', () => {

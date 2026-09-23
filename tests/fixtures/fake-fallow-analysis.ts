@@ -22,7 +22,10 @@ export function fakeRunReview(profileId: string, snapshotId: string, rootPath: s
 
 export interface FakeFallowAnalysis extends FallowAnalysisService {
   readonly calls: { method: string; profileId: string }[];
-  next: { run: StartOutcome; trustAndRun: StartOutcome; review: ReviewResult | null; forget: 'forgotten' | 'busy'; setTimeLimit: 'saved' | 'invalid' };
+  next: {
+    run: StartOutcome; trustAndRun: StartOutcome; review: ReviewResult | null;
+    forget: 'forgotten' | 'busy' | 'removed'; setTimeLimit: 'saved' | 'invalid' | 'removed';
+  };
   setState(profileId: string, state: AnalysisRunState): void;
   setBinding(profileId: string, read: AnalyzerBindingRead): void;
   listenerCount(): number;

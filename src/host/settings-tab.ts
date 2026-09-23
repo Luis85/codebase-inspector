@@ -12,7 +12,7 @@ import type { LocalBindingStore } from '../application/ports/local-binding-store
 import type { SourceFileSystemPort } from '../application/ports/source-filesystem-port';
 import type { ReviewRepositoryRegistry } from '../adapters/storage/review-repository-registry';
 import {
-  PROFILE_ANALYZER_PURGE_FAILED, PROFILE_REVIEW_PURGE_FAILED, SETTINGS_FALLOW_BUSY,
+  FALLOW_PROFILE_REMOVED, PROFILE_ANALYZER_PURGE_FAILED, PROFILE_REVIEW_PURGE_FAILED, SETTINGS_FALLOW_BUSY,
   SETTINGS_FALLOW_LIMIT_INVALID, SETTINGS_FALLOW_STORE_FAILED,
 } from '../ui/inspector-copy';
 import type { FallowAnalysisService } from '../application/analysis/fallow-analysis-service';
@@ -178,10 +178,12 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     await this.refresh();
   }
 
-  /** Part 7 Z11: refused while this codebase's run is active; the service changes nothing then. */
+  /** Part 7 Z11: refused while this codebase's run is starting or active, or (final review)
+   *  once its profile was removed; the service changes nothing then. */
   private async forgetAnalyzer(profileId: string): Promise<void> {
     try {
-      if ((await this.analysis.forget(profileId)) === 'busy') this.notify(SETTINGS_FALLOW_BUSY);
+      const result = await this.analysis.forget(profileId);
+      if (result !== 'forgotten') this.notify(result === 'busy' ? SETTINGS_FALLOW_BUSY : FALLOW_PROFILE_REMOVED);
     } catch (e) {
       this.showAnalyzerFailure(e);
     }
@@ -193,7 +195,8 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
   private async changeAnalyzerTimeout(profileId: string, rawValue: string): Promise<void> {
     const seconds = rawValue.trim() === '' ? Number.NaN : Number(rawValue);
     try {
-      if ((await this.analysis.setTimeLimit(profileId, seconds)) === 'invalid') this.notify(SETTINGS_FALLOW_LIMIT_INVALID);
+      const result = await this.analysis.setTimeLimit(profileId, seconds);
+      if (result !== 'saved') this.notify(result === 'invalid' ? SETTINGS_FALLOW_LIMIT_INVALID : FALLOW_PROFILE_REMOVED);
     } catch (e) {
       this.showAnalyzerFailure(e);
     }

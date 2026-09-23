@@ -13,7 +13,7 @@ import type { AnalyzerBindingRead } from '../../src/application/analysis/analyze
 import { AnalyzerStoreError } from '../../src/application/analysis/analyzer-record';
 import type { CodebaseProfile } from '../../src/domain/model';
 import {
-  FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE, FALLOW_EXE_UNSUPPORTED, FALLOW_TRUST_VALUE, PROFILE_ANALYZER_PURGE_FAILED,
+  FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE, FALLOW_EXE_UNSUPPORTED, FALLOW_PROFILE_REMOVED, FALLOW_TRUST_VALUE, PROFILE_ANALYZER_PURGE_FAILED,
   SETTINGS_FALLOW_BUSY, SETTINGS_FALLOW_LIMIT_DESC, SETTINGS_FALLOW_LIMIT_INVALID, SETTINGS_FALLOW_STORE_FAILED,
 } from '../../src/ui/inspector-copy';
 import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
@@ -121,6 +121,21 @@ describe('Forget and the time limit go through the service (Z10, Z11)', () => {
     await tab.waitForPendingUpdates();
     expect(setTimeLimit).toHaveBeenLastCalledWith('p1', Number.NaN);
     expect(document.querySelector('.notice')?.textContent).toBe(SETTINGS_FALLOW_LIMIT_INVALID);
+  });
+
+  it('final review: a Forget or a time limit refused for a removed codebase says so', async () => {
+    const { tab, analysis } = await makeTab(BOUND);
+    analysis.next.forget = 'removed';
+    render(tab, 'fallow executable').controlEl.querySelector<HTMLButtonElement>('[data-action="forget-analyzer"]')!.click();
+    await tab.waitForPendingUpdates();
+    expect(document.querySelector('.notice')?.textContent).toBe(FALLOW_PROFILE_REMOVED);
+    document.body.replaceChildren();
+    analysis.next.setTimeLimit = 'removed';
+    const input = render(tab, 'fallow time limit').controlEl.querySelector('input')!;
+    input.value = '600';
+    input.dispatchEvent(new Event('change'));
+    await tab.waitForPendingUpdates();
+    expect(document.querySelector('.notice')?.textContent).toBe(FALLOW_PROFILE_REMOVED);
   });
 });
 
