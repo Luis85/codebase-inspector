@@ -110,6 +110,10 @@ function refusedTrustWrite(e: unknown): 'store-unsupported' | 'changed-since-rev
   return e.code === 'unsupported' ? 'store-unsupported' : 'changed-since-review';
 }
 
+/** Polish B1 fix round 2: what a reserved start answers once its profile was purged under it —
+ *  the truth about the store (no record), never a bind or a start. */
+const PURGED: StartOutcome = { kind: 'choose-executable', read: { kind: 'none' } };
+
 export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): FallowAnalysisService {
   const { inspector, coordinator, snapshots, machineId, clock } = deps;
   const bindingListeners = new Set<(profileId: string) => void>();
@@ -139,6 +143,10 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
    *  `coordinator.start` (read, stat, inspect, bind). `isActive` alone cannot see them, so a
    *  second start could read a binding the first is replacing. Held until the start itself. */
   const starting = new Set<string>();
+  /** Fix round 2: reserved profiles purged meanwhile. The mark lives only as long as the
+   *  reservation, so an id that comes back later starts clean. */
+  const purgedWhileStarting = new Set<string>();
+  const purged = (profileId: string): boolean => purgedWhileStarting.has(profileId);
   const reserved = (profileId: string): boolean => starting.has(profileId) || isActive(coordinator.stateOf(profileId));
   async function reserve(profileId: string, body: () => Promise<StartOutcome>): Promise<StartOutcome> {
     if (reserved(profileId)) return { kind: 'busy' };
@@ -147,6 +155,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
       return await body();
     } finally {
       starting.delete(profileId);
+      purgedWhileStarting.delete(profileId);
     }
   }
 
@@ -240,6 +249,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
     run: (profileId, snapshot) => reserve(profileId, async () => {
       if (!isLatest(profileId, snapshot)) return { kind: 'refused', code: 'snapshot-changed', detail: '' };
       const checked = await precheck(profileId, snapshot);
+      if (purged(profileId)) return PURGED;
       switch (checked.kind) {
         case 'trusted': return startPlan(profileId, snapshot, checked.subject, checked.binding.timeoutSeconds, checked.version);
         case 'review': return { kind: 'review', review: checked.review, reason: checked.reason };
@@ -262,13 +272,18 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
       // Polish B1, defence in depth: the reservation keeps the service's own starts out; this
       // still refuses a run started on the coordinator directly during the awaits above.
       if (isActive(coordinator.stateOf(profileId))) return { kind: 'busy' };
+      if (purged(profileId)) return PURGED;
       try {
         await store.bind(profileId, reviewed.facts.executablePath);
       } catch (e) {
         if (e instanceof AnalyzerStoreError && e.code === 'unsupported') return { kind: 'refused', code: 'store-unsupported', detail: '' };
         throw e;
       }
-      const timeoutSeconds = read.kind === 'bound' ? read.binding.timeoutSeconds : FALLOW_TIMEOUT_DEFAULT_S;
+      // Fix round 2: a purge may land before the bind's own write; then the bind is undone and
+      // nothing starts. The record is read again, so a time limit saved meanwhile is the one used.
+      const bound = await store.read(profileId);
+      if (purged(profileId)) { await store.purge(profileId); return PURGED; }
+      const timeoutSeconds = bound.kind === 'bound' ? bound.binding.timeoutSeconds : FALLOW_TIMEOUT_DEFAULT_S;
       return startPlan(profileId, snapshot, subject, timeoutSeconds, null);
     }),
 
@@ -289,6 +304,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
     },
 
     async purgeProfile(profileId) {
+      if (starting.has(profileId)) purgedWhileStarting.add(profileId);
       coordinator.cancel(profileId);
       await store.purge(profileId);
     },

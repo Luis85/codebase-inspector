@@ -15,6 +15,10 @@ import { EXE, ROOT, SNAPSHOT, createServiceWorld, reviewed, subjectOf, trusted }
 const OLD_EXE = '/opt/old/fallow';
 const refusing = (inner: AnalyzerBindingStore, member: 'grantTrust' | 'revokeTrust', error: Error): AnalyzerBindingStore =>
   ({ ...inner, [member]: () => Promise.reject(error) });
+/** Polish B1 fix rounds: every `bind` waits in `saves` until the test releases it. */
+const holdingBind = (inner: AnalyzerBindingStore, saves: (() => void)[]): AnalyzerBindingStore =>
+  ({ ...inner, bind: (id, path) => new Promise<void>((resolve) => { saves.push(() => { void inner.bind(id, path).then(resolve); }); }) });
+const PURGED = { kind: 'choose-executable', read: { kind: 'none' } };
 
 describe('Polish B1: the busy re-check before the bind', () => {
   it('B1: a run that starts while Trust and run awaits its checks is not bound over', async () => {
@@ -36,7 +40,7 @@ describe('Polish B1: the busy re-check before the bind', () => {
     const version = '3.27.0';
     await inner.grantTrust('p1', { fingerprint: fingerprintTrust(subjectOf(factsFor(OLD_EXE)), version), version, grantedAt: '2026-09-23T09:00:00.000Z' }, OLD_EXE);
     const saves: (() => void)[] = [];
-    const s = createServiceWorld({ ...inner, bind: (id, path) => new Promise<void>((resolve) => { saves.push(() => { void inner.bind(id, path).then(resolve); }); }) });
+    const s = createServiceWorld(holdingBind(inner, saves));
     const trusting = s.service.trustAndRun('p1', SNAPSHOT, await reviewed(s));
     await delay(0);
     expect(saves).toHaveLength(1);
@@ -59,6 +63,54 @@ describe('Polish B1: the busy re-check before the bind', () => {
     expect(await first).toEqual({ kind: 'started' });
     expect(s.inspector.calls).toHaveLength(1);
     expect(s.process.requests).toHaveLength(1);
+  });
+
+  it('B1 fix round 2: a profile removed while Trust and run saves its bind is not bound again, and nothing runs', async () => {
+    const saves: (() => void)[] = [];
+    const s = createServiceWorld(holdingBind(createInMemoryAnalyzerStore('m'), saves));
+    const trusting = s.service.trustAndRun('p1', SNAPSHOT, await reviewed(s));
+    await delay(0);
+    expect(saves).toHaveLength(1);
+    await s.service.purgeProfile('p1');
+    saves[0]!();
+    expect(await trusting).toEqual(PURGED);
+    expect(await s.store.read('p1')).toEqual({ kind: 'none' });
+    expect(s.process.requests).toEqual([]);
+  });
+
+  it('B1 fix round 2: a profile removed during the checks of run or Trust and run binds nothing and runs nothing; the id starts clean later', async () => {
+    for (const via of ['run', 'trustAndRun'] as const) {
+      const inner = createInMemoryAnalyzerStore('m');
+      const binds: string[] = [];
+      const s = createServiceWorld({ ...inner, bind: (id, path) => { binds.push(path); return inner.bind(id, path); } });
+      await trusted(s);
+      const review = await reviewed(s);
+      binds.length = 0;
+      const inspect = s.inspector.answer;
+      s.inspector.answer = (path) => { void s.service.purgeProfile('p1'); return inspect(path); };
+      const outcome = via === 'run' ? s.service.run('p1', SNAPSHOT) : s.service.trustAndRun('p1', SNAPSHOT, review);
+      expect(await outcome, via).toEqual(PURGED);
+      expect(await s.store.read('p1'), via).toEqual({ kind: 'none' });
+      expect(binds, via).toEqual([]);
+      expect(s.process.requests, via).toEqual([]);
+      s.inspector.answer = inspect;
+      await trusted(s);
+      expect(await s.service.run('p1', SNAPSHOT), via).toEqual({ kind: 'started' });
+    }
+  });
+
+  it('B1 fix round 2: a time limit saved while Trust and run saves its bind is the one the analysis uses', async () => {
+    const inner = createInMemoryAnalyzerStore('m');
+    await inner.bind('p1', OLD_EXE);
+    const saves: (() => void)[] = [];
+    const s = createServiceWorld(holdingBind(inner, saves));
+    const trusting = s.service.trustAndRun('p1', SNAPSHOT, await reviewed(s));
+    await delay(0);
+    expect(await s.service.setTimeLimit('p1', 600)).toBe('saved');
+    saves[0]!();
+    expect(await trusting).toEqual({ kind: 'started' });
+    await s.process.settle(exitedWith(0, 'fallow 3.27.0'));
+    expect(s.process.requests[1]?.timeoutMs).toBe(600_000);
   });
 });
 
