@@ -8,11 +8,11 @@ import { unknown, type MetricValue } from '../evidence';
 import { toCsv, type CsvColumn } from '../export/csv';
 import type { FindingDisposition } from '../stores/ports/review-repository';
 import {
-  FINDING_TITLE, NO_FILES_REASON, QUALITY_CARD_COMPLEXITY, QUALITY_CARD_COMPLEXITY_CAPTION, QUALITY_CARD_DUPLICATION,
-  QUALITY_CARD_DUPLICATION_CAPTION, QUALITY_CARD_OPEN, QUALITY_CARD_OPEN_CAPTION, QUALITY_CARD_UNUSED,
+  FALLOW_NOT_ANALYSED, FINDING_TITLE, NO_FILES_REASON, QUALITY_CARD_COMPLEXITY, QUALITY_CARD_COMPLEXITY_CAPTION, QUALITY_CARD_DUPLICATION,
+  QUALITY_CARD_DUPLICATION_CAPTION, QUALITY_CARD_OPEN, QUALITY_CARD_OPEN_CAPTION, QUALITY_CARD_OPEN_CAPTION_STALE, QUALITY_CARD_UNUSED,
   QUALITY_CARD_UNUSED_CAPTION,
 } from '../inspector-copy';
-import type { EvidenceIndex } from './evidence-index';
+import type { EvidenceIndex, EvidenceIndexState } from './evidence-index';
 import type { FileFinding } from './file-detail';
 import { filesByPriority, moduleLabel, type FileSummary } from './file-summaries';
 
@@ -81,6 +81,13 @@ function baseFindings(files: readonly FileSummary[], evidence: EvidenceIndex): r
   return base;
 }
 
+/** Part 6 E37: the Open card's caption never shows a count the card itself does not have
+ *  (Y33), and stale evidence (Y30) is never "in this snapshot". */
+function openCaption(value: MetricValue, state: EvidenceIndexState, total: number, decided: number): string {
+  if (value.state === 'unknown') return value.reason ?? FALLOW_NOT_ANALYSED;
+  return state === 'stale' ? QUALITY_CARD_OPEN_CAPTION_STALE(total, decided) : QUALITY_CARD_OPEN_CAPTION(total, decided);
+}
+
 export function buildQualityModel(
   files: readonly FileSummary[], evidence: EvidenceIndex, dispositions: readonly FindingDisposition[],
 ): QualityModel {
@@ -99,7 +106,7 @@ export function buildQualityModel(
     byFingerprint: new Map(findings.map((f) => [f.fingerprint, f])),
     modules: names.map((name) => ({ name, label: moduleLabel(name) })),
     cards: [
-      { id: 'open', label: QUALITY_CARD_OPEN, icon: 'code', value: count(null), caption: QUALITY_CARD_OPEN_CAPTION(findings.length, findings.length - open.length), tone: 'accent' },
+      { id: 'open', label: QUALITY_CARD_OPEN, icon: 'code', value: count(null), caption: openCaption(count(null), evidence.state, findings.length, findings.length - open.length), tone: 'accent' },
       { id: 'complexity', label: QUALITY_CARD_COMPLEXITY, icon: 'flame', value: count('complexity'), caption: QUALITY_CARD_COMPLEXITY_CAPTION, tone: 'warning' },
       { id: 'unused-exports', label: QUALITY_CARD_UNUSED, icon: 'file-x', value: count('unused-exports'), caption: QUALITY_CARD_UNUSED_CAPTION, tone: 'accent' },
       { id: 'duplication', label: QUALITY_CARD_DUPLICATION, icon: 'copy', value: count('duplication'), caption: QUALITY_CARD_DUPLICATION_CAPTION, tone: 'accent' },

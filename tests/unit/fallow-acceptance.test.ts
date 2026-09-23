@@ -83,6 +83,8 @@ describe('acceptance (6): with no report every structural screen works and nothi
       expect(v.value).toBeUndefined();
     }
     expect(m.quality.value.findings).toEqual([]);
+    // Fix round 1 (E37): no unmeasured count hides in the Open card's caption either.
+    expect(m.quality.value.cards.find((c) => c.id === 'open')!.caption).toBe(FALLOW_NOT_ANALYSED);
     expect(m.fileDetail.value!.findings).toEqual([]);
     const rows = m.overview.value!.coverage;
     expect(rows.find((r) => r.id === 'fallow')?.state).toBe('unknown');

@@ -88,12 +88,17 @@ describe('code quality model (Part 3 Q1-Q3, Part 6 Y34)', () => {
     expect(m.findings).toEqual([]);
     expect(m.cards).toHaveLength(4);
     for (const c of m.cards) expect(c.value).toMatchObject({ state: 'unknown', reason: FALLOW_NOT_ANALYSED });
+    // Fix round 1 (E37): the Open caption carries no unmeasured count either.
+    const caption = m.cards.find((c) => c.id === 'open')!.caption;
+    expect(caption).toBe(FALLOW_NOT_ANALYSED);
+    expect(caption).not.toMatch(/\d/);
   });
 
   it('with no files, every card is unknown with its reason, never 0', () => {
     const m = buildQualityModel([], evidenceIndexFor([], null, ''), []);
     expect(m.cards).toHaveLength(4);
     for (const c of m.cards) expect(c.value).toMatchObject({ state: 'unknown', reason: NO_FILES_REASON });
+    expect(m.cards.find((c) => c.id === 'open')!.caption).toBe(NO_FILES_REASON);
   });
 
   it('a category the report did not analyse reads unknown; the others still count (Y25, a dead-code report)', () => {
@@ -112,6 +117,12 @@ describe('code quality model (Part 3 Q1-Q3, Part 6 Y34)', () => {
     const values = m.cards.map((c) => c.value);
     expect(values).toHaveLength(4);
     expect(values.every((v) => v.state === 'stale')).toBe(true);
+    // Fix round 1 (E37): stale evidence is never described as "in this snapshot".
+    const caption = m.cards.find((c) => c.id === 'open')!.caption;
+    expect(caption).not.toContain('in this snapshot');
+    expect(caption).toBe(`${m.findings.length} findings in the imported report · 0 decided`);
+    expect(card(model(), 'open').state).toBe('collected');
+    expect(model().cards.find((c) => c.id === 'open')!.caption).toBe(`${m.findings.length} findings in this snapshot · 0 decided`);
   });
 
   it('ranks critical, high, moderate, an unknown word, then unrated; the tone of anything unknown is unrated (R6)', () => {

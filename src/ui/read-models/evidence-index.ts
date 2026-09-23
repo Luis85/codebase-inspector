@@ -90,6 +90,8 @@ function build(files: readonly FileSummary[], report: EvidenceReport | null, sna
     : groupByFile(files, report.normalized.findings);
   const matched = [...byFile.values()].flat();
   const perFileCache = new Map<EntityId, FileEvidence>();
+  /** E37: an id that is not one of `files` has no evidence here: unknown, never a collected 0. */
+  const known = new Set(files.map((f) => f.id));
   return {
     state,
     report,
@@ -99,6 +101,7 @@ function build(files: readonly FileSummary[], report: EvidenceReport | null, sna
     matchedFiles: byFile.size,
     totals: files.length === 0 ? noFiles() : evidenceOf(matched, count),
     perFile(id: EntityId): FileEvidence {
+      if (!known.has(id)) return evidenceOf([], notAnalysed);
       let hit = perFileCache.get(id);
       if (!hit) { hit = evidenceOf(byFile.get(id) ?? [], count); perFileCache.set(id, hit); }
       return hit;

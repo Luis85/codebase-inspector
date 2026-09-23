@@ -23,8 +23,12 @@ export const HIGH_COMPLEXITY = 30;
 export const TREND_POINTS = 7;
 const TREND_SPACING_DAYS = 14;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
-/** R6: the fallow row's state follows the evidence index. It is never sample. */
+/** R6: the fallow row's state follows the evidence index. It is never sample. E37: a report
+ *  that analysed only some categories reads partial (the findings total's own state), even
+ *  when stale, because partial is the weaker state (evidence.ts). */
 const FALLOW_ROW_STATE: Readonly<Record<EvidenceIndexState, EvidenceState>> = { none: 'unknown', current: 'collected', stale: 'stale' };
+const fallowRowState = (evidence: EvidenceIndex): EvidenceState =>
+  (evidence.totals.findings.state === 'partial' ? 'partial' : FALLOW_ROW_STATE[evidence.state]);
 
 export interface OverviewCard {
   id: 'findings' | 'coverage' | 'architecture' | 'hotspots';
@@ -121,7 +125,7 @@ export function buildOverviewModel(
   const importsSampled = cycles.state !== 'unknown';
   const coverageRows: EvidenceCoverageRow[] = [
     { id: 'inventory', label: 'File inventory', state: snapshot.completeness === 'partial' ? 'partial' : 'collected', source: 'Built-in scan' },
-    { id: 'fallow', label: OVERVIEW_FALLOW_ROW, state: FALLOW_ROW_STATE[evidence.state],
+    { id: 'fallow', label: OVERVIEW_FALLOW_ROW, state: fallowRowState(evidence),
       source: evidence.report ? OVERVIEW_FALLOW_SOURCE(evidence.report.providerVersion) : EVIDENCE_SOURCE_NONE },
     { id: 'history', label: 'Git history', state: 'sample', source: 'Sample provider' },
     { id: 'coverage', label: 'Test coverage', state: 'sample', source: 'Sample provider' },

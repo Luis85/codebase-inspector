@@ -6,6 +6,8 @@ import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evid
 import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { buildOverviewModel } from '../../src/ui/read-models/overview';
+import { buildCitySummary } from '../../src/ui/read-models/city-summary';
+import type { MetricValue } from '../../src/ui/evidence';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
@@ -25,6 +27,7 @@ describe('evidence index without a report (Y33)', () => {
     expect(index.state).toBe('none');
     expect(index.report).toBeNull();
     const own = index.perFile(at(0).id);
+    expect(Object.keys(own)).toEqual(['findings', 'high', 'unused']);
     const values = [index.totals.findings, index.totals.high, index.totals.unused, own.findings, own.high, own.unused];
     expect(values).toHaveLength(6);
     for (const v of values) {
@@ -83,6 +86,28 @@ describe('evidence index with a current report (Y34)', () => {
     expect(dc.totals.high).toMatchObject({ state: 'unknown', reason: FALLOW_NOT_ANALYSED });
     expect(dc.totals.unused.state).toBe('collected');
     expect(dc.totals.findings).toMatchObject({ state: 'partial', value: deadCode.normalized.findings.length, reason: FALLOW_SOME_NOT_ANALYSED });
+    // Fix round 1 (E37): the Overview fallow row does not claim full coverage for a partial report.
+    expect(buildOverviewModel(snap, files, undefined, dc).coverage.find((r) => r.id === 'fallow')?.state).toBe('partial');
+    expect(buildOverviewModel(snap, files, undefined, index).coverage.find((r) => r.id === 'fallow')?.state).toBe('collected');
+  });
+
+  it('an id that is not one of the files is unknown, never a collected 0 (fix round 1)', () => {
+    const own = index.perFile('not-a-file-id');
+    expect(Object.keys(own)).toEqual(['findings', 'high', 'unused']);
+    for (const v of Object.values(own) as MetricValue[]) {
+      expect(v).toMatchObject({ state: 'unknown', reason: FALLOW_NOT_ANALYSED });
+      expect(v.value).toBeUndefined();
+    }
+  });
+
+  it('the Overview findings card and the city unused card read the index totals (fix round 1)', () => {
+    const findingsCard = buildOverviewModel(snap, files, undefined, index).cards.find((c) => c.id === 'findings')!;
+    expect(findingsCard.value).toBe(index.totals.findings);
+    expect(index.totals.high.value).toBeGreaterThan(0);
+    expect(findingsCard.caption).toBe(`${index.totals.high.value} critical or high severity`);
+    const unused = buildCitySummary(files, undefined, index).find((c) => c.id === 'unused')!.value;
+    expect(unused).toBe(index.totals.unused);
+    expect(unused.value).not.toBe(index.totals.findings.value);
   });
 
   it('with no files every total is unknown with its reason, never 0', () => {
@@ -104,6 +129,14 @@ describe('stale evidence (Y30)', () => {
     expect(index.unmatchedPaths).toHaveLength(8);
     expect(index.totals.findings).toMatchObject({ state: 'stale', value: index.matchedFindings, provenance: FALLOW });
     expect(buildOverviewModel(newer, newerFiles, undefined, index).coverage.find((r) => r.id === 'fallow')?.state).toBe('stale');
+  });
+
+  it('a stale report that analysed only some categories has a partial total, and so does the row (E37: partial is weaker than stale)', () => {
+    const stale = evidenceIndexFor(files, syntheticEvidenceReport(snap, { kind: 'dead-code', snapshotId: 'an-older-snapshot' }), snap.snapshotId);
+    expect(stale.state).toBe('stale');
+    expect(stale.totals.findings).toMatchObject({ state: 'partial', reason: FALLOW_SOME_NOT_ANALYSED });
+    expect(stale.totals.unused.state).toBe('stale');
+    expect(buildOverviewModel(snap, files, undefined, stale).coverage.find((r) => r.id === 'fallow')?.state).toBe('partial');
   });
 
   it('COPY_16 says which date the evidence is from', () => {

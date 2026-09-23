@@ -6,6 +6,8 @@ export const QUALITY_EXPORT = 'Export findings';
 export const QUALITY_CSV_FILENAME = 'codebase-quality-findings.csv';
 export const QUALITY_CARD_OPEN = 'Open findings';
 export const QUALITY_CARD_OPEN_CAPTION = (total: number, decided: number): string => `${total} findings in this snapshot · ${decided} decided`;
+/** Part 6 E37: stale evidence (Y30) was imported against another snapshot, so it never says "in this snapshot". */
+export const QUALITY_CARD_OPEN_CAPTION_STALE = (total: number, decided: number): string => `${total} findings in the imported report · ${decided} decided`;
 export const QUALITY_CARD_COMPLEXITY = 'Complexity findings';
 export const QUALITY_CARD_COMPLEXITY_CAPTION = 'Functions with cognitive complexity of 30 or more';
 export const QUALITY_CARD_UNUSED = 'Unused-export findings';
