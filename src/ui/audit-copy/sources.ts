@@ -43,8 +43,6 @@ export const SOURCES_PROVIDER: Readonly<Record<string, { title: string; descript
   secrets: { title: 'Secret scanning', description: 'No secret-scanning provider is connected. Unknown, not zero.' },
   runtime: { title: 'Runtime and mutation', description: 'Runtime traces and mutation results have not been collected. Unknown, not passing.' },
 };
-export const SOURCES_PLANNED_TITLE = 'Planned integrations';
-export const SOURCES_PLANNED = 'Running an already-installed fallow from here comes in a later version, and only on your explicit request. Nothing is ever installed.';
 /** Part 5 V28: the provider's route buttons form a group named after the provider, and
  *  each button's name contains its visible screen title (WCAG 2.5.3). */
 export const SOURCES_USED_BY_GROUP = (provider: string): string => `${provider} is used by`;

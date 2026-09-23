@@ -1,12 +1,14 @@
 <script setup lang="ts">
 // Part 6 Y38 (S14): Connect fallow.
 // - Step 1 picks a report through this component's own hidden file input. That is the only
-//   file read. The input sits beside CiDialog's panel, not in it, because CiDialog's focus
+//   report read. The input sits beside CiDialog's panel, not in it, because CiDialog's focus
 //   selector includes `input:not([disabled])`: inside the panel it would break the Tab trap.
 // - Step 2 reviews how the report matches the snapshot on screen, then attaches it through
 //   the evidence store.
-// Nothing is run or installed. A failure never touches the attached evidence (Y31), and
-// report text is only ever interpolated (E34).
+// - Part 7 Z29: step 1 also offers "Run installed fallow" (FallowInstalledRoute.vue, in this
+//   same dialog and under its busy action); nothing runs before its "Trust and run".
+// Nothing is installed. A failure never touches the attached evidence (Y31), and report
+// text is only ever interpolated (E34).
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from 'vue';
 import { formatAbsoluteTime } from '../../copy';
 import { readFallowReportFile, reviewFallowCandidate, type FallowCandidate } from '../../read-models/fallow-candidate';
@@ -16,19 +18,29 @@ import { useEvidenceStore } from '../../stores/evidence-store';
 import { useUniqueId } from '../../unique-id';
 import {
   FALLOW_ATTACH, FALLOW_ATTACH_REFUSED, FALLOW_ATTACHED, FALLOW_CANCEL, FALLOW_CHOOSE, FALLOW_DIALOG_EYEBROW,
-  FALLOW_DIALOG_INTRO, FALLOW_DIALOG_TITLE, FALLOW_DISCLOSURE, FALLOW_IMPORT_ERROR, FALLOW_MAPPING_OFFER,
-  FALLOW_REPLACE_NOTE, FALLOW_REVIEW_TITLE, FALLOW_SNAPSHOT_FILES,
+  FALLOW_DIALOG_INTRO, FALLOW_DIALOG_TITLE, FALLOW_DISCLOSURE, FALLOW_IMPORT_ERROR, FALLOW_INSTALL_NOTE, FALLOW_MAPPING_OFFER,
+  FALLOW_REPLACE_NOTE, FALLOW_REVIEW_TITLE, FALLOW_ROUTE_IMPORT_TEXT, FALLOW_ROUTE_IMPORT_TITLE, FALLOW_ROUTE_RUN_ACTION,
+  FALLOW_ROUTE_RUN_TEXT, FALLOW_ROUTE_RUN_TITLE, FALLOW_SNAPSHOT_FILES,
 } from '../../inspector-copy';
 import CiDialog from '../../kit/Dialog.vue';
 import { reannounce } from '../../kit/reannounce';
 import { useBusyAction } from '../../kit/use-busy-action';
 import FallowReportFacts from './FallowReportFacts.vue';
+import FallowInstalledRoute from './FallowInstalledRoute.vue';
+import type { InstalledRouteStart } from '../../read-models/fallow-run';
 
+/** Part 7 Z29: which route opens first; the installed route's own starting point. */
+const props = withDefaults(defineProps<{ initialRoute?: 'choose' | 'installed'; installed?: InstalledRouteStart }>(), { initialRoute: 'choose', installed: undefined });
 const emit = defineEmits<{ close: []; done: [message: string] }>();
+const route = ref<'choose' | 'installed'>(props.initialRoute);
 const city = useCityStore();
 const evidence = useEvidenceStore();
 const { files } = useReadModels();
-const { busy, error, requestClose: requestCloseWith, run } = useBusyAction();
+/** K32: one busy action for both routes, so Cancel/Escape/backdrop stay ignored mid-step. */
+const action = useBusyAction();
+const { busy, error, requestClose: requestCloseWith, run } = action;
+const importHeadingId = useUniqueId('ci-connect-fallow-import');
+const runHeadingId = useUniqueId('ci-connect-fallow-run');
 const mappingId = useUniqueId('ci-connect-fallow-mapping');
 /** Part 4 E8/E11: the codebase this dialog was opened for. Every async step checks it again. */
 const repositoryId = city.snapshot?.repositoryId ?? '';
@@ -63,6 +75,17 @@ function requestClose(): void {
 function choose(): void {
   if (busy.value) return;
   fileInput.value?.click();
+}
+
+/** Part 7 Z29: the installed-analyzer route, inside this same dialog. */
+function useInstalled(): void {
+  if (busy.value) return;
+  clearError();
+  route.value = 'installed';
+}
+/** PF13: the installed route never writes to this dialog's action; it asks for the clear. */
+function clearError(): void {
+  error.value = '';
 }
 
 /** One outcome per pick.
@@ -127,20 +150,62 @@ function attach(): void {
     @close="requestClose"
   >
     <div class="ci-connect-fallow">
-      <template v-if="!review">
+      <FallowInstalledRoute
+        v-if="route === 'installed'"
+        :start="installed"
+        :action="action"
+        @close="requestClose"
+        @started="emit('done', '')"
+        @clear-error="clearError"
+      />
+      <template v-else-if="!review">
         <p class="ci-connect-fallow__eyebrow">
           {{ FALLOW_DIALOG_EYEBROW }}
         </p>
         <h3>{{ FALLOW_DIALOG_TITLE }}</h3>
         <p>{{ FALLOW_DIALOG_INTRO }}</p>
-        <p class="ci-connect-fallow__disclosure">
-          {{ FALLOW_DISCLOSURE }}
-        </p>
         <p class="ci-note">
           {{ FALLOW_SNAPSHOT_FILES(files.length) }}
         </p>
+        <section
+          class="ci-connect-fallow__route"
+          :aria-labelledby="importHeadingId"
+        >
+          <h4 :id="importHeadingId">
+            {{ FALLOW_ROUTE_IMPORT_TITLE }}
+          </h4>
+          <p>{{ FALLOW_ROUTE_IMPORT_TEXT }}</p>
+          <button
+            type="button"
+            class="mod-cta ci-connect-fallow__choose"
+            :aria-disabled="busy ? 'true' : undefined"
+            @click="choose"
+          >
+            {{ FALLOW_CHOOSE }}
+          </button>
+        </section>
+        <section
+          class="ci-connect-fallow__route"
+          :aria-labelledby="runHeadingId"
+        >
+          <h4 :id="runHeadingId">
+            {{ FALLOW_ROUTE_RUN_TITLE }}
+          </h4>
+          <p>{{ FALLOW_ROUTE_RUN_TEXT }}</p>
+          <button
+            type="button"
+            class="ci-connect-fallow__use-installed"
+            :aria-disabled="busy ? 'true' : undefined"
+            @click="useInstalled"
+          >
+            {{ FALLOW_ROUTE_RUN_ACTION }}
+          </button>
+        </section>
+        <p class="ci-connect-fallow__disclosure">
+          {{ FALLOW_DISCLOSURE }} {{ FALLOW_INSTALL_NOTE }}
+        </p>
       </template>
-      <template v-else>
+      <template v-else-if="review">
         <h3
           ref="reviewHeading"
           tabindex="-1"
@@ -179,7 +244,10 @@ function attach(): void {
       >
         {{ error }}
       </p>
-      <div class="ci-connect-fallow__actions">
+      <div
+        v-if="route !== 'installed'"
+        class="ci-connect-fallow__actions"
+      >
         <button
           type="button"
           class="ci-connect-fallow__cancel"
@@ -189,16 +257,7 @@ function attach(): void {
           {{ FALLOW_CANCEL }}
         </button>
         <button
-          v-if="!review"
-          type="button"
-          class="mod-cta ci-connect-fallow__choose"
-          :aria-disabled="busy ? 'true' : undefined"
-          @click="choose"
-        >
-          {{ FALLOW_CHOOSE }}
-        </button>
-        <button
-          v-else
+          v-if="review"
           type="button"
           class="mod-cta ci-connect-fallow__attach"
           :aria-disabled="busy ? 'true' : undefined"

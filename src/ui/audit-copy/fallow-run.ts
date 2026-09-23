@@ -43,6 +43,8 @@ export function FALLOW_EXE_REFUSED_TEXT(encoded: string): string {
   const text = Object.prototype.hasOwnProperty.call(FALLOW_EXE_REFUSED, refusal) ? FALLOW_EXE_REFUSED[refusal as ExecutableRefusal] : undefined;
   return (text ?? FALLOW_EXE_REFUSED['not-native'])(detail);
 }
+/** PF17(b): a check or a start that threw without a file-system error code. */
+export const FALLOW_EXE_CHECK_FAILED = 'Could not read that file’s details.';
 
 /* The installed route: the review (Z31). */
 export const FALLOW_REVIEW_TITLE_RUN = 'Review what will run';
@@ -95,6 +97,9 @@ export const FALLOW_EXE_INVALID = 'This codebase’s executable setting could no
 export const FALLOW_EXE_UNSUPPORTED = 'This codebase’s executable setting was saved by a newer version of the plugin. It is kept unchanged and cannot be used here.';
 export const FALLOW_RUN_HINT = 'Open a codebase first: fallow runs on the folder of the codebase on screen.';
 export const FALLOW_RUN_BUSY_HINT = 'Wait for the fallow analysis to finish, or cancel it.';
+/** A Run or a Forget whose data-file read or write threw (the store rejects, Task 9). */
+export const FALLOW_RUN_START_FAILED = 'The fallow analysis could not be started: the plugin’s data file could not be read. Nothing was run; current findings are unchanged.';
+export const FALLOW_EXE_FORGET_FAILED = 'The fallow executable could not be forgotten: the plugin’s data file could not be updated. Try again.';
 
 /* The run banner (Z33). K26: "current findings stay" is said only when there are some. */
 export const FALLOW_RUN_PROBING = (hasEvidence: boolean): string =>

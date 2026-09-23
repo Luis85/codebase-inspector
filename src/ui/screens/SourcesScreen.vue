@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, watch } from 'vue';
+import { computed, inject, nextTick, ref, shallowRef, watch } from 'vue';
 import type { RouteId } from '../../domain/route-ids';
 import { buildSourcesModel } from '../read-models/sources';
 import { useReadModels } from '../read-models/use-read-models';
+import type { InstalledRouteStart } from '../read-models/fallow-run';
 import { useCityStore } from '../stores/city-store';
 import { useEvidenceStore } from '../stores/evidence-store';
 import { useRunStore } from '../stores/run-store';
+import { useAnalysisStore } from '../stores/analysis-store';
 import {
   FALLOW_REMOVE, FALLOW_REMOVE_CANCEL, FALLOW_REMOVE_TEXT, FALLOW_REMOVE_TITLE, FALLOW_REMOVED, SOURCES_CALLOUT,
-  SOURCES_CALLOUT_TITLE, SOURCES_CHANGE, SOURCES_EYEBROW, SOURCES_PLANNED, SOURCES_PLANNED_TITLE, SOURCES_RESCAN,
-  SOURCES_SUBTITLE, SOURCES_TITLE,
+  SOURCES_CALLOUT_TITLE, SOURCES_CHANGE, SOURCES_EYEBROW, SOURCES_RESCAN, SOURCES_SUBTITLE, SOURCES_TITLE,
 } from '../inspector-copy';
 import PageHeader from '../kit/PageHeader.vue';
-import Panel from '../kit/Panel.vue';
 import Callout from '../kit/Callout.vue';
 import CiDialog from '../kit/Dialog.vue';
 import Icon from '../kit/Icon.vue';
@@ -23,6 +23,7 @@ import ScanStatusPanel from './sources/ScanStatusPanel.vue';
 import ProviderGrid from './sources/ProviderGrid.vue';
 import FallowCardDetails from './sources/FallowCardDetails.vue';
 import ConnectFallowDialog from './sources/ConnectFallowDialog.vue';
+import { useFallowRun } from './sources/use-fallow-run';
 
 const store = useCityStore();
 const runStore = useRunStore();
@@ -39,6 +40,13 @@ const liveMessage = ref('');
 /** Part 6 Y38 / Y31: the S14 dialog and the Remove confirmation. */
 const connecting = ref(false);
 const removing = ref(false);
+/** Part 7 Z29/Z32: the dialog's first route, and the installed route's starting point. Each
+ *  opening gets a new key, so a request that lands while the dialog is open (the command)
+ *  replaces it with the newer request's route instead of being lost (as M3's rule). */
+const connectRoute = ref<'choose' | 'installed'>('choose');
+const installedStart = shallowRef<InstalledRouteStart | undefined>(undefined);
+const connectKey = ref(0);
+const analysisStore = useAnalysisStore();
 
 const model = computed(() => buildSourcesModel(store.snapshot, runStore.run, {
   state: evidence.value.state, version: evidence.value.report?.providerVersion ?? null,
@@ -58,8 +66,28 @@ async function openRequested(): Promise<void> {
  *  confirmation (removing nothing), then S14 opens. */
 function startConnect(): void {
   removing.value = false;
+  connectRoute.value = 'choose';
+  installedStart.value = undefined;
+  connectKey.value += 1;
   connecting.value = true;
 }
+/** Part 7 Z32/Z35: the installed route, at its path step or its review. */
+function openInstalled(start: InstalledRouteStart): void {
+  removing.value = false;
+  connectRoute.value = 'installed';
+  installedStart.value = start;
+  connectKey.value += 1;
+  connecting.value = true;
+}
+const { refusal: runRefusal, failure: runFailure, run: runAnalysis, cancel: cancelAnalysis, forget: forgetExecutable } =
+  useFallowRun(openInstalled, (message) => { void reannounce(liveMessage, message); }, () => evidence.value.report !== null);
+function chooseExecutable(): void {
+  if (store.snapshot && !analysisStore.active) openInstalled({ startAt: 'path' });
+}
+/** Z35: the `run-fallow-analysis` command lands here with a request, consumed once. */
+watch(() => analysisStore.runRequested, (requested) => {
+  if (requested && analysisStore.consumeRunRequest()) void nextTick().then(runAnalysis);
+}, { immediate: true });
 watch(() => evidenceStore.importRequested, (requested) => {
   if (requested && evidenceStore.consumeImportRequest()) void openRequested();
 }, { immediate: true });
@@ -104,7 +132,8 @@ async function closeConnect(): Promise<void> {
 /** Y38: the dialog closes, then this screen announces the real outcome (E17). */
 function attached(message: string): void {
   void closeConnect();
-  void reannounce(liveMessage, message);
+  // Part 7 Z29: a started run announces nothing here; its end is announced once (use-fallow-run.ts).
+  if (message !== '') void reannounce(liveMessage, message);
 }
 /** Fix round 1 (M2): the codebase the Remove confirmation was opened for. */
 let removeFor = '';
@@ -175,18 +204,22 @@ function confirmRemove(): void {
         <FallowCardDetails
           :index="evidence"
           :has-snapshot="store.snapshot !== null"
+          :refusal="runRefusal"
+          :failure="runFailure"
           @import="openConnect"
           @remove="openRemove"
+          @run="runAnalysis"
+          @cancel="cancelAnalysis"
+          @choose="chooseExecutable"
+          @forget="forgetExecutable"
         />
       </template>
     </ProviderGrid>
-    <Panel :title="SOURCES_PLANNED_TITLE">
-      <p class="ci-note">
-        {{ SOURCES_PLANNED }}
-      </p>
-    </Panel>
     <ConnectFallowDialog
       v-if="connecting"
+      :key="connectKey"
+      :initial-route="connectRoute"
+      :installed="installedStart"
       @close="closeConnect"
       @done="attached"
     />

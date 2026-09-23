@@ -82,3 +82,30 @@
 :where(.codebase-inspector-root) .ci-fallow-remove { display: grid; gap: var(--ci-space-3); padding: var(--ci-space-4); max-width: 32em; }
 :where(.codebase-inspector-root) .ci-fallow-remove h3,
 :where(.codebase-inspector-root) .ci-fallow-remove p { margin: 0; }
+/* Part 7 Z29–Z33: the installed route, the review, and the fallow card's run panel. */
+:where(.codebase-inspector-root) .ci-connect-fallow__route { display: grid; gap: var(--ci-space-2); padding: var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); }
+:where(.codebase-inspector-root) .ci-connect-fallow__route h4 { margin: 0; font-size: var(--font-ui-medium, 1em); }
+:where(.codebase-inspector-root) .ci-connect-fallow__route .mod-cta,
+:where(.codebase-inspector-root) .ci-connect-fallow__use-installed { justify-self: start; }
+:where(.codebase-inspector-root) .ci-fallow-installed { display: grid; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-fallow-installed h3 { margin: 0; }
+:where(.codebase-inspector-root) .ci-fallow-installed h3:focus { outline: none; }
+:where(.codebase-inspector-root) .ci-fallow-installed__path { width: 100%; font-family: var(--ci-font-mono); }
+:where(.codebase-inspector-root) .ci-fallow-installed__retrust { margin: 0; color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-fallow-review { display: grid; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-fallow-review__facts { display: grid; grid-template-columns: fit-content(40%) minmax(0, 1fr); gap: var(--ci-space-1) var(--ci-space-3); margin: 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-fallow-review__facts dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-fallow-review__facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-fallow-review__argv { margin: 0; padding-left: 1.4em; }
+:where(.codebase-inspector-root) .ci-fallow-review h4 { margin: 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-fallow-review__effects { margin: 0; padding-left: 1.2em; }
+:where(.codebase-inspector-root) .ci-fallow-review__inside { margin: 0; padding: var(--ci-space-2) var(--ci-space-3); border-left: 3px solid var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-fallow-run { display: grid; gap: var(--ci-space-2); align-self: stretch; }
+:where(.codebase-inspector-root) .ci-fallow-run p { margin: 0; }
+:where(.codebase-inspector-root) .ci-fallow-run__banner { display: grid; gap: var(--ci-space-1); padding: var(--ci-space-2); border-left: 3px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-fallow-run__banner--warning { border-left-color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-fallow-run__log pre { margin: 0; max-height: 12em; overflow: auto; white-space: pre-wrap; font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-fallow-run__facts { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-fallow-run__facts dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-fallow-run__facts dd { margin: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-fallow-run__actions { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); }
