@@ -144,6 +144,44 @@ describe('stopping a process (Z17, Z18)', () => {
     expect(s.kills).toEqual([[-4242, 'SIGKILL']]);
     await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
     expect(vi.getTimerCount()).toBe(0);
+    // Review fix 1: the killed child's late exit arms nothing after the run has settled.
+    s.child().exit(null, 'SIGKILL');
+    s.child().close(null, 'SIGKILL');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  // Review fix 2 (controller ruling): a child that never exits after SIGKILL cannot hold a run
+  // open forever; the run settles FALLOW_CLOSE_GRACE_MS after SIGKILL, 4 s after the stop.
+  it('a timed-out child that never exits still settles 4 s after the stop, as timed-out, leaving no timer', async () => {
+    const s = setup();
+    const done = s.runner.run({ ...REQUEST, timeoutMs: 1_000 }, s.token);
+    let settled = false;
+    void done.then(() => { settled = true; });
+    vi.advanceTimersByTime(1_000 + 2_000);
+    expect(s.kills).toEqual([[-4242, 'SIGTERM'], [-4242, 'SIGKILL']]);
+    vi.advanceTimersByTime(1_999);
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    vi.advanceTimersByTime(1);
+    await expect(done).resolves.toEqual({ kind: 'timed-out', stderrTail: '' });
+    expect([s.child().stdout.destroyed, s.child().stderr.destroyed]).toEqual([true, true]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('a cancelled child that never exits still settles 4 s after the cancel, as cancelled, on POSIX and on Windows', async () => {
+    for (const platform of ['linux', 'win32']) {
+      const s = setup(platform);
+      const done = s.runner.run(REQUEST, s.token);
+      let settled = false;
+      void done.then(() => { settled = true; });
+      s.cancel();
+      vi.advanceTimersByTime(3_999);
+      await Promise.resolve();
+      expect(settled, platform).toBe(false);
+      vi.advanceTimersByTime(1);
+      await expect(done, platform).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+      expect(vi.getTimerCount(), platform).toBe(0);
+    }
   });
 
   it('a process group that is already gone does not throw', async () => {

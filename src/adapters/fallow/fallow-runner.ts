@@ -6,7 +6,8 @@
 // - The time limit is absolute from spawn; output never postpones it.
 // - Cancel, the time limit and the cap all stop the same way: SIGTERM (the group on POSIX,
 //   kill() on Windows), then SIGKILL after the grace. A stopped run resolves on `exit`,
-//   after destroying the pipes, so a grandchild holding them cannot keep it open.
+//   after destroying the pipes, so a grandchild holding them cannot keep it open; if no
+//   `exit` comes, it resolves anyway one close grace after SIGKILL. No timer outlives a run.
 // - killAll (onunload) sends SIGKILL at once and resolves every run as cancelled.
 // - run() never rejects.
 import { childProcess, nodeProcess, type ChildProcessLike, type SpawnLike } from './node-process-access';
@@ -117,7 +118,13 @@ export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcess
           stopReason = reason;
           if (exited) { destroyPipes(); finish(stoppedOutcome()); return; }
           signal('SIGTERM');
-          after(FALLOW_KILL_GRACE_MS, () => { if (!exited) signal('SIGKILL'); });
+          after(FALLOW_KILL_GRACE_MS, () => {
+            if (exited) return;
+            signal('SIGKILL');
+            // The final deadline (review fix 2): a child that never reports its exit (stuck in
+            // uninterruptible I/O, a failed kill) cannot hold the run open forever.
+            after(FALLOW_CLOSE_GRACE_MS, () => { destroyPipes(); finish(stoppedOutcome()); });
+          });
         },
         shutdown() {
           if (settled) return;
@@ -147,6 +154,8 @@ export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcess
       });
       running.on('exit', () => {
         exited = true;
+        // Review fix 1: after killAll (or any settle) a late exit arms no timer.
+        if (settled) return;
         if (stopReason !== null) { destroyPipes(); finish(stoppedOutcome()); return; }
         after(FALLOW_CLOSE_GRACE_MS, () => { destroyPipes(); finish({ kind: 'output-incomplete', stderrTail: stderr.excerpt() }); });
       });
