@@ -279,6 +279,40 @@ describe('Connect fallow (Part 6 Y38, S14)', () => {
     w.unmount();
   });
 
+  it('keeps Tab and Shift+Tab inside the dialog from the review heading and through the unmatched summary (fix round 1)', async () => {
+    const snap = withSnapshot();
+    const w = mountS();
+    await openDialog(w);
+    await pick(w, syntheticFallowJson(snap, { unmatchedPaths: ['ghost/a.ts'] }));
+    const heading = w.find('.ci-connect-fallow h3');
+    const summary = w.find('.ci-fallow-facts__unmatched summary');
+    const attach = w.find('.ci-connect-fallow__attach');
+    expect(document.activeElement).toBe(heading.element);
+    await heading.trigger('keydown', { key: 'Tab', shiftKey: true });   // a focus target outside the Tab order
+    expect(document.activeElement).toBe(attach.element);
+    await attach.trigger('keydown', { key: 'Tab' });
+    expect(document.activeElement).toBe(summary.element);                // the summary is in the trap order
+    await summary.trigger('keydown', { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(attach.element);
+    w.unmount();
+  });
+
+  it('attaches against the snapshot on screen at Attach, so a same-codebase refresh after the read is not stale (fix round 1)', async () => {
+    const snap = withSnapshot();
+    const w = mountS();
+    await openDialog(w);
+    await pick(w, syntheticFallowJson(snap));
+    const refreshed: CodebaseSnapshot = { ...snap, snapshotId: 'snapshot-refreshed' };
+    useCityStore().setCity(refreshed, computeLayout(refreshed));   // the silent "Scan codebase" refresh
+    await flushPromises();
+    await w.find('.ci-connect-fallow__attach').trigger('click');
+    await flushPromises();
+    expect(useEvidenceStore().report?.snapshotId).toBe('snapshot-refreshed');
+    expect(w.find('.ci-provider--fallow .ci-provenance--stale').exists()).toBe(false);
+    expect(w.find('.ci-fallow-card__stale').exists()).toBe(false);
+    w.unmount();
+  });
+
   it('acceptance (4): a failed import leaves the attached evidence exactly as it was (Y31)', async () => {
     const snap = withSnapshot();
     const kept = attachSyntheticReport(snap);

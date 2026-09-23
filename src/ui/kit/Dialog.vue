@@ -6,7 +6,9 @@ const emit = defineEmits<{ close: [] }>();
 
 const panel = ref<HTMLElement | null>(null);
 let returnFocus: HTMLElement | null = null;
-const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
+/** Part 6 Task 10 fix round 1: `summary` is in the Tab order (a <details> toggle), so it is
+ *  in the trap too; otherwise Tab from the last control skipped it and Shift+Tab from it left. */
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select, textarea, summary, [tabindex]:not([tabindex="-1"])';
 
 function focusables(): HTMLElement[] {
   return panel.value ? [...panel.value.querySelectorAll<HTMLElement>(FOCUSABLE)] : [];
@@ -46,8 +48,11 @@ function onKeydown(event: KeyboardEvent): void {
   const first = items[0]; const last = items[items.length - 1];
   if (!first || !last) return;
   const active = panel.value?.ownerDocument.activeElement;
+  // An active element outside the list (a tabindex="-1" heading focused after a step
+  // change) counts as sitting before `first`: Shift+Tab from it wraps to `last`.
+  const listed = items.some((el) => el === active);
   if (!event.shiftKey && active === last) { event.preventDefault(); first.focus(); }
-  else if (event.shiftKey && active === first) { event.preventDefault(); last.focus(); }
+  else if (event.shiftKey && (active === first || !listed)) { event.preventDefault(); last.focus(); }
 }
 </script>
 

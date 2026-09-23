@@ -84,6 +84,7 @@ async function picked(): Promise<void> {
       await reannounce(error, FALLOW_IMPORT_ERROR[result.code](result.detail));
       return;
     }
+    // For the review only: Attach sets both again from the snapshot on screen then (M1).
     const next: FallowCandidate = {
       raw: result.report, fileName: file.name, importedAt: new Date().toISOString(), snapshotId: city.snapshot?.snapshotId ?? '',
     };
@@ -103,9 +104,14 @@ async function picked(): Promise<void> {
  *  it (E17). A refusal stays in the dialog's alert. E36: the codebase is checked once more
  *  immediately before `attach`; if it changed since the pick, nothing is applied. */
 function attach(): void {
-  const r = review.value;
-  if (busy.value || !r) return;
+  const c = candidate.value;
+  if (busy.value || !c || !review.value) return;
   if (!bound()) { drop(); return; }
+  // Fix round 1 (M1): the report belongs to the snapshot on screen NOW, the one the review
+  // resolved against, and is imported now. A silent same-codebase refresh after the read
+  // would otherwise make the report read Stale the moment it is attached.
+  const now = { ...c, snapshotId: city.snapshot?.snapshotId ?? '', importedAt: new Date().toISOString() };
+  const r = reviewFallowCandidate(now, snapshotPaths.value, mapped.value);
   if (evidence.attach(r.report)) emit('done', FALLOW_ATTACHED(r.matchedFindings, r.matchedFiles));
   else void reannounce(error, FALLOW_ATTACH_REFUSED);
 }

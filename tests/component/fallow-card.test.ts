@@ -18,7 +18,7 @@ import {
   FALLOW_ROW_REPORT, FALLOW_ROW_UNMATCHED, FALLOW_ROW_WARNINGS, FINDING_KIND_LABEL,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
-import { SYNTHETIC_VERSION, attachSyntheticReport } from '../fixtures/evidence-report';
+import { SYNTHETIC_VERSION, attachSyntheticReport, syntheticEvidenceReport } from '../fixtures/evidence-report';
 
 const mountS = () => mount(SourcesScreen, {
   attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn(), onScanRequested: vi.fn(), onCancelScan: vi.fn() } },
@@ -84,7 +84,7 @@ describe('the fallow card (Part 6 Y37)', () => {
   it('a dead-code report reads complexity and duplication as Not analysed, never zero (Y25)', () => {
     attachSyntheticReport(withSnapshot(), { kind: 'dead-code' });
     const w = mountS();
-    const lines = w.findAll('.ci-fallow-card .ci-fallow-facts dd:nth-of-type(4) li').map((li) => li.text());
+    const lines = w.findAll('.ci-fallow-card .ci-fallow-facts__categories li').map((li) => li.text());
     expect(lines).toEqual([
       FALLOW_CATEGORY_LINE(FINDING_KIND_LABEL.complexity, 'not-analysed'),
       FALLOW_CATEGORY_LINE(FINDING_KIND_LABEL.duplication, 'not-analysed'),
@@ -133,6 +133,29 @@ describe('the fallow card (Part 6 Y37)', () => {
     expect(useEvidenceStore().report).toBe(report);
     w.unmount();
   });
+
+  it('Remove confirmed after a codebase switch removes nothing, in either codebase (fix round 1, M2)', async () => {
+    const snapA = withSnapshot('repo-a');
+    const reportA = attachSyntheticReport(snapA);
+    const evidence = useEvidenceStore();
+    const snapB = buildSnapshotFixture({ files: 10, directories: 2, repositoryId: 'repo-b' });
+    evidence.bindRepository('repo-b');
+    const reportB = syntheticEvidenceReport(snapB);
+    evidence.attach(reportB);
+    evidence.bindRepository('repo-a');
+    const w = mountS();
+    await w.find('.ci-fallow-card__remove').trigger('click');
+    const confirm = w.find('.ci-fallow-remove__confirm');
+    withSnapshot('repo-b');
+    await confirm.trigger('click');   // dispatched before the switch watcher closes the confirmation
+    await flushPromises();
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+    expect(evidence.report).toBe(reportB);
+    expect(w.find('.ci-sources__live').text()).toBe('');
+    withSnapshot('repo-a');
+    expect(evidence.report).toBe(reportA);
+    w.unmount();
+  });
 });
 
 describe('the import request (Part 6 Y39)', () => {
@@ -152,6 +175,20 @@ describe('the import request (Part 6 Y39)', () => {
     await flushPromises();
     expect(w.find('.ci-connect-fallow').exists()).toBe(true);
     expect(evidence.importRequested).toBe(false);
+    w.unmount();
+  });
+
+  it('a request while the Remove confirmation is open closes it first: the dialogs never stack (fix round 1, M3)', async () => {
+    const report = attachSyntheticReport(withSnapshot());
+    const w = mountS();
+    await w.find('.ci-fallow-card__remove').trigger('click');
+    expect(w.find('.ci-fallow-remove').exists()).toBe(true);
+    useEvidenceStore().requestImport();
+    await flushPromises();
+    expect(w.findAll('[role="dialog"]')).toHaveLength(1);
+    expect(w.find('.ci-fallow-remove').exists()).toBe(false);
+    expect(w.find('.ci-connect-fallow').exists()).toBe(true);
+    expect(useEvidenceStore().report).toBe(report);
     w.unmount();
   });
 

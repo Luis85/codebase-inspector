@@ -51,7 +51,13 @@ const inFlight = computed(() => runStore.run.status === 'running' || runStore.ru
  *  is nothing to match a report against, so nothing opens. */
 async function openRequested(): Promise<void> {
   await nextTick();
-  if (store.snapshot) connecting.value = true;
+  if (store.snapshot) startConnect();
+}
+/** Fix round 1 (M3): the dialogs never stack. The newer request wins and closes the Remove
+ *  confirmation (removing nothing), then S14 opens. */
+function startConnect(): void {
+  removing.value = false;
+  connecting.value = true;
 }
 watch(() => evidenceStore.importRequested, (requested) => {
   if (requested && evidenceStore.consumeImportRequest()) void openRequested();
@@ -82,7 +88,7 @@ function open(route: RouteId): void {
   store.navigate(route);
 }
 function openConnect(): void {
-  if (store.snapshot) connecting.value = true;
+  if (store.snapshot) startConnect();
 }
 /** CiDialog returns focus to its opener. A dialog opened by a request from another screen
  *  has no opener here, so focus lands on the card's Import button, never on <body>. */
@@ -99,9 +105,17 @@ function attached(message: string): void {
   void closeConnect();
   void reannounce(liveMessage, message);
 }
-/** Y31: only a removal that happened is announced (E17). */
+/** Fix round 1 (M2): the codebase the Remove confirmation was opened for. */
+let removeFor = '';
+function openRemove(): void {
+  removeFor = evidenceStore.repositoryId;
+  removing.value = true;
+}
+/** Y31: only a removal that happened is announced (E17). M2: a confirmation that outlived a
+ *  codebase switch (the click can land before the switch watcher runs) removes nothing. */
 function confirmRemove(): void {
   removing.value = false;
+  if (removeFor === '' || evidenceStore.repositoryId !== removeFor || store.snapshot?.repositoryId !== removeFor) return;
   if (evidenceStore.remove()) void reannounce(liveMessage, FALLOW_REMOVED);
 }
 </script>
@@ -161,7 +175,7 @@ function confirmRemove(): void {
           :index="evidence"
           :has-snapshot="store.snapshot !== null"
           @import="openConnect"
-          @remove="removing = true"
+          @remove="openRemove"
         />
       </template>
     </ProviderGrid>

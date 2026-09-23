@@ -34,7 +34,7 @@ const notShown = computed(() => props.report.normalized.notShown.map((s) => FALL
       <dd>{{ importedAt }}</dd>
     </template>
     <dt>{{ FALLOW_ROW_CATEGORIES }}</dt>
-    <dd>
+    <dd class="ci-fallow-facts__categories">
       <ul class="ci-fallow-facts__list">
         <li
           v-for="line in categories"
