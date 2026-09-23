@@ -18,15 +18,14 @@ const configDir = process.env.CODEBASE_INSPECTOR_TEST_VAULT_CONFIG_DIR || '.obsi
 // they always copy the real dist/.
 const distSource = process.env.CODEBASE_INSPECTOR_TEST_DIST_SOURCE || join(repoRoot, 'dist');
 const die = (msg) => { console.error(`install-to-vault: ${msg}`); process.exit(1); };
+const isFolder = (path) => existsSync(path) && statSync(path).isDirectory();
 
 if (!vault) die('CODEBASE_INSPECTOR_TEST_VAULT is unset. Copy .env.example to .env and set it.');
 
 const vaultPath = resolve(vault);
-if (!existsSync(join(vaultPath, configDir)) || !statSync(join(vaultPath, configDir)).isDirectory()) {
-  die(`${vaultPath} is not a vault — no ${configDir}/ directory.`);
-}
 
-// Containment: path.relative sign check, never a string prefix test.
+// Containment first, before anything is created: path.relative sign check, never a
+// string prefix test.
 const rel = relative(repoRoot, vaultPath);
 if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) {
   die('Refusing to install: the target resolves inside this repository.');
@@ -36,7 +35,20 @@ if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) {
 const manifest = JSON.parse(readFileSync(join(repoRoot, 'manifest.json'), 'utf8'));
 if (manifest.id !== 'codebase-inspector') die(`manifest id is "${manifest.id}", expected "codebase-inspector".`);
 
-const dest = join(vaultPath, configDir, 'plugins', manifest.id);
+// Nothing is created until there is something to install.
+if (!isFolder(distSource)) die(`nothing to install: ${distSource} does not exist. Run \`npm run build\` first.`);
+
+// A usable vault: the vault folder, its config directory and the plugin folder are
+// created when missing, so a fresh path works first time. A FILE in any of those
+// places is refused rather than replaced.
+const configPath = join(vaultPath, configDir);
+const dest = join(configPath, 'plugins', manifest.id);
+for (const path of [vaultPath, configPath, dest]) {
+  if (existsSync(path) && !isFolder(path)) die(`${path} exists but is not a folder.`);
+}
+for (const path of [vaultPath, configPath]) {
+  if (!existsSync(path)) console.log(`install-to-vault: created ${path}`);
+}
 mkdirSync(dest, { recursive: true });
 cpSync(distSource, dest, { recursive: true });
 // The hot-reload plugin ignores folders lacking .git or .hotreload.
