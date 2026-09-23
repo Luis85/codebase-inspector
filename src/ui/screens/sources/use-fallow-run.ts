@@ -1,8 +1,9 @@
 // Part 7 Z32/Z33/Z35: the run controls behind the fallow card AND the "Run fallow analysis"
 // command, in one place, so both behave the same. A start goes through the analysis store;
 // `review` and `choose-executable` open the installed route; a refusal is held for the banner
-// and announced. Each finished run (completed, cancelled, failed) is announced ONCE (E17),
-// and a run that had already finished when the screen opened or the codebase changed is not.
+// and announced. A run's end is NOT announced here: the card's banner (role="status", C16)
+// is its one announcement (Z33, E17; review ruling). Its element stays mounted from probing
+// to the end, so the ending is a text change the screen reader reads once.
 // - PF15: the refusal belongs to the attempt it answered; a new run id clears it.
 // - The store rejects on a data.json read or write failure (Task 9). Run and Forget catch it
 //   through a busy action, which also ignores a second press while one is pending; the
@@ -12,7 +13,7 @@ import { ref, watch, type Ref } from 'vue';
 import { useCityStore } from '../../stores/city-store';
 import { useAnalysisStore } from '../../stores/analysis-store';
 import { useBusyAction } from '../../kit/use-busy-action';
-import { fallowRunBannerOf, type AnalysisRunState, type FallowRunErrorCode, type InstalledRouteStart } from '../../read-models/fallow-run';
+import type { AnalysisRunState, FallowRunErrorCode, InstalledRouteStart } from '../../read-models/fallow-run';
 import { FALLOW_EXE_FORGET_FAILED, FALLOW_EXE_FORGOTTEN, FALLOW_RUN_ERROR, FALLOW_RUN_START_FAILED } from '../../inspector-copy';
 
 export type FallowRunRefusal = { code: FallowRunErrorCode; detail: string };
@@ -30,18 +31,13 @@ function runIdOf(state: AnalysisRunState): string {
   if ('runId' in state) return state.runId;
   return 'identity' in state ? state.identity.runId : '';
 }
-const isFinished = (state: AnalysisRunState): boolean =>
-  state.status === 'completed' || state.status === 'cancelled' || state.status === 'failed';
-/** A run that had finished before the screen opened (or the codebase changed) is not announced. */
-const finishedIdOf = (state: AnalysisRunState): string => (isFinished(state) ? runIdOf(state) : '');
 
-export function useFallowRun(open: (start: InstalledRouteStart) => void, announce: (message: string) => void, hasEvidence: () => boolean): FallowRunControls {
+export function useFallowRun(open: (start: InstalledRouteStart) => void, announce: (message: string) => void): FallowRunControls {
   const city = useCityStore();
   const analysis = useAnalysisStore();
   const refusal = ref<FallowRunRefusal | null>(null);
   const { busy, error: failure, run: guarded } = useBusyAction();
   let seen = runIdOf(analysis.run);
-  let announced = finishedIdOf(analysis.run);
   const clear = (): void => {
     refusal.value = null;
     failure.value = '';
@@ -50,15 +46,10 @@ export function useFallowRun(open: (start: InstalledRouteStart) => void, announc
   watch(() => analysis.repositoryId, () => {
     clear();
     seen = runIdOf(analysis.run);
-    announced = finishedIdOf(analysis.run);
   });
   watch(() => analysis.run, (state) => {
     const id = runIdOf(state);
     if (id !== '' && id !== seen) { seen = id; clear(); }
-    if (!isFinished(state) || id === announced) return;
-    announced = id;
-    const banner = fallowRunBannerOf(state, hasEvidence());
-    if (banner) announce(banner.reason === null ? banner.text : `${banner.text} ${banner.reason}`);
   });
 
   /** The failure, if any, is announced only while the codebase it concerns is still bound. */

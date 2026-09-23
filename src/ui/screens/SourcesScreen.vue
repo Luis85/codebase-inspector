@@ -80,7 +80,7 @@ function openInstalled(start: InstalledRouteStart): void {
   connecting.value = true;
 }
 const { refusal: runRefusal, failure: runFailure, run: runAnalysis, cancel: cancelAnalysis, forget: forgetExecutable } =
-  useFallowRun(openInstalled, (message) => { void reannounce(liveMessage, message); }, () => evidence.value.report !== null);
+  useFallowRun(openInstalled, (message) => { void reannounce(liveMessage, message); });
 function chooseExecutable(): void {
   if (store.snapshot && !analysisStore.active) openInstalled({ startAt: 'path' });
 }

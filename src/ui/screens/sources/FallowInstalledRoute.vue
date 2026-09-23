@@ -17,9 +17,9 @@ import type { BusyAction } from '../../kit/use-busy-action';
 import { reannounce } from '../../kit/reannounce';
 import type { InstalledRouteStart, ReviewResult, RunReview } from '../../read-models/fallow-run';
 import {
-  FALLOW_CANCEL, FALLOW_CHANGE_PATH, FALLOW_EXE_CHECK, FALLOW_EXE_CHECK_FAILED, FALLOW_EXE_HINT_POSIX, FALLOW_EXE_HINT_WINDOWS,
-  FALLOW_EXE_LABEL, FALLOW_EXE_REFUSED, FALLOW_INSTALL_NOTE, FALLOW_REVIEW_RETRUST, FALLOW_REVIEW_TITLE_RUN, FALLOW_ROUTE_RUN_TITLE,
-  FALLOW_RUN_BUSY_HINT, FALLOW_RUN_ERROR, FALLOW_TRUST_AND_RUN,
+  FALLOW_CANCEL, FALLOW_CHANGE_PATH, FALLOW_EXE_CHECK, FALLOW_EXE_HINT_POSIX, FALLOW_EXE_HINT_WINDOWS, FALLOW_EXE_LABEL,
+  FALLOW_EXE_REFUSED, FALLOW_INSTALL_NOTE, FALLOW_REVIEW_RETRUST, FALLOW_REVIEW_TITLE_RUN, FALLOW_ROUTE_RUN_TITLE,
+  FALLOW_RUN_BUSY_HINT, FALLOW_RUN_ERROR, FALLOW_RUN_START_FAILED, FALLOW_TRUST_AND_RUN,
 } from '../../inspector-copy';
 import FallowRunReview from './FallowRunReview.vue';
 
@@ -51,11 +51,6 @@ const refuse = (message: string): Promise<void> => reannounce(props.action.error
 function refusalText(result: Extract<ReviewResult, { ok: false }>): string {
   return result.code === 'executable-missing' ? FALLOW_EXE_REFUSED['executable-missing']('') : FALLOW_RUN_ERROR[result.code](result.detail);
 }
-/** PF17(b): a file-system error keeps its code; anything else (a data.json failure) reads generically. */
-function thrownText(e: unknown): string {
-  const code = typeof e === 'object' && e !== null && 'code' in e ? e.code : null;
-  return typeof code === 'string' && /^E[A-Z0-9]+$/.test(code) ? FALLOW_EXE_REFUSED.unreadable(code) : FALLOW_EXE_CHECK_FAILED;
-}
 async function focusOn(target: 'heading' | 'input'): Promise<void> {
   await nextTick();
   if (!disposed) (target === 'heading' ? heading.value : input.value)?.focus();
@@ -73,8 +68,11 @@ function toPathStep(): void {
   void focusOn('input');
 }
 
-/** One step under the dialog's busy action. A rejection (the store's data.json I/O) lands in
- *  the alert, never escapes; a codebase switch closes the route after the step settles. */
+/** One step under the dialog's busy action; a codebase switch closes the route after it settles.
+ *  A rejection lands in the alert and never escapes. Inspection never rejects (every stat or
+ *  read error comes back as a refusal, shown as FALLOW_EXE_REFUSED, `unreadable` with its
+ *  code included), so a rejection here is the store's data.json read or write: the file is
+ *  not blamed, and the start-failure text says nothing ran (PF17b as amended in review). */
 async function busyStep(body: () => Promise<void>): Promise<void> {
   if (props.action.busy.value) return;
   if (!bound()) { drop(); return; }
@@ -82,11 +80,11 @@ async function busyStep(body: () => Promise<void>): Promise<void> {
   await props.action.run(async () => {
     try {
       await body();
-    } catch (e) {
-      if (bound()) { await refuse(thrownText(e)); return; }
+    } catch {
+      if (bound()) { await refuse(FALLOW_RUN_START_FAILED); return; }
     }
     switched = !bound();
-  }, FALLOW_EXE_CHECK_FAILED);
+  }, FALLOW_RUN_START_FAILED);
   if (switched) drop();
 }
 

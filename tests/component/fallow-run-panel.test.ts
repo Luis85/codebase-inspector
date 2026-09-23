@@ -13,8 +13,9 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
 import {
-  COPY_15, FALLOW_EXE_CHANGE, FALLOW_EXE_CHOOSE, FALLOW_EXE_FORGET_FAILED, FALLOW_EXE_NONE, FALLOW_RUN_BUSY_HINT, FALLOW_RUN_CANCELLED,
-  FALLOW_RUN_COMPLETED, FALLOW_RUN_ERROR, FALLOW_RUN_HINT, FALLOW_RUN_KEPT, FALLOW_RUN_START_FAILED, FALLOW_TRUST_VALUE,
+  COPY_15, FALLOW_EXE_CHANGE, FALLOW_EXE_CHOOSE, FALLOW_EXE_FORGET_FAILED, FALLOW_EXE_NONE, FALLOW_RUN_ACTION, FALLOW_RUN_BUSY_HINT,
+  FALLOW_RUN_CANCEL, FALLOW_RUN_CANCELLED, FALLOW_RUN_COMPLETED, FALLOW_RUN_ERROR, FALLOW_RUN_HINT, FALLOW_RUN_KEPT, FALLOW_RUN_START_FAILED,
+  FALLOW_TRUST_VALUE,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { attachSyntheticReport } from '../fixtures/evidence-report';
@@ -200,31 +201,58 @@ describe('Run and the command request (Z32, Z35)', () => {
   });
 });
 
-describe('announcements (Z33, E17)', () => {
-  it('announces a finished run once per run id, and not a run that had finished before the screen opened', async () => {
+describe('announcements (Z33, E17): a run ending is announced once, by the banner', () => {
+  it('the banner (role="status") is the one announcement of each ending; the screen\'s live region says nothing', async () => {
     const fake = setup();
-    fake.setState('p1', { status: 'cancelled', runId: 'r0' });
+    fake.setState('p1', RUNNING);
     const w = mountS();
     await flushPromises();
-    expect(w.find('.ci-sources__live').text()).toBe('');
-    fake.setState('p1', RUNNING);
+    const banner = w.find('.ci-fallow-run__banner').element;
     fake.setState('p1', { status: 'completed', runId: 'r1', finishedAt: AT, version: '3.27.0', tested: true, matchedFindings: 5, matchedFiles: 4 });
     await flushPromises();
-    expect(w.find('.ci-sources__live').text()).toBe(FALLOW_RUN_COMPLETED(5, 4));
+    // The same live element changes its text: the screen reader reads it once.
+    expect(w.find('.ci-fallow-run__banner').element).toBe(banner);
+    expect(w.find('[role="status"].ci-fallow-run__banner').text()).toBe(FALLOW_RUN_COMPLETED(5, 4));
+    expect(w.find('.ci-sources__live').text()).toBe('');
     fake.setState('p1', { status: 'cancelled', runId: 'r2' });
     await flushPromises();
-    expect(w.find('.ci-sources__live').text()).toBe(FALLOW_RUN_CANCELLED);
+    expect(w.find('.ci-fallow-run__banner').element).toBe(banner);
+    expect(w.find('.ci-fallow-run__banner').text()).toBe(FALLOW_RUN_CANCELLED);
+    expect(w.find('.ci-sources__live').text()).toBe('');
     w.unmount();
   });
+});
 
-  it('announces the end of a run that was already in flight when the screen opened', async () => {
+describe('Run and Cancel keep the focus (E40)', () => {
+  it('one button: focus stays on it as the run starts, goes to cancelling, and ends', async () => {
     const fake = setup();
-    fake.setState('p1', RUNNING);
     const w = mountS();
     await flushPromises();
-    fake.setState('p1', { status: 'completed', runId: 'r1', finishedAt: AT, version: '3.27.0', tested: true, matchedFindings: 5, matchedFiles: 4 });
+    const button = w.find('.ci-fallow-run__run').element as HTMLButtonElement;
+    button.focus();
+    await w.find('.ci-fallow-run__run').trigger('click');
     await flushPromises();
-    expect(w.find('.ci-sources__live').text()).toBe(FALLOW_RUN_COMPLETED(5, 4));
+    fake.setState('p1', RUNNING);
+    await flushPromises();
+    expect(document.activeElement).toBe(button);
+    expect(button.className).toBe('ci-fallow-run__cancel');
+    expect(button.textContent?.trim()).toBe(FALLOW_RUN_CANCEL);
+    fake.setState('p1', { status: 'cancelling', identity: ID });
+    await flushPromises();
+    expect(document.activeElement).toBe(button);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(w.find(`#${button.getAttribute('aria-describedby') ?? 'missing'}`).text()).toBe(FALLOW_RUN_BUSY_HINT);
+    await w.find('.ci-fallow-run__cancel').trigger('click');
+    expect(fake.calls.filter((c) => c.method === 'cancel')).toHaveLength(0);
+    fake.setState('p1', { status: 'cancelled', runId: 'r1' });
+    await flushPromises();
+    expect(document.activeElement).toBe(button);
+    expect(button.classList.contains('ci-fallow-run__run')).toBe(true);
+    expect(button.textContent?.trim()).toBe(FALLOW_RUN_ACTION);
+    fake.setState('p1', { ...RUNNING, identity: { ...ID, runId: 'r2' } });
+    fake.setState('p1', { status: 'completed', runId: 'r2', finishedAt: AT, version: '3.27.0', tested: true, matchedFindings: 1, matchedFiles: 1 });
+    await flushPromises();
+    expect(document.activeElement).toBe(button);
     w.unmount();
   });
 });

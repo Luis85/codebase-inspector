@@ -14,9 +14,9 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
 import {
-  FALLOW_DISCLOSURE, FALLOW_EXE_CHECK_FAILED, FALLOW_EXE_HINT_WINDOWS, FALLOW_EXE_LABEL, FALLOW_EXE_REFUSED, FALLOW_INSTALL_NOTE,
+  FALLOW_DISCLOSURE, FALLOW_EXE_HINT_WINDOWS, FALLOW_EXE_LABEL, FALLOW_EXE_REFUSED, FALLOW_INSTALL_NOTE,
   FALLOW_REVIEW_EFFECTS, FALLOW_REVIEW_INSIDE_ROOT, FALLOW_REVIEW_TITLE_RUN, FALLOW_REVIEW_VERSION_PENDING, FALLOW_ROUTE_IMPORT_TITLE,
-  FALLOW_ROUTE_RUN_TEXT, FALLOW_ROUTE_RUN_TITLE, FALLOW_RUN_BUSY_HINT, FALLOW_RUN_ERROR,
+  FALLOW_ROUTE_RUN_TEXT, FALLOW_ROUTE_RUN_TITLE, FALLOW_RUN_BUSY_HINT, FALLOW_RUN_ERROR, FALLOW_RUN_START_FAILED,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { createFakeFallowAnalysis, fakeRunReview, type FakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
@@ -218,22 +218,22 @@ describe('the installed route: focus, the bound path, failures and a codebase sw
     w.unmount();
   });
 
-  it('PF17b: a thrown check shows the generic read failure without a code; a file-system error keeps its code', async () => {
+  it('PF17b (amended): an unreadable file keeps its code; a data.json failure in the check blames the data file, not the executable', async () => {
     const { fake } = setup();
-    fake.review = () => Promise.reject(new Error('data.json could not be read'));
+    fake.next.review = { ok: false, code: 'executable-refused', detail: 'unreadable:EACCES' };
     const w = mountS();
     await toInstalled(w);
     await checkPath(w, 'C:\\Tools\\fallow\\fallow.exe');
-    expect(w.find('[role="alert"]').text()).toBe(FALLOW_EXE_CHECK_FAILED);
-    expect(w.text()).not.toContain('UNKNOWN');
-    fake.review = () => Promise.reject(Object.assign(new Error('denied'), { code: 'EACCES' }));
-    await checkPath(w, 'C:\\Tools\\fallow\\fallow.exe');
     expect(w.find('[role="alert"]').text()).toBe(FALLOW_EXE_REFUSED.unreadable('EACCES'));
+    fake.review = () => Promise.reject(Object.assign(new Error('data.json could not be read'), { code: 'EACCES' }));
+    await checkPath(w, 'C:\\Tools\\fallow\\fallow.exe');
+    expect(w.find('[role="alert"]').text()).toBe(FALLOW_RUN_START_FAILED);
+    expect(w.text()).not.toContain('UNKNOWN');
     expect(w.find('.ci-fallow-installed__check').attributes('aria-disabled')).toBeUndefined();
     w.unmount();
   });
 
-  it('a thrown Trust and run stays in the dialog with the generic failure; Change path clears the alert (PF13)', async () => {
+  it('a thrown Trust and run (a data.json write) stays in the dialog with the start failure; Change path clears the alert (PF13)', async () => {
     const { fake } = setup();
     fake.trustAndRun = () => Promise.reject(new Error('data.json could not be written'));
     const w = mountS();
@@ -241,7 +241,7 @@ describe('the installed route: focus, the bound path, failures and a codebase sw
     await checkPath(w, 'C:\\Tools\\fallow\\fallow.exe');
     await w.find('.ci-fallow-installed__trust').trigger('click');
     await flushPromises();
-    expect(w.find('[role="alert"]').text()).toBe(FALLOW_EXE_CHECK_FAILED);
+    expect(w.find('[role="alert"]').text()).toBe(FALLOW_RUN_START_FAILED);
     expect(w.find('[role="dialog"]').exists()).toBe(true);
     await w.find('.ci-fallow-installed__change').trigger('click');
     await flushPromises();

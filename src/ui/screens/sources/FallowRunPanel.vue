@@ -53,14 +53,22 @@ const trustText = computed(() => {
 });
 const canForget = computed(() => analysis.binding !== null && analysis.binding.kind !== 'none' && analysis.binding.kind !== 'unsupported');
 const chooseBlocked = computed(() => analysis.active || !props.hasSnapshot);
+/** E40: ONE element for Run and Cancel analysis, so the focus stays on it when the run starts,
+ *  ends or goes to cancelling under it (two v-if branches would swap in a new <button>).
+ *  While cancelling it stays Cancel analysis, blocked (aria-disabled plus the guard below). */
+const primary = computed(() => {
+  if (analysis.active) {
+    const blocked = !analysis.cancellable;
+    return { label: FALLOW_RUN_CANCEL, className: 'ci-fallow-run__cancel', blocked, describedBy: blocked ? props.busyHintId : undefined };
+  }
+  const blocked = !props.hasSnapshot;
+  return { label: FALLOW_RUN_ACTION, className: 'mod-cta ci-fallow-run__run', blocked, describedBy: blocked ? runHintId : undefined };
+});
 
-function run(): void {
+function pressPrimary(): void {
+  if (analysis.cancellable) { emit('cancel'); return; }
   if (!props.hasSnapshot || analysis.active) return;
   emit('run');
-}
-function cancel(): void {
-  if (!analysis.cancellable) return;
-  emit('cancel');
 }
 function choose(): void {
   if (chooseBlocked.value) return;
@@ -104,22 +112,13 @@ function forget(): void {
     </p>
     <div class="ci-fallow-run__actions">
       <button
-        v-if="analysis.cancellable"
         type="button"
-        class="ci-fallow-run__cancel"
-        @click="cancel"
+        :class="primary.className"
+        :aria-disabled="primary.blocked ? 'true' : undefined"
+        :aria-describedby="primary.describedBy"
+        @click="pressPrimary"
       >
-        {{ FALLOW_RUN_CANCEL }}
-      </button>
-      <button
-        v-else-if="!analysis.active"
-        type="button"
-        class="mod-cta ci-fallow-run__run"
-        :aria-disabled="hasSnapshot ? undefined : 'true'"
-        :aria-describedby="hasSnapshot ? undefined : runHintId"
-        @click="run"
-      >
-        {{ FALLOW_RUN_ACTION }}
+        {{ primary.label }}
       </button>
       <button
         type="button"
