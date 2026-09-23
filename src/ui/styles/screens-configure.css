@@ -64,6 +64,7 @@
 :where(.codebase-inspector-root) .ci-fallow-facts dt { color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-fallow-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-fallow-facts__list { margin: 0; padding-left: 1.2em; }
+:where(.codebase-inspector-root) .ci-fallow-facts__more { margin: 0; }
 :where(.codebase-inspector-root) .ci-connect-fallow { display: grid; gap: var(--ci-space-3); padding: var(--ci-space-4); overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-connect-fallow h3,
 :where(.codebase-inspector-root) .ci-connect-fallow p { margin: 0; }

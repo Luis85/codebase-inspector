@@ -112,6 +112,9 @@ function attach(): void {
   // would otherwise make the report read Stale the moment it is attached.
   const now = { ...c, snapshotId: city.snapshot?.snapshotId ?? '', importedAt: new Date().toISOString() };
   const r = reviewFallowCandidate(now, snapshotPaths.value, mapped.value);
+  // E48 (M5): that refresh can also leave the report no match at all. Refused as at the
+  // pick (Y26), in the dialog's alert; the attached evidence is untouched (Y31).
+  if (r.mismatch) { void reannounce(error, FALLOW_IMPORT_ERROR['source-mismatch']('')); return; }
   if (evidence.attach(r.report)) emit('done', FALLOW_ATTACHED(r.matchedFindings, r.matchedFiles));
   else void reannounce(error, FALLOW_ATTACH_REFUSED);
 }

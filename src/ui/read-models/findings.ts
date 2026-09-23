@@ -36,7 +36,7 @@ export interface QualityModel {
 
 export const DEFAULT_QUALITY_FILTER: Readonly<QualityFilter> = { query: '', kind: null, severity: null, module: null, status: 'open' };
 export const FINDINGS_PAGE = 100;
-export const SEVERITY_RANK: Readonly<Record<FindingSeverity, number>> = { critical: 0, high: 1, moderate: 2, unrated: 4 };
+const SEVERITY_RANK: Readonly<Record<FindingSeverity, number>> = { critical: 0, high: 1, moderate: 2, unrated: 4 };
 /** A Map, so a report's own word can never reach an Object.prototype member. */
 const RANKS = new Map<string, number>(Object.entries(SEVERITY_RANK));
 /** Y35: an unlisted severity ranks after moderate and before unrated. */
@@ -121,6 +121,13 @@ export function buildQualityModel(
     severities: presentSeverities(findings),
     evidence,
   };
+}
+
+/** Part 6 E48 (I1): the open-findings count, in its evidence state. Every surface labelled
+ *  "open" (the Overview card, its report-summary line, the Code quality nav badge) reads it
+ *  here, so none can count a decided finding the Quality screen does not. */
+export function openFindingsValue(model: QualityModel): MetricValue {
+  return model.cards[0]!.value;
 }
 
 export function filterFindings(findings: readonly QualityFinding[], filter: QualityFilter): readonly QualityFinding[] {

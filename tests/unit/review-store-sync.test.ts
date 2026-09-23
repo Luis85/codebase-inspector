@@ -177,6 +177,31 @@ describe('review store readiness and diagnostics (Part 6 Y10, Y7)', () => {
     expect((await a.addWorkItem(fileIn('repo-a', 'src/a.ts'), 'refactor', 'A', NOW))?.id).toBe('wi-1');
   });
 
+  it('is not ready while a switch back to a loaded codebase reloads it, so no duplicate is saved (E48 I2)', async () => {
+    const repos = new Map<string, ReviewRepository>();
+    let gate: ReturnType<typeof deferred> | null = null;
+    const a = leaf((id) => {
+      const inner = createInMemoryReviewRepository();
+      const slow: ReviewRepository = { ...inner, listWorkItems: async () => { if (gate) await gate.promise; return inner.listWorkItems(); } };
+      repos.set(id, slow);
+      return slow;
+    });
+    const target = fileIn('repo-a', 'src/a.ts');
+    await a.bindRepository('repo-a');
+    expect(await a.addWorkItem(target, 'refactor', 'first', NOW)).not.toBeNull();
+    await a.bindRepository('repo-b');
+    gate = deferred();
+    const rebinding = a.bindRepository('repo-a');
+    expect(a.ready).toBe(false);
+    expect(await a.addWorkItem(target, 'refactor', 'second', NOW)).toBeNull();
+    gate.resolve();
+    await rebinding;
+    expect(a.ready).toBe(true);
+    expect((await repos.get('repo-a')!.listWorkItems()).map((w) => w.title)).toEqual(['first']);
+    expect(await a.addWorkItem(fileIn('repo-a', 'src/b.ts'), 'refactor', 'third', NOW)).not.toBeNull();
+    expect(a.workItems.map((w) => w.title)).toEqual(['first', 'third']);
+  });
+
   it('marks loadFailed while the bound codebase cannot be read, and clears it on the next good load (R1)', async () => {
     const inner = createInMemoryReviewRepository();
     let failing = true;

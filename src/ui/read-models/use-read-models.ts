@@ -18,7 +18,7 @@ import { buildDependenciesModel, type DependenciesModel } from './dependencies';
 import { buildEvolutionModel, type EvolutionModel } from './evolution';
 import type { ChangeWindow } from '../fixtures/sample-evolution';
 import { SAMPLE_PACKAGES, type SamplePackage } from '../fixtures/sample-packages';
-import { buildQualityModel, type QualityModel } from './findings';
+import { buildQualityModel, openFindingsValue, type QualityModel } from './findings';
 import { buildOwnershipModel, type OwnershipModel } from './ownership';
 import { buildSecurityModel, type SecurityModel } from './security';
 import type { JournalEntry } from './snapshot-comparison';
@@ -37,16 +37,23 @@ function cyclesFor(graph: ArchitectureGraph): MetricValue {
   return hit;
 }
 
-/** Part 6: keyed by the evidence index, which is one object per (files, report). */
+/** Part 6: keyed by the evidence index, which is one object per (files, report), then (E48
+ *  I1, E53) by the leaf's raw `dispositions` array, as `qualityModelFor` is: the findings
+ *  card counts open findings, read from that leaf's Quality model. */
 type OverviewEntry = { snapshot: CodebaseSnapshot; files: readonly FileSummary[]; cycles: MetricValue; model: OverviewModel };
-const overviewCache = new WeakMap<EvidenceIndex, OverviewEntry>();
+const overviewCache = new WeakMap<EvidenceIndex, WeakMap<object, OverviewEntry>>();
 export function overviewModelFor(
   snapshot: CodebaseSnapshot, files: readonly FileSummary[], cycles: MetricValue, evidence: EvidenceIndex,
+  dispositions: readonly FindingDisposition[],
 ): OverviewModel {
-  const hit = overviewCache.get(evidence);
+  let byDispositions = overviewCache.get(evidence);
+  if (!byDispositions) { byDispositions = new WeakMap(); overviewCache.set(evidence, byDispositions); }
+  const key: object = toRaw(dispositions);
+  const hit = byDispositions.get(key);
   if (hit && hit.snapshot === snapshot && hit.files === files && hit.cycles === cycles) return hit.model;
-  const model = buildOverviewModel(snapshot, files, cycles, evidence);
-  overviewCache.set(evidence, { snapshot, files, cycles, model });
+  const open = openFindingsValue(qualityModelFor(files, evidence, dispositions));
+  const model = buildOverviewModel(snapshot, files, cycles, evidence, open);
+  byDispositions.set(key, { snapshot, files, cycles, model });
   return model;
 }
 
@@ -159,7 +166,8 @@ export function useReadModels() {
   });
   const graph = computed(() => architectureGraphFor(files.value));
   const cycles = computed(() => cyclesFor(graph.value));
-  const overview = computed(() => (store.snapshot ? overviewModelFor(store.snapshot, files.value, cycles.value, evidence.value) : null));
+  const overview = computed(() => (store.snapshot
+    ? overviewModelFor(store.snapshot, files.value, cycles.value, evidence.value, review.dispositions) : null));
   const citySummary = computed(() => buildCitySummary(files.value, cycles.value, evidence.value));
   const architecture = computed(() => architectureModelFor(graph.value, review.rules));
   const fileDetail = computed(() => (store.snapshot

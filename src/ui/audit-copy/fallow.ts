@@ -113,8 +113,8 @@ export const FALLOW_NOT_ANALYSED_BODY = 'No fallow report is attached to this co
 export const FALLOW_IMPORT_ACTION = 'Import report…';
 
 /* Part 6 Task 10 (Y31, Y37, Y38): the fallow card on Data & scans and the S14 dialog. */
-/** Exported for Task 11's lens copy (E17), which counts the same way. */
-export const nounCount = (n: number, one: string, many: string): string => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
+/** Shared with Task 11's lens copy below (E17), which counts the same way. */
+const nounCount = (n: number, one: string, many: string): string => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
 export const FALLOW_SOURCE = (version: string): string => `Imported report · fallow ${version}`;
 export const FALLOW_CARD_NONE = 'No report attached. An imported report is kept for this session only, so after a restart it is imported again.';
 export const FALLOW_IMPORT_HINT = 'Open a codebase first: report paths are matched to the codebase on screen.';
@@ -150,8 +150,15 @@ export const FALLOW_ROW_WARNINGS = 'Warnings';
 export const FALLOW_REPORT_VALUE = (version: string, kind: string, schema: number): string => `fallow ${version} · ${kind} report · schema ${schema}`;
 export const FALLOW_CATEGORY_LINE = (label: string, state: 'analysed' | 'not-analysed'): string =>
   `${label}: ${state === 'analysed' ? 'Analysed' : 'Not analysed'}`;
+const firstListed = (total: number, shown: number): string => (shown < total ? ` · the first ${shown} are listed` : '');
 export const FALLOW_UNMATCHED_SUMMARY = (total: number, shown: number): string =>
-  `${nounCount(total, 'path', 'paths')} not in this snapshot${shown < total ? ` · the first ${shown} are listed` : ''}`;
+  `${nounCount(total, 'path', 'paths')} not in this snapshot${firstListed(total, shown)}`;
+/** E48 (I3): a report can carry any number of warnings and sections, so like the unmatched
+ *  paths only the first few are listed, under a line giving the total. */
+export const FALLOW_WARNINGS_SUMMARY = (total: number, shown: number): string =>
+  `${nounCount(total, 'warning', 'warnings')}${firstListed(total, shown)}`;
+export const FALLOW_NOT_SHOWN_SUMMARY = (total: number, shown: number): string =>
+  `${nounCount(total, 'section', 'sections')}${firstListed(total, shown)}`;
 /** Y25 (R4): `label` is fallowNotShownLabel(key). */
 export const FALLOW_NOT_SHOWN_ITEM = (label: string, count: number): string => `${label}: ${count.toLocaleString('en-US')}`;
 export const FALLOW_NONE = 'None';

@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import '../mocks/obsidian';
 import OverviewScreen from '../../src/ui/screens/OverviewScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
+import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useSnapshotJournal } from '../../src/ui/stores/snapshot-journal';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { journalEntryFor } from '../../src/ui/read-models/snapshot-comparison';
+import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { attachSyntheticReport } from '../fixtures/evidence-report';
 
 function withSnapshot(files = 30) {
   const snap = buildSnapshotFixture({ files, directories: 3 });
@@ -96,6 +99,19 @@ describe('OverviewScreen', () => {
     const text = mountOverview().find('.ci-evidence-coverage').text();
     expect(text).toContain('Import graph');
     expect(text).toContain('Unknown');
+  });
+
+  it('counts open findings only: a dismissal drops the card by one, matching Code quality\'s Open card (E48 I1)', async () => {
+    withSnapshot();
+    attachSyntheticReport(useCityStore().snapshot!);
+    const { quality } = useReadModels();
+    const w = mountOverview();
+    const card = (): string => w.findAll('.ci-metric-card')[0]!.find('.ci-metric-card__value').text();
+    const before = Number(card());
+    await useReviewStore().dismiss(quality.value.findings[0]!.fingerprint, 'Reviewed, intended.', new Date(0));
+    await flushPromises();
+    expect(Number(card())).toBe(before - 1);
+    expect(card()).toBe(String(quality.value.cards[0]!.value.value));
   });
 
   it('never shows a bare "0 change hotspots" for an empty snapshot (ruling 1)', () => {

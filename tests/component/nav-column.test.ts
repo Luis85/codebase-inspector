@@ -7,6 +7,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import NavColumn from '../../src/ui/shell/NavColumn.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
+import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { attachSyntheticReport } from '../fixtures/evidence-report';
@@ -48,6 +49,17 @@ describe('NavColumn badges', () => {
     const report = attachSyntheticReport(withSnapshot());
     const w = mountNav(false);
     expect(badgeFor(w, 'Code quality')).toBe(String(report.normalized.findings.length));
+    w.unmount();
+  });
+
+  it('counts open findings only: a dismissal drops the badge by one, matching Code quality\'s Open card (E48 I1)', async () => {
+    const report = attachSyntheticReport(withSnapshot());
+    const { quality } = useReadModels();
+    const w = mountNav(false);
+    await useReviewStore().dismiss(quality.value.findings[0]!.fingerprint, 'Reviewed, intended.', new Date(0));
+    await flushPromises();
+    expect(badgeFor(w, 'Code quality')).toBe(String(report.normalized.findings.length - 1));
+    expect(badgeFor(w, 'Code quality')).toBe(String(quality.value.cards[0]!.value.value));
     w.unmount();
   });
 

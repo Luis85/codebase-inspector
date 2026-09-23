@@ -15,7 +15,7 @@ import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import {
   COPY_16, EVIDENCE_BADGE, FALLOW_CARD_NONE, FALLOW_CATEGORY_LINE, FALLOW_IMPORT_HINT, FALLOW_MATCHED, FALLOW_REMOVE_TITLE,
   FALLOW_REMOVED, FALLOW_ROW_CATEGORIES, FALLOW_ROW_FILE, FALLOW_ROW_IMPORTED, FALLOW_ROW_MATCHED, FALLOW_ROW_NOT_SHOWN,
-  FALLOW_ROW_REPORT, FALLOW_ROW_UNMATCHED, FALLOW_ROW_WARNINGS, FINDING_KIND_LABEL,
+  FALLOW_ROW_REPORT, FALLOW_ROW_UNMATCHED, FALLOW_ROW_WARNINGS, FINDING_KIND_LABEL, FALLOW_NOT_SHOWN_SUMMARY, FALLOW_WARNINGS_SUMMARY,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { SYNTHETIC_VERSION, attachSyntheticReport, syntheticEvidenceReport } from '../fixtures/evidence-report';
@@ -29,6 +29,8 @@ function withSnapshot(repositoryId = 'repo-a'): CodebaseSnapshot {
   useEvidenceStore().bindRepository(repositoryId);
   return snap;
 }
+/** oxlint consistent-function-scoping: the silenced console.warn, hoisted. */
+const quiet = (): void => {};
 function fresh(): void {
   setActivePinia(createPinia());
   useEvidenceStore().setRepository(new InMemoryEvidenceStore());
@@ -58,6 +60,25 @@ describe('the fallow card (Part 6 Y37)', () => {
     await nextTick();
     expect(w.find('.ci-fallow-card__import').attributes('aria-disabled')).toBeUndefined();
     expect(w.find('.ci-fallow-card__import').attributes('aria-describedby')).toBeUndefined();
+    w.unmount();
+  });
+
+  it('lists only the first 20 warnings and not-shown sections, each with a summary giving its total (E48 I3)', async () => {
+    const base = syntheticEvidenceReport(withSnapshot());
+    const warnings = Array.from({ length: 50 }, (_, i) => `warning ${i}`);
+    // The first two sections share a key, so their lines are the same text (never a Vue key).
+    const notShown = Array.from({ length: 30 }, (_, i) => ({ key: i < 2 ? 'twice' : `extra_${i}`, count: 1 }));
+    expect(useEvidenceStore().attach({ ...base, normalized: { ...base.normalized, warnings, notShown } })).toBe(true);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(quiet);
+    const w = mountS();
+    await flushPromises();
+    const card = w.find('.ci-provider--fallow');
+    expect(card.findAll('.ci-fallow-facts__warnings li').map((li) => li.text())).toEqual(warnings.slice(0, 20));
+    expect(card.find('.ci-fallow-facts__warnings .ci-fallow-facts__more').text()).toBe(FALLOW_WARNINGS_SUMMARY(50, 20));
+    expect(card.findAll('.ci-fallow-facts__not-shown li')).toHaveLength(20);
+    expect(card.find('.ci-fallow-facts__not-shown .ci-fallow-facts__more').text()).toBe(FALLOW_NOT_SHOWN_SUMMARY(30, 20));
+    expect(warn.mock.calls.flat().join(' ')).not.toContain('Duplicate keys');
+    warn.mockRestore();
     w.unmount();
   });
 

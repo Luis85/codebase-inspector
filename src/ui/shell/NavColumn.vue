@@ -6,6 +6,7 @@ import { CLOSE_NAVIGATION_LABEL } from '../inspector-copy';
 import { useCityStore } from '../stores/city-store';
 import { useReviewStore } from '../stores/review-store';
 import { useReadModels } from '../read-models/use-read-models';
+import { openFindingsValue } from '../read-models/findings';
 import Icon from '../kit/Icon.vue';
 
 const props = defineProps<{ drawer: boolean; workspaceLabel: string }>();
@@ -13,15 +14,16 @@ const emit = defineEmits<{ navigate: [route: RouteId]; close: [] }>();
 
 const store = useCityStore();
 const review = useReviewStore();
-const { evidence } = useReadModels();
+const { quality } = useReadModels();
 const onSelectCodebase = inject<() => void>('onSelectCodebase', () => {});
 
 /** Only COLLECTED counts become nav badges: a nav badge carries no evidence label, so a
  *  stale, partial or unknown count would read as current (spec §9 A11). Part 6 Y34: the
- *  Code quality badge is the imported fallow findings total, shown only while that total
- *  is collected (a current report). Work items are real. */
+ *  Code quality badge counts the imported fallow findings, shown only while that count
+ *  is collected (a current report). E48 (I1): it is the Quality screen's own open count,
+ *  so an acknowledged or dismissed finding drops out. Work items are real. */
 const badges = computed<Partial<Record<RouteId, number>>>(() => {
-  const findings = evidence.value.totals.findings;
+  const findings = openFindingsValue(quality.value);
   return {
     quality: findings.state === 'collected' ? findings.value : undefined,
     // Part 4 W13: items not yet verified.

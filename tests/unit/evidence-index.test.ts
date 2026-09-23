@@ -102,7 +102,7 @@ describe('evidence index with a current report (Y34)', () => {
 
   it('the Overview findings card and the city unused card read the index totals (fix round 1)', () => {
     const findingsCard = buildOverviewModel(snap, files, undefined, index).cards.find((c) => c.id === 'findings')!;
-    expect(findingsCard.value).toBe(index.totals.findings);
+    expect(findingsCard.value).toEqual(index.totals.findings);   // E48 I1: the open count, the total while nothing is decided
     expect(index.totals.high.value).toBeGreaterThan(0);
     expect(findingsCard.caption).toBe(`${index.totals.high.value} critical or high severity`);
     const unused = buildCitySummary(files, undefined, index).find((c) => c.id === 'unused')!.value;

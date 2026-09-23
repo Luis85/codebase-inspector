@@ -109,7 +109,9 @@ export const useReviewStore = defineStore('review', {
       const target = bucketFor(this.bucketState, id); // (a) made on first use (Y11)
       this.boundKey = id; // (b)
       this.repository = target.repository;
-      this.ready = target.ready;
+      // E48 (I2): a codebase bound again is not ready until ITS reload lands, even if it was
+      // loaded before: the lists are empty until then. The unbound `''` bucket keeps its own.
+      this.ready = id === '' ? target.ready : false;
       listenTo(this.bucketState, target, this); // (c) Y12: only the bound codebase is heard
       this.workItems = []; // (d)
       this.rules = [];

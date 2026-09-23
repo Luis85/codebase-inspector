@@ -16,6 +16,7 @@ import {
 } from '../inspector-copy';
 import { evidenceIndexFor, type EvidenceIndex, type EvidenceIndexState } from './evidence-index';
 import { filesByPriority, ROOT_MODULE, type FileSummary } from './file-summaries';
+import { buildQualityModel, openFindingsValue } from './findings';
 import { moduleCoverage } from './module-coverage';
 
 export const HOTSPOT_THRESHOLD = 65;
@@ -86,16 +87,19 @@ function investigations(files: readonly FileSummary[]): Investigation[] {
   ];
 }
 
+/** Part 6 E48 (I1): `openFindings` is the Quality model's open count (openFindingsValue), so
+ *  a decided finding never counts here. The default is that count with no decisions. */
 export function buildOverviewModel(
   snapshot: CodebaseSnapshot, files: readonly FileSummary[],
   cycles: MetricValue = unknown(IMPORT_GRAPH_UNKNOWN_REASON),
   evidence: EvidenceIndex = evidenceIndexFor(files, null, snapshot.snapshotId),
+  openFindings: MetricValue = openFindingsValue(buildQualityModel(files, evidence, [])),
 ): OverviewModel {
   const covered = sumEvidence(files.map((f) => f.branchesCovered), NO_FILES_REASON);
   const total = sumEvidence(files.map((f) => f.branchesTotal), NO_FILES_REASON);
   const coverage = files.length ? ratioEvidence(covered, total) : unknown(NO_FILES_REASON);
   // Part 6 Y34: imported fallow evidence, or unknown (Not analysed), never a sample count.
-  const findings = evidence.totals.findings;
+  const findings = openFindings;
   const high = evidence.totals.high;
   const hotspots = countEvidence(files.map((f) => f.priority), (v) => v >= HOTSPOT_THRESHOLD, NO_FILES_REASON);
   const highComplexity = countEvidence(files.map((f) => f.complexity), (v) => v >= HIGH_COMPLEXITY, NO_FILES_REASON);

@@ -7,8 +7,10 @@ import { downloadText } from '../../src/ui/export/download';
 import ReportScreen from '../../src/ui/screens/ReportScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
+import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { attachSyntheticReport } from '../fixtures/evidence-report';
 
 function withSnapshot() {
   const snap = buildSnapshotFixture({ files: 30, directories: 3 });
@@ -87,6 +89,20 @@ describe('ReportScreen (Part 4)', () => {
     expect(text).not.toContain('Security review');
     expect(text).toContain('> Confirm the parser boundary.');
     expect(text).toContain('(sample)');
+    w.unmount();
+  });
+
+  it('the summary\'s "Open quality findings" counts open findings only, matching Code quality\'s Open card (E48 I1)', async () => {
+    const report = attachSyntheticReport(withSnapshot());
+    const { quality } = useReadModels();
+    await useReviewStore().dismiss(quality.value.findings[0]!.fingerprint, 'Reviewed, intended.', new Date(0));
+    const w = mountR();
+    await flushPromises();
+    await w.find('.ci-report__export').trigger('click');
+    const text = vi.mocked(downloadText).mock.calls[0]![2];
+    const open = /^- Open quality findings: (\d+)/m.exec(text)?.[1];
+    expect(open).toBe(String(report.normalized.findings.length - 1));
+    expect(open).toBe(String(quality.value.cards[0]!.value.value));
     w.unmount();
   });
 

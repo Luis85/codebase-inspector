@@ -39,7 +39,7 @@ export const FINDING_STATUS_LABEL: Readonly<Record<'open' | 'acknowledged' | 'di
   open: 'Open', acknowledged: 'Acknowledged', dismissed: 'Dismissed',
 };
 // Part 6 Y35 (R6): the tool's own severity. A finding the tool does not rate reads "Not rated".
-export const FINDING_SEVERITY_UNRATED = 'Not rated';
+const FINDING_SEVERITY_UNRATED = 'Not rated';
 export const SEVERITY_LABEL: Readonly<Record<'critical' | 'high' | 'moderate' | 'unrated', string>> = {
   critical: 'Critical', high: 'High', moderate: 'Moderate', unrated: FINDING_SEVERITY_UNRATED,
 };
@@ -90,7 +90,7 @@ export const FINDING_REOPENED = 'Finding reopened for review.';
 export const FINDING_DISMISSED = 'Dismissal and reason saved.';
 
 /* Part 6 Y35/Y36: the tool's rule and a title per finding. */
-export const FINDING_RULE_LABEL: Readonly<Record<FindingRule, string>> = {
+const FINDING_RULE_LABEL: Readonly<Record<FindingRule, string>> = {
   complexity: 'Complexity', duplication: 'Duplication', 'unused-export': 'Unused export', 'unused-type': 'Unused type',
 };
 const RULE_LABELS = new Map<string, string>(Object.entries(FINDING_RULE_LABEL));

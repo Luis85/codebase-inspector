@@ -314,6 +314,25 @@ describe('Connect fallow (Part 6 Y38, S14)', () => {
     w.unmount();
   });
 
+  it('refuses Attach as a source mismatch when a same-codebase refresh left the report no match, keeping the evidence (E48 M5)', async () => {
+    const snap = withSnapshot();
+    const kept = attachSyntheticReport(snap);
+    const w = mountS();
+    await openDialog(w);
+    await pick(w, syntheticFallowJson(snap), 'second.json');
+    const refreshed: CodebaseSnapshot = { ...snapshotWithPaths(['elsewhere/a.ts'], snap.repositoryId), snapshotId: 'snapshot-refreshed' };
+    useCityStore().setCity(refreshed, computeLayout(refreshed));   // same codebase, none of the report's paths
+    await flushPromises();
+    await w.find('.ci-connect-fallow__attach').trigger('click');
+    await flushPromises();
+    expect(w.find('.ci-connect-fallow__error').attributes('role')).toBe('alert');
+    expect(w.find('.ci-connect-fallow__error').text()).toBe(FALLOW_IMPORT_ERROR['source-mismatch'](''));
+    expect(w.find('.ci-connect-fallow').exists()).toBe(true);
+    expect(w.find('.ci-sources__live').text()).toBe('');
+    expect(useEvidenceStore().report).toBe(kept);
+    w.unmount();
+  });
+
   it('acceptance (4): a failed import leaves the attached evidence exactly as it was (Y31)', async () => {
     const snap = withSnapshot();
     const kept = attachSyntheticReport(snap);
