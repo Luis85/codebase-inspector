@@ -5,7 +5,7 @@ export const SOURCES_SUBTITLE = 'Explicit sources. Read-only analysis. No automa
 export const SOURCES_CHANGE = 'Change source';
 export const SOURCES_RESCAN = 'Rescan';
 export const SOURCES_CALLOUT_TITLE = 'Evidence sources';
-export const SOURCES_CALLOUT = 'One real provider is connected: the built-in read-only inventory. Every other signal is sample data or not collected.';
+export const SOURCES_CALLOUT = 'The built-in read-only inventory is always available, and fallow findings come from a report you import. Every other signal is sample data or not collected.';
 export const SOURCES_SCOPE_TITLE = 'Active source';
 export const SOURCES_SCOPE_SUBTITLE = 'The scope the snapshot on screen was scanned with.';
 export const SOURCES_SCOPE_EDIT = 'Edit profiles, exclusions and limits in Obsidian’s settings for Codebase Inspector. Changes apply at the next scan.';
@@ -35,7 +35,7 @@ export const SOURCES_SOURCE_BUILTIN = 'Built-in scan';
 export const SOURCES_SOURCE_FICTIONAL = 'Fictional packages';
 export const SOURCES_PROVIDER: Readonly<Record<string, { title: string; description: string }>> = {
   inventory: { title: 'File inventory', description: 'Paths, sizes and line counts inside the approved scope, read-only.' },
-  static: { title: 'Static findings', description: 'Complexity, unused exports and duplication. Sample data seeded per file.' },
+  fallow: { title: 'fallow findings', description: 'Complexity, duplication and unused exports from a fallow JSON report you import. Nothing is run or installed; the report is kept for this session only.' },
   imports: { title: 'Module import graph', description: 'Module dependencies, cycles and boundary checks. Sample edges, not observed imports.' },
   history: { title: 'Change history', description: 'Commit activity, change coupling and team-level stewardship. Sample data.' },
   coverage: { title: 'Coverage and test runs', description: 'Instrumented branches and test-run summaries. Sample data.' },
@@ -44,7 +44,7 @@ export const SOURCES_PROVIDER: Readonly<Record<string, { title: string; descript
   runtime: { title: 'Runtime and mutation', description: 'Runtime traces and mutation results have not been collected. Unknown, not passing.' },
 };
 export const SOURCES_PLANNED_TITLE = 'Planned integrations';
-export const SOURCES_PLANNED = 'An external analyser may later be imported from a report or run as an already-installed tool, and only on your explicit request. Nothing is ever installed, and no integration is active today.';
+export const SOURCES_PLANNED = 'Running an already-installed fallow from here comes in a later version, and only on your explicit request. Nothing is ever installed.';
 /** Part 5 V28: the provider's route buttons form a group named after the provider, and
  *  each button's name contains its visible screen title (WCAG 2.5.3). */
 export const SOURCES_USED_BY_GROUP = (provider: string): string => `${provider} is used by`;

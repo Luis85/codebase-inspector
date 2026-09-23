@@ -111,3 +111,47 @@ export const EVIDENCE_BADGE = (version: string, state: 'imported' | 'stale'): st
 export const FALLOW_NOT_ANALYSED_TITLE = 'Not analysed';
 export const FALLOW_NOT_ANALYSED_BODY = 'No fallow report is attached to this codebase, so its findings are unknown, not zero. Import a report to see them. Imported reports are kept for this session only.';
 export const FALLOW_IMPORT_ACTION = 'Import report…';
+
+/* Part 6 Task 10 (Y31, Y37, Y38): the fallow card on Data & scans and the S14 dialog. */
+/** Exported for Task 11's lens copy (E17), which counts the same way. */
+export const nounCount = (n: number, one: string, many: string): string => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
+export const FALLOW_SOURCE = (version: string): string => `Imported report · fallow ${version}`;
+export const FALLOW_CARD_NONE = 'No report attached. An imported report is kept for this session only, so after a restart it is imported again.';
+export const FALLOW_IMPORT_HINT = 'Open a codebase first: report paths are matched to the codebase on screen.';
+export const FALLOW_REMOVE = 'Remove report';
+export const FALLOW_REMOVE_TITLE = 'Remove the fallow report?';
+export const FALLOW_REMOVE_TEXT = 'Its findings leave every screen and read Not analysed. Your finding decisions are kept, and you can import the report again.';
+export const FALLOW_REMOVE_CANCEL = 'Cancel';
+export const FALLOW_REMOVED = 'fallow report removed. Findings read Not analysed.';
+export const FALLOW_DIALOG_EYEBROW = 'Add evidence';
+export const FALLOW_DIALOG_TITLE = 'Connect fallow';
+export const FALLOW_DIALOG_INTRO = 'Keep exploring the structural city while you add analysis. Import a fallow JSON report: it is checked and matched to this snapshot, and no analyser is run.';
+export const FALLOW_DISCLOSURE = 'The plugin does not download or install fallow. Imported reports cannot authorize commands or source access.';
+export const FALLOW_SNAPSHOT_FILES = (n: number): string => `Current structural snapshot: ${nounCount(n, 'file', 'files')}`;
+export const FALLOW_CHOOSE = 'Choose report…';
+export const FALLOW_CANCEL = 'Cancel';
+export const FALLOW_REVIEW_TITLE = 'Review the report';
+export const FALLOW_ATTACH = 'Attach report';
+export const FALLOW_MATCHED = (findings: number, files: number): string =>
+  `${nounCount(findings, 'finding', 'findings')} in ${nounCount(files, 'file', 'files')}`;
+export const FALLOW_ATTACHED = (findings: number, files: number): string => `fallow report attached: ${FALLOW_MATCHED(findings, files)}.`;
+export const FALLOW_ATTACH_REFUSED = 'The report was not attached. Open the codebase again, then import the report.';
+/** Y26: offered unchecked; nothing is mapped without the user's choice. */
+export const FALLOW_MAPPING_OFFER = (prefix: string): string => `Match paths by removing the leading folder “${prefix}”`;
+export const FALLOW_REPLACE_NOTE = (date: string): string => `Attaching replaces the report imported ${date}.`;
+export const FALLOW_ROW_REPORT = 'Report';
+export const FALLOW_ROW_FILE = 'File';
+export const FALLOW_ROW_IMPORTED = 'Imported';
+export const FALLOW_ROW_CATEGORIES = 'Categories';
+export const FALLOW_ROW_MATCHED = 'Matched';
+export const FALLOW_ROW_UNMATCHED = 'Unmatched paths';
+export const FALLOW_ROW_NOT_SHOWN = 'Reported, not shown in this version';
+export const FALLOW_ROW_WARNINGS = 'Warnings';
+export const FALLOW_REPORT_VALUE = (version: string, kind: string, schema: number): string => `fallow ${version} · ${kind} report · schema ${schema}`;
+export const FALLOW_CATEGORY_LINE = (label: string, state: 'analysed' | 'not-analysed'): string =>
+  `${label}: ${state === 'analysed' ? 'Analysed' : 'Not analysed'}`;
+export const FALLOW_UNMATCHED_SUMMARY = (total: number, shown: number): string =>
+  `${nounCount(total, 'path', 'paths')} not in this snapshot${shown < total ? ` · the first ${shown} are listed` : ''}`;
+/** Y25 (R4): `label` is fallowNotShownLabel(key). */
+export const FALLOW_NOT_SHOWN_ITEM = (label: string, count: number): string => `${label}: ${count.toLocaleString('en-US')}`;
+export const FALLOW_NONE = 'None';

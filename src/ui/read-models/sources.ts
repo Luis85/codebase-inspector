@@ -1,16 +1,17 @@
 // Part 4 W2/W3/W15: Data & scans. The scope rows and the run state are real (collected
-// from the snapshot on screen and the run store); every provider other than the
-// built-in inventory is sample or unknown and says so.
+// from the snapshot on screen and the run store). Part 6 Y37: so is the fallow card, from
+// the evidence index. Every other provider is sample or unknown and says so.
 import type { CodebaseSnapshot, InventoryRunState } from '../../domain/model';
 import type { RouteId } from '../../domain/route-ids';
 import type { EvidenceState } from '../evidence';
 import { formatAbsoluteTime } from '../copy';
 import { countPartialRead } from '../view-surface';
 import {
-  EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, SOURCES_COMPLETE, SOURCES_NONE, SOURCES_PARTIAL, SOURCES_PROVIDER,
+  EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, FALLOW_SOURCE, SOURCES_COMPLETE, SOURCES_NONE, SOURCES_PARTIAL, SOURCES_PROVIDER,
   SOURCES_ROW_CAPTURED, SOURCES_ROW_COMPLETENESS, SOURCES_ROW_EXCLUSIONS, SOURCES_ROW_FOLDER, SOURCES_ROW_LIMIT,
   SOURCES_ROW_PATH, SOURCES_ROW_SYMLINKS, SOURCES_SOURCE_BUILTIN, SOURCES_SOURCE_FICTIONAL, SOURCES_SYMLINKS_NOT_FOLLOWED,
 } from '../inspector-copy';
+import type { EvidenceIndexState } from './evidence-index';
 import { rootFolderLabel } from './root-label';
 
 export type RunView =
@@ -70,14 +71,19 @@ const provider = (id: string, icon: string, state: EvidenceState, source: string
   id, icon, state, source, routes, title: SOURCES_PROVIDER[id]?.title ?? id, description: SOURCES_PROVIDER[id]?.description ?? '',
 });
 
-export function buildSourcesModel(snapshot: CodebaseSnapshot | null, run: InventoryRunState): SourcesModel {
+/** Part 6 Y37: the fallow card's state comes from the evidence index (Y30, Y33). */
+interface FallowCardState { state: EvidenceIndexState; version: string | null }
+const NO_FALLOW: FallowCardState = { state: 'none', version: null };
+const FALLOW_EVIDENCE: Readonly<Record<EvidenceIndexState, EvidenceState>> = { none: 'unknown', current: 'collected', stale: 'stale' };
+
+export function buildSourcesModel(snapshot: CodebaseSnapshot | null, run: InventoryRunState, fallow: FallowCardState = NO_FALLOW): SourcesModel {
   const inventory: EvidenceState = !snapshot ? 'unknown' : snapshot.completeness === 'partial' ? 'partial' : 'collected';
   return {
     scope: snapshot ? scopeRows(snapshot) : null,
     run: runView(run),
     providers: [
       provider('inventory', 'folder-tree', inventory, snapshot ? SOURCES_SOURCE_BUILTIN : EVIDENCE_SOURCE_NONE, ['city', 'overview']),
-      provider('static', 'code', 'sample', EVIDENCE_SOURCE_SAMPLE, ['quality', 'file']),
+      provider('fallow', 'code', FALLOW_EVIDENCE[fallow.state], fallow.version === null ? EVIDENCE_SOURCE_NONE : FALLOW_SOURCE(fallow.version), ['quality', 'file']),
       provider('imports', 'network', 'sample', EVIDENCE_SOURCE_SAMPLE, ['architecture']),
       provider('history', 'git-branch', 'sample', EVIDENCE_SOURCE_SAMPLE, ['hotspots', 'evolution', 'ownership']),
       provider('coverage', 'flask-conical', 'sample', EVIDENCE_SOURCE_SAMPLE, ['tests']),

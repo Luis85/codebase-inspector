@@ -46,3 +46,32 @@
 :where(.codebase-inspector-root) .ci-import-dialog p { margin: 0; }
 :where(.codebase-inspector-root) .ci-import-dialog__error { color: var(--ci-tone-danger); }
 :where(.codebase-inspector-root) .ci-import-dialog__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); }
+
+/* Part 6 Task 10: the fallow card, its report facts, the S14 dialog and the remove confirmation. */
+:where(.codebase-inspector-root) .ci-fallow-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-fallow-card p { margin: 0; }
+:where(.codebase-inspector-root) .ci-fallow-card__actions { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-fallow-facts {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-1) var(--ci-space-3);
+  margin: 0; font-size: var(--font-ui-small, 0.9em);
+}
+:where(.codebase-inspector-root) .ci-fallow-facts dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-fallow-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-fallow-facts__list { margin: 0; padding-left: 1.2em; }
+:where(.codebase-inspector-root) .ci-connect-fallow { display: grid; gap: var(--ci-space-3); padding: var(--ci-space-4); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-connect-fallow h3,
+:where(.codebase-inspector-root) .ci-connect-fallow p { margin: 0; }
+/* A focus target after the step changes, never a control: no ring (like .ci-page-header__title). */
+:where(.codebase-inspector-root) .ci-connect-fallow h3:focus { outline: none; }
+:where(.codebase-inspector-root) .ci-connect-fallow__eyebrow {
+  font-size: var(--font-ui-smaller, 0.8em); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ci-action); font-weight: var(--font-semibold);
+}
+:where(.codebase-inspector-root) .ci-connect-fallow__disclosure { padding: var(--ci-space-3); border-left: 3px solid var(--ci-border); background: var(--ci-panel); }
+:where(.codebase-inspector-root) .ci-connect-fallow__mapping { display: flex; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-connect-fallow__error { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-connect-fallow__actions,
+:where(.codebase-inspector-root) .ci-fallow-remove__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-fallow-remove { display: grid; gap: var(--ci-space-3); padding: var(--ci-space-4); max-width: 32em; }
+:where(.codebase-inspector-root) .ci-fallow-remove h3,
+:where(.codebase-inspector-root) .ci-fallow-remove p { margin: 0; }

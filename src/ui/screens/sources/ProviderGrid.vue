@@ -48,6 +48,8 @@ const base = useUniqueId('ci-provider');
         <p class="ci-provider__text">
           {{ p.description }}
         </p>
+        <!-- Part 6 Y37: an optional per-card slot, `card-<id>`; only the fallow card uses it. -->
+        <slot :name="`card-${p.id}`" />
         <div
           class="ci-provider__routes"
           role="group"

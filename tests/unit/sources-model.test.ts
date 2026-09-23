@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { buildSourcesModel, formatBytes, runView } from '../../src/ui/read-models/sources';
+import { EVIDENCE_SOURCE_NONE, FALLOW_SOURCE } from '../../src/ui/inspector-copy';
 import type { InventoryRunState } from '../../src/domain/model';
 
 const IDLE: InventoryRunState = { status: 'idle' };
@@ -35,13 +36,20 @@ describe('sources model (Part 4 W2/W3/W15)', () => {
     expect(runView({ status: 'failed', runId: 'r', message: 'EACCES' })).toEqual({ kind: 'failed', message: 'EACCES' });
     expect(runView({ status: 'complete', runId: 'r', snapshotId: 's' })).toEqual({ kind: 'complete' });
   });
-  it('labels every non-inventory provider as sample or unknown, never collected', () => {
+  it('labels every non-inventory provider as sample or unknown, never collected, while no report is imported', () => {
     const m = buildSourcesModel(buildSnapshotFixture({ files: 3 }), IDLE);
     const others = m.providers.filter((p) => p.id !== 'inventory');
     expect(others.length).toBe(7);
     expect(others.every((p) => p.state === 'sample' || p.state === 'unknown')).toBe(true);
-    expect(m.providers.filter((p) => p.state === 'unknown').map((p) => p.id)).toEqual(['secrets', 'runtime']);
+    expect(m.providers.filter((p) => p.state === 'unknown').map((p) => p.id)).toEqual(['fallow', 'secrets', 'runtime']);
     expect(others.every((p) => p.routes.length > 0)).toBe(true);
+  });
+  it('Part 6 Y37: the fallow card is Unknown without a report, Collected when imported, Stale when older than the snapshot', () => {
+    const snap = buildSnapshotFixture({ files: 3 });
+    const card = (fallow?: Parameters<typeof buildSourcesModel>[2]) => buildSourcesModel(snap, IDLE, fallow).providers.find((p) => p.id === 'fallow')!;
+    expect(card()).toMatchObject({ state: 'unknown', source: EVIDENCE_SOURCE_NONE, title: 'fallow findings', routes: ['quality', 'file'] });
+    expect(card({ state: 'current', version: '3.27.0' })).toMatchObject({ state: 'collected', source: FALLOW_SOURCE('3.27.0') });
+    expect(card({ state: 'stale', version: '3.21.0' })).toMatchObject({ state: 'stale', source: FALLOW_SOURCE('3.21.0') });
   });
   it('formats byte limits', () => {
     expect(formatBytes(5_000_000)).toBe('5 MB');

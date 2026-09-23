@@ -30,7 +30,7 @@ const UNMOUNT_CASES: readonly UnmountCase[] = [
   { name: 'Data & scans › Used by › Architecture', from: 'sources', tab: null, trigger: '.ci-provider--imports .ci-provider__route', text: 'Architecture', to: 'architecture', focus: '.ci-screen--architecture .ci-page-header__title' },
   { name: 'Settings › Analysis › View current scope', from: 'settings', tab: 'analysis', trigger: '.ci-settings__scope', text: null, to: 'sources', focus: '.ci-screen--sources .ci-page-header__title' },
   // No snapshot: File detail shows NoSnapshot, which has no PageHeader, so <main> takes focus.
-  { name: 'Data & scans › Used by › File detail (no heading: <main>)', from: 'sources', tab: null, trigger: '.ci-provider--static .ci-provider__route', text: 'File detail', to: 'file', focus: 'main.ci-shell__content' },
+  { name: 'Data & scans › Used by › File detail (no heading: <main>)', from: 'sources', tab: null, trigger: '.ci-provider--fallow .ci-provider__route', text: 'File detail', to: 'file', focus: 'main.ci-shell__content' },
 ];
 
 describe('route focus (V7)', () => {
