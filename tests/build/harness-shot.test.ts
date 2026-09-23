@@ -84,6 +84,23 @@ describe('harness-shot SHOTS', () => {
       expect(q.get('lens')).toBe('findings');
     }
   });
+
+  it('captures the Part 7 states: both routes, the installed review in both themes, and running, failed and collected', () => {
+    expect(shotQuery('wp02-connect-fallow-routes-dark').get('fallow')).toBe('routes');
+    for (const theme of ['dark', 'light']) {
+      const q = shotQuery(`wp02-connect-fallow-installed-${theme}`);
+      expect(q.get('fallow')).toBe('installed');
+      expect(q.get('theme')).toBe(theme);
+    }
+    for (const state of ['running', 'failed', 'collected']) {
+      const q = shotQuery(`wp02-sources-fallow-${state}-dark`);
+      expect(q.get('analysis'), state).toBe(state);
+      expect(q.get('route')).toBe('sources');
+    }
+    for (const id of ['wp02-connect-fallow-routes-dark', 'wp02-connect-fallow-installed-dark', 'wp02-connect-fallow-installed-light']) {
+      expect(shotQuery(id).get('route'), id).toBe('sources');
+    }
+  });
 });
 
 describe('chromium resolution', () => {

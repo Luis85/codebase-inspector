@@ -12,9 +12,12 @@ import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useRunStore } from '../../src/ui/stores/run-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useLensStore } from '../../src/ui/stores/lens-store';
+import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
+import { createFakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
 import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
 import {
-  DEMO_FALLOW_FILE_NAME, cancellingLifecycle, demoEvidenceReport, demoFallowReportText, demoImportJson,
+  DEMO_FALLOW_FILE_NAME, HARNESS_BINDING, cancellingLifecycle, completedAnalysisState, demoCollectedReport,
+  demoEvidenceReport, demoFallowReportText, demoImportJson, demoRunReview, failedAnalysisState, runningAnalysisState,
   runningLifecycle, seedDemoItems,
 } from './seed';
 import { harnessLayout, harnessSnapshot } from './fixture';
@@ -35,7 +38,8 @@ export interface HarnessOptions {
   importFile?: 'demo';
   report?: 'demo';
   lens?: 'findings';
-  fallow?: 'review';
+  fallow?: 'review' | 'routes' | 'installed';
+  analysis?: 'running' | 'failed' | 'collected';
 }
 
 export async function mountHarness(root: HTMLElement, options: HarnessOptions): Promise<void> {
@@ -64,6 +68,10 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
   // The harness has one leaf, so one instance. Set before mount, so App's repository watcher
   // binds the evidence store against it.
   useEvidenceStore(pinia).setRepository(new InMemoryEvidenceStore());
+
+  // Part 7 Z42: a scripted fallow analysis service (it runs nothing); `?analysis=` seeds it.
+  const fallowAnalysis = createFakeFallowAnalysis();
+  useAnalysisStore(pinia).setService(fallowAnalysis);
 
   const handle = shallowRef<CityRendererPort | null>(null);
   app.provide(CITY_RENDERER_KEY, handle);
@@ -136,6 +144,24 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
     if (lens.lens !== 'findings') throw new Error('harness: lens=findings needs report=demo');
   }
 
+  if (options.analysis) {
+    // Part 7 Z42: a run as the plugin's coordinator would report it, on the harness codebase.
+    const snapshot = store.snapshot;
+    if (!snapshot) throw new Error('harness: analysis= found no snapshot');
+    const evidence = useEvidenceStore();
+    evidence.bindRepository(snapshot.repositoryId);
+    fallowAnalysis.setBinding(snapshot.repositoryId, HARNESS_BINDING);
+    if (options.analysis === 'running') fallowAnalysis.setState(snapshot.repositoryId, runningAnalysisState(snapshot));
+    if (options.analysis === 'failed') {
+      if (!evidence.attach({ ...demoEvidenceReport(snapshot), staleReason: 'failed-run' })) throw new Error('harness: analysis=failed was refused');
+      fallowAnalysis.setState(snapshot.repositoryId, failedAnalysisState());
+    }
+    if (options.analysis === 'collected') {
+      if (!evidence.attach(demoCollectedReport(snapshot))) throw new Error('harness: analysis=collected was refused');
+      fallowAnalysis.setState(snapshot.repositoryId, completedAnalysisState());
+    }
+  }
+
   const route = options.route ?? 'city';
   store.navigate(route);
   if (route !== 'city') {
@@ -195,6 +221,20 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
       input.files = transfer.files;
       input.dispatchEvent(new Event('change'));
       await until(() => root.querySelector('.ci-connect-fallow__attach') !== null);
+    }
+    if (options.fallow === 'routes') {
+      // Part 7 Z29: the dialog's step 1, with both routes.
+      if (route !== 'sources') throw new Error('harness: fallow=routes needs route=sources');
+      useEvidenceStore().requestImport();
+      await until(() => root.querySelector('.ci-connect-fallow__use-installed') !== null);
+    }
+    if (options.fallow === 'installed') {
+      // Part 7 Z30/Z31: the command's own path: a run request whose answer is the review.
+      const snapshot = store.snapshot;
+      if (route !== 'sources' || !snapshot) throw new Error('harness: fallow=installed needs route=sources and a snapshot');
+      fallowAnalysis.next.run = { kind: 'review', review: demoRunReview(snapshot), reason: 'untrusted' };
+      useAnalysisStore().requestRun();
+      await until(() => root.querySelector('.ci-fallow-installed__trust') !== null);
     }
     document.body.dataset.ciHarnessReady = 'true';
     return;

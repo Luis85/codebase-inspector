@@ -12,9 +12,12 @@ import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { ALL_ANALYSED, SYNTHETIC_VERSION } from '../fixtures/evidence-report';
+import { FALLOW_RUN_ARGS } from '../../src/application/analysis/fallow-invocation';
+import { fallowRunBannerOf } from '../../src/ui/read-models/fallow-run';
 import {
-  DEMO_FALLOW_FILE_NAME, DEMO_UNMATCHED_PATH, HARNESS_SYNTHETIC_FOOTER, demoEvidenceReport, demoFallowReportText,
-  filePathsOf,
+  DEMO_FALLOW_FILE_NAME, DEMO_UNMATCHED_PATH, HARNESS_SYNTHETIC_FOOTER, HARNESS_BINDING,
+  completedAnalysisState, demoCollectedReport, demoEvidenceReport, demoFallowReportText, demoRunReview,
+  failedAnalysisState, filePathsOf, runningAnalysisState,
 } from './seed';
 import { harnessSnapshot } from './fixture';
 
@@ -71,5 +74,30 @@ describe('attaching it the way mount.ts does', () => {
     expect(index.matchedFindings).toBe(19);
     expect(index.matchedFiles).toBe(10);
     expect(index.totals.findings.state).toBe('collected');
+  });
+});
+
+describe('the harness fallow run (?fallow=installed, ?analysis=…, Part 7 Z42)', () => {
+  it('the collected demo is the real builder\'s report with verified, collected provenance', () => {
+    const snapshot = harnessSnapshot();
+    const report = demoCollectedReport(snapshot);
+    expect(report.collected).toMatchObject({ origin: 'collected', sourceMatch: 'verified', rootPath: snapshot.scope.rootPath, exitCode: 0 });
+    expect(report.fileName).toBe('fallow.exe');
+    expect(report.normalized.findings.length).toBe(demoEvidenceReport(snapshot).normalized.findings.length);
+  });
+
+  it('the review shows the exact argv for the harness root and a synthetic executable', () => {
+    const snapshot = harnessSnapshot();
+    const review = demoRunReview(snapshot);
+    expect(review.args).toEqual(FALLOW_RUN_ARGS(snapshot.scope.rootPath));
+    expect(review.facts.executablePath).toBe('C:\\Tools\\fallow\\fallow.exe');
+    expect(HARNESS_BINDING).toMatchObject({ kind: 'bound', binding: { executablePath: 'C:\\Tools\\fallow\\fallow.exe' } });
+  });
+
+  it('every seeded run state has a banner', () => {
+    const snapshot = harnessSnapshot();
+    expect(fallowRunBannerOf(runningAnalysisState(snapshot), true)?.tone).toBe('info');
+    expect(fallowRunBannerOf(failedAnalysisState(), true)).toMatchObject({ tone: 'warning', kept: true });
+    expect(fallowRunBannerOf(completedAnalysisState(), true)?.icon).toBe('check');
   });
 });

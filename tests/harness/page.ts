@@ -13,6 +13,9 @@
 //   ?report=demo       attach a SYNTHETIC fallow report built from the fixture's paths (any route)
 //   ?lens=findings     turn the findings lens on (city, with report=demo)
 //   ?fallow=review     open the Connect fallow dialog at its review step (sources)
+//   ?fallow=routes     open the Connect fallow dialog at step 1, both routes (sources)
+//   ?fallow=installed  open the installed-analyzer route at its review (sources)
+//   ?analysis=running|failed|collected  seed the scripted fallow run (sources)
 //
 // `installObsidianDomExtensions` is called FIRST, before any other import runs its own
 // top-level code: the harness page has no Obsidian, and the REAL renderer reads
@@ -46,7 +49,8 @@ if (width !== null && /^\d+$/.test(width)) leaf.style.width = `${width}px`;
 
 // Part 6 §5: a page carrying the synthetic fallow report says so, outside the plugin's own
 // root, the way the design mockups carry their "synthetic data" caption.
-if (params.get('report') === 'demo' || params.get('fallow') === 'review') {
+const FALLOW_PAGES: readonly (string | null)[] = ['review', 'routes', 'installed'];
+if (params.get('report') === 'demo' || FALLOW_PAGES.includes(params.get('fallow')) || params.get('analysis') !== null) {
   document.body.createEl('footer', { cls: 'ci-harness-footer', text: HARNESS_SYNTHETIC_FOOTER });
 }
 
@@ -65,4 +69,7 @@ void mountHarness(leaf, {
   ...(params.get('report') === 'demo' ? { report: 'demo' as const } : {}),
   ...(params.get('lens') === 'findings' ? { lens: 'findings' as const } : {}),
   ...(params.get('fallow') === 'review' ? { fallow: 'review' as const } : {}),
+  ...(params.get('fallow') === 'routes' ? { fallow: 'routes' as const } : {}),
+  ...(params.get('fallow') === 'installed' ? { fallow: 'installed' as const } : {}),
+  ...(['running', 'failed', 'collected'].includes(params.get('analysis') ?? '') ? { analysis: params.get('analysis') as 'running' | 'failed' | 'collected' } : {}),
 });

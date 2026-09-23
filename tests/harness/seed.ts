@@ -10,6 +10,11 @@ import type { EvidenceReport } from '../../src/application/evidence/model';
 import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
 import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
 import { snapshotWithOnlyFiles, syntheticFallowJson } from '../fixtures/evidence-report';
+import { FALLOW_RUN_ARGS } from '../../src/application/analysis/fallow-invocation';
+import type { AnalysisRunState } from '../../src/application/analysis/analysis-state';
+import type { AnalyzerBindingRead } from '../../src/application/analysis/analyzer-record';
+import type { RunReview } from '../../src/application/analysis/fallow-analysis-service';
+import { HARNESS_EXECUTABLE, fakeRunReview } from '../fixtures/fake-fallow-analysis';
 
 const AT = new Date('2026-09-17T12:00:00Z');
 
@@ -105,4 +110,45 @@ export function demoEvidenceReport(snapshot: CodebaseSnapshot): EvidenceReport {
     raw: read.report, fileName: DEMO_FALLOW_FILE_NAME, importedAt: AT.toISOString(),
     snapshotId: snapshot.snapshotId, stripPrefix: null,
   });
+}
+
+/** Part 7 Z42: the demo report as a collected run attaches it (the real builder's output plus
+ *  collected provenance), for `?analysis=collected`. */
+export function demoCollectedReport(snapshot: CodebaseSnapshot): EvidenceReport {
+  const base = demoEvidenceReport(snapshot);
+  return {
+    ...base, fileName: 'fallow.exe',
+    collected: {
+      origin: 'collected', sourceMatch: 'verified', runId: 'harness-fallow-run', rootPath: snapshot.scope.rootPath,
+      executablePath: HARNESS_EXECUTABLE, args: FALLOW_RUN_ARGS(snapshot.scope.rootPath), exitCode: 0,
+      startedAt: AT.toISOString(), durationMs: 1_450, versionTested: true,
+    },
+  };
+}
+
+/** Part 7 Z42: the installed route's review for the harness root (`?fallow=installed`). */
+export function demoRunReview(snapshot: CodebaseSnapshot): RunReview {
+  return fakeRunReview(snapshot.repositoryId, snapshot.snapshotId, snapshot.scope.rootPath);
+}
+
+export const HARNESS_BINDING: AnalyzerBindingRead = {
+  kind: 'bound', binding: { profileId: 'harness', executablePath: HARNESS_EXECUTABLE, timeoutSeconds: 120, trust: { fingerprint: '0a1b2c3d', version: '3.27.0', grantedAt: AT.toISOString() } },
+};
+
+export function runningAnalysisState(snapshot: CodebaseSnapshot): AnalysisRunState {
+  return {
+    status: 'running', rootPath: snapshot.scope.rootPath, startedAt: AT.toISOString(), timeoutSeconds: 120, version: '3.27.0', tested: true,
+    identity: { profileId: snapshot.repositoryId, snapshotId: snapshot.snapshotId, rootFingerprint: 'harness', subjectFingerprint: 'harness', runId: 'harness-fallow-run', generation: 0 },
+  };
+}
+
+export function failedAnalysisState(): AnalysisRunState {
+  return {
+    status: 'failed', runId: 'harness-fallow-run', code: 'timed-out', detail: '120', evidenceKept: true, finishedAt: AT.toISOString(),
+    logExcerpt: 'Synthetic harness log: analysing 142 files…\nSynthetic harness log: still analysing after 120 s.',
+  };
+}
+
+export function completedAnalysisState(): AnalysisRunState {
+  return { status: 'completed', runId: 'harness-fallow-run', finishedAt: AT.toISOString(), version: '3.27.0', tested: true, matchedFindings: 19, matchedFiles: 10 };
 }

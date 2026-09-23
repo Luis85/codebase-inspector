@@ -137,6 +137,16 @@ export const SHOTS = [
   { id: 'wp02-quality-fallow-dark', query: '?screen=s05&theme=dark&route=quality&report=demo' },
   { id: 'wp02-city-lens-dark', query: '?screen=s05&theme=dark&route=city&report=demo&lens=findings' },
   { id: 'wp02-city-lens-light', query: '?screen=s05&theme=light&route=city&report=demo&lens=findings' },
+  // WP-02 Part 7: compare against docs/concept/design/mockups/s14-provider.png (both routes; the
+  // installed-analyzer review) and docs/concept/prototype/screenshots/sources-dark.png (the fallow
+  // card while a run is in flight, after a failed run, and with collected findings). The
+  // executable, the run and its log are SYNTHETIC (tests/harness/seed.ts).
+  { id: 'wp02-connect-fallow-routes-dark', query: '?screen=s05&theme=dark&route=sources&fallow=routes' },
+  { id: 'wp02-connect-fallow-installed-dark', query: '?screen=s05&theme=dark&route=sources&fallow=installed' },
+  { id: 'wp02-connect-fallow-installed-light', query: '?screen=s05&theme=light&route=sources&fallow=installed' },
+  { id: 'wp02-sources-fallow-running-dark', query: '?screen=s05&theme=dark&route=sources&analysis=running' },
+  { id: 'wp02-sources-fallow-failed-dark', query: '?screen=s05&theme=dark&route=sources&analysis=failed' },
+  { id: 'wp02-sources-fallow-collected-dark', query: '?screen=s05&theme=dark&route=sources&analysis=collected' },
 ];
 
 async function main() {
