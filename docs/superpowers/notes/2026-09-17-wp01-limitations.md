@@ -336,8 +336,18 @@ round-trip).
   (PF4) are unit- and contract-pinned, but this task ran on Windows: neither was
   exercised on a POSIX machine during this execution.
 
-Every one of these is also stated where the user meets it: the review's side-effect list
-(Z31) and the storage disclosure (Z12).
+Some of these are also stated where the user meets them, and only these (corrected in the
+final review; the earlier sentence claimed all of them). The review's side-effect list
+(Z31) says that it is not a sandbox, that fallow configuration files in the folder are
+followed (and remote configuration never fetched), that the git history may be read, that
+paths the scan excludes are read too, and that the "writes nothing" claim was checked with
+fallow 3.27.0; a trusted version outside the tested ones is labelled "(untested version)"
+in the review's Version row and the card's Trust row; and on Windows the review's
+Environment row says the variables Windows always provides are passed on as well. The storage
+disclosure (Z12) says the executable setting is marked with this device and that another
+device asks again, which is the rule the machine-identity item qualifies. The Windows
+process-tree limit, a force-quit mid-run, the synchronous parse, the inferred machine
+identity itself and the POSIX paths not run here are stated only in this document.
 
 ---
 

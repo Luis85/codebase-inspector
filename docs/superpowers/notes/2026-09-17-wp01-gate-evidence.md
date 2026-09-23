@@ -457,7 +457,7 @@ with `npm run test:fallow` (Git Bash, Windows) and the no-freeze evidence with
 |---|---|
 | Exact executable/cwd display | `tests/component/connect-fallow-routes.test.ts`: the review renders `facts.executablePath`, the root as "Folder analysed" and "Runs in", and one `<code>` per argv item equal to `FALLOW_RUN_ARGS(root)` (Z31) |
 | Explicit trust before any probe | `tests/integration/fallow-analysis.test.ts` ("a bound but untrusted run starts zero processes"): an untrusted `run` records zero process requests, `review` records zero, and after Trust and run the first request is `['--version']`. `tests/unit/fallow-analysis-service.test.ts`: `checkTrust` never touches the process port (Z7, Z8) |
-| Missing native binary | `tests/unit/executable-inspector.test.ts`: the inspector answers `executable-missing`; `tests/unit/fallow-runner.test.ts`: a real spawn `ENOENT` gives `{ kind: 'spawn-failed', errorCode: 'ENOENT' }`, surfaced by the service as `executable-missing` (`tests/unit/fallow-analysis-service.test.ts`) |
+| Missing native binary | `tests/unit/executable-inspector.test.ts`: the inspector answers `executable-missing`; `tests/contracts/fallow-runner.test.ts`: a real spawn `ENOENT` gives `{ kind: 'spawn-failed', errorCode: 'ENOENT' }` (`tests/unit/fallow-runner.test.ts` pins the same answer for a scripted spawn error), classified as `executable-missing` (`tests/unit/fallow-invocation.test.ts`, and end to end by `tests/unit/analysis-coordinator.test.ts`, Review Focus 4) — **citation corrected in the final review** |
 | Unsupported version | `tests/integration/fallow-analysis.test.ts`: fake fallow `version-4` gives `version-unsupported`, with no run and no trust stored; `version-untested` runs are labelled untested |
 | Finding exit status | `tests/contracts/fallow-runner.test.ts` and `tests/integration/fallow-analysis.test.ts`: `findings-exit-1` completes; `tests/fallow-real/fallow-real.test.ts` test 7: the real binary, `fallow dead-code --fail-on-issues`, exits 1 and still classifies as completed — **corrected during execution, see below** (Z41.7) |
 | Real failure | `tests/integration/fallow-analysis.test.ts`: `error-exit-2` gives `analyzer-error`, and the evidence is kept and marked stale; `tests/fallow-real/fallow-real.test.ts` test 6: a real bad root (Z41.6) |
@@ -593,7 +593,10 @@ transcription described above; the Contract row is the exception: its guard deri
 from its files, so it includes Part 7's runner contract (`tests/contracts/fallow-runner.test.ts`,
 K28); they are **not** the living suite's totals, and the guard below only checks that
 they sum to each other, not that they match a fresh run. The living suite's own
-measurement, taken at this commit: 229 files, 2537 tests, 2536 passed, 1 skipped.
+measurement, taken after the Part 7 final-review fixes (which added tests to existing
+files only): 229 files, 2549 tests, 2548 passed, 1 skipped — counting two whole-`src/`
+scans (`clean-vault-install.test.ts`'s network sweep and `no-process-execution.test.ts`)
+that hit the 5 s timeout under full-suite load and passed when re-run alone.
 `tests/unit/install-script.test.ts` passes at this commit: its checks build their own
 throwaway vault trees under `os.tmpdir()` and do not depend on this worktree having a
 `.obsidian/` folder of its own, so the environmental failure recorded through Part 6 did

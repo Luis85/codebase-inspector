@@ -322,3 +322,15 @@ describe('the accessibility gate\'s open-row count is derived, not retyped', () 
     expect(readFileSync(MATRIX, 'utf8')).toContain('NOT a passing gate');
   });
 });
+
+describe('G6 credits the real-process ENOENT to the test that actually spawns (Part 7 final review)', () => {
+  it('the "Missing native binary" row cites a test file that really spawns and really gets ENOENT', () => {
+    const row = readEvidence().split('\n').find((line) => line.startsWith('| Missing native binary |'));
+    expect(row, 'the G6 "Missing native binary" row is missing').toBeDefined();
+    const cited = /`(tests\/[^`]+\.test\.ts)`: a real spawn `ENOENT`/.exec(row ?? '');
+    expect(cited, 'the row no longer names the file behind "a real spawn ENOENT"').not.toBeNull();
+    const source = readFileSync(resolve(process.cwd(), cited?.[1] ?? ''), 'utf8');
+    expect(source, `${cited?.[1] ?? ''} does not spawn a real process`).toContain('realSpawn');
+    expect(source).toContain("errorCode: 'ENOENT'");
+  });
+});
