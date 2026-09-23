@@ -1,10 +1,12 @@
 // Part 6 acceptance evidence (2) for the Fallow Ingestion deliverable: importing a report
 // runs no code, and nothing under src/ can start a process or hand a path to the shell.
-// The detector itself (a real TypeScript AST parse, plus a text scan of a .vue file's
-// <template> block) lives in tests/fixtures/process-guard.ts — see its header for what it
-// covers, why round 1's regex-then-scanner approach still had a blind spot, and how it
-// was fixed (fix round 2, E31). This file holds the whole-tree scan, the flags/does-not-
-// flag tables, and a self-test that pins the fixed blind spot against every real file.
+// The detector itself (a real TypeScript AST parse, a real Vue SFC parse for .vue files,
+// and a text scan of a .vue file's <template> block) lives in
+// tests/fixtures/process-guard.ts — see its header for what it covers, the two prior
+// blind spots (round 1's flat scanner; round 2's regex-based <script> block finder, which
+// a similarly-named component or a comment inside a template could fool), and how each
+// was fixed. This file holds the whole-tree scan, the flags/does-not-flag tables, and a
+// self-test that pins the fixed blind spots against every real file.
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -98,6 +100,28 @@ describe('process hazard detection', () => {
     // Fix round 2: a .vue <template> attribute, scanned as text (not parsed as TS).
     ['<template><button @click="exec(cmd)">Run</button></template>', 'vue', 'process call'],
     ['<template><button @click="shell.openPath(p)">Run</button></template>', 'vue', 'shell.openPath'],
+    // Fix round 3 (Important 2, the <script>-finding regression): a regex `<script>`
+    // finder is fooled by a similarly-named component or a comment; a real SFC parse is
+    // not. All three still find the real spawn('fallow') in <script setup>.
+    ['<template><ScriptPanel/><p>a backtick ` here</p></template><script setup>\nspawn(\'fallow\');\n</script>', 'vue', 'process call'],
+    [
+      '<template><!-- the <script> below --><p>Run nothing</p></template><script setup>\nspawn(\'fallow\');\n</script>',
+      'vue', 'process call',
+    ],
+    ["<template><p>x</p></template><script setup>\nspawn('fallow');\n</script >", 'vue', 'process call'],
+    // Fix round 3 (minor 3): the template text scan regained the forms round 2's version
+    // had lost.
+    ["<template><button @click=\"spawn?.('x')\">Run</button></template>", 'vue', 'process call'],
+    ["<template><button @click=\"cp['spawn']('x')\">Run</button></template>", 'vue', 'process call'],
+    // Fix round 3 (minor 4): a module name reached through a variable, not only as a
+    // specifier argument directly.
+    ["const m = 'child_process'; window.require(m);", 'ts', 'process module'],
+    // Fix round 3 (minor 5): callees the AST walker did not unwrap before this round.
+    ["(spawn)('x');", 'ts', 'process call'],
+    ["(0, cp.spawn)('x');", 'ts', 'process call'],
+    ["spawn!('x');", 'ts', 'process call'],
+    ["spawn`x`;", 'ts', 'process call'],
+    ["spawn['call'](null);", 'ts', 'process call'],
   ])('flags %s (%s)', (source, kind, label) => {
     expect(processHazards(source, kind)).toContain(label);
   });
@@ -116,6 +140,9 @@ describe('process hazard detection', () => {
     ['<template><p>Run nothing</p></template><script>const x = 1;</script>', 'vue'],
     // Neither a <template> nor a <script> wrapper: nothing to scan, so nothing to flag.
     ['<!-- openPath is not used --><p>Run nothing</p>', 'vue'],
+    // Fix round 3 (item 6): `.exec` reached via `.call`/`.apply` is still RegExp.exec,
+    // not a process call — the receiver's own shape (a member, not bare) decides.
+    ['pattern.exec.call(str);', 'ts'],
   ])('does not flag %s', (source, kind) => {
     expect(processHazards(source, kind)).toEqual([]);
   });

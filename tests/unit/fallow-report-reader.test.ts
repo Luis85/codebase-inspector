@@ -3,6 +3,7 @@
 // fields that must never survive the parse.
 import { describe, expect, it, vi } from 'vitest';
 import { parseFallowReportText, readFallowReportFile } from '../../src/application/evidence/read-fallow-report';
+import { HEALTH_FINDING, SUMMARY_VALUE, firstArrayFailure, firstRecordFailure } from '../../src/application/evidence/fallow-report-schema';
 import { FALLOW_REPORT_MAX_BYTES, FALLOW_SUPPORTED } from '../../src/application/evidence/raw-fallow';
 import {
   DROPPED_KEYS, FALLOW_FIXTURES, deepKeys, deepStrings, fallowDoc, fallowOutcome, fallowText, fixtureSourceLines, rawReport, rows,
@@ -128,11 +129,7 @@ describe('fallow reader: refusals (Part 6 Y20, Y31)', () => {
 describe('fallow reader: stops at the first bad array element (Fix round 1, E31 Important 1)', () => {
   it('refuses a huge array of bad findings without validating the rest of it', () => {
     const doc = fallowDoc('combined-3.27.0', (d) => { d.health!.findings = Array.from({ length: 300000 }, () => ({})); });
-    const start = Date.now();
-    const outcome = fallowOutcome(doc);
-    const elapsed = Date.now() - start;
-    expect(outcome).toBe('invalid health.findings.0.path');
-    expect(elapsed).toBeLessThan(2000);
+    expect(fallowOutcome(doc)).toBe('invalid health.findings.0.path');
   });
 
   it('names a bad element that is not first, after two valid ones', () => {
@@ -141,6 +138,28 @@ describe('fallow reader: stops at the first bad array element (Fix round 1, E31 
       d.health!.findings = [good, good, {}];
     });
     expect(fallowOutcome(doc)).toBe('invalid health.findings.2.path');
+  });
+
+  // Fix round 3 (E31, Important 1): a wall-clock budget does not actually prove the walk
+  // stops early — the OLD, unbounded z.array(itemSchema)/z.record(z.string(), z.number())
+  // validation of 300,000 bad elements/values was still fast enough (well under a
+  // generous budget) to pass it, in this environment, even without either fix. These two
+  // tests instead count element/value READS with getters: if the walk kept going past the
+  // first failure, `reads` would include every index/key up to 300,000, not just the ones
+  // up to and including the bad one. GOOD_FINDING is a valid element, so every read before
+  // the bad index succeeds and the walk only stops because of the bad one.
+  const GOOD_FINDING = { path: 'a', name: 'b', line: 1, col: 1, cyclomatic: 1, cognitive: 1, line_count: 1, exceeded: 'x', severity: 'y' };
+
+  it('reads no array element after the first bad one (structural proof)', () => {
+    const reads: number[] = [];
+    const badIndex = 5;
+    const items: unknown[] = Array.from({ length: 300000 });
+    for (let i = 0; i < items.length; i += 1) {
+      Object.defineProperty(items, i, { enumerable: true, configurable: true, get: () => { reads.push(i); return i === badIndex ? {} : GOOD_FINDING; } });
+    }
+    const result = firstArrayFailure(items, HEALTH_FINDING, ['findings']);
+    expect(result).toEqual({ ok: false, path: ['findings', badIndex, 'path'] });
+    expect(reads).toEqual([0, 1, 2, 3, 4, 5]);
   });
 
   // Fix round 2 (E31, Important 1 continued): the same attack works through a record,
@@ -152,11 +171,20 @@ describe('fallow reader: stops at the first bad array element (Fix round 1, E31 
       for (let i = 0; i < 300000; i += 1) summary[`k${i}`] = '';
       d.summary = summary;
     });
-    const start = Date.now();
-    const outcome = fallowOutcome(doc);
-    const elapsed = Date.now() - start;
-    expect(outcome).toBe('invalid summary.k0');
-    expect(elapsed).toBeLessThan(2000);
+    expect(fallowOutcome(doc)).toBe('invalid summary.k0');
+  });
+
+  it('reads no summary value after the first bad one (structural proof)', () => {
+    const reads: string[] = [];
+    const badIndex = 5;
+    const record: Record<string, unknown> = {};
+    for (let i = 0; i < 300000; i += 1) {
+      const key = `k${i}`;
+      Object.defineProperty(record, key, { enumerable: true, configurable: true, get: () => { reads.push(key); return i === badIndex ? '' : 1; } });
+    }
+    const result = firstRecordFailure(record, SUMMARY_VALUE, ['summary']);
+    expect(result).toEqual({ ok: false, path: ['summary', `k${badIndex}`] });
+    expect(reads).toEqual(['k0', 'k1', 'k2', 'k3', 'k4', 'k5']);
   });
 
   it('never lets __proto__ in a summary record become an inherited key', () => {
