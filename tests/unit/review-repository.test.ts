@@ -11,10 +11,11 @@ import { createPluginDataReviewRepository } from '../../src/adapters/storage/plu
 
 const notDurable = (): Promise<never> => Promise.reject(new Error('The in-memory adapter has no data.json.'));
 const noWrites = (): number => 0;
+const noSaves = (): void => { throw new Error('The in-memory adapter has no data.json.'); };
 
 function inMemoryHarness(): ReviewRepositoryHarness {
   const repo = createInMemoryReviewRepository();
-  return { repo, reopen: () => repo, writeRaw: notDurable, readRaw: notDurable, writes: noWrites };
+  return { repo, reopen: () => repo, writeRaw: notDurable, readRaw: notDurable, writes: noWrites, failNextSave: noSaves };
 }
 
 function pluginDataHarness(): ReviewRepositoryHarness {
@@ -22,9 +23,14 @@ function pluginDataHarness(): ReviewRepositoryHarness {
   const plugin = new Plugin({}, {}) as unknown as ObsidianPlugin;
   const save = plugin.saveData.bind(plugin);
   let writes = 0;
+  let failNext = false;
   // Counts the adapter's own saves; writeRaw uses `save` directly, so it does not count.
   plugin.saveData = (data: unknown): Promise<void> => {
     writes += 1;
+    if (failNext) {
+      failNext = false;
+      return Promise.reject(new Error('The disk is full.'));
+    }
     return save(data);
   };
   return {
@@ -33,6 +39,7 @@ function pluginDataHarness(): ReviewRepositoryHarness {
     writeRaw: (doc) => save(doc),
     readRaw: () => plugin.loadData() as Promise<unknown>,
     writes: () => writes,
+    failNextSave: () => { failNext = true; },
   };
 }
 

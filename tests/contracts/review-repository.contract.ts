@@ -9,7 +9,8 @@
 //   version could leave it (the only way to put an invalid record on disk);
 // - `readRaw()` returns the whole data.json;
 // - `reopen()` builds a FRESH adapter on the same data.json (a plugin restart);
-// - `writes()` counts the adapter's own data.json saves (writeRaw does not count).
+// - `writes()` counts the adapter's own data.json saves (writeRaw does not count);
+// - `failNextSave()` makes the adapter's next data.json save reject (a full disk).
 // Plugin-data-only cases: persistence across a reopen, the path form on disk, the
 // high-water mark on disk, allocating before the first read, skip-but-keep, duplicate ids,
 // an unsupported set, the 1 MB bound, unrepresentable records, other keys left alone, and
@@ -27,6 +28,7 @@ export interface ReviewRepositoryHarness {
   writeRaw: (doc: unknown) => Promise<void>;
   readRaw: () => Promise<unknown>;
   writes: () => number;
+  failNextSave: () => void;
 }
 
 export const CONTRACT_REPO = 'repo-contract';
@@ -259,7 +261,10 @@ export function runDurableReviewRepositoryContract(name: string, make: () => Pro
       const invalid = [stored('wi-5', { owner: 'x' }), 'garbage'];
       const badRule = { id: 'AR-1', from: 'a', to: 'b', rationale: 'r', createdAt: AT };
       const badDecision = { finding: '../x.ts#CX-1', status: 'acknowledged', decidedAt: AT };
-      await h.writeRaw(docWith({ v: 1, workItems: [stored('wi-1'), ...invalid], rules: [badRule], dispositions: [badDecision] }));
+      await h.writeRaw(docWith({
+        v: 1, workItems: [stored('wi-1'), ...invalid], rules: [badRule], dispositions: [badDecision],
+        extra: true, highWater: { workItem: 2, rule: 0, future: 3 },
+      }));
       expect(await h.repo.listWorkItems()).toEqual([item('wi-1')]);
       expect(await h.repo.listRules()).toEqual([]);
       expect(await h.repo.listDispositions()).toEqual([]);
@@ -267,12 +272,47 @@ export function runDurableReviewRepositoryContract(name: string, make: () => Pro
       const next = h.repo.allocateId('workItem');
       expect(next).toBe('wi-6');
       await h.repo.saveWorkItem(item(next));
+      // E26: an ordinary save keeps unknown set keys and unknown high-water keys.
+      const saved = await setIn(h);
+      expect([saved.extra, saved.highWater]).toEqual([true, { workItem: 6, rule: 1, future: 3 }]);
       await h.repo.removeWorkItem('wi-1');
       const set = await setIn(h);
       expect(set.workItems).toEqual([...invalid, stored('wi-6')]);
       expect(set.rules).toEqual([badRule]);
       expect(set.dispositions).toEqual([badDecision]);
+      expect([set.extra, set.highWater]).toEqual([true, { workItem: 6, rule: 1, future: 3 }]);
       expect(h.repo.diagnostics()).toEqual({ skipped: 4, unsupported: false });
+    });
+
+    it('ignores a raw id or a stored mark past what a record can hold, so adds go on (Y10, E26)', async () => {
+      const h = await make();
+      await h.writeRaw(docWith({
+        v: 1, workItems: [stored('wi-3'), stored('wi-1000000')], rules: [], dispositions: [],
+        highWater: { workItem: 5000000, rule: 7000000 },
+      }));
+      expect((await h.repo.listWorkItems()).map((w) => w.id)).toEqual(['wi-3']);
+      const next = h.repo.allocateId('workItem');
+      expect([next, h.repo.allocateId('rule')]).toEqual(['wi-4', 'AR-001']);
+      await h.repo.saveWorkItem(item(next));
+      expect((await h.repo.listWorkItems()).map((w) => w.id)).toEqual(['wi-3', 'wi-4']);
+    });
+
+    it('a save data.json refuses rejects, tells nobody, and changes neither the lists nor the diagnostics (E26)', async () => {
+      const h = await make();
+      await h.writeRaw(docWith({ v: 1, workItems: [stored('wi-1'), 'garbage'], rules: [], dispositions: [] }));
+      expect(await h.repo.listWorkItems()).toEqual([item('wi-1')]);
+      const diagnostics = h.repo.diagnostics();
+      expect(diagnostics).toEqual({ skipped: 1, unsupported: false });
+      const before = await h.readRaw();
+      let calls = 0;
+      h.repo.subscribe(() => { calls += 1; });
+      h.failNextSave();
+      await expect(h.repo.saveWorkItem(item('wi-2'))).rejects.toThrow();
+      expect(calls).toBe(0);
+      expect(h.repo.diagnostics()).toEqual(diagnostics);
+      expect(await h.readRaw()).toEqual(before);
+      expect(await h.repo.listWorkItems()).toEqual([item('wi-1')]);
+      expect(h.repo.diagnostics()).toEqual(diagnostics);
     });
 
     it('lists the first of two records with one id, and a write to that id leaves one (Y7)', async () => {

@@ -49,8 +49,11 @@ describe('review repository registry: purge (Part 6 Y17)', () => {
     await old.saveRule(rule('AR-001', 'domain'));
     const reloaded: number[] = [];
     old.subscribe(() => { void old.listRules().then((rules) => { reloaded.push(rules.length); }); });
+    // E26: a read already in flight was queued before the delete. The reload must not share it.
+    const stale = old.listRules();
     await registry.purge('p1');
     await flushPromises();
+    expect(await stale).toEqual([rule('AR-001', 'domain')]);
     expect(reloaded).toEqual([0]);
     const refused: unknown = await old.saveRule(rule('AR-002', 'host')).then(() => null, (e: unknown) => e);
     expect(refused).toBeInstanceOf(ReviewStoreError);

@@ -24,7 +24,8 @@ import {
   formatReviewId, noStorageDiagnostics, reviewIdSuffix, type ReviewIdKind, type ReviewRepository, type ReviewStorageDiagnostics,
 } from '../../ui/stores/ports/review-repository';
 import {
-  decodeRecords, encodeDisposition, encodeRule, encodeWorkItem, storedFindingKey, type DecodedRecords, type StoredRecord,
+  STORED_ID_SUFFIX_MAX, decodeRecords, encodeDisposition, encodeRule, encodeWorkItem, storedFindingKey,
+  type DecodedRecords, type StoredRecord,
 } from '../../ui/read-models/review-record-codec';
 import { REVIEW_SAVE_UNREPRESENTABLE, REVIEW_STORE_FULL, REVIEW_STORE_UNSUPPORTED } from '../../ui/inspector-copy';
 import { asUnknownArray, isRecordWithField, readPluginData, writePluginDataSlice } from './plugin-data-shape';
@@ -80,20 +81,22 @@ function recordSetOf(reviews: unknown, repositoryId: string): RawSet | null {
   return LIST_KEYS.every((key) => set[key] === undefined || Array.isArray(set[key])) ? set : null;
 }
 
-/** Y10: the stored mark for `kind`; 0 when it is absent or not a whole number. */
+/** Y10: the stored mark for `kind`; 0 when it is absent, not a whole number, or past what a
+ *  record can hold (E26: absorbing it would make every later id unrepresentable). */
 function storedMark(set: RawSet, kind: ReviewIdKind): number {
   const marks = set.highWater;
   const n = isPlainObject(marks) ? marks[kind] : undefined;
-  return typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 ? n : 0;
+  return typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 && n <= STORED_ID_SUFFIX_MAX ? n : 0;
 }
 
-/** Y10: the highest id suffix in `kind`'s raw list, counting records a read skips. */
+/** Y10: the highest id suffix in `kind`'s raw list, counting records a read skips. A suffix
+ *  past what a record can hold is ignored (E26): no stored record can ever carry that id. */
 function highestRawId(set: RawSet, kind: ReviewIdKind): number {
   let max = 0;
   for (const entry of asUnknownArray(set[ID_LIST[kind]])) {
     const id = isPlainObject(entry) ? entry.id : undefined;
     const n = typeof id === 'string' && id.startsWith(ID_PREFIX[kind]) ? reviewIdSuffix(id) : null;
-    if (n !== null && n > max) max = n;
+    if (n !== null && n <= STORED_ID_SUFFIX_MAX && n > max) max = n;
   }
   return max;
 }

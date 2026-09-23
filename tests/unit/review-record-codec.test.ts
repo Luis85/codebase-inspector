@@ -4,7 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { makeEntityId } from '../../src/domain/entity-id';
 import type { BoundaryRule, FindingDisposition, WorkItem } from '../../src/ui/stores/ports/review-repository';
 import { reviewStateJson } from '../../src/ui/read-models/review-state';
-import { decodeRecords, encodeDisposition, encodeRule, encodeWorkItem } from '../../src/ui/read-models/review-record-codec';
+import {
+  STORED_ID_SUFFIX_MAX, decodeRecords, encodeDisposition, encodeRule, encodeWorkItem,
+} from '../../src/ui/read-models/review-record-codec';
 
 const REPO = 'repo-codec';
 const AT = '2026-09-23T10:00:00.000Z';
@@ -46,6 +48,13 @@ describe('review record codec (Part 6 Y6, Y7)', () => {
     ['a decision whose finding id the read would refuse', () => encodeDisposition({ ...DECISION, fingerprint: `${fileId('src/a.ts')}#UN 1` }, REPO)],
   ])('refuses (null) %s', (_name, encode) => {
     expect(encode()).toBeNull();
+  });
+
+  it('stores ids up to STORED_ID_SUFFIX_MAX and no further, as the record schemas allow (E26)', () => {
+    expect(encodeWorkItem({ ...ITEM, id: `wi-${STORED_ID_SUFFIX_MAX}` }, REPO)).not.toBeNull();
+    expect(encodeWorkItem({ ...ITEM, id: `wi-${STORED_ID_SUFFIX_MAX + 1}` }, REPO)).toBeNull();
+    expect(encodeRule({ ...RULE, id: `AR-${STORED_ID_SUFFIX_MAX}` })).not.toBeNull();
+    expect(encodeRule({ ...RULE, id: `AR-${STORED_ID_SUFFIX_MAX + 1}` })).toBeNull();
   });
 
   it('skips and counts what a read cannot use: invalid, repeated, or not a record; a missing list reads as empty', () => {

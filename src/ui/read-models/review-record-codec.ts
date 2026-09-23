@@ -13,6 +13,11 @@ import { workTargetKey, type BoundaryRule, type FindingDisposition, type WorkIte
 import { exportedDisposition, exportedRule, exportedWorkItem, findingRef } from './review-state';
 import { DISPOSITION, RULE, WORK_ITEM, toDisposition, toRule, toWorkItem } from './review-state-import';
 
+/** Part 6 E26: the largest id suffix a stored record can carry. The record schemas allow at
+ *  most six digits (WORK_ITEM `wi-\d{1,6}`, RULE `AR-\d{3,6}`); the codec test pins this
+ *  against them. A higher raw id or stored mark is ignored, never absorbed into Y10's marks. */
+export const STORED_ID_SUFFIX_MAX = 999_999;
+
 /** One record as stored in data.json: plain JSON. */
 export type StoredRecord = Record<string, unknown>;
 /** A read of one record set. `skipped` counts the entries it could not use (Y7). */
