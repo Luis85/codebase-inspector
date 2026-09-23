@@ -145,3 +145,9 @@ Five read-only scanners checked every task's text against the real code at HEAD,
 | Part 6 E20 | Task 10's `fallow-candidate.ts` lives in `src/ui/read-models/`, not in the screen folder, because screens read read models, stores and copy only. The import paths follow. | Low. A mechanical move. |
 | Part 6 E21 | These minors are accepted without change:<br>• A blocked Scan still gets the hover fill; this is the Cancel precedent.<br>• RED-message wording nits in Tasks 2, 5 and 8.<br>• plan-head's "twelve members" means thirteen.<br>• The codec's `listOf` repeats `asUnknownArray`. Importing it would add a ui → adapters edge.<br>• Task 7's `counting()` test helper appears twice.<br>• Task 9's two-line `importReport()`/badge-state glue.<br>• Task 10's mislabel of `FINDING_KIND_LABEL` as a Task 9 product.<br>• Task 9's mid-line import Edit. The brief says to match it as a substring. | Low. The final review triages them again. |
 | Part 6 E22 | Task 11 adds `setReported: vi.fn()` to every typed `CityRendererPort` double: the 18 at HEAD, plus any that Tasks 4 and 7 add (at least `inertPort` in `city-view-data-ports.test.ts`). Typecheck finds them. A10's "18" means 18 at HEAD. | None. |
+
+### Per task
+
+| # | Task | Ruling | Cost if wrong |
+|---|---|---|---|
+| Part 6 E23 | 1 | Task 1 is complete, and both reviews passed at the first round (1efc600..8ed0abe). Two minors are deferred to the final review: the guarded-press test does not assert "no announcement", because nothing wires Scan to the region; and `cancelScan`/`requestScan` are two near-identical two-line guards, which is the pre-existing idiom. | None. |
