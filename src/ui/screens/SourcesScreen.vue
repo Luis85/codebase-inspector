@@ -42,6 +42,7 @@ const removing = ref(false);
 
 const model = computed(() => buildSourcesModel(store.snapshot, runStore.run, {
   state: evidence.value.state, version: evidence.value.report?.providerVersion ?? null,
+  origin: evidence.value.report?.collected === undefined ? 'imported' : 'collected',
 }));
 const inFlight = computed(() => runStore.run.status === 'running' || runStore.run.status === 'cancelling');
 

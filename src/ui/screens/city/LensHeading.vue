@@ -6,15 +6,18 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useLensView } from '../../read-models/use-lens-view';
+import { evidenceBadgeOf, staleCauseOf } from '../../read-models/evidence-index';
+import { originOf } from '../../read-models/fallow-candidate';
 import { formatAbsoluteTime } from '../../copy';
-import { COPY_16, LENS_EYEBROW, LENS_SUBTITLE, LENS_TITLE } from '../../inspector-copy';
+import { FALLOW_STALE_NOTICE, LENS_EYEBROW, LENS_SUBTITLE, LENS_TITLE } from '../../inspector-copy';
 import EvidenceBadge from '../../kit/EvidenceBadge.vue';
 
 const { active, evidence } = useLensView();
 const report = computed(() => (active.value ? evidence.value.report : null));
 const stale = computed(() => evidence.value.state === 'stale');
-const subtitle = computed(() => LENS_SUBTITLE(evidence.value.matchedFindings, evidence.value.matchedFiles));
-const staleNote = computed(() => (report.value && stale.value ? COPY_16(formatAbsoluteTime(report.value.importedAt, Intl)) : null));
+const subtitle = computed(() => LENS_SUBTITLE(evidence.value.matchedFindings, evidence.value.matchedFiles, report.value ? originOf(report.value) : 'imported'));
+const staleNote = computed(() => (report.value && stale.value
+  ? FALLOW_STALE_NOTICE(formatAbsoluteTime(report.value.importedAt, Intl), staleCauseOf(report.value)) : null));
 </script>
 
 <template>
@@ -39,9 +42,6 @@ const staleNote = computed(() => (report.value && stale.value ? COPY_16(formatAb
         {{ staleNote }}
       </p>
     </div>
-    <EvidenceBadge
-      :version="report.providerVersion"
-      :state="stale ? 'stale' : 'imported'"
-    />
+    <EvidenceBadge v-bind="evidenceBadgeOf(report, stale)" />
   </div>
 </template>

@@ -3,7 +3,7 @@
 // no finding for this file (not the same as zero complexity, S15), and the reported
 // findings. The EvidenceBadge heads the panel whenever a report is attached.
 import { formatMetric, type MetricValue } from '../../evidence';
-import type { EvidenceIndexState } from '../../read-models/evidence-index';
+import type { EvidenceBadgeProps, EvidenceIndexState } from '../../read-models/evidence-index';
 import type { FileFinding } from '../../read-models/file-detail';
 import { severityTone, type FindingStatus, type QualityFinding } from '../../read-models/findings';
 import {
@@ -17,7 +17,7 @@ import NotAnalysed from '../../kit/NotAnalysed.vue';
 
 const props = defineProps<{
   findings: readonly FileFinding[]; count: MetricValue; statuses: ReadonlyMap<string, QualityFinding>;
-  evidence: EvidenceIndexState; version: string;
+  evidence: EvidenceIndexState; badge: EvidenceBadgeProps | null;
 }>();
 const emit = defineEmits<{ review: [fingerprint: string]; import: [] }>();
 /** A finding without a decision is open. */
@@ -34,8 +34,8 @@ const statusOf = (fingerprint: string): FindingStatus => props.statuses.get(fing
       #actions
     >
       <EvidenceBadge
-        :version="version"
-        :state="evidence === 'stale' ? 'stale' : 'imported'"
+        v-if="badge"
+        v-bind="badge"
       />
     </template>
     <NotAnalysed

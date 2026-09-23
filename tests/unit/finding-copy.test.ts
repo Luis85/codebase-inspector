@@ -47,7 +47,7 @@ describe('finding copy (Part 6 Y35/Y36)', () => {
   });
 
   it('the report\'s evidence line no longer calls findings sample data (R6)', () => {
-    expect(REPORT_EVIDENCE_TEXT).toContain('imported fallow report');
+    expect(REPORT_EVIDENCE_TEXT).toContain('fallow evidence (an imported report or a run you started)');
     expect(REPORT_EVIDENCE_TEXT).not.toMatch(/Findings[^.]*sample data/);
   });
 });

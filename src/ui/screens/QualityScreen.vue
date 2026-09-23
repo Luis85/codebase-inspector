@@ -7,10 +7,11 @@ import {
   DEFAULT_QUALITY_FILTER, FINDINGS_PAGE, filterFindings, findingsCsv, type QualityFilter, type QualityFinding,
 } from '../read-models/findings';
 import { useReadModels } from '../read-models/use-read-models';
+import { evidenceBadgeOf, staleCauseOf } from '../read-models/evidence-index';
 import { useCityStore } from '../stores/city-store';
 import { useEvidenceStore } from '../stores/evidence-store';
 import {
-  COPY_16, QUALITY_CSV_FILENAME, QUALITY_EXPORT, QUALITY_EYEBROW, QUALITY_FOOTNOTE, QUALITY_SUBTITLE,
+  FALLOW_STALE_NOTICE, QUALITY_CSV_FILENAME, QUALITY_EXPORT, QUALITY_EYEBROW, QUALITY_FOOTNOTE, QUALITY_SUBTITLE,
   QUALITY_NO_FINDINGS_REPORTED, QUALITY_TABLE_TITLE, QUALITY_TITLE,
 } from '../inspector-copy';
 import PageHeader from '../kit/PageHeader.vue';
@@ -41,7 +42,8 @@ const rows = computed(() => filterFindings(quality.value.findings, filter.value)
  *  it predates the snapshot on screen. */
 const report = computed(() => quality.value.evidence.report);
 const stale = computed(() => quality.value.evidence.state === 'stale');
-const staleNotice = computed(() => (report.value && stale.value ? COPY_16(formatAbsoluteTime(report.value.importedAt, Intl)) : ''));
+const staleNotice = computed(() => (report.value && stale.value
+  ? FALLOW_STALE_NOTICE(formatAbsoluteTime(report.value.importedAt, Intl), staleCauseOf(report.value)) : ''));
 /** Part 6 E13: another leaf on this codebase can remove or replace the shared report while
  *  Export has focus, so it is aria-disabled and exportCsv ignores the press (E40/E44/E50). */
 const exportBlocked = computed(() => rows.value.length === 0);
@@ -149,10 +151,7 @@ function exportCsv(): void {
         v-if="report"
         class="ci-quality__evidence"
       >
-        <EvidenceBadge
-          :version="report.providerVersion"
-          :state="stale ? 'stale' : 'imported'"
-        />
+        <EvidenceBadge v-bind="evidenceBadgeOf(report, stale)" />
       </div>
       <Callout
         v-if="staleNotice"

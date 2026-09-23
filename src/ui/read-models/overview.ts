@@ -4,6 +4,7 @@
 import type { CodebaseSnapshot } from '../../domain/model';
 import type { EntityId } from '../../domain/entity-id';
 import type { RouteId } from '../../domain/route-ids';
+import { originOf } from '../../application/evidence/model';
 import {
   countEvidence, formatMetric, hasValue, isSampleBacked, ratioEvidence, sumEvidence, unknown,
   type EvidenceState, type MetricValue,
@@ -130,7 +131,7 @@ export function buildOverviewModel(
   const coverageRows: EvidenceCoverageRow[] = [
     { id: 'inventory', label: 'File inventory', state: snapshot.completeness === 'partial' ? 'partial' : 'collected', source: 'Built-in scan' },
     { id: 'fallow', label: OVERVIEW_FALLOW_ROW, state: fallowRowState(evidence),
-      source: evidence.report ? OVERVIEW_FALLOW_SOURCE(evidence.report.providerVersion) : EVIDENCE_SOURCE_NONE },
+      source: evidence.report ? OVERVIEW_FALLOW_SOURCE(evidence.report.providerVersion, originOf(evidence.report)) : EVIDENCE_SOURCE_NONE },
     { id: 'history', label: 'Git history', state: 'sample', source: 'Sample provider' },
     { id: 'coverage', label: 'Test coverage', state: 'sample', source: 'Sample provider' },
     { id: 'imports', label: 'Import graph', state: importsSampled ? 'sample' : 'unknown', source: importsSampled ? 'Sample provider' : 'Not collected' },

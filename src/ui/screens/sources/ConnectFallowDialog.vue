@@ -39,7 +39,8 @@ const mapped = ref(false);
 const snapshotPaths = computed<ReadonlySet<string>>(() => new Set(files.value.map((f) => f.path)));
 const review = computed(() => (candidate.value ? reviewFallowCandidate(candidate.value, snapshotPaths.value, mapped.value) : null));
 /** Y31: re-importing while a report is attached says what it replaces. */
-const replaceNote = computed(() => (evidence.report ? FALLOW_REPLACE_NOTE(formatAbsoluteTime(evidence.report.importedAt, Intl)) : ''));
+const replaceNote = computed(() => (evidence.report
+  ? FALLOW_REPLACE_NOTE(formatAbsoluteTime(evidence.report.importedAt, Intl), evidence.report.collected === undefined ? 'imported' : 'collected') : ''));
 let disposed = false;
 onBeforeUnmount(() => { disposed = true; });
 

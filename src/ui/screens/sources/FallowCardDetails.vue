@@ -4,10 +4,10 @@
 // focusable when blocked (aria-disabled plus a guarded handler, E40).
 import { computed } from 'vue';
 import { formatAbsoluteTime } from '../../copy';
-import type { EvidenceIndex } from '../../read-models/evidence-index';
+import { evidenceBadgeOf, staleCauseOf, type EvidenceIndex } from '../../read-models/evidence-index';
 import { unmatchedOf } from '../../read-models/fallow-candidate';
 import { useUniqueId } from '../../unique-id';
-import { COPY_16, FALLOW_CARD_NONE, FALLOW_IMPORT_ACTION, FALLOW_IMPORT_HINT, FALLOW_REMOVE } from '../../inspector-copy';
+import { FALLOW_CARD_NONE, FALLOW_IMPORT_ACTION, FALLOW_IMPORT_HINT, FALLOW_REMOVE, FALLOW_STALE_NOTICE } from '../../inspector-copy';
 import EvidenceBadge from '../../kit/EvidenceBadge.vue';
 import FallowReportFacts from './FallowReportFacts.vue';
 
@@ -17,7 +17,8 @@ const hintId = useUniqueId('ci-fallow-card-hint');
 const report = computed(() => props.index.report);
 const stale = computed(() => props.index.state === 'stale');
 const unmatched = computed(() => (report.value ? unmatchedOf(props.index.unmatchedPaths, report.value) : []));
-const staleNotice = computed(() => (report.value && stale.value ? COPY_16(formatAbsoluteTime(report.value.importedAt, Intl)) : ''));
+const staleNotice = computed(() => (report.value && stale.value
+  ? FALLOW_STALE_NOTICE(formatAbsoluteTime(report.value.importedAt, Intl), staleCauseOf(report.value)) : ''));
 
 /** Blocked without a snapshot: report paths are matched to the codebase on screen. */
 function importReport(): void {
@@ -32,10 +33,7 @@ function remove(): void {
 <template>
   <div class="ci-fallow-card">
     <template v-if="report">
-      <EvidenceBadge
-        :version="report.providerVersion"
-        :state="stale ? 'stale' : 'imported'"
-      />
+      <EvidenceBadge v-bind="evidenceBadgeOf(report, stale)" />
       <p
         v-if="staleNotice"
         class="ci-note ci-fallow-card__stale"

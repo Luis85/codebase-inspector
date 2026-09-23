@@ -118,6 +118,20 @@ export function attachSyntheticReport(snapshot: CodebaseSnapshot, options: Synth
   return report;
 }
 
+/** Part 7 Z25: the synthetic report as a collected run attaches it (fileName is the
+ *  executable's base name; verified source match; stripPrefix null). */
+export function collectedEvidenceReport(snapshot: CodebaseSnapshot, versionTested = true): EvidenceReport {
+  const base = syntheticEvidenceReport(snapshot);
+  return {
+    ...base, fileName: 'fallow.exe',
+    collected: {
+      origin: 'collected', sourceMatch: 'verified', runId: 'run-collected', rootPath: snapshot.scope.rootPath,
+      executablePath: 'C:\\Tools\\fallow\\fallow.exe', args: ['--format', 'json', '--no-cache', '--quiet', '--root', snapshot.scope.rootPath],
+      exitCode: 0, startedAt: IMPORTED_AT, durationMs: 900, versionTested,
+    },
+  };
+}
+
 /** A snapshot whose files are exactly `paths`, so a recorded report's own paths resolve. */
 export function snapshotWithPaths(paths: readonly string[], repositoryId = 'repo-fallow'): CodebaseSnapshot {
   const base = buildSnapshotFixture({ files: 0, repositoryId });

@@ -3,6 +3,8 @@ import { computed, nextTick, ref } from 'vue';
 import type { EntityId } from '../../../domain/entity-id';
 import { formatAbsoluteTime } from '../../copy';
 import { useReadModels } from '../../read-models/use-read-models';
+import { evidenceBadgeOf } from '../../read-models/evidence-index';
+import { originOf } from '../../read-models/fallow-candidate';
 import { severityTone } from '../../read-models/findings';
 import { useReviewStore } from '../../stores/review-store';
 import { DISMISS_REASON_MAX } from '../../stores/ports/review-repository';
@@ -24,7 +26,7 @@ const { quality } = useReadModels();
 /** Part 6 Y35: who reported the finding, and when. The badge says the source match is unverified. */
 const provider = computed(() => {
   const r = quality.value.evidence.report;
-  return r ? FINDING_DIALOG_PROVIDER_VALUE(r.providerVersion, formatAbsoluteTime(r.importedAt, Intl)) : '';
+  return r ? FINDING_DIALOG_PROVIDER_VALUE(r.providerVersion, formatAbsoluteTime(r.importedAt, Intl), originOf(r)) : '';
 });
 const review = useReviewStore();
 const base = useUniqueId('ci-finding-dialog');
@@ -130,8 +132,7 @@ async function addWorkItem(): Promise<void> {
         >{{ FINDING_STATUS_LABEL[finding.status] }}</span>
         <EvidenceBadge
           v-if="quality.evidence.report"
-          :version="quality.evidence.report.providerVersion"
-          :state="quality.evidence.state === 'stale' ? 'stale' : 'imported'"
+          v-bind="evidenceBadgeOf(quality.evidence.report, quality.evidence.state === 'stale')"
         />
       </p>
       <p class="ci-finding-dialog__summary">

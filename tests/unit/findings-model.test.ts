@@ -120,7 +120,7 @@ describe('code quality model (Part 3 Q1-Q3, Part 6 Y34)', () => {
     // Fix round 1 (E37): stale evidence is never described as "in this snapshot".
     const caption = m.cards.find((c) => c.id === 'open')!.caption;
     expect(caption).not.toContain('in this snapshot');
-    expect(caption).toBe(`${m.findings.length} findings in the imported report · 0 decided`);
+    expect(caption).toBe(`${m.findings.length} findings in the attached evidence · 0 decided`);
     expect(card(model(), 'open').state).toBe('collected');
     expect(model().cards.find((c) => c.id === 'open')!.caption).toBe(`${m.findings.length} findings in this snapshot · 0 decided`);
   });

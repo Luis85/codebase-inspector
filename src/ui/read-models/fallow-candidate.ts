@@ -8,7 +8,7 @@ import type { RawFallowReport } from '../../application/evidence/raw-fallow';
 import { resolveFindings, suggestStripPrefix } from '../../application/evidence/resolve-findings';
 
 /** E20: the S14 screens reach the evidence layer through this read model only. */
-export { FINDING_CATEGORIES, type EvidenceReport } from '../../application/evidence/model';
+export { FINDING_CATEGORIES, originOf, type EvidenceReport } from '../../application/evidence/model';
 export { readFallowReportFile } from '../../application/evidence/read-fallow-report';
 
 /** Y37/Y38: how many unmatched paths are listed; the count is always given. */

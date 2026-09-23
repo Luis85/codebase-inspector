@@ -19,6 +19,13 @@ describe('EvidenceBadge (Part 6 Y32, C13)', () => {
     expect(w.text()).toBe('fallow 3.21.0 · Stale · Unverified source match');
     expect(w.classes()).toContain('ci-evidence-badge--stale');
   });
+
+  it('Part 7 Z26: renders the collected state with its own class, and the untested flag', () => {
+    const w = mount(EvidenceBadge, { props: { version: '3.28.0', state: 'collected', origin: 'collected', untested: true } });
+    expect(w.text()).toBe(EVIDENCE_BADGE('3.28.0', 'collected', 'collected', true));
+    expect(w.classes()).toContain('ci-evidence-badge--collected');
+    w.unmount();
+  });
 });
 
 describe('NotAnalysed (Part 6 Y35)', () => {

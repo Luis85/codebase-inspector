@@ -1,6 +1,7 @@
 // Part 6: fallow report import. Re-exported by inspector-copy.ts. Tasks 7-11 add the
 // dialog, card, badge and lens strings to this file.
 import { FALLOW_REPORT_MAX_BYTES, FALLOW_SUPPORTED, type FallowImportErrorCode, type FallowReportKind } from '../../application/evidence/raw-fallow';
+import type { EvidenceOrigin } from '../../application/evidence/model';
 
 /** Fix round 1 (E31, minor 5): "16 MB", derived instead of hard-coded, so the copy and
  *  the limit it describes cannot drift apart. */
@@ -91,32 +92,41 @@ export const fallowNotShownLabel = (key: string): string =>
 export const FALLOW_COMMAND_IMPORT = 'Import analysis report';
 
 // Part 6 Y30/Y33/Y34 (Task 8): imported evidence in the read models.
-export const FALLOW_NOT_ANALYSED = 'Not analysed. No imported fallow report covers this.';
-export const FALLOW_SOME_NOT_ANALYSED = 'Some finding categories were not analysed in the imported report.';
-/** MetricValue provenance detail for an imported value (Y33). */
-export const FALLOW_PROVENANCE_DETAIL = (version: string): string => `imported report ${version}`;
+export const FALLOW_NOT_ANALYSED = 'Not analysed. No fallow evidence covers this.';
+export const FALLOW_SOME_NOT_ANALYSED = 'Some finding categories were not analysed in the attached fallow evidence.';
+/** MetricValue provenance detail for an imported or collected value (Y33, Part 7 Z27). */
+export const FALLOW_PROVENANCE_DETAIL = (version: string, origin: EvidenceOrigin = 'imported'): string =>
+  (origin === 'collected' ? `collected run ${version}` : `imported report ${version}`);
 /** Overview findings card caption; `high` is already formatted (a count, or the no-value mark). */
 export const OVERVIEW_FINDINGS_CAPTION = (high: string): string => `${high} critical or high severity`;
 /** Overview evidence-coverage row (R6: replaces the sample "Static signals" row). */
 export const OVERVIEW_FALLOW_ROW = 'Static findings (fallow)';
-export const OVERVIEW_FALLOW_SOURCE = (version: string): string => `Imported fallow ${version} report`;
+export const OVERVIEW_FALLOW_SOURCE = (version: string, origin: EvidenceOrigin = 'imported'): string =>
+  (origin === 'collected' ? `Collected by fallow ${version}` : `Imported fallow ${version} report`);
 /** S22 / COPY-16 (Y30): the stale-evidence notice. Tasks 9 and 11 show it. */
 export const COPY_16 = (absoluteDate: string): string => `Showing evidence from ${absoluteDate}. It is not current for this snapshot.`;
 
 /* Part 6 Task 9 (Y32, Y35, Y36): the evidence badge and the Not-analysed state. COPY_16 is Task 8's (R4). */
-/** C13 (R8): provider, version, freshness and source match, in words. A fallow report carries
- *  no root or revision, so the match is always unverified (Y27). */
-export const EVIDENCE_BADGE = (version: string, state: 'imported' | 'stale'): string =>
-  `fallow ${version} · ${state === 'stale' ? 'Stale' : 'Imported'} · Unverified source match`;
+/** C13 (R8, Part 7 Z26): provider, version, freshness and source match, in words. An imported
+ *  report carries no root or revision, so its match is always unverified (Y27); a collected
+ *  run's root was the snapshot's own (Z25). */
+export const EVIDENCE_BADGE = (
+  version: string, state: 'imported' | 'collected' | 'stale', origin: EvidenceOrigin = 'imported', untested = false,
+): string => {
+  const freshness = state === 'stale' ? 'Stale' : origin === 'collected' ? 'Collected' : 'Imported';
+  const match = origin === 'imported' ? 'Unverified source match' : state === 'stale' ? 'Source verified when collected' : 'Verified source match';
+  return `fallow ${version} · ${freshness} · ${match}${untested ? ' · Untested version' : ''}`;
+};
 export const FALLOW_NOT_ANALYSED_TITLE = 'Not analysed';
-export const FALLOW_NOT_ANALYSED_BODY = 'No fallow report is attached to this codebase, so its findings are unknown, not zero. Import a report to see them. Imported reports are kept for this session only.';
+export const FALLOW_NOT_ANALYSED_BODY = 'No fallow evidence is attached to this codebase, so its findings are unknown, not zero. Import a report or run an installed fallow to see them. Findings are kept for this session only.';
 export const FALLOW_IMPORT_ACTION = 'Import report…';
 
 /* Part 6 Task 10 (Y31, Y37, Y38): the fallow card on Data & scans and the S14 dialog. */
 /** Shared with Task 11's lens copy below (E17), which counts the same way. */
 const nounCount = (n: number, one: string, many: string): string => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
-export const FALLOW_SOURCE = (version: string): string => `Imported report · fallow ${version}`;
-export const FALLOW_CARD_NONE = 'No report attached. An imported report is kept for this session only, so after a restart it is imported again.';
+export const FALLOW_SOURCE = (version: string, origin: EvidenceOrigin = 'imported'): string =>
+  (origin === 'collected' ? `Collected run · fallow ${version}` : `Imported report · fallow ${version}`);
+export const FALLOW_CARD_NONE = 'No findings attached. Imported and collected findings are kept for this session only, so after a restart you import or run again.';
 export const FALLOW_IMPORT_HINT = 'Open a codebase first: report paths are matched to the codebase on screen.';
 export const FALLOW_REMOVE = 'Remove report';
 export const FALLOW_REMOVE_TITLE = 'Remove the fallow report?';
@@ -125,7 +135,7 @@ export const FALLOW_REMOVE_CANCEL = 'Cancel';
 export const FALLOW_REMOVED = 'fallow report removed. Findings read Not analysed.';
 export const FALLOW_DIALOG_EYEBROW = 'Add evidence';
 export const FALLOW_DIALOG_TITLE = 'Connect fallow';
-export const FALLOW_DIALOG_INTRO = 'Keep exploring the structural city while you add analysis. Import a fallow JSON report: it is checked and matched to this snapshot, and no analyser is run.';
+export const FALLOW_DIALOG_INTRO = 'Keep exploring the structural city while you add analysis. Import a fallow JSON report, or run a fallow that is already installed.';
 export const FALLOW_DISCLOSURE = 'The plugin does not download or install fallow. Imported reports cannot authorize commands or source access.';
 export const FALLOW_SNAPSHOT_FILES = (n: number): string => `Current structural snapshot: ${nounCount(n, 'file', 'files')}`;
 export const FALLOW_CHOOSE = 'Choose report…';
@@ -138,10 +148,12 @@ export const FALLOW_ATTACHED = (findings: number, files: number): string => `fal
 export const FALLOW_ATTACH_REFUSED = 'The report was not attached. Open the codebase again, then import the report.';
 /** Y26: offered unchecked; nothing is mapped without the user's choice. */
 export const FALLOW_MAPPING_OFFER = (prefix: string): string => `Match paths by removing the leading folder “${prefix}”`;
-export const FALLOW_REPLACE_NOTE = (date: string): string => `Attaching replaces the report imported ${date}.`;
+export const FALLOW_REPLACE_NOTE = (date: string, origin: EvidenceOrigin = 'imported'): string =>
+  (origin === 'collected' ? `Attaching replaces the findings collected ${date}.` : `Attaching replaces the report imported ${date}.`);
 export const FALLOW_ROW_REPORT = 'Report';
 export const FALLOW_ROW_FILE = 'File';
 export const FALLOW_ROW_IMPORTED = 'Imported';
+export const FALLOW_ROW_COLLECTED = 'Collected';
 export const FALLOW_ROW_CATEGORIES = 'Categories';
 export const FALLOW_ROW_MATCHED = 'Matched';
 export const FALLOW_ROW_UNMATCHED = 'Unmatched paths';
@@ -170,8 +182,8 @@ export const LENS_OPTION_CATEGORY = 'Category';
 export const LENS_OPTION_FINDINGS = 'Reported findings';
 export const LENS_EYEBROW = 'fallow lens';
 export const LENS_TITLE = 'Reported findings';
-export const LENS_SUBTITLE = (findings: number, files: number): string =>
-  `${nounCount(findings, 'finding', 'findings')} · ${nounCount(files, 'file', 'files')} · imported evidence`;
+export const LENS_SUBTITLE = (findings: number, files: number, origin: EvidenceOrigin = 'imported'): string =>
+  `${nounCount(findings, 'finding', 'findings')} · ${nounCount(files, 'file', 'files')} · ${origin} evidence`;
 export const LENS_LEGEND_REPORTED = 'Reported finding';
 export const LENS_LEGEND_NONE = 'No finding reported · metric unavailable';
 export const LENS_LIST_COLUMN = 'Reported';

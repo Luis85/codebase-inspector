@@ -14,7 +14,7 @@ export const REPORT_FACT_EXCLUSIONS = 'Scope exclusions';
 export const REPORT_FACT_EVIDENCE = 'Evidence';
 export const REPORT_FACT_SAFETY = 'Source safety';
 export const REPORT_NO_EXCLUSIONS = 'None';
-export const REPORT_EVIDENCE_TEXT = 'File inventory collected by the built-in read-only scan. Static findings come from an imported fallow report when one is attached for this session, and read Not analysed otherwise. History, coverage, import edges and packages are sample data. Mutation, runtime and secret scanning were not collected.';
+export const REPORT_EVIDENCE_TEXT = 'File inventory collected by the built-in read-only scan. Static findings come from fallow evidence (an imported report or a run you started) when one is attached for this session, and read Not analysed otherwise. History, coverage, import edges and packages are sample data. Mutation, runtime and secret scanning were not collected.';
 export const REPORT_SAFETY_TEXT = 'Read-only inventory within the approved scope. No source file was changed and no tool was run.';
 export const REPORT_SECTION_LABEL: Readonly<Record<'summary' | 'architecture' | 'hotspots' | 'security' | 'plan', string>> = {
   summary: 'Executive summary', architecture: 'Architecture review', hotspots: 'Quality hotspots',

@@ -6,9 +6,9 @@ import { computed } from 'vue';
 import { formatAbsoluteTime } from '../../copy';
 import {
   FALLOW_CATEGORY_LINE, FALLOW_MATCHED, FALLOW_NONE, FALLOW_NOT_SHOWN_ITEM, FALLOW_REPORT_VALUE, FALLOW_ROW_CATEGORIES,
-  FALLOW_ROW_FILE, FALLOW_ROW_IMPORTED, FALLOW_ROW_MATCHED, FALLOW_ROW_NOT_SHOWN, FALLOW_ROW_REPORT, FALLOW_ROW_UNMATCHED,
-  FALLOW_ROW_WARNINGS, FALLOW_NOT_SHOWN_SUMMARY, FALLOW_UNMATCHED_SUMMARY, FALLOW_WARNINGS_SUMMARY, FINDING_KIND_LABEL,
-  fallowNotShownLabel,
+  FALLOW_ROW_COLLECTED, FALLOW_ROW_EXECUTABLE, FALLOW_ROW_FILE, FALLOW_ROW_IMPORTED, FALLOW_ROW_MATCHED, FALLOW_ROW_NOT_SHOWN,
+  FALLOW_ROW_REPORT, FALLOW_ROW_UNMATCHED, FALLOW_ROW_WARNINGS, FALLOW_NOT_SHOWN_SUMMARY, FALLOW_UNMATCHED_SUMMARY,
+  FALLOW_WARNINGS_SUMMARY, FINDING_KIND_LABEL, fallowNotShownLabel,
 } from '../../inspector-copy';
 import { FINDING_CATEGORIES, UNMATCHED_SHOWN, type EvidenceReport } from '../../read-models/fallow-candidate';
 
@@ -18,6 +18,7 @@ const props = defineProps<{
   wide?: boolean;
 }>();
 const importedAt = computed(() => formatAbsoluteTime(props.report.importedAt, Intl));
+const collected = computed(() => props.report.collected !== undefined);
 const categories = computed(() => FINDING_CATEGORIES.map((c) => FALLOW_CATEGORY_LINE(FINDING_KIND_LABEL[c], props.report.normalized.categories[c])));
 const listed = computed(() => props.unmatchedPaths.slice(0, UNMATCHED_SHOWN));
 /** Y25 (R4): fallow's own key, labelled here; an unknown key reads verbatim. E48 (I3): like
@@ -37,12 +38,12 @@ const warnings = computed(() => props.report.normalized.warnings.slice(0, UNMATC
   >
     <dt>{{ FALLOW_ROW_REPORT }}</dt>
     <dd>{{ FALLOW_REPORT_VALUE(report.providerVersion, report.reportKind, report.schemaVersion) }}</dd>
-    <dt>{{ FALLOW_ROW_FILE }}</dt>
+    <dt>{{ collected ? FALLOW_ROW_EXECUTABLE : FALLOW_ROW_FILE }}</dt>
     <dd class="ci-fallow-facts__file">
       {{ report.fileName }}
     </dd>
     <template v-if="showImportedAt">
-      <dt>{{ FALLOW_ROW_IMPORTED }}</dt>
+      <dt>{{ collected ? FALLOW_ROW_COLLECTED : FALLOW_ROW_IMPORTED }}</dt>
       <dd>{{ importedAt }}</dd>
     </template>
     <dt>{{ FALLOW_ROW_CATEGORIES }}</dt>

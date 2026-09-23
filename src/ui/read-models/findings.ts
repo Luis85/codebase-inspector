@@ -3,7 +3,7 @@
 // A finding without a decision is open. With no report there are no findings, and every
 // card is unknown with FALLOW_NOT_ANALYSED, never 0 (Y33).
 import type { EntityId } from '../../domain/entity-id';
-import type { FindingCategory } from '../../application/evidence/model';
+import { originOf, type FindingCategory } from '../../application/evidence/model';
 import { unknown, type MetricValue } from '../evidence';
 import { toCsv, type CsvColumn } from '../export/csv';
 import type { FindingDisposition } from '../stores/ports/review-repository';
@@ -157,9 +157,9 @@ function csvColumns(provenance: string): readonly CsvColumn<QualityFinding>[] {
 }
 
 /** Q15, Part 6 Y35: the filtered set, each decision next to the imported finding, with its
- *  rule and provenance (`fallow <version> imported`, or `… stale`). */
+ *  rule and provenance (`fallow <version> imported` or `collected`, or `… stale`). */
 export function findingsCsv(rows: readonly QualityFinding[], evidence: EvidenceIndex): string {
   const report = evidence.report;
-  const provenance = report === null ? 'none' : `fallow ${report.providerVersion} ${evidence.state === 'stale' ? 'stale' : 'imported'}`;
+  const provenance = report === null ? 'none' : `fallow ${report.providerVersion} ${evidence.state === 'stale' ? 'stale' : originOf(report)}`;
   return toCsv(csvColumns(provenance), rows);
 }

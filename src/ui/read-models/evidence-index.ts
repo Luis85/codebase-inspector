@@ -9,7 +9,7 @@
 // Never a 0 that nothing measured (Y33).
 import type { EntityId } from '../../domain/entity-id';
 import {
-  FINDING_CATEGORIES, type EvidenceFinding, type EvidenceReport, type FindingCategory,
+  FINDING_CATEGORIES, originOf, type EvidenceFinding, type EvidenceOrigin, type EvidenceReport, type FindingCategory,
 } from '../../application/evidence/model';
 import { resolveFindings } from '../../application/evidence/resolve-findings';
 import { unknown, type MetricValue } from '../evidence';
@@ -44,7 +44,7 @@ const notAnalysed = (): MetricValue => unknown(FALLOW_NOT_ANALYSED, 'fallow');
 function counterFor(report: EvidenceReport | null, state: EvidenceIndexState): Counter {
   if (report === null) return notAnalysed;
   const analysed = (c: FindingCategory): boolean => report.normalized.categories[c] === 'analysed';
-  const provenance = { source: 'fallow', detail: FALLOW_PROVENANCE_DETAIL(report.providerVersion) };
+  const provenance = { source: 'fallow', detail: FALLOW_PROVENANCE_DETAIL(report.providerVersion, originOf(report)) };
   const present = (n: number): MetricValue => ({ state: state === 'stale' ? 'stale' : 'collected', value: n, provenance });
   const covered = FINDING_CATEGORIES.filter(analysed).length;
   return (n, c) => {
@@ -130,4 +130,25 @@ export function evidenceIndexFor(files: readonly FileSummary[], report: Evidence
   const index = build(files, report, snapshotId);
   byReport.set(key, { snapshotId, index });
   return index;
+}
+
+/** Part 7 Z26: what the C13 badge shows for a report. */
+export interface EvidenceBadgeProps {
+  version: string;
+  state: 'imported' | 'collected' | 'stale';
+  origin: EvidenceOrigin;
+  untested: boolean;
+}
+
+export function evidenceBadgeOf(report: EvidenceReport, stale: boolean): EvidenceBadgeProps {
+  const origin = originOf(report);
+  return {
+    version: report.providerVersion, state: stale ? 'stale' : origin, origin,
+    untested: report.collected !== undefined && !report.collected.versionTested,
+  };
+}
+
+/** Part 7 Z23/Z27: why stale evidence is stale, for FALLOW_STALE_NOTICE. */
+export function staleCauseOf(report: EvidenceReport): 'snapshot' | 'failed-run' {
+  return report.staleReason === 'failed-run' ? 'failed-run' : 'snapshot';
 }

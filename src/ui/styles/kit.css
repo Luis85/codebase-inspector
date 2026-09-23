@@ -277,6 +277,7 @@
   color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); overflow-wrap: anywhere;
 }
 :where(.codebase-inspector-root) .ci-evidence-badge--stale { border-color: var(--ci-warning); color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-evidence-badge--collected { border-color: var(--ci-tone-success); }
 /* Part 6 Y35: NotAnalysed, the kit's empty state with its one action. */
 :where(.codebase-inspector-root) .ci-not-analysed { padding: var(--ci-space-4) 0; }
 :where(.codebase-inspector-root) .ci-not-analysed .ci-note { margin: 0; }

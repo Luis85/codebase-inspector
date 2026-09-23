@@ -3,6 +3,7 @@
 // the evidence index. Every other provider is sample or unknown and says so.
 import type { CodebaseSnapshot, InventoryRunState } from '../../domain/model';
 import type { RouteId } from '../../domain/route-ids';
+import type { EvidenceOrigin } from '../../application/evidence/model';
 import type { EvidenceState } from '../evidence';
 import { formatAbsoluteTime } from '../copy';
 import { countPartialRead } from '../view-surface';
@@ -71,8 +72,9 @@ const provider = (id: string, icon: string, state: EvidenceState, source: string
   id, icon, state, source, routes, title: SOURCES_PROVIDER[id]?.title ?? id, description: SOURCES_PROVIDER[id]?.description ?? '',
 });
 
-/** Part 6 Y37: the fallow card's state comes from the evidence index (Y30, Y33). */
-interface FallowCardState { state: EvidenceIndexState; version: string | null }
+/** Part 6 Y37: the fallow card's state comes from the evidence index (Y30, Y33).
+ *  Part 7 Z27: `origin` is optional, so the Part 6 callers and tests keep their shape. */
+interface FallowCardState { state: EvidenceIndexState; version: string | null; origin?: EvidenceOrigin }
 const NO_FALLOW: FallowCardState = { state: 'none', version: null };
 const FALLOW_EVIDENCE: Readonly<Record<EvidenceIndexState, EvidenceState>> = { none: 'unknown', current: 'collected', stale: 'stale' };
 
@@ -83,7 +85,7 @@ export function buildSourcesModel(snapshot: CodebaseSnapshot | null, run: Invent
     run: runView(run),
     providers: [
       provider('inventory', 'folder-tree', inventory, snapshot ? SOURCES_SOURCE_BUILTIN : EVIDENCE_SOURCE_NONE, ['city', 'overview']),
-      provider('fallow', 'code', FALLOW_EVIDENCE[fallow.state], fallow.version === null ? EVIDENCE_SOURCE_NONE : FALLOW_SOURCE(fallow.version), ['quality', 'file']),
+      provider('fallow', 'code', FALLOW_EVIDENCE[fallow.state], fallow.version === null ? EVIDENCE_SOURCE_NONE : FALLOW_SOURCE(fallow.version, fallow.origin ?? 'imported'), ['quality', 'file']),
       provider('imports', 'network', 'sample', EVIDENCE_SOURCE_SAMPLE, ['architecture']),
       provider('history', 'git-branch', 'sample', EVIDENCE_SOURCE_SAMPLE, ['hotspots', 'evolution', 'ownership']),
       provider('coverage', 'flask-conical', 'sample', EVIDENCE_SOURCE_SAMPLE, ['tests']),

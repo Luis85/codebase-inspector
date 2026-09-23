@@ -10,7 +10,7 @@ export const QUALITY_CSV_FILENAME = 'codebase-quality-findings.csv';
 export const QUALITY_CARD_OPEN = 'Open findings';
 export const QUALITY_CARD_OPEN_CAPTION = (total: number, decided: number): string => `${total} findings in this snapshot · ${decided} decided`;
 /** Part 6 E37: stale evidence (Y30) was imported against another snapshot, so it never says "in this snapshot". */
-export const QUALITY_CARD_OPEN_CAPTION_STALE = (total: number, decided: number): string => `${total} findings in the imported report · ${decided} decided`;
+export const QUALITY_CARD_OPEN_CAPTION_STALE = (total: number, decided: number): string => `${total} findings in the attached evidence · ${decided} decided`;
 export const QUALITY_CARD_COMPLEXITY = 'Complexity findings';
 export const QUALITY_CARD_COMPLEXITY_CAPTION = 'Functions the report lists above its complexity thresholds';
 export const QUALITY_CARD_UNUSED = 'Unused-export findings';
@@ -64,10 +64,11 @@ export const QUALITY_NO_MATCH_TITLE = 'No findings match these filters';
 export const QUALITY_NO_MATCH = 'Try another type, severity, module or status.';
 /** Part 6 E14: a report is attached, but no finding of it resolved to a file on screen. */
 export const QUALITY_NO_FINDINGS_REPORTED = 'No findings reported for this codebase. That is not the same as zero complexity.';
-export const QUALITY_FOOTNOTE = 'Findings come from the imported fallow report and are kept for this session only. Decisions are saved with this codebase’s review state in the plugin’s own data; the repository is never changed.';
+export const QUALITY_FOOTNOTE = 'Findings come from fallow, imported as a report or collected by a run you started, and are kept for this session only. Decisions are saved with this codebase’s review state in the plugin’s own data; the repository is never changed.';
 export const FINDING_DIALOG_TITLE = 'Review finding';
 export const FINDING_DIALOG_PROVIDER = 'Provider';
-export const FINDING_DIALOG_PROVIDER_VALUE = (version: string, date: string): string => `fallow ${version} · imported report, ${date}`;
+export const FINDING_DIALOG_PROVIDER_VALUE = (version: string, date: string, origin: 'imported' | 'collected' = 'imported'): string =>
+  `fallow ${version} · ${origin === 'collected' ? 'collected run' : 'imported report'}, ${date}`;
 export const FINDING_DIALOG_LOCATION = 'Location';
 export const FINDING_DIALOG_REASON = 'Disposition note';
 export const FINDING_OPEN_FILE = 'Open file detail';

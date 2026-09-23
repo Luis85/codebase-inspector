@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useReadModels } from '../read-models/use-read-models';
+import { evidenceBadgeOf } from '../read-models/evidence-index';
 import { useCityStore } from '../stores/city-store';
 import { useEvidenceStore } from '../stores/evidence-store';
 import { useReviewStore } from '../stores/review-store';
@@ -116,7 +117,7 @@ function importReport(): void {
           :count="fileDetail.findingsCount"
           :statuses="quality.byFingerprint"
           :evidence="quality.evidence.state"
-          :version="quality.evidence.report?.providerVersion ?? ''"
+          :badge="quality.evidence.report ? evidenceBadgeOf(quality.evidence.report, quality.evidence.state === 'stale') : null"
           @review="reviewing = $event"
           @import="importReport"
         />
