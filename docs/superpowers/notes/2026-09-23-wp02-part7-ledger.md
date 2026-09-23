@@ -82,4 +82,143 @@ This ledger records every ruling made while planning and executing Part 7, and w
 
 ## Execution rulings
 
-None yet. The controller records "Part 7 E1"… here, starting with the pre-flight conflict scan before Task 1.
+### Pre-flight conflict scan (before Task 1, HEAD 624cc05)
+
+Four read-only tables checked every task's text against the real code at HEAD, against the spec and plan, and against every other task it shares a file or interface with. Table A (task pairs sharing a file or interface) has 47 rows, Table B (each task's self-consistency) has 14 rows, Table C (plan vs spec / Global Constraints / reviewer-grade defects) has 28 rows, Table D (existing code the plan consumes: mismatches) has 13 rows. The full tables stay in the scratch ledger, `.superpowers/sdd/2026-09-23-inspector-ui-part7/progress.md`; only the rulings they produced are transcribed below.
+
+#### Pre-flight rulings (PF1–PF18)
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| PF1 | Timers in src (Tasks 4, 5, 7, 8) read the global through a local binding at call time (walker.ts pattern) instead of bare setTimeout/clearTimeout/setInterval; tests use node:timers/promises where they need real waits — prefer-window-timers would otherwise fail every --max-warnings 0 gate. | Minor rework of timer call sites. |
+| PF2 | No no-op closure initialisers (`let unsubscribe = (): void => {}`); use a nullable variable, and hoist capture-free test helpers (release/alive/shape) to module scope — oxlint consistent-function-scoping fails lint:fast. | None. |
+| PF3 | Task 7 also amends `tests/acceptance/steps/source-steps.ts:168` (the third process guard) with the same two-file allow-list, and rewords src comments that mention child_process/spawn( outside those files; K19 extended — otherwise `npm run test` fails from Task 7. | A guard that is slightly wider than before, limited to the two adapter files. |
+| PF4 | Tests pass an explicit real kill function (tests/fixtures `realKill` using process.kill / child.kill) to the runner on every real-process test; the default kill stays the Obsidian path — POSIX real-process tests would hang otherwise. | None on Windows; fixture code only. |
+| PF5 | Reword the contract-test comment so the `it(` counter counts only real tests (14). | None. |
+| PF6 | Tests use process.stdout.write, never console.info — the latter is a lint error. | None. |
+| PF7 | Task 8 tests set explicit per-test timeouts (no-freeze and wait-loop tests ≥ 30 s). | Slower failure on a hang. |
+| PF8 | Add to Task 8 integration a test "a bound but untrusted run starts zero processes"; do NOT add a real-stack service-level timeout test (the 10 s minimum limit makes it slow) — the runner contract `trickle` test pins the timeout at process level, and Task 5 adds a unit assertion that the service passes timeoutSeconds*1000 as the request timeout. | A service→runner timeout wiring bug not covered end-to-end beyond that unit assertion. |
+| PF9 | Task 10 types the bound fixture via `Extract<…, {kind:'bound'}>` — otherwise TS2339. | None. |
+| PF10 | Settings rows call setName with the spec's SETTINGS_FALLOW_*_NAME constants (sentence case); the K20 `name:` literals stay for the checkpoint guard — obsidianmd sentence-case lint otherwise fails. | Two parallel spellings; the checkpoint guard compares literals only. |
+| PF11 | Task 11 updates `tests/unit/findings-model.test.ts:122` for the new stale caption. | None. |
+| PF12 | Task 11's Files list includes `src/ui/read-models/fallow-candidate.ts`; `tests/fixtures/node-wrapped-port.ts` is recorded as a Task 7 create — File-map gaps only. | None. |
+| PF13 | FallowInstalledRoute never mutates props; it emits `clear-error` and the dialog clears `action.error` (K32 amended) — otherwise vue/no-mutating-props. | One extra emit. |
+| PF14 | The composable/store members SourcesScreen destructures (run/cancel/forget) are declared as arrow-function properties, not methods — otherwise typescript-eslint unbound-method (use-busy-action.ts precedent). | None. |
+| PF15 | The refusal banner is cleared when a new run id starts (Z33: the banner reflects the current run) — otherwise a stale refusal reappears after a successful run. | A refusal disappears as soon as a new run starts, which is intended. |
+| PF16 | FALLOW_STALE_NOTICE returns COPY_16(date) rather than retyping the sentence (spec §2). | None. |
+| PF17 | Installed route: (a) a codebase switch while busy closes the route once the busy step settles (dropping its late result, Part 6 E36); (b) a thrown non-FS error shows the generic read failure without the "(UNKNOWN)" code suffix; (c) the path step shows FALLOW_EXE_REFUSED['executable-missing'] when inspection says missing — spec Z29–Z31. | Small copy/flow rework. |
+| PF18 | Record-only items are left to the per-task reviews: weak/over-titled tests, unlisted signature drifts, unused RunPlan.trustedVersion, new host test file names, FALLOW_ROW_COLLECTED's location, off line anchors; reviewers may flag them; RunPlan.trustedVersion is removed if still unused after Task 5. | Review-loop churn only. |
+
+### Rulings during execution (Part 7 E1–E12)
+
+| # | Task | Ruling | Cost if wrong |
+|---|---|---|---|
+| Part 7 E1 | 3 | Commit 2b501d5 carries a 'Claude Sonnet 5' Co-Authored-By trailer (the implementer's own harness attribution) instead of the plan's 'Claude Opus 5.5'; accepted as-is, no history rewrite — the trailer names the model that wrote the commit, and PR 1 history already mixes Opus 5/5.5 trailers. | Cosmetic trailer inconsistency. |
+| Part 7 E2 | 7 | On Windows, libuv injects its own required variables (USERNAME, USERDOMAIN, LOGONSERVER, WINDIR, HOMEDRIVE, …) into every child env regardless of the env passed; accepted — none is FALLOW_* or NODE_OPTIONS, the runner still passes only the allow-list (unit-pinned), and the contract test allows exactly that libuv set on Windows; Task 14 must add this to the Limitations ("child env = allow-list exactly on POSIX; on Windows plus libuv's mandatory variables"). | Spec Z16 wording overstated on Windows until Task 14 docs it. |
+| Part 7 E3 | 7 | POSIX group-kill/realKill(-pid) paths are unit-pinned but not executed on this Windows machine; accepted, recorded as an untested-platform limitation for Task 14. | A POSIX kill defect ships unobserved. |
+| Part 7 E4 | 7 | Review Important #2 (a killed run has no final deadline; plan-mandated by Z18 "a killed run resolves on exit") — decided: add a final deadline — after SIGKILL is sent, arm FALLOW_CLOSE_GRACE_MS; if exit never arrives, destroy pipes and settle with the stopped outcome (cancelled / timed-out). Spec intent (bounded kill grace + close grace, coordinator must not wedge) outranks the literal "resolves on exit". | A process that exits after the deadline is reported stopped while still alive for a moment; acceptable, it was already SIGKILLed. |
+| Part 7 E5 | 8 | Spec Z41.7 assumed bare `fallow --fail-on-issues` exits 1; real 3.27.0 bare/combined mode ignores it (gate "not enforced") and exits 0, while `fallow dead-code --fail-on-issues` exits 1 — accepted the implementer's change: the real-binary test uses `dead-code --fail-on-issues` to prove "exit 1 + valid report = completed"; the product runner's argv is unchanged (never passes --fail-on-issues); Task 14 must correct the spec/deliverable wording and add this to the probe facts. | The exit-1 path is proven with a dead-code report rather than a combined one (same classifier path). |
+| Part 7 E6 | 8 | `scripts/fetch-fallow.mjs` strips `npm_config_allow_scripts` from the child env for the install (the owner's ~/.npmrc allow-scripts entry, forwarded by `npm run`, makes npm 12 refuse a project install with EALLOWSCRIPTS); the approved command line is otherwise unchanged and --ignore-scripts still set. | A user's allow-scripts policy is not applied to this one throwaway install, which runs no scripts anyway. |
+| Part 7 E7 | 9 | Review Important #1 (analysis-store.forget swallows the service rejection as false) — decided: restore the brief's behaviour, let the rejection propagate so Task 12's useBusyAction surfaces it; a test was added with the fake's forget rejecting. | Callers must catch (they already must, per the carried Task 5 note). |
+| Part 7 E8 | 12 | Accepted the implementer's interface drift: a required `failure` prop on FallowCardDetails/FallowRunPanel and on FallowRunControls (the only way a store rejection reaches the card); the `clear-error` emit (PF13); `connectKey` remount; an in-flight announcement fix. | Small prop churn for Task 13's harness. |
+| Part 7 E9 | 12 | Review Minor #9 (plan-mandated double announcement of run endings: banner role="status" + useFallowRun live region) — decided: the banner (C16 StatusBanner, role="status") is the single announcement of run state changes; useFallowRun stops announcing run endings through .ci-sources__live (Z33 "announced once"). | If the banner is not on screen when a run ends, no announcement is made on this screen; the failure Notice (Z34) still covers failures. |
+| Part 7 E10 | 12 | Review Important #2 — Trust-and-run (and review's store.read) rejections from data.json use a start-failure string ("could not be read or updated", says nothing ran and what stays), not FALLOW_EXE_CHECK_FAILED; the test was updated. | One more copy string. |
+| Part 7 E11 | 12 | Accepted removal of FALLOW_EXE_CHECK_FAILED instead of keeping it — the inspector never rejects (file errors come back as refusals), so the string was unreachable. | A future rejecting inspector shows the start-failure text. |
+| Part 7 E12 | 12 | Refusals and Run/Forget failures stay announced by both the live region and the banner (the run-endings ruling, E9, is not extended to them) — a status region appearing together with its text is often not read, so the live region is the reliable path for these one-shot outcomes. | Some screen readers read these twice. |
+
+### Per task: completion, commit range and fix rounds
+
+- **Task 1** — complete (commits 624cc05..aeafef0, review clean, no fix round).
+- **Task 2** — complete (commits aeafef0..1ad5b8e, review clean, no fix round).
+- **Task 3** — complete (commits 1ad5b8e..2b501d5, review clean, no fix round; see Part 7 E1).
+- **Task 4** — fix round 1/5 (2 addressed, 0 open — throwing-subscriber isolation; re-entrant cancel stuck in cancelling; commits 175c217..5a4fb0c); complete (commits 2b501d5..5a4fb0c, review clean after 1 fix round).
+- **Task 5** — complete (commits 5a4fb0c..ea7574c, review clean, no fix round).
+- **Task 6** — complete (commits ea7574c..26e2d2f, review clean, no fix round).
+- **Task 7** — fix round 1/5 (2 addressed, 0 open — post-killAll timer leak; final deadline after SIGKILL; commits 47b3627..44c8a5a); complete (commits 26e2d2f..44c8a5a, review clean after 1 fix round; see Part 7 E2–E4).
+- **Task 8** — complete (commits 44c8a5a..0586069, review clean, no fix round; see Part 7 E5–E6).
+- **Task 9** — fix round 1/5 (1 addressed, 0 open — forget rejection now propagates; commits 571bc5f..d0e4489); complete (commits 0586069..d0e4489, review clean after 1 fix round; see Part 7 E7).
+- **Task 10** — complete (commits d0e4489..11429db, review clean, no fix round).
+- **Task 11** — complete (commits 11429db..0060969, review clean, no fix round).
+- **Task 12** — fix round 1/5 (3 addressed, 0 open — one focus-keeping Run/Cancel button; start-failure text for data.json rejections; banner-only run-ending announcement; commits 625c8fa..7bb88d7); complete (commits 0060969..7bb88d7, review clean after 1 fix round; see Part 7 E8–E12).
+- **Task 13** — fix round 1/5 (1 addressed, 0 open — 1280×2000 viewport override for the four fallow-card shots, dispatched because three `?analysis=` shots cropped out FallowRunPanel/Banner, Z42 missed; commits d9571ae..16b18a2); complete (commits 7bb88d7..16b18a2, review clean after 1 fix round).
+- **Task 14** — implemented (commit f7507e8); BLOCKED only on `npm run lint`: `tests/component/settings-fallow.test.ts:149` no-unnecessary-type-assertion, a Task 10 file, not Task 14's — ruling: route the one-line fix back to the Task 10 implementer (the file's owner) rather than Task 14; note: `install-script.test.ts` passed 7/7 in this worktree (the brief predicted an environmental failure); the living-suite figures reflect a fully green `npm run test` (229 files, 2536 passed, 1 skipped). Task 10's follow-up commit 50d6e0f drops the flagged type assertion, after which `npm run lint` exits 0.
+
+### Deferred minors, by task
+
+**Task 1**
+- FallowRunErrorCode literals are duplicated in the type union and in FALLOW_RUN_ERROR_CODES (plan-mandated; could derive the type from an `as const` array).
+
+**Task 4**
+- fake-process-port does not honour a pre-cancelled token (hangs; its header claims parity with the adapter) — the pre-probe cancel race is untestable with this fake.
+- analysis-coordinator.test.ts:170's title over-promises (it never settles a report before cancel); cancel during a pending onProbePassed is untested.
+- the shutdown test's "publishes nothing" assertion is vacuous (nothing was settled).
+- probe outcome 'cancelled' without a requested cancel maps to operational version-probe-failed (would mark stale), while the run path treats it as cancel — unreachable today.
+- isCancellable is not a type guard; the check is repeated at coordinator :87/:97 and reducer :58/:70.
+- re-entrant cancel during evidence.put leaves the new report stored while the terminal state is 'cancelled' (a consequence of the prescribed fix).
+- isolate() around evidence.put relies on write-before-notify (the port doc says so; it is not type-enforced).
+
+**Task 5**
+- trustAndRun checks busy only on entry; a run starting during its awaits lets bind replace the record before 'busy' is returned (re-check isActive before store.bind).
+- revokeTrust throwing on the version-changed path ends the run as spawn-failed/internal (marks stale); grantTrust 'unsupported' is reported as changed-since-review (A7-permitted).
+- CARRY to Tasks 10 & 12: service.forget / setTimeLimit can reject with AnalyzerStoreError outside their declared result types — callers must catch.
+- consent-gate tests are thin: no other-machine/invalid-record test at service level; trustAndRun store-unsupported is untested; some refusals don't assert zero process requests; the busy test doesn't assert trust stays intact.
+- trustAndRun's time limit (120,000 ms default) is not asserted; timeout boundaries 10/1800/9/1801/10.5 are not pinned at the service.
+
+**Task 6**
+- the platform→'fallow.exe'|'fallow' ternary is repeated 3× in executable-inspector.ts (:47, :82, :110).
+- a 0–3 byte file → not-native path is untested.
+- hostPlatform() is untested.
+
+**Task 7**
+- guards count labels, not call sites; a second spawn in fallow-runner.ts would pass all three guards (plan-mandated, Z37).
+- the shell-option detector sees only object-literal props (o.shell=true / defineProperty is unflagged; the header doesn't list the gap).
+- fallow-runner.ts:101 swallows every killProcess error, not only ESRCH.
+- ReadableLike lacks on('error'); a stdio stream error would be uncaught.
+- process-output.ts:71's chunks.slice(1) per dropped chunk is O(n²).
+- unit gaps: stop() after exit before close; timers cleared after a normal close; EACCES vs ENOENT (Z38).
+- **FINAL REVIEW SHOULD TRIAGE** (flake risk in verify): contracts/fallow-runner.test.ts:152-154's fixed sleep(500) before reading the grandchild pid — on a slow Windows machine this risks ENOENT plus a leaked grandchild.
+
+**Task 8**
+- the afterEach fallback kill uses pid, not -pid (no group kill), in the integration/fallow-real tests.
+- **FINAL REVIEW SHOULD TRIAGE** (CI stability): the no-freeze gate observed 22–27 ms against a 50 ms budget.
+
+**Task 9**
+- assert-bundle's "exactly once" counts only 'node:child_process', not the unprefixed 'child_process' (plan-mandated).
+- CARRY to Task 12: refreshQuietly sets binding=null on a read failure — indistinguishable from "not read yet".
+- **FINAL REVIEW SHOULD TRIAGE**: no test asserts Z36 for the wiring (bind/mount calls only readBinding on the service).
+- CityView's four new delegations are tested only via a view double (hasSnapshot guard, pinia===null fallbacks).
+- analysis-notices' `told` set grows per failed run for the session.
+- forget() after a successful service.forget now propagates a refreshBinding rejection (it was caught into binding=null before).
+
+**Task 10**
+- the constant is named SETTINGS_FALLOW_EXECUTABLE_NAME; spec §2 calls it SETTINGS_FALLOW_EXE_NAME.
+- forgetAnalyzer/changeAnalyzerTimeout try/catch paths are untested (only the purge rejection is tested).
+- notify() duplicates showFailure()'s Notice construction in settings-tab.ts.
+
+**Task 11**
+- FALLOW_ROW_COLLECTED lives in audit-copy/fallow.ts while its sibling FALLOW_ROW_EXECUTABLE is in fallow-run.ts (PF18, record-only).
+- the new kit-evidence test unmounts; its siblings don't.
+
+**Task 12**
+- connectKey remount can discard a busy step when a run request arrives mid-step (pre-flight scan E13).
+- the FallowInstalledRoute header comment is inaccurate; clear-error is only needed by changePath.
+- the failure banner object is built inline in FallowRunPanel (add a failureBanner beside refusalBanner).
+- FALLOW_EXE_FORGET_FAILED doesn't say what stays usable (spec §2).
+- plan-mandated: binding===null after a read failure shows "No executable chosen" and hides Forget; POSIX gets the Windows hint (executableName is only on the binding view).
+- the auto-check on mount doesn't place focus before check(); a refusal or throw leaves focus nowhere.
+- the dialog alert sits below the installed route's buttons (it sits above them on the import route).
+- tests don't cover Escape/Cancel/backdrop being ignored while the installed route is busy; Choose/Forget clicks while running; Enter in the path input.
+- **FINAL REVIEW SHOULD TRIAGE** (a11y): after a successful Forget, the focused Forget button unmounts and focus drops to `<body>`.
+
+**Task 13**
+- the failed-run shot shows the collapsed "Error output (last lines)" `<details>`, not the log text.
+
+### Final verification (50d6e0f)
+
+- `npm run verify`: typecheck, lint:fast and lint green.
+- `test`: 228/229 files, 2535 passed, 1 skipped.
+- 1 failure: the known clean-vault-install flake ("reaches no network API"). It timed out at 5 s under full-suite load, and passed 15/15 when re-run alone (a documented known flake).
+- `build` and `assert-bundle` OK, dist/main.js 1,128.55 kB.
+- `npm run test:fallow` 10/10 on fallow 3.27.0, win32.
+
+Final whole-branch review: pending.
