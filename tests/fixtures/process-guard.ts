@@ -3,84 +3,55 @@
 // 450-line cap once the detector grew from a token scan into a full parse.
 //
 // History: round 1 replaced a comment-stripping regex with `ts.createScanner`, which
-// fixed strings that merely LOOK like comments but is itself a flat token stream with no
-// parser behind it — it never re-enters template or regex mode, so it mis-tokenised
-// everything after a `${…}` substitution or a `/…/ ` regex literal (missed an injected
-// call in 68 of 262 real files). Round 2 replaced the scanner with a real parse
-// (`ts.createSourceFile`) for `.ts`/`.js` files, but for `.vue` files still found the
-// `<script>` block with a plain regex (`/<script[^>]*>…<\/script>/gi`), which the `i`
-// flag also matches against a component named `<ScriptPanel />` or `<script-list/>`, or
-// against `<script>` inside an HTML comment — the real script was then never reached, or
-// its content ran together with template markup that could itself confuse the TS parser
-// (a stray backtick in template text swallowing the real script). Round 3 (E31) fixes
-// this by parsing the `.vue` file itself with `@vue/compiler-sfc`'s `parse`, which is a
-// real Vue SFC parser: `descriptor.script`/`descriptor.scriptSetup`/`descriptor.template`
-// are never confused by a similarly-named component, a comment, or template markup.
+// fixed strings that merely LOOK like comments but never re-entered template or regex
+// mode (it missed an injected call in 68 of 262 real files). Round 2 parsed `.ts`/`.js`
+// with `ts.createSourceFile`, but still found a `.vue` file's `<script>` with a regex, which
+// a component named `<ScriptPanel />` or a `<script>` inside an HTML comment fooled. Round
+// 3 (E31) parses `.vue` files with `@vue/compiler-sfc`'s `parse`.
 //
-// The AST walk (`processHazardsTs`, used directly for `.ts`/`.js` files and for each
-// `.vue` script block) covers:
-// - `import ... from 'specifier'` and `export ... from 'specifier'`, a dynamic
-//   `import('specifier')`, and a `require('specifier')` / `obj.require('specifier')`
-//   call (`window.require`, matching node-access.ts's own spelling) — the module ban,
-//   checked against the specifier string's or template's own text;
-// - (round 3) ANY string or no-substitution-template literal anywhere in the code whose
-//   text matches the banned module names, not only ones used as a specifier argument —
-//   `const m = 'child_process'; window.require(m);` is now caught too;
-// - a `CallExpression` (or, round 3, a tagged template `` name`...` ``) whose callee is a
-//   banned name: bare (`spawn(`, `spawn?.(`, `spawn!(`, `` spawn`x` ``), a member
-//   (`cp.spawn(`, `cp.fork?.(`), a computed/bracket member with a string or template key
-//   (`cp['spawn'](`, `` cp[`spawn`](` ``), or `.call`/`.apply`/`['call']`/`['apply']` on a
-//   banned name (`spawn.call(`, `spawn['apply'](`) — EXCEPT a bare member `.exec(` (or
-//   `.exec.call(`/`.exec.apply(`, round 3), which is RegExp.prototype.exec (used by
-//   src/domain/path-safety.ts and src/ui/stores/review-store.ts); bare `exec(` alone is
-//   still banned. (Round 3) the callee is unwrapped through a parenthesised expression,
-//   a non-null assertion, an `as`/`satisfies`/old-style type assertion, and the right
-//   side of a comma expression before matching, so `(spawn)('x')`, `(0, cp.spawn)('x')`
-//   and `spawn!('x')` are not missed;
-// - any `Identifier` (covering a plain reference, a member's `.name`, or a destructured
-//   binding) named `openPath`, `openExternal`, `openItem` or `showItemInFolder` (U42),
-//   and the same names reached through a computed/bracket member in call position.
+// PART 7 (spec Z37, U42's "Part 7 must amend it deliberately"): the one legitimate process
+// code now exists, so the labels are finer and the allow-list lives in the test:
+// - 'spawn call' is the async `spawn` alone, in every spelling below;
+// - 'process call' is every other process API: spawnSync, bare exec, execSync, execFile,
+//   execFileSync and fork (a member `.exec(` stays RegExp.prototype.exec);
+// - 'shell option' (new) is an object-literal property named `shell` — plain, string-keyed,
+//   computed with a string key, or shorthand — whose value is not the literal `false`;
+// - 'process module' and 'shell.openPath' are unchanged.
+// tests/unit/no-process-execution.test.ts allows exactly 'process module' in
+// src/adapters/fallow/node-process-access.ts and exactly 'spawn call' in
+// src/adapters/fallow/fallow-runner.ts. Everything else stays banned everywhere.
 //
-// `.vue` template markup (`descriptor.template?.content`) is not TypeScript — it is
-// scanned as plain text with regexes structurally matching round 1's `PROCESS_CALL`/
-// `BRACKET_CALL`/`OPEN_PATH` (round 3 restored the optional-chain, bracket and
-// `.call`/`.apply` forms that a prior version of this template scan had lost), so
-// `@click="exec(cmd)"`, `@click="spawn?.('x')"` and `@click="cp['spawn']('x')"` in an
-// attribute are all caught.
+// The AST walk covers: import/export specifiers, dynamic import(), `require`/`x.require`
+// calls, any string literal naming a banned module, calls (bare, member, bracket with a
+// string or template key, `.call`/`.apply`, tagged templates, optional chains, non-null
+// assertions, parentheses, type assertions and comma expressions), opener identifiers,
+// and `shell` properties. A `.vue` <template> is scanned as text for calls and openers.
 //
-// Known, accepted gaps (round 3): a name ALIASED to a banned function and called through
-// the alias (`const s = spawn; s();`) is invisible — this would need data-flow analysis,
-// not a syntactic check. An opener name referenced but never called (`const f =
-// shell['openPath'];`, no accompanying call) is also not caught — the AST walk only
-// checks bracket/computed access to an opener name when it is itself a call's callee; a
-// bare `.openPath`/`{ openPath }` reference IS still caught (an `Identifier` node,
-// checked regardless of call position). Both are deliberate, so a broader alias/x-ray
-// analysis is not attempted here (see "not exhaustive" below).
-//
-// Not exhaustive: a specifier or property name assembled at run time (string
-// concatenation, a variable used as a computed key) evades this, as does anything inside
-// a template's own mini-expression language beyond what the text regexes catch.
+// Known, accepted gaps: an alias (`const s = spawn; s();`), `spawn.bind(null)()`,
+// `Reflect.apply`, an uncalled bracket reference to an opener, a name built at run time,
+// and a `shell` option written inside a <template> (not scanned: prose there reads
+// "shell:" too often to be a reliable signal).
 import ts from 'typescript';
 import { parse as parseSfc } from '@vue/compiler-sfc';
 
 export type ProcessGuardKind = 'ts' | 'vue';
+export type ProcessHazard = 'process module' | 'spawn call' | 'process call' | 'shell option' | 'shell.openPath';
+const HAZARD_ORDER: readonly ProcessHazard[] = ['process module', 'spawn call', 'process call', 'shell option', 'shell.openPath'];
 
 const BANNED_MODULE = /\b(child_process|worker_threads)\b/;
-const BARE_NAMES: ReadonlySet<string> = new Set(['spawn', 'spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork']);
+const SPAWN = 'spawn';
+const BARE_NAMES: ReadonlySet<string> = new Set(['spawnSync', 'exec', 'execSync', 'execFile', 'execFileSync', 'fork']);
 // No bare "exec" here: a member `.exec(` is RegExp.prototype.exec.
-const MEMBER_NAMES: ReadonlySet<string> = new Set(['spawn', 'spawnSync', 'execSync', 'execFile', 'execFileSync', 'fork']);
+const MEMBER_NAMES: ReadonlySet<string> = new Set(['spawnSync', 'execSync', 'execFile', 'execFileSync', 'fork']);
 const OPENER_NAMES: ReadonlySet<string> = new Set(['openPath', 'openExternal', 'openItem', 'showItemInFolder']);
 
-interface Found { module: boolean; call: boolean; open: boolean }
+interface Found { module: boolean; spawn: boolean; call: boolean; shell: boolean; open: boolean }
 type CalleeShape = { shape: 'bare' | 'member'; name: string } | { shape: 'none' };
 
 function literalText(node: ts.Node | undefined): string | undefined {
   return node && ts.isStringLiteralLike(node) ? node.text : undefined;
 }
 
-/** Round 3: strips a parenthesised expression, a non-null assertion, an `as`/
- *  `satisfies`/old-style type assertion, and the right side of a comma expression, so
- *  `(spawn)('x')`, `spawn!('x')` and `(0, cp.spawn)('x')` still resolve to their target. */
 function unwrap(expr: ts.Expression): ts.Expression {
   for (;;) {
     if (ts.isParenthesizedExpression(expr)) { expr = expr.expression; continue; }
@@ -91,10 +62,6 @@ function unwrap(expr: ts.Expression): ts.Expression {
   }
 }
 
-/** The unwrapped shape of a callee (or a `.call`/`.apply` receiver, or a tagged
- *  template's tag): a bare identifier (includes `exec`), or a member reached through
- *  `.name` or a computed `['name']`/`` [`name`] `` (excludes bare `exec`'s exemption —
- *  callers decide which name set applies to which shape). */
 function calleeShape(expr: ts.Expression): CalleeShape {
   const inner = unwrap(expr);
   if (ts.isIdentifier(inner)) return { shape: 'bare', name: inner.text };
@@ -106,6 +73,18 @@ function calleeShape(expr: ts.Expression): CalleeShape {
   return { shape: 'none' };
 }
 
+/** Which hazard calling something of this shape is: the async spawn, another process API, or none. */
+function callHazard(shape: CalleeShape): 'spawn' | 'call' | null {
+  if (shape.shape === 'none') return null;
+  if (shape.name === SPAWN) return 'spawn';
+  return (shape.shape === 'bare' ? BARE_NAMES : MEMBER_NAMES).has(shape.name) ? 'call' : null;
+}
+
+function mark(found: Found, hazard: 'spawn' | 'call' | null): void {
+  if (hazard === 'spawn') found.spawn = true;
+  else if (hazard === 'call') found.call = true;
+}
+
 function specifierHazard(arg: ts.Expression | undefined, found: Found): void {
   const text = literalText(arg);
   if (text !== undefined && BANNED_MODULE.test(text)) found.module = true;
@@ -115,92 +94,89 @@ function visitCall(node: ts.CallExpression, found: Found): void {
   if (node.expression.kind === ts.SyntaxKind.ImportKeyword) { specifierHazard(node.arguments[0], found); return; }
   const callee = calleeShape(node.expression);
   if (callee.shape === 'member' && (callee.name === 'call' || callee.name === 'apply')) {
-    // Round 3 (the ".exec.call" false positive): the receiver's OWN shape decides which
-    // name set applies, so `x.exec.call(y)` (receiver shape "member", name "exec") stays
-    // exempt exactly like `x.exec(y)` does, while `spawn.call(y)` (receiver shape
-    // "bare") is still banned.
+    // The receiver's OWN shape decides (round 3): `x.exec.call(y)` stays exempt, `spawn.call(y)` does not.
     const inner = unwrap(node.expression);
     const receiver = ts.isPropertyAccessExpression(inner) || ts.isElementAccessExpression(inner) ? inner.expression : undefined;
-    const receiverShape = receiver && calleeShape(receiver);
-    if (receiverShape && receiverShape.shape !== 'none') {
-      const banned = receiverShape.shape === 'bare' ? BARE_NAMES.has(receiverShape.name) : MEMBER_NAMES.has(receiverShape.name);
-      if (banned) found.call = true;
-    }
+    if (receiver) mark(found, callHazard(calleeShape(receiver)));
     return;
   }
   if (callee.shape !== 'none' && callee.name === 'require') { specifierHazard(node.arguments[0], found); return; }
-  if (callee.shape === 'bare' && BARE_NAMES.has(callee.name)) { found.call = true; return; }
-  if (callee.shape === 'member' && MEMBER_NAMES.has(callee.name)) { found.call = true; return; }
+  const hazard = callHazard(callee);
+  if (hazard !== null) { mark(found, hazard); return; }
   if (callee.shape === 'member' && OPENER_NAMES.has(callee.name)) found.open = true;
 }
 
-function toList(found: Found): string[] {
-  return [
-    ...(found.module ? ['process module'] : []),
-    ...(found.call ? ['process call'] : []),
-    ...(found.open ? ['shell.openPath'] : []),
-  ];
+function propertyNameText(name: ts.PropertyName): string | undefined {
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name)) return name.text;
+  if (ts.isComputedPropertyName(name)) return literalText(name.expression);
+  return undefined;
 }
 
-function processHazardsTs(source: string): string[] {
+function toList(found: Found): ProcessHazard[] {
+  const on: Record<ProcessHazard, boolean> = {
+    'process module': found.module, 'spawn call': found.spawn, 'process call': found.call, 'shell option': found.shell, 'shell.openPath': found.open,
+  };
+  return HAZARD_ORDER.filter((h) => on[h]);
+}
+
+function processHazardsTs(source: string): ProcessHazard[] {
   const sourceFile = ts.createSourceFile('probe.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  const found: Found = { module: false, call: false, open: false };
+  const found: Found = { module: false, spawn: false, call: false, shell: false, open: false };
   const visit = (node: ts.Node): void => {
     if (ts.isImportDeclaration(node)) specifierHazard(node.moduleSpecifier, found);
     else if (ts.isExportDeclaration(node)) specifierHazard(node.moduleSpecifier, found);
     else if (ts.isCallExpression(node)) visitCall(node, found);
-    else if (ts.isTaggedTemplateExpression(node)) {
-      const shape = calleeShape(node.tag);
-      if ((shape.shape === 'bare' && BARE_NAMES.has(shape.name)) || (shape.shape === 'member' && MEMBER_NAMES.has(shape.name))) found.call = true;
-    } else if (ts.isIdentifier(node) && OPENER_NAMES.has(node.text)) found.open = true;
+    else if (ts.isTaggedTemplateExpression(node)) mark(found, callHazard(calleeShape(node.tag)));
+    else if (ts.isIdentifier(node) && OPENER_NAMES.has(node.text)) found.open = true;
     else if (ts.isStringLiteralLike(node) && BANNED_MODULE.test(node.text)) found.module = true;
+    else if (ts.isPropertyAssignment(node) && propertyNameText(node.name) === 'shell'
+      && unwrap(node.initializer).kind !== ts.SyntaxKind.FalseKeyword) found.shell = true;
+    else if (ts.isShorthandPropertyAssignment(node) && node.name.text === 'shell') found.shell = true;
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
   return toList(found);
 }
 
-// A `.vue` <template> block is HTML with embedded mini-expressions, not TypeScript: a
-// plain text scan, restored (round 3) to the same shape as round 1's PROCESS_CALL/
-// BRACKET_CALL/OPEN_PATH so bracket, optional-chain and .call/.apply forms in an
-// attribute are caught the same way they are in real script code.
-const BARE_LIST = [...BARE_NAMES].join('|');
-const MEMBER_LIST = [...MEMBER_NAMES].join('|');
-const TEMPLATE_CALL = new RegExp(
-  `(?<![\\w$.])(?:${BARE_LIST})(?:\\s*\\?\\.)?\\s*\\(`
-  + `|\\.(?:${MEMBER_LIST})(?:\\s*\\?\\.)?\\s*\\(`
-  + `|(?<![\\w$.])(?:${BARE_LIST})\\.(?:call|apply)\\s*\\(`,
+const BARE_LIST = Array.from(BARE_NAMES).join('|');
+const MEMBER_LIST = Array.from(MEMBER_NAMES).join('|');
+const callPattern = (bare: string, member: string): RegExp => new RegExp(
+  `(?<![\\w$.])(?:${bare})(?:\\s*\\?\\.)?\\s*\\(`
+  + `|\\.(?:${member})(?:\\s*\\?\\.)?\\s*\\(`
+  + `|(?<![\\w$.])(?:${bare})\\.(?:call|apply)\\s*\\(`
+  + `|\\[\\s*['"](?:${member})['"]\\s*\\]\\s*\\(`,
 );
-const TEMPLATE_BRACKET_CALL = new RegExp(`\\[\\s*['"](?:${MEMBER_LIST})['"]\\s*\\]\\s*\\(`);
-const TEMPLATE_OPEN = new RegExp(`\\b(?:${[...OPENER_NAMES].join('|')})\\b`);
+const TEMPLATE_SPAWN = callPattern(SPAWN, SPAWN);
+const TEMPLATE_CALL = callPattern(BARE_LIST, MEMBER_LIST);
+const TEMPLATE_OPEN = new RegExp(`\\b(?:${Array.from(OPENER_NAMES).join('|')})\\b`);
 
-function scanTemplateText(text: string): string[] {
-  const found: Found = { module: BANNED_MODULE.test(text), call: TEMPLATE_CALL.test(text) || TEMPLATE_BRACKET_CALL.test(text), open: TEMPLATE_OPEN.test(text) };
-  return toList(found);
+function scanTemplateText(text: string): ProcessHazard[] {
+  return toList({
+    module: BANNED_MODULE.test(text), spawn: TEMPLATE_SPAWN.test(text), call: TEMPLATE_CALL.test(text), shell: false, open: TEMPLATE_OPEN.test(text),
+  });
 }
 
-/** Round 3: a real Vue SFC parse, not a regex, so a component named `<ScriptPanel />` or
- *  `<script-list/>`, or `<script>` mentioned inside an HTML comment, can never be
- *  mistaken for the real `<script>`/`<script setup>` block (or vice versa). */
-function processHazardsVue(source: string): string[] {
+function processHazardsVue(source: string): ProcessHazard[] {
   const { descriptor } = parseSfc(source, { filename: 'probe.vue' });
-  const parts = new Set<string>();
+  const parts = new Set<ProcessHazard>();
   if (descriptor.template?.content) scanTemplateText(descriptor.template.content).forEach((h) => parts.add(h));
   if (descriptor.script?.content) processHazardsTs(descriptor.script.content).forEach((h) => parts.add(h));
   if (descriptor.scriptSetup?.content) processHazardsTs(descriptor.scriptSetup.content).forEach((h) => parts.add(h));
-  return (['process module', 'process call', 'shell.openPath'] as const).filter((h) => parts.has(h));
+  return HAZARD_ORDER.filter((h) => parts.has(h));
 }
 
-/** Every reason `source` could start a process or open a path, as short labels. */
-export function processHazards(source: string, kind: ProcessGuardKind): string[] {
+/** Every reason `source` could start a process or open a path, as short labels, in HAZARD_ORDER. */
+export function processHazards(source: string, kind: ProcessGuardKind): ProcessHazard[] {
   return kind === 'vue' ? processHazardsVue(source) : processHazardsTs(source);
 }
 
-/** Self-test helper: injects a real `spawn('x');` call so the whole-tree scan's own
- *  detector can be pinned against every real file, not just hand-written snippets. For
- *  `.vue`, the call goes right before the LAST `</script>` close tag. */
-export function injectSpawnCall(source: string, kind: ProcessGuardKind): string {
-  if (kind !== 'vue') return `${source}\nspawn('x');\n`;
+/** Self-test helper: appends a statement (for `.vue`, right before the LAST `</script>`). */
+export function injectStatement(source: string, kind: ProcessGuardKind, statement: string): string {
+  if (kind !== 'vue') return `${source}\n${statement}\n`;
   const at = source.lastIndexOf('</script>');
-  return at < 0 ? source : `${source.slice(0, at)}\nspawn('x');\n${source.slice(at)}`;
+  return at < 0 ? source : `${source.slice(0, at)}\n${statement}\n${source.slice(at)}`;
+}
+
+export function injectSpawnCall(source: string, kind: ProcessGuardKind): string {
+  return injectStatement(source, kind, "spawn('x');");
 }

@@ -1,19 +1,39 @@
-// Part 6 acceptance evidence (2) for the Fallow Ingestion deliverable: importing a report
-// runs no code, and nothing under src/ can start a process or hand a path to the shell.
-// The detector itself (a real TypeScript AST parse, a real Vue SFC parse for .vue files,
-// and a text scan of a .vue file's <template> block) lives in
-// tests/fixtures/process-guard.ts — see its header for what it covers, the two prior
-// blind spots (round 1's flat scanner; round 2's regex-based <script> block finder, which
-// a similarly-named component or a comment inside a template could fool), and how each
-// was fixed. This file holds the whole-tree scan, the flags/does-not-flag tables, and a
-// self-test that pins the fixed blind spots against every real file.
+// Part 6 acceptance evidence (2), amended deliberately by Part 7 (spec Z37, U42). Importing
+// a report runs no code, and nothing under src/ can start a process or hand a path to the
+// shell — except exactly two adapter files, each for exactly one hazard:
+// - src/adapters/fallow/node-process-access.ts may name node:child_process (its one
+//   window.require);
+// - src/adapters/fallow/fallow-runner.ts may call the async spawn (its one call).
+// shell: true, every *Sync API, exec, execFile, fork, worker_threads and the Electron openers
+// stay banned everywhere, those two files included. The detector is
+// tests/fixtures/process-guard.ts; see its header for what it covers and its history.
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { injectSpawnCall, processHazards, type ProcessGuardKind } from '../fixtures/process-guard';
+import { injectSpawnCall, injectStatement, processHazards, type ProcessGuardKind, type ProcessHazard } from '../fixtures/process-guard';
 
 const SRC_ROOT = fileURLToPath(new URL('../../src', import.meta.url));
+
+/** Z37: EXACTLY these two files, each allowed EXACTLY its own hazard. */
+const PROCESS_ALLOWED: ReadonlyMap<string, readonly ProcessHazard[]> = new Map<string, readonly ProcessHazard[]>([
+  ['adapters/fallow/node-process-access.ts', ['process module']],
+  ['adapters/fallow/fallow-runner.ts', ['spawn call']],
+]);
+
+/** Z37: what stays banned in those two files too, injected one statement at a time. */
+const STILL_BANNED: readonly (readonly [string, ProcessHazard])[] = [
+  ["spawnSync('x');", 'process call'],
+  ["cp.execSync('x');", 'process call'],
+  ["exec('x');", 'process call'],
+  ["execFile('x', []);", 'process call'],
+  ["cp.execFileSync('x');", 'process call'],
+  ["cp.fork('x');", 'process call'],
+  ["window.require('node:worker_threads');", 'process module'],
+  ['const o = { shell: true };', 'shell option'],
+  ['shell.openPath(p);', 'shell.openPath'],
+  ['shell.openExternal(url);', 'shell.openPath'],
+];
 
 function listSourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -26,124 +46,129 @@ function listSourceFiles(dir: string): string[] {
 }
 
 const kindOf = (file: string): ProcessGuardKind => (file.endsWith('.vue') ? 'vue' : 'ts');
+const rel = (abs: string): string => relative(SRC_ROOT, abs).replace(/\\/g, '/');
+const hazardsOf = (relPath: string): ProcessHazard[] => processHazards(readFileSync(join(SRC_ROOT, relPath), 'utf8'), kindOf(relPath));
 
-describe('nothing under src/ runs a process (Part 6 acceptance 2)', () => {
-  const files = listSourceFiles(SRC_ROOT);
+describe('nothing under src/ runs a process, except the two allow-listed adapter files (Z37)', () => {
+  const files = listSourceFiles(SRC_ROOT).map(rel);
 
   it('has source files to check (the scan is not vacuous)', () => {
     expect(files.length).toBeGreaterThan(100);
   });
 
-  it('no file mentions child_process or worker_threads, calls spawn/exec/execFile/fork, or opens a path', () => {
+  it('no file has a hazard it is not allowed', () => {
     const offenders = files
-      .map((f) => ({ file: relative(SRC_ROOT, f).replace(/\\/g, '/'), hazards: processHazards(readFileSync(f, 'utf8'), kindOf(f)) }))
+      .map((file) => ({ file, hazards: hazardsOf(file).filter((h) => !(PROCESS_ALLOWED.get(file) ?? []).includes(h)) }))
       .filter((o) => o.hazards.length > 0);
     expect(offenders).toEqual([]);
   });
 
-  // Fix round 2 (E31, Important 2, self-test for the fixed regression): round 1's plain
-  // token scanner missed an injected call in 68 of these 262 files (everything after a
-  // template substitution or a regex literal). Appending a real call to every file and
-  // asserting the detector still reports it pins that blind spot shut, independent of
-  // the hand-written snippets below.
-  it('flags an injected spawn(\'x\'); call in every real source file', () => {
-    const missed = files
-      .map((f) => relative(SRC_ROOT, f).replace(/\\/g, '/'))
-      .filter((rel) => {
-        const kind = kindOf(rel);
-        const injected = injectSpawnCall(readFileSync(join(SRC_ROOT, rel), 'utf8'), kind);
-        return !processHazards(injected, kind).includes('process call');
-      });
+  it('each allow-listed file exists and has exactly its allowed hazard, so the list cannot go stale', () => {
+    for (const [file, allowed] of PROCESS_ALLOWED) {
+      expect(existsSync(join(SRC_ROOT, file)), file).toBe(true);
+      expect(hazardsOf(file), file).toEqual(allowed);
+    }
+  });
+
+  it('flags an injected spawn(\'x\'); call in every real source file (E31\'s blind-spot pin)', () => {
+    const missed = files.filter((file) => !processHazards(injectSpawnCall(readFileSync(join(SRC_ROOT, file), 'utf8'), kindOf(file)), kindOf(file)).includes('spawn call'));
+    expect(missed).toEqual([]);
+  });
+
+  it('still flags every other process API, the shell option and the openers injected into each allow-listed file', () => {
+    expect(STILL_BANNED.length).toBeGreaterThan(0);
+    for (const file of PROCESS_ALLOWED.keys()) {
+      const source = readFileSync(join(SRC_ROOT, file), 'utf8');
+      for (const [statement, label] of STILL_BANNED) {
+        expect(processHazards(injectStatement(source, 'ts', statement), 'ts'), `${file}: ${statement}`).toContain(label);
+      }
+    }
+  });
+
+  it('the one allowed process module is child_process: neither allow-listed file names worker_threads', () => {
+    for (const file of PROCESS_ALLOWED.keys()) expect(readFileSync(join(SRC_ROOT, file), 'utf8'), file).not.toMatch(/worker_threads/);
+  });
+
+  it('flags an injected { shell: true } in every real source file', () => {
+    const missed = files.filter((file) => !processHazards(injectStatement(readFileSync(join(SRC_ROOT, file), 'utf8'), kindOf(file), 'const o = { shell: true };'), kindOf(file)).includes('shell option'));
     expect(missed).toEqual([]);
   });
 });
 
-// The detector itself, one case per spelling, independent of what src/ holds today.
 describe('process hazard detection', () => {
-  it.each<[string, ProcessGuardKind, string]>([
+  it.each<[string, ProcessGuardKind, ProcessHazard]>([
     ["import { spawn } from 'node:child_process';", 'ts', 'process module'],
     ["import * as cp from 'child_process';", 'ts', 'process module'],
     ["const cp = await import('node:child_process');", 'ts', 'process module'],
     ["const cp = window.require('child_process');", 'ts', 'process module'],
     ["const { Worker } = window.require('node:worker_threads');", 'ts', 'process module'],
-    ["spawn('fallow', ['--format', 'json']);", 'ts', 'process call'],
+    ["spawn('fallow', ['--format', 'json']);", 'ts', 'spawn call'],
     ["exec('fallow --version');", 'ts', 'process call'],
     ["execFile('fallow', []);", 'ts', 'process call'],
     ["runner.execFileSync('fallow');", 'ts', 'process call'],
-    ["proc.spawn ('fallow');", 'ts', 'process call'],
+    ["cp.spawnSync('fallow');", 'ts', 'process call'],
+    ["proc.spawn ('fallow');", 'ts', 'spawn call'],
     ["fork('worker.js');", 'ts', 'process call'],
-    ["shell.openPath(report);", 'ts', 'shell.openPath'],
-    ["const { openPath } = shell;", 'ts', 'shell.openPath'],
-    // Fix round 1 (Important 2): a comment-stripping regex that does not know about
-    // strings erased the real spawn( call between a string containing "/*" and the next
-    // genuine "*/".
-    ["const g = 'dir/*'; spawn('x'); /** doc */", 'ts', 'process call'],
+    ['shell.openPath(report);', 'ts', 'shell.openPath'],
+    ['const { openPath } = shell;', 'ts', 'shell.openPath'],
+    ["const g = 'dir/*'; spawn('x'); /** doc */", 'ts', 'spawn call'],
     ["const s = '//'; exec(cmd)", 'ts', 'process call'],
-    // Fix round 1 (minor 3): spellings the tokenizer version missed.
-    ["spawn?.('fallow');", 'ts', 'process call'],
+    ["spawn?.('fallow');", 'ts', 'spawn call'],
     ["cp.fork?.(['worker.js']);", 'ts', 'process call'],
-    ["cp['spawn']('fallow');", 'ts', 'process call'],
-    ["spawn.call(null, 'fallow');", 'ts', 'process call'],
-    ["spawn.apply(null, ['fallow']);", 'ts', 'process call'],
+    ["cp['spawn']('fallow');", 'ts', 'spawn call'],
+    ["spawn.call(null, 'fallow');", 'ts', 'spawn call'],
+    ["spawn.apply(null, ['fallow']);", 'ts', 'spawn call'],
     ['shell.openExternal(url);', 'ts', 'shell.openPath'],
     ['const { openItem } = shell;', 'ts', 'shell.openPath'],
     ['showItemInFolder(path);', 'ts', 'shell.openPath'],
-    // Fix round 2 (Important 2, the scanner regression): a token scanner never re-enters
-    // template or regex mode, so everything after a "${…}" substitution or a "/…/ "
-    // literal was mis-tokenised. A real parse (tests/fixtures/process-guard.ts) does not
-    // have this blind spot.
-    ["const t = `${dir}/*`; spawn('x'); /** doc */", 'ts', 'process call'],
-    ["const t = `a${x}b'c`; spawn('x');", 'ts', 'process call'],
-    ["const re = /[/*]/; spawn('x'); /** doc */", 'ts', 'process call'],
-    ["const re = /'/; spawn('x');", 'ts', 'process call'],
-    ["cp[`spawn`]('x')", 'ts', 'process call'],
-    // Fix round 2: a .vue <template> attribute, scanned as text (not parsed as TS).
+    ["const t = `${dir}/*`; spawn('x'); /** doc */", 'ts', 'spawn call'],
+    ["const t = `a${x}b'c`; spawn('x');", 'ts', 'spawn call'],
+    ["const re = /[/*]/; spawn('x'); /** doc */", 'ts', 'spawn call'],
+    ["const re = /'/; spawn('x');", 'ts', 'spawn call'],
+    ["cp[`spawn`]('x')", 'ts', 'spawn call'],
     ['<template><button @click="exec(cmd)">Run</button></template>', 'vue', 'process call'],
     ['<template><button @click="shell.openPath(p)">Run</button></template>', 'vue', 'shell.openPath'],
-    // Fix round 3 (Important 2, the <script>-finding regression): a regex `<script>`
-    // finder is fooled by a similarly-named component or a comment; a real SFC parse is
-    // not. All three still find the real spawn('fallow') in <script setup>.
-    ['<template><ScriptPanel/><p>a backtick ` here</p></template><script setup>\nspawn(\'fallow\');\n</script>', 'vue', 'process call'],
-    [
-      '<template><!-- the <script> below --><p>Run nothing</p></template><script setup>\nspawn(\'fallow\');\n</script>',
-      'vue', 'process call',
-    ],
-    ["<template><p>x</p></template><script setup>\nspawn('fallow');\n</script >", 'vue', 'process call'],
-    // Fix round 3 (minor 3): the template text scan regained the forms round 2's version
-    // had lost.
-    ["<template><button @click=\"spawn?.('x')\">Run</button></template>", 'vue', 'process call'],
-    ["<template><button @click=\"cp['spawn']('x')\">Run</button></template>", 'vue', 'process call'],
-    // Fix round 3 (minor 4): a module name reached through a variable, not only as a
-    // specifier argument directly.
+    ['<template><ScriptPanel/><p>a backtick ` here</p></template><script setup>\nspawn(\'fallow\');\n</script>', 'vue', 'spawn call'],
+    ['<template><!-- the <script> below --><p>Run nothing</p></template><script setup>\nspawn(\'fallow\');\n</script>', 'vue', 'spawn call'],
+    ["<template><p>x</p></template><script setup>\nspawn('fallow');\n</script >", 'vue', 'spawn call'],
+    ["<template><button @click=\"spawn?.('x')\">Run</button></template>", 'vue', 'spawn call'],
+    ["<template><button @click=\"cp['spawn']('x')\">Run</button></template>", 'vue', 'spawn call'],
+    ["<template><button @click=\"cp.execSync('x')\">Run</button></template>", 'vue', 'process call'],
     ["const m = 'child_process'; window.require(m);", 'ts', 'process module'],
-    // Fix round 3 (minor 5): callees the AST walker did not unwrap before this round.
-    ["(spawn)('x');", 'ts', 'process call'],
-    ["(0, cp.spawn)('x');", 'ts', 'process call'],
-    ["spawn!('x');", 'ts', 'process call'],
-    ["spawn`x`;", 'ts', 'process call'],
-    ["spawn['call'](null);", 'ts', 'process call'],
-  ])('flags %s (%s)', (source, kind, label) => {
+    ["(spawn)('x');", 'ts', 'spawn call'],
+    ["(0, cp.spawn)('x');", 'ts', 'spawn call'],
+    ["spawn!('x');", 'ts', 'spawn call'],
+    ['spawn`x`;', 'ts', 'spawn call'],
+    ["spawn['call'](null);", 'ts', 'spawn call'],
+    // Part 7 Z37: the shell option, in each spelling.
+    ["cp.spawn('x', [], { shell: true });", 'ts', 'shell option'],
+    ["const o = { ['shell']: 'cmd.exe' };", 'ts', 'shell option'],
+    ["const o = { 'shell': process.env.SHELL };", 'ts', 'shell option'],
+    ['const o = { shell };', 'ts', 'shell option'],
+  ])('flags %s (%s) as %s', (source, kind, label) => {
     expect(processHazards(source, kind)).toContain(label);
   });
 
   it.each<[string, ProcessGuardKind]>([
     ["const drive = /^[A-Za-z]:/.exec(posix)?.[0] ?? null;", 'ts'],
     ["const digits = pattern.exec(id)?.[1];", 'ts'],
-    ["// spawn('fallow') is Part 7's job, never this one", 'ts'],
+    ["// spawn('fallow') is fallow-runner.ts's job, never this one", 'ts'],
     ["/* import { exec } from 'node:child_process' */ const x = 1;", 'ts'],
     ["const executable = 'fallow'; const spawned = false; const forked = 0;", 'ts'],
-    // Fix round 1 (minor 3): prose inside a string, not a real call.
     ["const note = 'a fork (of…) in the road, not a process';", 'ts'],
-    // Fix round 2: prose inside a template, still not a real call.
     ['const t = `${x} fork (now)`;', 'ts'],
-    // A .vue template with no hazard in either its markup or its script.
     ['<template><p>Run nothing</p></template><script>const x = 1;</script>', 'vue'],
-    // Neither a <template> nor a <script> wrapper: nothing to scan, so nothing to flag.
     ['<!-- openPath is not used --><p>Run nothing</p>', 'vue'],
-    // Fix round 3 (item 6): `.exec` reached via `.call`/`.apply` is still RegExp.exec,
-    // not a process call — the receiver's own shape (a member, not bare) decides.
     ['pattern.exec.call(str);', 'ts'],
+    // Part 7 Z37: `shell: false`, and a `shell` that is not a property assignment.
+    ["const options = { shell: false, windowsHide: true };", 'ts'],
+    ['interface O { shell: false }', 'ts'],
+    ['const shell = 1; use(shell);', 'ts'],
   ])('does not flag %s', (source, kind) => {
     expect(processHazards(source, kind)).toEqual([]);
+  });
+
+  it('keeps the async spawn apart from every other process API', () => {
+    expect(processHazards("spawn('x'); spawnSync('y');", 'ts')).toEqual(['spawn call', 'process call']);
   });
 });

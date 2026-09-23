@@ -33,6 +33,18 @@ import type { CityView } from '../../../src/host/city-view';
 import type { CodebaseProfile, CodebaseSnapshot } from '../../../src/domain/model';
 import type { FileFingerprint } from '../../fixtures/temp-tree';
 
+// Part 7 Z37 (K19, PF3): amended deliberately, with the same two-file allow-list as
+// tests/unit/no-process-execution.test.ts. Each file may carry exactly one marker; every
+// other marker, and every marker in every other file, stays banned.
+const PROCESS_TEXT: readonly (readonly [string, RegExp])[] = [
+  ['child_process', /child_process/], ['execFile', /execFile/], ['spawnSync', /spawnSync/],
+  ['spawn(', /\bspawn\(/], ['execSync', /\bexecSync\b/], ['npm install', /npm install/],
+];
+const PROCESS_TEXT_ALLOWED: ReadonlyMap<string, string> = new Map([
+  ['adapters/fallow/node-process-access.ts', 'child_process'],
+  ['adapters/fallow/fallow-runner.ts', 'spawn('],
+]);
+
 export const sourceSteps: StepTable<World> = {
   // ---- Respect the approved source boundary ----------------------------------------
   'a source contains a link outside the approved root': async (world) => {
@@ -165,9 +177,16 @@ export const sourceSteps: StepTable<World> = {
     const offenders: string[] = [];
     for (const rel of files) {
       const text = await readFile(join(srcRoot, ...rel.split('/')), 'utf8');
-      if (/child_process|execFile|spawnSync|\bspawn\(|\bexecSync\b|npm install/.test(text)) offenders.push(rel);
+      const hits = PROCESS_TEXT.filter(([name, re]) => re.test(text) && PROCESS_TEXT_ALLOWED.get(rel) !== name);
+      if (hits.length > 0) offenders.push(`${rel}: ${hits.map(([name]) => name).join(', ')}`);
     }
     expect(offenders).toEqual([]);
+    // The allow-list cannot go stale: each allowed file exists and carries its marker.
+    for (const [rel, name] of PROCESS_TEXT_ALLOWED) {
+      expect(files, rel).toContain(rel);
+      const text = await readFile(join(srcRoot, ...rel.split('/')), 'utf8');
+      expect(PROCESS_TEXT.find(([n]) => n === name)?.[1].test(text), `${rel}: ${name}`).toBe(true);
+    }
     // And the scan itself read nothing outside the approved root.
     const root = resolve(take<string>(world, 'root'));
     for (const path of take<readonly string[]>(world, 'log')) {

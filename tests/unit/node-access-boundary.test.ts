@@ -101,10 +101,11 @@ describe('the single Node-access module boundary (spec 3.1, acceptance criterion
     expect(files.length).toBeGreaterThan(10);
   });
 
-  it('references a require-like access in EXACTLY node-access.ts, and nowhere else in src/', () => {
+  // Part 7 Z14 (K19): node-process-access.ts is the second, and only other, window.require.
+  it('references a require-like access in EXACTLY node-access.ts and node-process-access.ts, and nowhere else in src/', () => {
     const offending = files.filter((f) => referencesRequireLikeAccess(readFileSync(f, 'utf8')));
-    const relPaths = offending.map((f) => relative(SRC_ROOT, f).replace(/\\/g, '/'));
-    expect(relPaths).toEqual(['adapters/filesystem/node-access.ts']);
+    const relPaths = offending.map((f) => relative(SRC_ROOT, f).replace(/\\/g, '/')).sort();
+    expect(relPaths).toEqual(['adapters/fallow/node-process-access.ts', 'adapters/filesystem/node-access.ts']);
   });
 
   it('never statically imports a Node built-in module anywhere in src/', () => {

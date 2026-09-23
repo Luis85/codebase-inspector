@@ -1,5 +1,5 @@
 // Part 7 Z4/Z5: what the executable IS, before anything runs. A stat, a real path and its
-// first 4 bytes — it is never executed, and this file touches no child_process. Checks run
+// first 4 bytes — it is never executed, and this file starts no process. Checks run
 // in order and the first failure wins: absolute path, base name (launchers by extension),
 // exists, regular file, real path, native format (a `#!` script is a launcher). Fs deps
 // are injectable (M17), defaulting to node-access.ts; tests pass node:fs/promises.

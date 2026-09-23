@@ -1,4 +1,4 @@
-// The ONLY place in the codebase that reaches Node. Everything else imports from here.
+// The only place that reaches Node's filesystem and path modules; src/adapters/fallow/node-process-access.ts is the only place that reaches Node's process module (Part 7 Z14).
 //
 // window.require, not a bundled import: Obsidian injects its own CommonJS require, and
 // the renderer's window.require is Electron's real one. (The spike settled which;
