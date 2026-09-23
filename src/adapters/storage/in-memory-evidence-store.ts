@@ -32,7 +32,8 @@ export class InMemoryEvidenceStore implements EvidenceRepository {
     return () => { this.subscriptions.delete(subscription); };
   }
 
-  /** Over a copy, so a listener that unsubscribes while being notified never skips another. */
+  /** Over a copy, so a listener added while notifying waits for the next change (a live Set
+   *  would call it in this same pass). */
   private notify(repositoryId: string): void {
     for (const s of Array.from(this.subscriptions)) s.listener(repositoryId);
   }

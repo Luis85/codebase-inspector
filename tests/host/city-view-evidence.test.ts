@@ -85,6 +85,11 @@ describe('CityView evidence wiring (Part 6 Y28/Y29/Y39)', () => {
     const deps = makeDeps(new InMemoryEvidenceStore());
     const empty = await openView(deps, false);
     expect(empty.view.hasSnapshot()).toBe(false);
+    const routeBefore = useCityStore(empty.pinia).route;
+    empty.view.openReportImport();
+    await flushPromises();
+    expect(useCityStore(empty.pinia).route).toBe(routeBefore);
+    expect(useEvidenceStore(empty.pinia).importRequested).toBe(false);
     await empty.view.onClose();
     const { view, pinia } = await openView(deps);
     expect(view.hasSnapshot()).toBe(true);

@@ -123,8 +123,9 @@ export class CityView extends ItemView {
   /** Part 6 Y39: `import-analysis-report` is offered only while this leaf shows a snapshot. */
   hasSnapshot(): boolean { return (this.cityStore?.snapshot ?? null) !== null; }
 
-  /** Part 6 Y39: Data & scans, plus a request SourcesScreen turns into the S14 dialog. */
-  openReportImport(): void { if (this.pinia) requestReportImport(this.pinia); }
+  /** Part 6 Y39: Data & scans, plus a request SourcesScreen turns into the S14 dialog.
+   *  Nothing without a snapshot: the first bind would silently drop the request. */
+  openReportImport(): void { if (this.pinia && this.hasSnapshot()) requestReportImport(this.pinia); }
 
   override async onOpen(): Promise<void> {
     this.contentEl.classList.add('codebase-inspector-root');

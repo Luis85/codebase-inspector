@@ -51,12 +51,18 @@ describe('InMemoryEvidenceStore (Part 6 Y28)', () => {
     expect(listener).toHaveBeenCalledTimes(3);
   });
 
-  it('a listener that unsubscribes while being notified never makes another one miss it', () => {
+  it('a listener added while notifying waits for the next change', () => {
     const store = new InMemoryEvidenceStore();
-    const later = vi.fn();
-    const off = store.subscribe(() => { off(); });
-    store.subscribe(later);
+    const added = vi.fn();
+    let subscribed = false;
+    store.subscribe(() => {
+      if (subscribed) return;
+      subscribed = true;
+      store.subscribe(added);
+    });
     store.put('p1', emptyEvidenceReport('s1'));
-    expect(later).toHaveBeenCalledWith('p1');
+    expect(added).not.toHaveBeenCalled();
+    store.put('p1', emptyEvidenceReport('s2'));
+    expect(added.mock.calls).toEqual([['p1']]);
   });
 });
