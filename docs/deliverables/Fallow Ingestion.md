@@ -55,3 +55,29 @@ A known raw fixture highlights the correct file and location. Importing a report
 ## Non-goals
 
 Auto-fix, source deletion, package-manager installation, exact dependency graph generation from finding lists, and general-purpose terminal execution.
+
+## Delivery record
+
+Built on branch `feat/wp-02-part6` (import) and `feat/wp-02-part7` (execution); design in
+`docs/superpowers/specs/2026-09-23-inspector-ui-part6-design.md` (Y1–Y40) and
+`docs/superpowers/specs/2026-09-23-inspector-ui-part7-design.md` (Z1–Z44).
+
+| Task | Delivered by |
+|---|---|
+| 02.1 | Part 6 Y20–Y21: the recorded 3.21.0 and 3.27.0 fixtures |
+| 02.2 | Part 6 Y22–Y27: the zod raw schema, the normaliser, provenance |
+| 02.3 | Part 6 Y26, Y38: the import dialog, path matching, the explicit mapping |
+| 02.4 | Part 7 Z1–Z12: the per-profile executable binding, the trust fingerprint, the review |
+| 02.5 | Part 7 Z13–Z24: the async runner, bounded output, time limit, cancel, shutdown |
+| 02.6 | Part 6 Y30–Y40, Part 7 Z23/Z26/Z27: lenses, counts, missing/stale/failed/collected states |
+| 02.7 | Part 7 Z37–Z41: the amended no-process guard, the offline contracts, `npm run test:fallow` |
+
+Acceptance, item by item, is recorded in `docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md`
+(G6, and the Part 6 acceptance notes). The manual host check for "a configured trusted
+binary runs without freezing Obsidian" is open until the owner performs it.
+
+**Corrected during execution (Task 14).** fallow 3.27.0's bare/combined mode — the only
+mode this runner uses — ignores `--fail-on-issues` and exits 0 regardless of findings.
+The real-binary exit-1 test in G6/Z41.7 therefore runs `fallow dead-code --fail-on-issues`
+instead, a call made only from the test file and never from `src/`. The design document's
+§1 probe-facts row and its Z41.7 bullet are corrected in the same commit.

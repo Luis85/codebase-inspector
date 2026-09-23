@@ -299,6 +299,48 @@ round-trip).
 
 ---
 
+## WP-02 Part 7 — running an installed fallow
+
+- **No process-tree kill on Windows.** `child.kill()` ends the direct `fallow.exe` only.
+  A process it started itself could outlive a cancel, a timeout or a shutdown. No
+  `taskkill` is spawned, to keep the process surface to one executable.
+- **Not a sandbox.** An authorised fallow runs with the user's permissions and can read
+  and change anything the account can. Trust is an application safeguard, and its FNV
+  fingerprint detects incidental change, not deliberate forgery.
+- **Config files in the root are honoured.** A `.fallowrc.json` or other fallow
+  configuration in the analysed folder changes what fallow reports. It is not recorded
+  in the provenance. Remote `extends` is never fetched.
+- **The git history may be read.** Health analysis may read the repository's git data
+  (read-only).
+- **Scan exclusions do not apply to fallow.** fallow reads the whole folder. Findings in
+  excluded files come back as unmatched paths and never paint the city.
+- **Untested versions.** Only 3.21.0 (fixtures) and 3.27.0 (fixtures and `test:fallow`)
+  are tested. Other 3.x versions run labelled untested, and the side-effect claim
+  ("writes nothing") is verified for 3.27.0 only.
+- **A force-quit mid-run.** If Obsidian is killed without `onunload`, a running fallow is
+  not stopped by the plugin and runs until it finishes on its own.
+- **The final parse is synchronous.** `JSON.parse` of a report of up to 16 MB runs on the
+  UI thread, as a Part 6 import does. It is measured, not bounded.
+- **Machine identity is inferred.** The "another device" rule relies on
+  `loadLocalStorage` not being synced (the existing `getOrCreateMachineId` risk).
+- **Windows child environment.** On Windows the child's environment is the allow-list
+  plus the variables libuv always adds; on POSIX it is exactly the allow-list. libuv adds
+  its own required variables to every child's environment on Windows (`HOMEDRIVE`,
+  `HOMEPATH`, `LOGONSERVER`, `SYSTEMDRIVE`, `SYSTEMROOT`, `TEMP`, `USERDOMAIN`,
+  `USERNAME`, `USERPROFILE`, `WINDIR`), whatever env the spawn call passes. The runner
+  passes exactly the allow-list; `tests/unit/fallow-runner.test.ts` pins that. The
+  contract test (`tests/contracts/fallow-runner.test.ts`) allows exactly libuv's set, on
+  top of the allow-list, on Windows, and nothing extra on POSIX.
+- **POSIX paths not run here.** The POSIX process-group kill
+  (`tests/contracts/fallow-runner.test.ts`) and the `realKill(-pid)` fixture path
+  (PF4) are unit- and contract-pinned, but this task ran on Windows: neither was
+  exercised on a POSIX machine during this execution.
+
+Every one of these is also stated where the user meets it: the review's side-effect list
+(Z31) and the storage disclosure (Z12).
+
+---
+
 ## Numbers in this document
 
 Read this before quoting a figure from here.

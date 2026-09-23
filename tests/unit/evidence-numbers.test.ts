@@ -365,8 +365,9 @@ describe('the evidence documents keep their own arithmetic', () => {
     // not partially: the paired suite plus this directory's other two pinned files.
     const heightScaleTests = itCount('tests/contracts/height-scale.test.ts');
     const microcopyTests = itCount('tests/contracts/microcopy.test.ts');
-    expect(Number(table![1]), 'one suite (two implementations) plus this directory\'s other two pinned files')
-      .toBe(obligations * 2 + heightScaleTests + microcopyTests);
+    const fallowRunnerTests = itCount('tests/contracts/fallow-runner.test.ts'); // Part 7 K28
+    expect(Number(table![1]), 'one suite (two implementations) plus this directory\'s other three pinned files')
+      .toBe(obligations * 2 + heightScaleTests + microcopyTests + fallowRunnerTests);
   });
 
   it('sweeps the RELEASE documents too, and each one gives the sweep something to bite', () => {

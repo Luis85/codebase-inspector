@@ -24,6 +24,7 @@ from `tests/benchmarks/city-benchmark.test.ts`, which writes
 | **G3** — evidence truth | **CLOSED** by the evidence below |
 | **G4** — lifecycle and accessibility | **lifecycle half CLOSED; ACCESSIBILITY HALF OPEN** |
 | **G5** — performance | **CLOSED for structure, OPEN for real-host timing** (the numbers below are not GPU measurements) |
+| **G6** — analyzer process boundary (WP-02 Part 7) | **CLOSED for the automated checks; the manual host check (acceptance 3) is NOT PERFORMED** — see the G6 section |
 | **G7** — accessibility | **OPEN** |
 | **G8** — testing coverage | **CLOSED**, with the accessibility layer recorded as partly run |
 
@@ -143,7 +144,7 @@ its own, so the same assertion can be reused unchanged inside a live host.
 **No analyzer, Git command, project script or package installation was executed.** This
 is asserted **structurally**, because "no process was spawned" is not observable after
 the fact while "nothing in the shipped source can spawn one" is: the acceptance step
-reads every `.ts`/`.vue` file under `src/` (270+ files, count asserted so the sweep cannot
+reads every `.ts`/`.vue` file under `src/` (295+ files, count asserted so the sweep cannot
 go vacuous) and fails on any occurrence of `child_process`, `execFile`, `spawnSync`,
 `spawn(`, `execSync` or `npm install`. `src/adapters/filesystem/node-access.ts` is the
 only file in `src/` that reaches Node at all, and `tests/unit/node-access-boundary.test.ts`
@@ -444,6 +445,130 @@ the benchmark and the disposal suites consume. No instrumentation was added besi
 
 ---
 
+## G6 — Analyzer process boundary (WP-02 Part 7)
+
+Recorded by task 14 at branch `feat/wp-02-part7`. Reproduce the process-boundary claims
+with `npm run test:fallow` (Git Bash, Windows) and the no-freeze evidence with
+`npx vitest run tests/integration/fallow-analysis.test.ts -t "no freeze"`.
+
+### G6 requirement, item by item, each evidence cell naming the test file that holds it
+
+| G6 requirement | Evidence |
+|---|---|
+| Exact executable/cwd display | `tests/component/connect-fallow-routes.test.ts`: the review renders `facts.executablePath`, the root as "Folder analysed" and "Runs in", and one `<code>` per argv item equal to `FALLOW_RUN_ARGS(root)` (Z31) |
+| Explicit trust before any probe | `tests/integration/fallow-analysis.test.ts` ("a bound but untrusted run starts zero processes"): an untrusted `run` records zero process requests, `review` records zero, and after Trust and run the first request is `['--version']`. `tests/unit/fallow-analysis-service.test.ts`: `checkTrust` never touches the process port (Z7, Z8) |
+| Missing native binary | `tests/unit/executable-inspector.test.ts`: the inspector answers `executable-missing`; `tests/unit/fallow-runner.test.ts`: a real spawn `ENOENT` gives `{ kind: 'spawn-failed', errorCode: 'ENOENT' }`, surfaced by the service as `executable-missing` (`tests/unit/fallow-analysis-service.test.ts`) |
+| Unsupported version | `tests/integration/fallow-analysis.test.ts`: fake fallow `version-4` gives `version-unsupported`, with no run and no trust stored; `version-untested` runs are labelled untested |
+| Finding exit status | `tests/contracts/fallow-runner.test.ts` and `tests/integration/fallow-analysis.test.ts`: `findings-exit-1` completes; `tests/fallow-real/fallow-real.test.ts` test 7: the real binary, `fallow dead-code --fail-on-issues`, exits 1 and still classifies as completed — **corrected during execution, see below** (Z41.7) |
+| Real failure | `tests/integration/fallow-analysis.test.ts`: `error-exit-2` gives `analyzer-error`, and the evidence is kept and marked stale; `tests/fallow-real/fallow-real.test.ts` test 6: a real bad root (Z41.6) |
+| Malformed/truncated output | `tests/unit/fallow-invocation.test.ts`: no output, non-UTF-8 output and a truncated report all give `output-not-json`, and the stdout cap gives `output-too-large`; `tests/unit/fallow-runner.test.ts`: a drained `exit` whose `close` never follows gives `output-incomplete` |
+| Timeout | `tests/unit/fallow-runner.test.ts` (fake timers, plus the never-exits deadline below); `tests/contracts/fallow-runner.test.ts` (`hang`, the real runner); `tests/fallow-real/fallow-real.test.ts` test 8 (the real binary, `timeoutMs: 1`) |
+| Cancellation | `tests/unit/fallow-runner.test.ts`: cancel before and after spawn; `tests/contracts/fallow-runner.test.ts`: `hang`; `tests/fallow-real/fallow-real.test.ts` test 9: a real cancel right after spawn; `tests/unit/analysis-state.test.ts`: `cancelling` never publishes |
+| Shutdown | `tests/unit/fallow-runner.test.ts` and `tests/contracts/fallow-runner.test.ts`: `killAll` sends the kill signal at once and resolves without waiting for exit; `tests/host/plugin-onload.test.ts` ("Part 7 Z24: onunload shuts the fallow analysis down once, synchronously"): `onunload` calls `shutdown` exactly once |
+| Windows launchers | `tests/unit/executable-inspector.test.ts`: `fallow.cmd`, `.bat`, `.ps1`, `.js`/`.mjs`/`.cjs` and a `#!` `fallow` script are all refused as `launcher`; `tests/unit/fallow-runner.test.ts`: `shell: false` in the recorded spawn options; `tests/unit/no-process-execution.test.ts`: the guard's own `shell option` ban (Z37) |
+| Process-tree cleanup where supported | `tests/contracts/fallow-runner.test.ts` ("cancel ends the whole process group on POSIX, and the direct child only on Windows (the documented limitation)"): on POSIX the grandchild is asserted gone; on Windows the assertion is `if (process.platform !== 'win32')`-gated, so the code path is unit-pinned but **not exercised on this Windows machine** — see the POSIX note below |
+| Do not claim an OS sandbox | `tests/unit/fallow-run-copy.test.ts` ("G6: no copy claims a sandbox; the one mention says it is not one"): `FALLOW_REVIEW_EFFECTS[3]` says it is not a sandbox, and the same test sweeps `src/ui/audit-copy/**` for `/sandbox/i` and finds no other match |
+| Disallow auto-install/download/fix paths | `tests/unit/fallow-argv-policy.test.ts` (Z38): no `npx`, `npm`, `fix`, `init`, `setup`, `watch`, `--fail-on-issues` or `--allow-remote-extends` string anywhere in `src/application/analysis/**` or `src/adapters/fallow/**`; no fallow dependency in `package.json`; `test:fallow` is opt-in and outside `npm run verify` |
+| Verify cache/report/log side effects against the tested version | `tests/fallow-real/fallow-real.test.ts` tests 4–5: the fs-diff on fallow 3.27.0, plus the `.fallow/` control (Z41.4–5) — the run is pasted verbatim below |
+| Environment (Z16) | `tests/unit/fallow-runner.test.ts`: a faked spawn call receives exactly the allow-listed keys plus `NO_COLOR`, nothing else; `tests/contracts/fallow-runner.test.ts` ("gets only the allow-listed environment plus NO_COLOR, never FALLOW_* or NODE_OPTIONS"): the REAL child's own environment, read back through the fake fallow's `env-dump` mode. **On Windows the child's environment is the allow-list plus the variables libuv always adds; on POSIX it is exactly the allow-list** — the contract test allows exactly libuv's set (`HOMEDRIVE`, `HOMEPATH`, `LOGONSERVER`, `SYSTEMDRIVE`, `SYSTEMROOT`, `TEMP`, `USERDOMAIN`, `USERNAME`, `USERPROFILE`, `WINDIR`) on `win32` and nothing extra on POSIX (ruling, Part 7 execution; also the limitations document's tenth Part 7 bullet) |
+
+**Finding exit status, corrected during execution (Z41.7).** The design's probe found
+`--fail-on-issues` giving exit 1 (§1's "Real-CLI facts"). Re-run against fallow 3.27.0
+during this task, the **bare/combined** mode this runner actually uses **ignores**
+`--fail-on-issues` and exits 0 regardless of findings. The real exit-1 test therefore
+runs `fallow dead-code --fail-on-issues` — a different subcommand, invoked only from the
+test file, never from `src/` (`tests/unit/fallow-argv-policy.test.ts` keeps
+`--fail-on-issues` out of `src/application/analysis/**` and `src/adapters/fallow/**`
+regardless) — which does honour the flag on this project and exits 1 while still
+producing a complete, parseable report. `docs/superpowers/specs/2026-09-23-inspector-ui-part7-design.md`
+is corrected in the same commit: its §1 probe-facts row and its Z41.7 bullet both now
+state this, each with a one-line "(corrected during execution, Part 7 ledger)" note.
+
+**POSIX paths not run here.** The POSIX process-group kill
+(`tests/contracts/fallow-runner.test.ts`) and the `realKill(-pid)` fixture path
+(`tests/fixtures/real-spawn.ts`, PF4) are unit- and contract-pinned, but this task ran
+on Windows: neither was actually exercised on a POSIX machine during this execution.
+
+**Kill deadline (Z18, superseding the literal wording of Z18's own "resolves on exit").**
+A killed run has a final deadline, not an open-ended wait for `exit`: SIGTERM, then
+SIGKILL at +2 s (`FALLOW_KILL_GRACE_MS`), then the run is settled — as `timed-out` or
+`cancelled`, whichever it was — at +4 s even if the child process never reports its own
+exit, so a stuck child cannot hold a run open forever. Pinned by
+`tests/unit/fallow-runner.test.ts` ("a timed-out child that never exits still settles 4 s
+after the stop…", "a cancelled child that never exits still settles 4 s after the
+cancel…").
+
+### `npm run test:fallow` at this commit
+
+Binary: `C:\Users\LuisMendez\AppData\Local\npm-cache\_npx\ee3f2ca80543beb5\node_modules\@fallow-cli\win32-x64-msvc\fallow.exe`
+(supplied through `FALLOW_BIN`, so nothing was fetched). Version: **3.27.0**. Platform:
+**win32**.
+
+`scripts/fetch-fallow.mjs` strips `npm_config_allow_scripts` from the install
+environment it would otherwise pass on — `npm run` re-exports the caller's own
+`~/.npmrc` `allow-scripts` setting as that variable, and npm 12 refuses a project-scoped
+install with `EALLOWSCRIPTS` when it is set. `FALLOW_BIN` bypasses the fetch entirely
+here, but the strip is unconditional so an unset `FALLOW_BIN` install still works on a
+machine whose `~/.npmrc` sets `allow-scripts`.
+
+```
+FALLOW_BIN="$LOCALAPPDATA/npm-cache/_npx/ee3f2ca80543beb5/node_modules/@fallow-cli/win32-x64-msvc/fallow.exe" npm run test:fallow
+
+npm notice run codebase-inspector@0.1.0 test:fallow
+npm notice run node scripts/fetch-fallow.mjs && vitest run --config vitest.fallow.config.ts
+fetch-fallow: FALLOW_BIN=C:\Users\LuisMendez\AppData\Local/npm-cache/_npx/ee3f2ca80543beb5/node_modules/@fallow-cli/win32-x64-msvc/fallow.exe; nothing fetched.
+
+ RUN  v5.0.1 C:/Projects/codebase-inspector/.claude/worktrees/inspector-prototype-ui-18caac
+
+[fallow-real] C:\Users\LuisMendez\AppData\Local/npm-cache/_npx/ee3f2ca80543beb5/node_modules/@fallow-cli/win32-x64-msvc/fallow.exe on win32: {"ok":true,"version":"3.27.0","tested":true}
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  17:12:47
+   Duration  9.52s (tests 95%, transform 3%, import 2%)
+```
+
+All ten tests pass, including test 4 (fs-diff: every file under the root is identical,
+byte for byte, before and after, and no entry — in particular no `.fallow/` — is added)
+and test 5 (the control: the same run without `--no-cache` **does** create `.fallow/`,
+so the diff above is shown to see writes, not blind to them).
+
+### No-freeze evidence
+
+```
+npx vitest run tests/integration/fallow-analysis.test.ts -t "no freeze"
+
+[no-freeze] hang: largest event-loop gap 25.7 ms; final parse 0.1 ms (failed)
+[no-freeze] streamed: largest event-loop gap 22.9 ms; final parse 30.1 ms (completed)
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 13 skipped (14)
+```
+
+Both gaps are well under the 50 ms bound (spec §5, Z38). The final JSON parse runs on
+the UI thread and is measured, not bounded (spec §6).
+
+### Deliverable acceptance (3) and (5)
+
+- **(3) "A configured trusted binary runs without freezing Obsidian."**
+  - `spawn` is async, and `*Sync` is banned everywhere — `tests/unit/no-process-execution.test.ts` (Z37).
+  - The integration test's event-loop gap while running is under 50 ms — `tests/integration/fallow-analysis.test.ts`, the no-freeze evidence above (Z38).
+  - The run is detached from the command and the UI — `tests/unit/analysis-coordinator.test.ts` (Z21).
+  - A manual host check runs "Run fallow analysis" on this repository in the real Obsidian with the fetched 3.27.0, and records that the city stays interactive while it runs — see "Manual host check" below.
+- **(5) "A cancelled or superseded run cannot overwrite a newer snapshot."**
+  - The reducer: `cancelling` forbids publication; `mayPublish` checks the identity, the latest snapshot and unchanged evidence — `tests/unit/analysis-state.test.ts` (Z20).
+  - Integration: cancel publishes nothing; a rescan while running gives `snapshot-changed`; an import while running gives `superseded` — `tests/integration/fallow-analysis.test.ts`.
+  - The publish is atomic (`put` and then `RUN_COMPLETED`, with no `await` between them) — `tests/unit/analysis-coordinator.test.ts`.
+
+### Manual host check — acceptance (3)
+
+**NOT PERFORMED**, awaiting the owner's checkpoint: install with `npm run install:vault`,
+open a city on this repository, run *Run fallow analysis* with the local fallow 3.27.0,
+and confirm the city stays interactive while it runs. When the owner performs it, the
+result replaces this line.
+
+---
+
 ## G8 — Testing coverage — WHICH LAYERS ACTUALLY RAN
 
 Counts from `npx vitest run` per directory. **No round or commit label**: a label
@@ -452,23 +577,29 @@ to be current rather than asking a reader to trust a date. Re-take with the same
 command whenever tests are added.
 
 Counts refreshed 2026-09-23 to the living suite after WP-02 Part 6 (the WP-01 gate
-itself was taken at the counts in git history). Only the derivable figures — the
-per-layer FILE counts and their total, and the `src/` file floor below — were
-refreshed; the per-layer TEST counts stay as transcribed at the WP-01 gate per the
-"TRANSCRIBED" note two sections down.
+itself was taken at the counts in git history), and refreshed again at WP-02 Part 7
+(task 14). Only the derivable figures — the per-layer FILE counts and their total, and
+the `src/` file floor below — were refreshed; the per-layer TEST counts stay as
+transcribed at the WP-01 gate per the "TRANSCRIBED" note two sections down.
 
 **The heading directly below states two different vintages as one measurement, and a
-reader should not have to guess which is which.** The FILE counts — 204 files, and the
-`src/` file floor two sections down — are current as of WP-02 Part 6. The TEST counts in
-that same heading (1074 tests, 1073 passed, 1 skipped) and every per-layer Tests cell in
-the table below are the WP-01-gate transcription described above; they are **not** the
-living suite's totals, and the guard below only checks that they sum to each other, not
-that they match a fresh run. The living suite's own measurement, taken at this commit:
-204 files, 2223 tests, 2221 passed, 1 skipped, plus `tests/unit/install-script.test.ts`'s
-one environmental failure in a worktree without `.obsidian/` (that failure is
-environmental, not counted in the 2223/2221/1 above, and is not part of the pinned
-per-layer table either).
-**204 files, 1074 tests, 1073 passed,
+reader should not have to guess which is which.** The FILE counts — the per-layer total
+below, and the `src/` file floor two sections down — are current as of WP-02 Part 7. The
+per-layer total is 230, which is not what `npm run test` itself runs: it is 229 files
+plus the opt-in `tests/fallow-real` layer's one file, which never runs inside it (see the
+Real fallow row above). The TEST counts in that same heading (1088 tests, 1087 passed,
+1 skipped) and every per-layer Tests cell in the table below are the WP-01-gate
+transcription described above; the Contract row is the exception: its guard derives it
+from its files, so it includes Part 7's runner contract (`tests/contracts/fallow-runner.test.ts`,
+K28); they are **not** the living suite's totals, and the guard below only checks that
+they sum to each other, not that they match a fresh run. The living suite's own
+measurement, taken at this commit: 229 files, 2537 tests, 2536 passed, 1 skipped.
+`tests/unit/install-script.test.ts` passes at this commit: its checks build their own
+throwaway vault trees under `os.tmpdir()` and do not depend on this worktree having a
+`.obsidian/` folder of its own, so the environmental failure recorded through Part 6 did
+not reproduce here — the disk/live result is recorded rather than that prediction
+(corrected during execution, Part 7 task 14).
+**230 files, 1088 tests, 1087 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -498,15 +629,16 @@ above whenever tests are added.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 101 | yes | 504 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
-| Contract | `tests/contracts/**` | 4 | yes | 48 | **one suite, two implementations** (40) — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift — plus this directory's other two pinned files, `height-scale.test.ts` (task 13's four preserved scale.ts properties) and `microcopy.test.ts` (task 12's catalogue-completeness sweep) |
-| Integration (real temp dirs) | `tests/integration/**` | 8 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
-| Component (jsdom) | `tests/component/**` | 71 | yes | 340 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header |
-| Host (Obsidian doubles) | `tests/host/**` | 15 | yes | 114 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
+| Unit | `tests/unit/**` | 117 | yes | 504 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
+| Contract | `tests/contracts/**` | 5 | yes | 62 | **one suite, two implementations** (40) — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift — plus this directory's other three pinned files, `height-scale.test.ts` (task 13's four preserved scale.ts properties), `microcopy.test.ts` (task 12's catalogue-completeness sweep) and `fallow-runner.test.ts` (Part 7 K28: the real adapter against a real spawned process, injected `node:child_process`, Z38) |
+| Integration (real temp dirs) | `tests/integration/**` | 9 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
+| Component (jsdom) | `tests/component/**` | 75 | yes | 340 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header |
+| Host (Obsidian doubles) | `tests/host/**` | 18 | yes | 114 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
 | Benchmark | `tests/benchmarks/**` | 1 | yes | 5 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers |
 | Harness | `tests/harness/**` | 2 | yes | 6 | task 0b: keeps the browser dev harness (`npm run harness`) alive under the ordinary suite — pins the three-stylesheet load order, that `/styles.css` is served from `src/ui/styles.css` on disk rather than a build, the fixture's shape and determinism, and that scheme classes land on `<body>` and nothing else. Not a screenshot test: nothing here asserts what gets drawn, and headless-browser drawing is out of jsdom's reach — see the harness task's own report for what step 10 saw with real eyes |
 | Build | `tests/build/**` | 1 | yes | 6 | task 0c: pins `scripts/harness-shot.mjs`'s `SHOTS` coverage (all seven city screens, including S11's two distinct entry paths -- the list-only fallback and a genuine WebGL failure) and `scripts/chromium.mjs`'s own browser-resolution rule (`executablePath()`, asked of playwright-core, never a hand-mirrored per-platform path). Not a screenshot test itself -- see the task's own report for what `npm run harness-shot` produced with real eyes |
+| Real fallow (opt-in) | `tests/fallow-real/**` | 1 | opt-in (`npm run test:fallow`), never in `npm run test` | 0 | Part 7 Z40/Z41: ten tests against the real, pinned fallow 3.27.0 (or `FALLOW_BIN`): native-binary inspection, the version probe, fixture fidelity, the fs-diff side-effect proof with its `.fallow/` control, the bad-root error, `--fail-on-issues` exit 1, the time limit, cancel and the stdout cap. Its ten tests are not part of the living suite this table totals, so its Tests cell is 0; the run is recorded in G6 above |
 <!-- g8:table:end -->
 
 | Layer | Ran | Notes |
