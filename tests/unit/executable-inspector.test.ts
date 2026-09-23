@@ -4,6 +4,7 @@
 // through the real node:fs/promises (M17). Nothing is ever executed.
 import * as fsPromises from 'node:fs/promises';
 import { join } from 'node:path';
+import { Platform } from 'obsidian';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createExecutableInspector } from '../../src/adapters/fallow/executable-inspector';
 import type { NodeFsPromisesLike } from '../../src/adapters/filesystem/node-globals';
@@ -113,5 +114,36 @@ describe('an executable inside the codebase (Z5)', () => {
     const t = await tree({ 'real/tools/fallow.exe': PE, link: { symlinkTo: 'real' } });
     const result = await windows.inspect(join(t.root, 'real', 'tools', 'fallow.exe'), join(t.root, 'link'));
     expect(result).toMatchObject({ ok: true, facts: { insideRoot: true } });
+  });
+});
+
+describe('Polish A10: short files and the host platform', () => {
+  it('an empty file, or a 3-byte ELF or Mach-O prefix, behind the right name is not native', async () => {
+    const t = await tree({
+      'w/fallow.exe': { binary: new Uint8Array(0) },
+      'l/fallow': { binary: Uint8Array.from([0x7f, 0x45, 0x4c]) },
+      'm/fallow': { binary: Uint8Array.from([0xcf, 0xfa, 0xed]) },
+    });
+    const notNative = { ok: false, refusal: 'not-native', detail: '' };
+    expect(await windows.inspect(join(t.root, 'w', 'fallow.exe'), t.root)).toEqual(notNative);
+    expect(await linux.inspect(join(t.root, 'l', 'fallow'), t.root)).toEqual(notNative);
+    expect(await mac.inspect(join(t.root, 'm', 'fallow'), t.root)).toEqual(notNative);
+  });
+
+  it('without a platform it reads Obsidian\'s Platform flags', async () => {
+    const saved = { isWin: Platform.isWin, isMacOS: Platform.isMacOS };
+    try {
+      const t = await tree({ 'mac/fallow': MACH_O });
+      const exe = join(t.root, 'mac', 'fallow');
+      Platform.isWin = true;
+      expect(createExecutableInspector({ fsPromises: fs }).executableName).toBe('fallow.exe');
+      Platform.isWin = false;
+      Platform.isMacOS = true;
+      expect(await createExecutableInspector({ fsPromises: fs }).inspect(exe, t.root)).toMatchObject({ ok: true, facts: { format: 'mach-o' } });
+      Platform.isMacOS = false;
+      expect(await createExecutableInspector({ fsPromises: fs }).inspect(exe, t.root)).toEqual({ ok: false, refusal: 'not-native', detail: '' });
+    } finally {
+      Object.assign(Platform, saved);
+    }
   });
 });

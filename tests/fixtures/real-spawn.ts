@@ -12,3 +12,13 @@ export const realSpawn: SpawnLike = (command, args, options) =>
 export function realKill(pid: number, signal: string): void {
   process.kill(pid, signal);
 }
+
+/** Polish A9: the real-process tests' cleanup. On POSIX the child leads its own process group
+ *  (spawned detached), so the group is killed — which reaches any grandchild, even after the
+ *  child itself exited — and then the child. Every error means "already gone". */
+export function killTree(pid: number, platform: string = process.platform, kill: (pid: number, signal: string) => void = realKill): void {
+  if (platform !== 'win32') {
+    try { kill(-pid, 'SIGKILL'); } catch { /* the group is already gone */ }
+  }
+  try { kill(pid, 'SIGKILL'); } catch { /* the child is already gone */ }
+}

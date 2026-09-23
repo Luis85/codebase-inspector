@@ -15,8 +15,11 @@
 // - 'process call' is every other process API: spawnSync, bare exec, execSync, execFile,
 //   execFileSync and fork (a member `.exec(` stays RegExp.prototype.exec);
 // - 'shell option' (new) is an object-literal property named `shell` — plain, string-keyed,
-//   computed with a string key, or shorthand — whose value is not the literal `false`;
-// - 'process module' and 'shell.openPath' are unchanged.
+//   computed with a string key, or shorthand — whose value is not the literal `false`; since
+//   polish A7 also `o.shell = x`, `o['shell'] = x` and `Object.defineProperty(o, 'shell', …)`;
+// - 'process module' and 'shell.openPath' are unchanged;
+// - 'unscannable' (polish G2) is a `.vue` file the SFC parser reported an error for, or one
+//   with a custom block: it fails the scan rather than passing unread.
 // tests/unit/no-process-execution.test.ts allows exactly 'process module' in
 // src/adapters/fallow/node-process-access.ts and exactly 'spawn call' in
 // src/adapters/fallow/fallow-runner.ts. Everything else stays banned everywhere.
@@ -27,16 +30,18 @@
 // assertions, parentheses, type assertions and comma expressions), opener identifiers,
 // and `shell` properties. A `.vue` <template> is scanned as text for calls and openers.
 //
-// Known, accepted gaps: an alias (`const s = spawn; s();`), `spawn.bind(null)()`,
-// `Reflect.apply`, an uncalled bracket reference to an opener, a name built at run time,
-// and a `shell` option written inside a <template> (not scanned: prose there reads
-// "shell:" too often to be a reliable signal).
+// Known, accepted gaps: an alias (`const s = spawn; s();`), `.bind(null)()` and
+// `Reflect.apply` — for EVERY process API name, not only `spawn` — an uncalled bracket
+// reference to an opener, a name built at run time, a `shell` option reached only through a
+// computed name built at run time, and a `shell` option written inside a <template> (not
+// scanned: prose there reads "shell:" too often to be a reliable signal). An opener is
+// flagged by its name wherever it appears, so `.call`/`.apply`/`.bind` on one is flagged.
 import ts from 'typescript';
 import { parse as parseSfc } from '@vue/compiler-sfc';
 
 export type ProcessGuardKind = 'ts' | 'vue';
-export type ProcessHazard = 'process module' | 'spawn call' | 'process call' | 'shell option' | 'shell.openPath';
-const HAZARD_ORDER: readonly ProcessHazard[] = ['process module', 'spawn call', 'process call', 'shell option', 'shell.openPath'];
+export type ProcessHazard = 'process module' | 'spawn call' | 'process call' | 'shell option' | 'shell.openPath' | 'unscannable';
+const HAZARD_ORDER: readonly ProcessHazard[] = ['process module', 'spawn call', 'process call', 'shell option', 'shell.openPath', 'unscannable'];
 
 const BANNED_MODULE = /\b(child_process|worker_threads)\b/;
 const SPAWN = 'spawn';
@@ -45,7 +50,7 @@ const BARE_NAMES: ReadonlySet<string> = new Set(['spawnSync', 'exec', 'execSync'
 const MEMBER_NAMES: ReadonlySet<string> = new Set(['spawnSync', 'execSync', 'execFile', 'execFileSync', 'fork']);
 const OPENER_NAMES: ReadonlySet<string> = new Set(['openPath', 'openExternal', 'openItem', 'showItemInFolder']);
 
-interface Found { module: boolean; spawn: boolean; call: boolean; shell: boolean; open: boolean }
+interface Found { module: boolean; spawn: boolean; call: boolean; shell: boolean; open: boolean; unscannable: boolean }
 type CalleeShape = { shape: 'bare' | 'member'; name: string } | { shape: 'none' };
 
 function literalText(node: ts.Node | undefined): string | undefined {
@@ -90,18 +95,22 @@ function specifierHazard(arg: ts.Expression | undefined, found: Found): void {
   if (text !== undefined && BANNED_MODULE.test(text)) found.module = true;
 }
 
+/** Which hazard this call is. For `.call`/`.apply` the receiver's OWN shape decides (round 3):
+ *  `x.exec.call(y)` stays exempt, `spawn.call(y)` does not. Shared with spawnCallCount (QF9). */
+function callSiteHazard(node: ts.CallExpression, callee: CalleeShape): 'spawn' | 'call' | null {
+  if (callee.shape !== 'member' || (callee.name !== 'call' && callee.name !== 'apply')) return callHazard(callee);
+  const inner = unwrap(node.expression);
+  const receiver = ts.isPropertyAccessExpression(inner) || ts.isElementAccessExpression(inner) ? inner.expression : undefined;
+  return receiver ? callHazard(calleeShape(receiver)) : null;
+}
+
 function visitCall(node: ts.CallExpression, found: Found): void {
   if (node.expression.kind === ts.SyntaxKind.ImportKeyword) { specifierHazard(node.arguments[0], found); return; }
   const callee = calleeShape(node.expression);
-  if (callee.shape === 'member' && (callee.name === 'call' || callee.name === 'apply')) {
-    // The receiver's OWN shape decides (round 3): `x.exec.call(y)` stays exempt, `spawn.call(y)` does not.
-    const inner = unwrap(node.expression);
-    const receiver = ts.isPropertyAccessExpression(inner) || ts.isElementAccessExpression(inner) ? inner.expression : undefined;
-    if (receiver) mark(found, callHazard(calleeShape(receiver)));
-    return;
-  }
+  // Polish A7: Object.defineProperty(o, 'shell', …) sets the option too.
+  if (callee.shape === 'member' && callee.name === 'defineProperty' && literalText(node.arguments[1]) === 'shell') found.shell = true;
   if (callee.shape !== 'none' && callee.name === 'require') { specifierHazard(node.arguments[0], found); return; }
-  const hazard = callHazard(callee);
+  const hazard = callSiteHazard(node, callee);
   if (hazard !== null) { mark(found, hazard); return; }
   if (callee.shape === 'member' && OPENER_NAMES.has(callee.name)) found.open = true;
 }
@@ -112,16 +121,26 @@ function propertyNameText(name: ts.PropertyName): string | undefined {
   return undefined;
 }
 
+/** Polish A7: `o.shell = x` or `o['shell'] = x`, where x is not the literal `false`. */
+function isShellAssignment(node: ts.Node): boolean {
+  if (!ts.isBinaryExpression(node) || node.operatorToken.kind !== ts.SyntaxKind.EqualsToken) return false;
+  const target = unwrap(node.left);
+  const name = ts.isPropertyAccessExpression(target) ? target.name.text
+    : ts.isElementAccessExpression(target) ? literalText(target.argumentExpression) : undefined;
+  return name === 'shell' && unwrap(node.right).kind !== ts.SyntaxKind.FalseKeyword;
+}
+
 function toList(found: Found): ProcessHazard[] {
   const on: Record<ProcessHazard, boolean> = {
     'process module': found.module, 'spawn call': found.spawn, 'process call': found.call, 'shell option': found.shell, 'shell.openPath': found.open,
+    'unscannable': found.unscannable,
   };
   return HAZARD_ORDER.filter((h) => on[h]);
 }
 
 function processHazardsTs(source: string): ProcessHazard[] {
   const sourceFile = ts.createSourceFile('probe.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-  const found: Found = { module: false, spawn: false, call: false, shell: false, open: false };
+  const found: Found = { module: false, spawn: false, call: false, shell: false, open: false, unscannable: false };
   const visit = (node: ts.Node): void => {
     if (ts.isImportDeclaration(node)) specifierHazard(node.moduleSpecifier, found);
     else if (ts.isExportDeclaration(node)) specifierHazard(node.moduleSpecifier, found);
@@ -129,6 +148,7 @@ function processHazardsTs(source: string): ProcessHazard[] {
     else if (ts.isTaggedTemplateExpression(node)) mark(found, callHazard(calleeShape(node.tag)));
     else if (ts.isIdentifier(node) && OPENER_NAMES.has(node.text)) found.open = true;
     else if (ts.isStringLiteralLike(node) && BANNED_MODULE.test(node.text)) found.module = true;
+    else if (isShellAssignment(node)) found.shell = true;
     else if (ts.isPropertyAssignment(node) && propertyNameText(node.name) === 'shell'
       && unwrap(node.initializer).kind !== ts.SyntaxKind.FalseKeyword) found.shell = true;
     else if (ts.isShorthandPropertyAssignment(node) && node.name.text === 'shell') found.shell = true;
@@ -153,12 +173,17 @@ const TEMPLATE_OPEN = new RegExp(`\\b(?:${Array.from(OPENER_NAMES).join('|')})\\
 function scanTemplateText(text: string): ProcessHazard[] {
   return toList({
     module: BANNED_MODULE.test(text), spawn: TEMPLATE_SPAWN.test(text), call: TEMPLATE_CALL.test(text), shell: false, open: TEMPLATE_OPEN.test(text),
+    unscannable: false,
   });
 }
 
 function processHazardsVue(source: string): ProcessHazard[] {
-  const { descriptor } = parseSfc(source, { filename: 'probe.vue' });
+  const { descriptor, errors } = parseSfc(source, { filename: 'probe.vue' });
   const parts = new Set<ProcessHazard>();
+  // Polish G2: fail closed. A parse error (an unclosed tag, a second <script setup>) or a block
+  // this detector does not read (<docs>, an upper-case <SCRIPT>, any custom block) could hide a
+  // call, so the file is reported instead of passing silently.
+  if (errors.length > 0 || descriptor.customBlocks.length > 0) parts.add('unscannable');
   if (descriptor.template?.content) scanTemplateText(descriptor.template.content).forEach((h) => parts.add(h));
   if (descriptor.script?.content) processHazardsTs(descriptor.script.content).forEach((h) => parts.add(h));
   if (descriptor.scriptSetup?.content) processHazardsTs(descriptor.scriptSetup.content).forEach((h) => parts.add(h));
@@ -179,4 +204,19 @@ export function injectStatement(source: string, kind: ProcessGuardKind, statemen
 
 export function injectSpawnCall(source: string, kind: ProcessGuardKind): string {
   return injectStatement(source, kind, "spawn('x');");
+}
+
+/** Polish A6 (Z37): how many calls to the async `spawn` `source` makes, by the same callee
+ *  rules as the hazard walk — `.call`/`.apply` on it and a tagged template included (QF9).
+ *  tests/unit/no-process-execution.test.ts requires exactly one in fallow-runner.ts. */
+export function spawnCallCount(source: string): number {
+  const sourceFile = ts.createSourceFile('probe.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  let count = 0;
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && callSiteHazard(node, calleeShape(node.expression)) === 'spawn') count += 1;
+    else if (ts.isTaggedTemplateExpression(node) && callHazard(calleeShape(node.tag)) === 'spawn') count += 1;
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return count;
 }

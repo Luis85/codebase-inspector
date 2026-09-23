@@ -6,6 +6,7 @@ import { createFallowRunner } from '../../src/adapters/fallow/fallow-runner';
 import type { ProcessRequest } from '../../src/application/ports/analyzer-process';
 import { createCancellationToken } from '../fixtures/cancellation-token';
 import { fakeSpawn } from '../fixtures/fake-child-process';
+import { killTree } from '../fixtures/real-spawn';
 
 const REQUEST: ProcessRequest = {
   executablePath: '/opt/fallow/bin/fallow', args: ['--format', 'json', '--no-cache', '--quiet', '--root', '/repo'],
@@ -23,6 +24,8 @@ function setup(platform = 'linux', env: Record<string, string> = { PATH: '/usr/b
 function throwGone(): never {
   throw Object.assign(new Error('ESRCH'), { code: 'ESRCH' });
 }
+
+function throwDenied(): never { throw Object.assign(new Error('EPERM'), { code: 'EPERM' }); }
 
 function throwInvalid(): never {
   throw Object.assign(new Error('bad'), { code: 'EINVAL' });
@@ -190,8 +193,87 @@ describe('stopping a process (Z17, Z18)', () => {
     const { token, cancel } = createCancellationToken();
     const done = runner.run(REQUEST, token);
     expect(() => { cancel(); }).not.toThrow();
+    expect(spawned.children[0]!.kills).toEqual([]);
     spawned.children[0]!.exit(0);
     await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+  });
+
+  it('Polish A1: a group kill refused with EPERM signals the child itself, SIGTERM then SIGKILL', async () => {
+    const spawned = fakeSpawn();
+    const runner = createFallowRunner({ spawn: spawned.spawn, env: {}, platform: 'linux', killProcess: throwDenied });
+    const { token, cancel } = createCancellationToken();
+    const done = runner.run(REQUEST, token);
+    cancel();
+    expect(spawned.children[0]!.kills).toEqual(['SIGTERM']);
+    vi.advanceTimersByTime(2_000);
+    expect(spawned.children[0]!.kills).toEqual(['SIGTERM', 'SIGKILL']);
+    spawned.children[0]!.exit(null, 'SIGKILL');
+    await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+  });
+
+  it('Polish A2: a stdout pipe error stops the child and ends output-incomplete, leaving no timer', async () => {
+    const s = setup();
+    const done = s.runner.run(REQUEST, s.token);
+    s.child().stdout.emitError('EPIPE');
+    expect(s.kills).toEqual([[-4242, 'SIGTERM']]);
+    s.child().exit(null, 'SIGTERM');
+    await expect(done).resolves.toEqual({ kind: 'output-incomplete', stderrTail: '' });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('Polish A2: a stderr pipe error after exit ends output-incomplete at once and destroys both pipes', async () => {
+    const s = setup();
+    const done = s.runner.run(REQUEST, s.token);
+    s.child().exit(0);
+    s.child().stderr.emitError('ECONNRESET');
+    await expect(done).resolves.toEqual({ kind: 'output-incomplete', stderrTail: '' });
+    expect([s.child().stdout.destroyed, s.child().stderr.destroyed]).toEqual([true, true]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('Polish A8: the runner\'s remaining edges (Z38)', () => {
+  it('a stop after exit but before close settles at once, signals nothing and leaves no timer', async () => {
+    const s = setup();
+    const done = s.runner.run(REQUEST, s.token);
+    s.child().exit(0);
+    s.cancel();
+    await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+    expect(s.kills).toEqual([]);
+    expect([s.child().stdout.destroyed, s.child().stderr.destroyed]).toEqual([true, true]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('a normal close clears the time limit and the close grace', async () => {
+    const s = setup();
+    const done = s.runner.run(REQUEST, s.token);
+    expect(vi.getTimerCount()).toBe(1);
+    s.child().exit(0);
+    expect(vi.getTimerCount()).toBe(2);
+    s.child().close(0);
+    await expect(done).resolves.toMatchObject({ kind: 'exited', exitCode: 0 });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('EACCES and ENOENT before the start are both spawn-failed, each with its own code', async () => {
+    for (const code of ['EACCES', 'ENOENT']) {
+      const spawned = fakeSpawn(null);
+      const runner = createFallowRunner({ spawn: spawned.spawn, env: {}, platform: 'linux' });
+      const done = runner.run(REQUEST, createCancellationToken().token);
+      spawned.children[0]!.emitError(code);
+      await expect(done, code).resolves.toEqual({ kind: 'spawn-failed', errorCode: code });
+    }
+  });
+});
+
+describe('Polish A9: the real-process tests\' cleanup kill', () => {
+  it('kills the POSIX group, then the child; on Windows the child only; a gone process is not an error', () => {
+    const calls: [number, string][] = [];
+    const record = (pid: number, signal: string): void => { calls.push([pid, signal]); };
+    killTree(4242, 'linux', record);
+    killTree(4242, 'win32', record);
+    expect(calls).toEqual([[-4242, 'SIGKILL'], [4242, 'SIGKILL'], [4242, 'SIGKILL']]);
+    expect(() => { killTree(4242, 'linux', throwGone); }).not.toThrow();
   });
 });
 

@@ -28,7 +28,7 @@ export interface FallowRunnerDeps {
   clearTimer?: (handle: unknown) => void;
 }
 
-type StopReason = 'cancelled' | 'timed-out' | 'stdout-too-large';
+type StopReason = 'cancelled' | 'timed-out' | 'stdout-too-large' | 'output-incomplete';
 interface LiveRun { stop(reason: StopReason): void; shutdown(): void }
 
 function errorCodeOf(e: unknown): string {
@@ -39,9 +39,10 @@ function errorCodeOf(e: unknown): string {
   return 'UNKNOWN';
 }
 
+/** Polish A6 (L12): the module's own spawn, read, never wrapped in a second call: the
+ *  runner's `spawn(…)` in `run` is this file's only spawn call (the guard counts them). */
 function defaultSpawn(): SpawnLike | null {
-  const cp = childProcess;
-  return cp === null ? null : (command, args, options) => cp.spawn(command, args, options);
+  return childProcess?.spawn ?? null;
 }
 
 function defaultKill(pid: number, signal: string): void {
@@ -99,7 +100,13 @@ export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcess
       const signal = (name: 'SIGTERM' | 'SIGKILL'): void => {
         const pid = running.pid;
         if (platform !== 'win32' && pid !== undefined) {
-          try { killProcess(-pid, name); } catch { /* the group is already gone */ }
+          try {
+            killProcess(-pid, name);
+          } catch (e) {
+            // Polish A1: ESRCH is "the group is already gone". Anything else (EPERM, EINVAL)
+            // means the group was NOT signalled, so the direct child is signalled instead.
+            if (errorCodeOf(e) !== 'ESRCH') running.kill(name);
+          }
           return;
         }
         running.kill();
@@ -110,6 +117,7 @@ export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcess
         const stderrTail = stderr.excerpt();
         if (stopReason === 'timed-out') return { kind: 'timed-out', stderrTail };
         if (stopReason === 'stdout-too-large') return { kind: 'stdout-too-large', stderrTail };
+        if (stopReason === 'output-incomplete') return { kind: 'output-incomplete', stderrTail };
         return { kind: 'cancelled', stderrTail };
       };
       const handle: LiveRun = {
@@ -148,6 +156,12 @@ export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcess
       unsubscribe = token.onCancelled(() => { handle.stop('cancelled'); });
       running.stdout?.on('data', (chunk) => { if (!stdout.push(chunk)) handle.stop('stdout-too-large'); });
       running.stderr?.on('data', (chunk) => { stderr.push(chunk); });
+      // Polish A2: a broken pipe on either stream means the output cannot be trusted. The run
+      // stops the way a cancel does (the child is signalled unless it already exited) and ends
+      // output-incomplete; the listener also keeps the error off Obsidian's uncaught path.
+      const pipeFailed = (): void => { handle.stop('output-incomplete'); };
+      running.stdout?.on('error', pipeFailed);
+      running.stderr?.on('error', pipeFailed);
       running.on('error', (error) => {
         // Only a failure to start: a failed kill() also emits 'error', and is ignored.
         if (running.pid === undefined) finish({ kind: 'spawn-failed', errorCode: typeof error.code === 'string' ? error.code : 'UNKNOWN' });

@@ -58,26 +58,30 @@ export interface StderrTail {
 }
 
 export function createStderrTail(maxBytes: number): StderrTail {
-  let chunks: Uint8Array[] = [];
+  const chunks: Uint8Array[] = [];
+  /** Polish A3: the first kept chunk. Dropping a chunk moves this index; it never copies the array. */
+  let head = 0;
   let bytes = 0;
   return {
     push(chunk) {
       chunks.push(chunk);
       bytes += chunk.length;
-      while (bytes > maxBytes && chunks.length > 0) {
-        const first = chunks[0]!;
+      while (bytes > maxBytes && head < chunks.length) {
+        const first = chunks[head]!;
         const excess = bytes - maxBytes;
         if (first.length <= excess) {
-          chunks = chunks.slice(1);
+          head += 1;
           bytes -= first.length;
         } else {
-          chunks[0] = first.subarray(excess);
+          chunks[head] = first.subarray(excess);
           bytes -= excess;
         }
       }
+      // Compacted only once the dropped prefix is at least half the array: amortised O(1) per chunk.
+      if (head > 0 && head * 2 >= chunks.length) { chunks.splice(0, head); head = 0; }
     },
     excerpt() {
-      return cleanLog(new TextDecoder('utf-8').decode(concat(chunks, bytes)));
+      return cleanLog(new TextDecoder('utf-8').decode(concat(chunks.slice(head), bytes)));
     },
   };
 }

@@ -64,6 +64,14 @@ if (childProcessMentions !== 1 || childProcessRequires !== 1) {
   fail(`dist/main.js must name node:child_process exactly once, in window.require(…) `
     + `(src/adapters/fallow/node-process-access.ts): found ${childProcessMentions} mention(s) and ${childProcessRequires} window.require call(s).`);
 }
+// Polish A5: the check above counts only the `node:` name. A bare 'child_process' specifier —
+// window.require('child_process'), or a string handed to one — is a second route to the same
+// module, so any mention of it is refused.
+const bareChildProcess = [...main.matchAll(/(["'`])child_process\1/g)].length;
+if (bareChildProcess > 0) {
+  fail(`dist/main.js names the bare 'child_process' module ${bareChildProcess} time(s). `
+    + 'Only src/adapters/fallow/node-process-access.ts may reach it, and only as node:child_process.');
+}
 
 // Final-wave minor 2. The check above is about Node BUILT-INS only, so an ordinary
 // dependency added to vite.config.ts's `external` list — where it looks harmless — left

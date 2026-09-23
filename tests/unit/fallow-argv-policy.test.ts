@@ -1,22 +1,18 @@
 // Part 7 Z15/Z38/Z40 and G6's "Disallow auto-install/download/fix paths": the only argv the
 // plugin can build, no install/fix/watch word anywhere in the fallow code, no fallow
 // dependency, and the real-binary tests kept out of `npm run verify`.
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { FALLOW_RUN_ARGS, FALLOW_VERSION_ARGS } from '../../src/application/analysis/fallow-invocation';
+import { listFiles } from '../fixtures/source-files';
 
 const REPO = fileURLToPath(new URL('../../', import.meta.url));
 const FORBIDDEN: readonly string[] = ['npx', 'npm', 'fix', 'init', 'setup', 'watch', '--fail-on-issues', '--allow-remote-extends'];
 
-function tsFiles(dir: string): string[] {
-  return readdirSync(dir).flatMap((name) => {
-    const abs = join(dir, name);
-    return statSync(abs).isDirectory() ? tsFiles(abs) : name.endsWith('.ts') ? [abs] : [];
-  });
-}
+const isTs = (name: string): boolean => name.endsWith('.ts');
 
 function stringLiterals(file: string): string[] {
   const source = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
@@ -36,7 +32,7 @@ describe('the fallow argv policy (Z15)', () => {
   });
 
   it('has no install, fix, init, setup, watch or failing-flag word as a string in the fallow code', () => {
-    const files = [...tsFiles(join(REPO, 'src', 'application', 'analysis')), ...tsFiles(join(REPO, 'src', 'adapters', 'fallow'))];
+    const files = [...listFiles(join(REPO, 'src', 'application', 'analysis'), isTs), ...listFiles(join(REPO, 'src', 'adapters', 'fallow'), isTs)];
     expect(files.length).toBeGreaterThan(8);
     const hits = files.flatMap((file) => stringLiterals(file).filter((s) => FORBIDDEN.includes(s)).map((s) => `${file}: ${s}`));
     expect(hits).toEqual([]);

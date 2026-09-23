@@ -5,9 +5,13 @@ import type { ChildProcessLike, ReadableLike, SpawnLike, SpawnOptionsLike } from
 export class FakeStream implements ReadableLike {
   destroyed = false;
   private readonly listeners: ((chunk: Uint8Array) => void)[] = [];
+  private readonly errorListeners: ((error: Error) => void)[] = [];
 
-  on(_event: 'data', listener: (chunk: Uint8Array) => void): this {
-    this.listeners.push(listener);
+  on(event: 'data', listener: (chunk: Uint8Array) => void): this;
+  on(event: 'error', listener: (error: Error) => void): this;
+  on(event: 'data' | 'error', listener: ((chunk: Uint8Array) => void) | ((error: Error) => void)): this {
+    if (event === 'data') this.listeners.push(listener as (chunk: Uint8Array) => void);
+    else this.errorListeners.push(listener as (error: Error) => void);
     return this;
   }
 
@@ -19,6 +23,13 @@ export class FakeStream implements ReadableLike {
   emit(chunk: Uint8Array | string): void {
     const bytes = typeof chunk === 'string' ? new TextEncoder().encode(chunk) : chunk;
     for (const listener of this.listeners) listener(bytes);
+  }
+
+  /** Polish A2: as a Node stream does, an 'error' nobody listens to is thrown. */
+  emitError(code = 'EPIPE'): void {
+    const error = Object.assign(new Error(code), { code });
+    if (this.errorListeners.length === 0) throw error;
+    for (const listener of this.errorListeners) listener(error);
   }
 }
 

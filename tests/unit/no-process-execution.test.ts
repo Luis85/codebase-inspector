@@ -8,10 +8,13 @@
 // stay banned everywhere, those two files included. The detector is
 // tests/fixtures/process-guard.ts; see its header for what it covers and its history.
 import { describe, expect, it } from 'vitest';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { injectSpawnCall, injectStatement, processHazards, type ProcessGuardKind, type ProcessHazard } from '../fixtures/process-guard';
+import {
+  injectSpawnCall, injectStatement, processHazards, spawnCallCount, type ProcessGuardKind, type ProcessHazard,
+} from '../fixtures/process-guard';
+import { listFiles } from '../fixtures/source-files';
 
 const SRC_ROOT = fileURLToPath(new URL('../../src', import.meta.url));
 
@@ -31,29 +34,32 @@ const STILL_BANNED: readonly (readonly [string, ProcessHazard])[] = [
   ["cp.fork('x');", 'process call'],
   ["window.require('node:worker_threads');", 'process module'],
   ['const o = { shell: true };', 'shell option'],
+  ['o.shell = true;', 'shell option'],
   ['shell.openPath(p);', 'shell.openPath'],
   ['shell.openExternal(url);', 'shell.openPath'],
 ];
 
-function listSourceFiles(dir: string): string[] {
-  const out: string[] = [];
-  for (const name of readdirSync(dir)) {
-    const abs = join(dir, name);
-    if (statSync(abs).isDirectory()) out.push(...listSourceFiles(abs));
-    else if (/\.(ts|vue|js|mjs|cjs)$/.test(name)) out.push(abs);
-  }
-  return out;
-}
-
+const isScanned = (name: string): boolean => /\.(ts|vue|js|mjs|cjs)$/.test(name);
 const kindOf = (file: string): ProcessGuardKind => (file.endsWith('.vue') ? 'vue' : 'ts');
 const rel = (abs: string): string => relative(SRC_ROOT, abs).replace(/\\/g, '/');
 const hazardsOf = (relPath: string): ProcessHazard[] => processHazards(readFileSync(join(SRC_ROOT, relPath), 'utf8'), kindOf(relPath));
 
 describe('nothing under src/ runs a process, except the two allow-listed adapter files (Z37)', () => {
-  const files = listSourceFiles(SRC_ROOT).map(rel);
+  const files = listFiles(SRC_ROOT, isScanned).map(rel);
 
   it('has source files to check (the scan is not vacuous)', () => {
     expect(files.length).toBeGreaterThan(100);
+  });
+
+  it('Polish A6: fallow-runner.ts makes exactly one spawn call, and a second one is counted', () => {
+    const runner = readFileSync(join(SRC_ROOT, 'adapters/fallow/fallow-runner.ts'), 'utf8');
+    expect(spawnCallCount(runner)).toBe(1);
+    expect(spawnCallCount(injectSpawnCall(runner, 'ts'))).toBe(2);
+    // QF9: the hazard walk's own callee rules — `.call`/`.apply` on spawn and a tagged template count too.
+    expect(spawnCallCount(injectStatement(runner, 'ts', "spawn.call(null, 'x');"))).toBe(2);
+    expect(spawnCallCount(injectStatement(runner, 'ts', "cp['spawn'].apply(null, ['x']);"))).toBe(2);
+    expect(spawnCallCount(injectStatement(runner, 'ts', 'spawn`x`;'))).toBe(2);
+    expect(spawnCallCount(injectStatement(runner, 'ts', "pattern.exec.call(str); spawnSync('x');"))).toBe(1);
   });
 
   it('no file has a hazard it is not allowed', () => {
@@ -145,6 +151,16 @@ describe('process hazard detection', () => {
     ["const o = { ['shell']: 'cmd.exe' };", 'ts', 'shell option'],
     ["const o = { 'shell': process.env.SHELL };", 'ts', 'shell option'],
     ['const o = { shell };', 'ts', 'shell option'],
+    // Polish A7: the shell option set after the object literal.
+    ['o.shell = true;', 'ts', 'shell option'],
+    ["o['shell'] = 'cmd.exe';", 'ts', 'shell option'],
+    ["Object.defineProperty(o, 'shell', { value: true });", 'ts', 'shell option'],
+    // Polish G2: fail closed on what the SFC parser could not read or this detector does not scan.
+    ["<template><p>x</p></template><SCRIPT>spawn('x')</SCRIPT>", 'vue', 'unscannable'],
+    ["<docs>spawn('x')</docs><template><p/></template>", 'vue', 'unscannable'],
+    ["<template><p/></template><script setup>\nconst a = 1;\n</script><script setup>\nspawn('x');\n</script>", 'vue', 'unscannable'],
+    ['<template><div></template><script setup>\nconst x = 1;\n</script>', 'vue', 'unscannable'],
+    ['shell.openPath.call(shell, p);', 'ts', 'shell.openPath'],
   ])('flags %s (%s) as %s', (source, kind, label) => {
     expect(processHazards(source, kind)).toContain(label);
   });
@@ -158,12 +174,15 @@ describe('process hazard detection', () => {
     ["const note = 'a fork (of…) in the road, not a process';", 'ts'],
     ['const t = `${x} fork (now)`;', 'ts'],
     ['<template><p>Run nothing</p></template><script>const x = 1;</script>', 'vue'],
-    ['<!-- openPath is not used --><p>Run nothing</p>', 'vue'],
+    // QF1: the <p> is wrapped in <template>, so the fail-closed parser (G2) does not call it a
+    // custom block; the comment stays top-level (template text is scanned, comments included).
+    ['<!-- openPath is not used --><template><p>Run nothing</p></template>', 'vue'],
     ['pattern.exec.call(str);', 'ts'],
     // Part 7 Z37: `shell: false`, and a `shell` that is not a property assignment.
     ["const options = { shell: false, windowsHide: true };", 'ts'],
     ['interface O { shell: false }', 'ts'],
     ['const shell = 1; use(shell);', 'ts'],
+    ['o.shell = false;', 'ts'],
   ])('does not flag %s', (source, kind) => {
     expect(processHazards(source, kind)).toEqual([]);
   });

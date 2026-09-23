@@ -41,10 +41,15 @@ function codeOf(e: unknown): string {
   return 'UNKNOWN';
 }
 
+/** Polish A4 (Z4): the one accepted base name per platform. Module-private. */
+function expectedName(platform: string): 'fallow.exe' | 'fallow' {
+  return platform === 'win32' ? 'fallow.exe' : 'fallow';
+}
+
 /** Z4: fallow.exe on Windows (any case), fallow elsewhere (exact). `fallow` plus a launcher
  *  extension is refused as a launcher, with its own message; anything else is a wrong name. */
 function nameRefusal(name: string, platform: string): ExecutableInspection | null {
-  const expected = platform === 'win32' ? 'fallow.exe' : 'fallow';
+  const expected = expectedName(platform);
   if (platform === 'win32' ? name.toLowerCase() === expected : name === expected) return null;
   const lower = name.toLowerCase();
   const dot = lower.lastIndexOf('.');
@@ -79,7 +84,7 @@ export function createExecutableInspector(deps: ExecutableInspectorDeps = {}): E
   const caseSensitive = platform !== 'win32' && platform !== 'darwin';
   const inside = (root: string, candidate: string): boolean => isContained(root, candidate, { caseSensitive });
   return {
-    executableName: platform === 'win32' ? 'fallow.exe' : 'fallow',
+    executableName: expectedName(platform),
     async inspect(executablePath, rootPath) {
       let path: string;
       try {
@@ -107,7 +112,7 @@ export function createExecutableInspector(deps: ExecutableInspectorDeps = {}): E
         return refuse('unreadable', codeOf(e));
       }
       const format = formatOf(head, platform);
-      if (format === 'script') return refuse('launcher', platform === 'win32' ? 'fallow.exe' : 'fallow');
+      if (format === 'script') return refuse('launcher', expectedName(platform));
       if (format === null) return refuse('not-native');
       // K22 (Review Focus 3): the root's real path too, so a root reached through a
       // symlink or junction still flags a binary inside its target.

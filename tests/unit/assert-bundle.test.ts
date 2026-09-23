@@ -68,4 +68,11 @@ describe('assert-bundle', () => {
     expect(twice.stderr).toContain('must name node:child_process exactly once');
     expect(twice.status).toBe(1);
   });
+
+  it('Polish A5: refuses a bare child_process specifier, even through window.require', () => {
+    const viaWindow = runAgainst(`${CLEAN_MAIN}window.require('child_process');\n`);
+    expect(viaWindow.stderr).toContain("names the bare 'child_process' module 1 time(s)");
+    expect(viaWindow.status).toBe(1);
+    expect(runAgainst(CLEAN_MAIN).status).toBe(0);
+  });
 });

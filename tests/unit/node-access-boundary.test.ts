@@ -20,25 +20,15 @@
 // evade a regex-based scan. What it DOES cover is stated precisely per test below,
 // rather than as a blanket "catches any regression" claim.
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
-import { join, relative } from 'node:path';
+import { relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { listFiles } from '../fixtures/source-files';
 
 const SRC_ROOT = fileURLToPath(new URL('../../src', import.meta.url));
 
-function listSourceFiles(dir: string): string[] {
-  const out: string[] = [];
-  for (const name of readdirSync(dir)) {
-    const abs = join(dir, name);
-    if (statSync(abs).isDirectory()) {
-      out.push(...listSourceFiles(abs));
-    } else if (/\.(ts|vue)$/.test(name) && !name.endsWith('.d.ts')) {
-      out.push(abs);
-    }
-  }
-  return out;
-}
+const isSource = (name: string): boolean => /\.(ts|vue)$/.test(name) && !name.endsWith('.d.ts');
 
 // Every spelling a static import could use for a Node built-in: bare ('fs'), node:
 // prefixed ('node:fs'), and the same set of names without a prefix for completeness.
@@ -95,7 +85,7 @@ function referencesRequireLikeAccess(source: string): boolean {
 }
 
 describe('the single Node-access module boundary (spec 3.1, acceptance criterion 7)', () => {
-  const files = listSourceFiles(SRC_ROOT);
+  const files = listFiles(SRC_ROOT, isSource);
 
   it('has at least one source file to check (the check itself is not vacuous)', () => {
     expect(files.length).toBeGreaterThan(10);

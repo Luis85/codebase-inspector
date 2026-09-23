@@ -30,7 +30,7 @@ import { createFakeExecutableInspector } from '../fixtures/fake-executable-inspe
 import { createInMemoryAnalyzerStore } from '../fixtures/in-memory-analyzer-store';
 import { nodeWrapped } from '../fixtures/node-wrapped-port';
 import { createRealNodePort } from '../fixtures/real-node-port';
-import { realKill, realSpawn } from '../fixtures/real-spawn';
+import { killTree, realKill, realSpawn } from '../fixtures/real-spawn';
 
 const PROJECT = fileURLToPath(new URL('../fixtures/fallow/project', import.meta.url));
 const FAKE = fileURLToPath(new URL('../fixtures/fallow-runner/fake-fallow.mjs', import.meta.url));
@@ -47,7 +47,7 @@ const trackedSpawn: SpawnLike = (command, args, options) => {
 };
 
 afterEach(async () => {
-  for (const pid of pids.splice(0)) if (alive(pid)) { try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } }
+  for (const pid of pids.splice(0)) killTree(pid);
   for (const base of bases.splice(0)) await rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 });
 

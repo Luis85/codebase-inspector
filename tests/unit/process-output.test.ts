@@ -59,6 +59,19 @@ describe('createStderrTail (Z17)', () => {
     t.push(text('bc'));
     expect(t.excerpt()).toBe('\ufffdbc');
   });
+
+  it('Polish A3: keeps the last 64 KB of a flood of one-byte chunks, in linear time', () => {
+    const tail = createStderrTail(65_536);
+    const one = Uint8Array.from([0x61]);
+    const started = performance.now();
+    for (let i = 0; i < 200_000; i += 1) tail.push(one);
+    tail.push(new TextEncoder().encode('END'));
+    const elapsed = performance.now() - started;
+    const kept = tail.excerpt();
+    expect(kept).toHaveLength(65_536);
+    expect(kept.endsWith('aEND')).toBe(true);
+    expect(elapsed, `200,000 pushes took ${Math.round(elapsed)} ms`).toBeLessThan(2_000);
+  }, 60_000);
 });
 
 describe('cleanLog (Z17)', () => {

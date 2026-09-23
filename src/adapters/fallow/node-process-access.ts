@@ -8,6 +8,8 @@ import { Platform } from 'obsidian';
 
 export interface ReadableLike {
   on(event: 'data', listener: (chunk: Uint8Array) => void): unknown;
+  /** Polish A2: a pipe error; without a listener Node throws it as an uncaught exception. */
+  on(event: 'error', listener: (error: Error) => void): unknown;
   destroy(): unknown;
 }
 

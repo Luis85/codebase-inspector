@@ -20,7 +20,7 @@ import { normalizeFallow } from '../../src/application/evidence/normalize-fallow
 import type { ProcessOutcome, ProcessRequest } from '../../src/application/ports/analyzer-process';
 import { createCancellationToken } from '../fixtures/cancellation-token';
 import { FALLOW_FIXTURES, rawReport, type FallowFixture } from '../fixtures/fallow-fixture';
-import { realKill, realSpawn } from '../fixtures/real-spawn';
+import { killTree, realKill, realSpawn } from '../fixtures/real-spawn';
 import { hashTree } from '../fixtures/temp-tree';
 
 function resolveFallowBin(): string | null {
@@ -55,7 +55,7 @@ describe.skipIf(BIN === null)(TITLE, () => {
 
   afterEach(async () => {
     runner.killAll();
-    for (const pid of pids.splice(0)) if (alive(pid)) { try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ } }
+    for (const pid of pids.splice(0)) killTree(pid);
     for (const base of bases.splice(0)) await rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
 
