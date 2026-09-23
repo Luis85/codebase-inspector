@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { setTimeout as delay } from 'node:timers/promises';
 import { AnalyzerStoreError } from '../../src/application/analysis/analyzer-record';
+import { fingerprintTrust } from '../../src/application/analysis/analyzer-trust';
 import { FALLOW_RUN_ARGS } from '../../src/application/analysis/fallow-invocation';
 import type { AnalyzerBindingStore } from '../../src/application/ports/analyzer-binding-store';
 import { createInMemoryAnalyzerStore } from '../fixtures/in-memory-analyzer-store';
@@ -27,6 +28,37 @@ describe('Polish B1: the busy re-check before the bind', () => {
     };
     expect(await s.service.trustAndRun('p1', SNAPSHOT, review)).toEqual({ kind: 'busy' });
     expect(await s.store.read('p1')).toMatchObject({ kind: 'bound', binding: { executablePath: OLD_EXE } });
+  });
+
+  it('B1 fix round 1: a run racing Trust and run while its bind is saved answers busy; the new binding starts', async () => {
+    const inner = createInMemoryAnalyzerStore('m');
+    await inner.bind('p1', OLD_EXE);
+    const version = '3.27.0';
+    await inner.grantTrust('p1', { fingerprint: fingerprintTrust(subjectOf(factsFor(OLD_EXE)), version), version, grantedAt: '2026-09-23T09:00:00.000Z' }, OLD_EXE);
+    const saves: (() => void)[] = [];
+    const s = createServiceWorld({ ...inner, bind: (id, path) => new Promise<void>((resolve) => { saves.push(() => { void inner.bind(id, path).then(resolve); }); }) });
+    const trusting = s.service.trustAndRun('p1', SNAPSHOT, await reviewed(s));
+    await delay(0);
+    expect(saves).toHaveLength(1);
+    expect(await s.service.run('p1', SNAPSHOT)).toEqual({ kind: 'busy' });
+    expect(await s.service.forget('p1')).toBe('busy');
+    saves[0]!();
+    expect(await trusting).toEqual({ kind: 'started' });
+    expect(await s.store.read('p1')).toMatchObject({ kind: 'bound', binding: { executablePath: EXE, trust: null } });
+    expect(s.process.requests.map((r) => r.executablePath)).toEqual([EXE]);
+  });
+
+  it('B1 fix round 1: run or Trust and run while a run is still in its precheck answers busy and inspects nothing', async () => {
+    const s = createServiceWorld();
+    await trusted(s);
+    const review = await reviewed(s);
+    s.inspector.calls.length = 0;
+    const first = s.service.run('p1', SNAPSHOT);
+    expect(await s.service.run('p1', SNAPSHOT)).toEqual({ kind: 'busy' });
+    expect(await s.service.trustAndRun('p1', SNAPSHOT, review)).toEqual({ kind: 'busy' });
+    expect(await first).toEqual({ kind: 'started' });
+    expect(s.inspector.calls).toHaveLength(1);
+    expect(s.process.requests).toHaveLength(1);
   });
 });
 
@@ -117,6 +149,5 @@ describe('Polish B7: the consent gate at the service', () => {
     expect(await s.service.setTimeLimit('p1', 1800)).toBe('saved');
     for (const bad of [9, 1801, 10.5]) expect(await s.service.setTimeLimit('p1', bad), String(bad)).toBe('invalid');
     expect(await s.store.read('p1')).toMatchObject({ binding: { timeoutSeconds: 1800 } });
-    await delay(0);
   });
 });

@@ -4,6 +4,7 @@
 // - review and checkTrust INSPECT only (stat and a 4-byte header): nothing runs.
 // - run starts only with current trust; otherwise it returns the review.
 // - trustAndRun binds, then starts; trust is written only once the probe passed.
+// - run and trustAndRun hold a per-profile reservation from entry to the start (busy otherwise).
 import { normalizeAbsolutePath } from '../../domain/path-safety';
 import type { CodebaseSnapshot } from '../../domain/model';
 import type { AnalyzerBindingStore } from '../ports/analyzer-binding-store';
@@ -134,6 +135,21 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
     purge: async (profileId) => { await deps.store.purge(profileId); bindingChanged(profileId); },
   };
 
+  /** Polish B1 fix round 1: the profiles with a `run` or `trustAndRun` between its entry and
+   *  `coordinator.start` (read, stat, inspect, bind). `isActive` alone cannot see them, so a
+   *  second start could read a binding the first is replacing. Held until the start itself. */
+  const starting = new Set<string>();
+  const reserved = (profileId: string): boolean => starting.has(profileId) || isActive(coordinator.stateOf(profileId));
+  async function reserve(profileId: string, body: () => Promise<StartOutcome>): Promise<StartOutcome> {
+    if (reserved(profileId)) return { kind: 'busy' };
+    starting.add(profileId);
+    try {
+      return await body();
+    } finally {
+      starting.delete(profileId);
+    }
+  }
+
   async function rootIsDirectory(rootPath: string): Promise<boolean> {
     try {
       const stat = await deps.getFilesystem().stat(rootPath);
@@ -221,8 +237,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
       return checked.kind === 'trusted' ? { kind: 'trusted' } : checked;
     },
 
-    async run(profileId, snapshot) {
-      if (isActive(coordinator.stateOf(profileId))) return { kind: 'busy' };
+    run: (profileId, snapshot) => reserve(profileId, async () => {
       if (!isLatest(profileId, snapshot)) return { kind: 'refused', code: 'snapshot-changed', detail: '' };
       const checked = await precheck(profileId, snapshot);
       switch (checked.kind) {
@@ -231,10 +246,9 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
         case 'unbound': return { kind: 'choose-executable', read: checked.read };
         default: return checked;
       }
-    },
+    }),
 
-    async trustAndRun(profileId, snapshot, reviewed) {
-      if (isActive(coordinator.stateOf(profileId))) return { kind: 'busy' };
+    trustAndRun: (profileId, snapshot, reviewed) => reserve(profileId, async () => {
       if (reviewed.profileId !== profileId || reviewed.snapshotId !== snapshot.snapshotId || !isLatest(profileId, snapshot)) {
         return { kind: 'refused', code: 'snapshot-changed', detail: '' };
       }
@@ -245,8 +259,8 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
       if (!inspection.ok) return { kind: 'refused', ...refusalOf(inspection) };
       const subject = subjectOf(profileId, snapshot, inspection.facts);
       if (fingerprintTrust(subject, '') !== reviewed.subjectFingerprint) return { kind: 'refused', code: 'changed-since-review', detail: '' };
-      // Polish B1: a run may have started during the awaits above (another leaf, the command).
-      // Its binding is never replaced under it.
+      // Polish B1, defence in depth: the reservation keeps the service's own starts out; this
+      // still refuses a run started on the coordinator directly during the awaits above.
       if (isActive(coordinator.stateOf(profileId))) return { kind: 'busy' };
       try {
         await store.bind(profileId, reviewed.facts.executablePath);
@@ -256,14 +270,14 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
       }
       const timeoutSeconds = read.kind === 'bound' ? read.binding.timeoutSeconds : FALLOW_TIMEOUT_DEFAULT_S;
       return startPlan(profileId, snapshot, subject, timeoutSeconds, null);
-    },
+    }),
 
     cancel(profileId) {
       coordinator.cancel(profileId);
     },
 
     async forget(profileId) {
-      if (isActive(coordinator.stateOf(profileId))) return 'busy';
+      if (reserved(profileId)) return 'busy';
       await store.forget(profileId);
       return 'forgotten';
     },
