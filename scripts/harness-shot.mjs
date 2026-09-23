@@ -132,7 +132,16 @@ export const SHOTS = [
   // and the design mockups docs/concept/design/mockups/s12-cancelled.png, s14-provider.png and
   // s15-findings.png. report=demo and fallow=review use a SYNTHETIC report (tests/harness/seed.ts).
   { id: 'wp02-city-cancelling-dark', query: '?screen=s05&theme=dark&route=city&run=cancelling' },
-  { id: 'wp02-sources-fallow-dark', query: '?screen=s05&theme=dark&route=sources&report=demo' },
+  // Z42 fix round 1: the fallow card (Evidence providers' last tile) sits below the 800px
+  // fold at the standard viewport, and FallowRunPanel/FallowRunBanner render further down
+  // still inside it — a screenshot at VIEWPORT never shows them. `fullPage` cannot fix this:
+  // the app shell fixes `body`/`html` at the viewport height and scrolls internally through
+  // `main.ci-shell__content` (mirroring Obsidian's own fixed leaf, confirmed directly against
+  // this Chromium build), so Playwright's `fullPage` — which measures the DOCUMENT's own
+  // scroll box — captures nothing beyond VIEWPORT either. A taller `viewport` is what actually
+  // grows `main`'s available height. 2000px clears this card with over 270px to spare, checked
+  // directly (`main`'s content fits with no internal scrollbar left at that height).
+  { id: 'wp02-sources-fallow-dark', query: '?screen=s05&theme=dark&route=sources&report=demo', viewport: { width: 1280, height: 2000 } },
   { id: 'wp02-connect-fallow-review-dark', query: '?screen=s05&theme=dark&route=sources&fallow=review' },
   { id: 'wp02-quality-fallow-dark', query: '?screen=s05&theme=dark&route=quality&report=demo' },
   { id: 'wp02-city-lens-dark', query: '?screen=s05&theme=dark&route=city&report=demo&lens=findings' },
@@ -144,9 +153,15 @@ export const SHOTS = [
   { id: 'wp02-connect-fallow-routes-dark', query: '?screen=s05&theme=dark&route=sources&fallow=routes' },
   { id: 'wp02-connect-fallow-installed-dark', query: '?screen=s05&theme=dark&route=sources&fallow=installed' },
   { id: 'wp02-connect-fallow-installed-light', query: '?screen=s05&theme=light&route=sources&fallow=installed' },
-  { id: 'wp02-sources-fallow-running-dark', query: '?screen=s05&theme=dark&route=sources&analysis=running' },
-  { id: 'wp02-sources-fallow-failed-dark', query: '?screen=s05&theme=dark&route=sources&analysis=failed' },
-  { id: 'wp02-sources-fallow-collected-dark', query: '?screen=s05&theme=dark&route=sources&analysis=collected' },
+  // Z42 fix round 1: same below-the-fold gap as wp02-sources-fallow-dark above — these three
+  // exist specifically to show FallowRunPanel/FallowRunBanner (Cancel and the progress banner;
+  // the failure banner and its log excerpt; the completed state and the Collected badge), so a
+  // crop that hides them defeats the shot's own purpose. The same 2000px viewport for all three
+  // (checked directly: `failed`'s log excerpt is the tallest of the three, and still clears
+  // with room to spare at 2000px).
+  { id: 'wp02-sources-fallow-running-dark', query: '?screen=s05&theme=dark&route=sources&analysis=running', viewport: { width: 1280, height: 2000 } },
+  { id: 'wp02-sources-fallow-failed-dark', query: '?screen=s05&theme=dark&route=sources&analysis=failed', viewport: { width: 1280, height: 2000 } },
+  { id: 'wp02-sources-fallow-collected-dark', query: '?screen=s05&theme=dark&route=sources&analysis=collected', viewport: { width: 1280, height: 2000 } },
 ];
 
 async function main() {

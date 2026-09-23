@@ -101,6 +101,21 @@ describe('harness-shot SHOTS', () => {
       expect(shotQuery(id).get('route'), id).toBe('sources');
     }
   });
+
+  // Z42 fix round 1: FallowRunPanel and FallowRunBanner render below the fallow card's own
+  // actions (FallowCardDetails.vue), which itself sits below the 800px fold at VIEWPORT — a
+  // screenshot at the standard height never shows them, defeating the point of a capture that
+  // exists specifically to show the run states. `fullPage` cannot fix this (the app shell fixes
+  // `body`/`html` at the viewport height and scrolls internally, mirroring Obsidian's own fixed
+  // leaf), so the fix is a taller `viewport`, checked directly to clear even the tallest of the
+  // four (`failed`, with its log excerpt) with room to spare.
+  it('gives the fallow card a tall enough viewport that the run panel and banner are never cropped out', () => {
+    for (const id of ['wp02-sources-fallow-dark', 'wp02-sources-fallow-running-dark', 'wp02-sources-fallow-failed-dark', 'wp02-sources-fallow-collected-dark']) {
+      const shot = SHOTS.find((s) => s.id === id);
+      expect(shot?.viewport?.width, id).toBe(1280);
+      expect(shot?.viewport?.height ?? 0, id).toBeGreaterThanOrEqual(2000);
+    }
+  });
 });
 
 describe('chromium resolution', () => {
