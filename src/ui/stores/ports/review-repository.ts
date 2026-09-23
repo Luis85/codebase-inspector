@@ -6,8 +6,10 @@ import type { EntityId } from '../../../domain/entity-id';
 
 /** Part 6 Y9/Y7, moved here by Polish E1 (L3): a refused review write — nothing was written and
  *  nobody was told. The durable adapter throws it; a screen maps its code to words
- *  (read-models/review-failure.ts) without importing the adapter. */
-export type ReviewStoreErrorCode = 'full' | 'unsupported' | 'unrepresentable';
+ *  (read-models/review-failure.ts) without importing the adapter. Polish 5b fix round:
+ *  `retired` is a write to a codebase whose profile was removed while a leaf still showed it
+ *  (the registry's purge), which is not a format problem. */
+export type ReviewStoreErrorCode = 'full' | 'unsupported' | 'unrepresentable' | 'retired';
 
 export class ReviewStoreError extends Error {
   readonly code: ReviewStoreErrorCode;
@@ -126,8 +128,10 @@ export const DISMISS_REASON_MAX = 1000;
 export type ReviewIdKind = 'workItem' | 'rule';
 
 /** Part 6 Y7: what a durable adapter could not list — records skipped (kept on disk, not
- *  listed) and a record set in a format it does not support. Valid after the first list. */
-export interface ReviewStorageDiagnostics { skipped: number; unsupported: boolean }
+ *  listed) and a record set in a format it does not support. Valid after the first list.
+ *  Polish 5b fix round: `retired` (present only when true) — the codebase was removed, so no
+ *  write is accepted any more, whatever its format. */
+export interface ReviewStorageDiagnostics { skipped: number; unsupported: boolean; retired?: boolean }
 
 /** Part 6 Y7: nothing skipped, nothing unsupported — the in-memory adapter's answer, and
  *  what the review store shows before a load (controller ruling Part 6 E10: defined once). */

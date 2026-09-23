@@ -91,17 +91,23 @@ describe('Polish E7: a refused write leaves the id marks where they were', () =>
   });
 });
 
-describe('Polish E7: a retired repository', () => {
-  it('reports its set as read-only', () => {
+describe('Polish E7 (5b fix round): a retired repository', () => {
+  it('reports itself retired, not as a format it cannot read', () => {
     const h = harness();
     h.repo.retire();
-    expect(h.repo.diagnostics()).toEqual({ skipped: 0, unsupported: true });
+    expect(h.repo.diagnostics()).toEqual({ skipped: 0, unsupported: false, retired: true });
   });
 
   it('still reports it after the reload its retirement triggers', async () => {
     const h = harness();
     h.repo.retire();
     await h.repo.listWorkItems();
-    expect(h.repo.diagnostics()).toEqual({ skipped: 0, unsupported: true });
+    expect(h.repo.diagnostics()).toEqual({ skipped: 0, unsupported: false, retired: true });
+  });
+
+  it('refuses a write as retired, never as unsupported', async () => {
+    const h = harness();
+    h.repo.retire();
+    await expect(h.repo.removeRule('AR-404')).rejects.toMatchObject({ code: 'retired' });
   });
 });

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import {
-  REVIEW_RECORDS_SKIPPED, REVIEW_STORE_READ_FAILED, REVIEW_STORE_UNSUPPORTED_NOTE,
+  REVIEW_RECORDS_SKIPPED, REVIEW_STORE_READ_FAILED, REVIEW_STORE_RETIRED_NOTE, REVIEW_STORE_UNSUPPORTED_NOTE,
   SETTINGS_CLEAR, SETTINGS_CLEAR_HINT, SETTINGS_CLEAR_OPEN, SETTINGS_CLEAR_TEXT, SETTINGS_EXPORT, SETTINGS_NETWORK,
   SETTINGS_NETWORK_TEXT, SETTINGS_NETWORK_VALUE, SETTINGS_STORAGE, SETTINGS_STORAGE_TEXT,
 } from '../../inspector-copy';
@@ -19,8 +19,9 @@ const clearGate = useReviewWriteGate(clearHintId, storageNoteId);
 /** Part 6 Y7/R3: one line about the bound codebase's saved review state, shown only while
  *  it could not be read, is read-only, or has records that could not be read. */
 const storageNote = computed((): string => {
-  const { skipped, unsupported } = review.storageDiagnostics;
+  const { skipped, unsupported, retired } = review.storageDiagnostics;
   if (review.loadFailed) return REVIEW_STORE_READ_FAILED;
+  if (retired === true) return REVIEW_STORE_RETIRED_NOTE;   // Polish 5b fix round: removed, not a format problem
   if (unsupported) return REVIEW_STORE_UNSUPPORTED_NOTE;
   return skipped > 0 ? REVIEW_RECORDS_SKIPPED(skipped) : '';
 });

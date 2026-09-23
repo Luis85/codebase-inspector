@@ -17,7 +17,8 @@ import { createPluginDataReviewRepository } from '../../src/adapters/storage/plu
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import {
-  REVIEW_RECORDS_SKIPPED, REVIEW_STORE_READ_FAILED, REVIEW_STORE_UNSUPPORTED_NOTE, SETTINGS_CLEAR_HINT, SETTINGS_STORAGE_TEXT,
+  REVIEW_RECORDS_SKIPPED, REVIEW_STORE_READ_FAILED, REVIEW_STORE_RETIRED_NOTE, REVIEW_STORE_UNSUPPORTED_NOTE, SETTINGS_CLEAR_HINT,
+  SETTINGS_STORAGE_TEXT,
 } from '../../src/ui/inspector-copy';
 
 // oxlint consistent-function-scoping: closures that capture nothing are hoisted.
@@ -71,6 +72,20 @@ describe('Settings › Privacy & storage: the saved review state (Part 6 Y7, R3)
     const w = mountS();
     await openPrivacy(w);
     expect(noteOf(w).text()).toBe(REVIEW_STORE_UNSUPPORTED_NOTE);
+    w.unmount();
+  });
+
+  it('Polish 5b fix round: says a removed codebase was removed, never that its format is unsupported', async () => {
+    const plugin = new Plugin({}, {}) as unknown as ObsidianPlugin;
+    const repo = createPluginDataReviewRepository(plugin, 'p1');
+    const review = useReviewStore();
+    review.setRepositoryFactory(() => repo);
+    await review.bindRepository('p1');
+    repo.retire();   // the registry's purge, while this tab still shows p1
+    await flushPromises();
+    const w = mountS();
+    await openPrivacy(w);
+    expect(noteOf(w).text()).toBe(REVIEW_STORE_RETIRED_NOTE);
     w.unmount();
   });
 

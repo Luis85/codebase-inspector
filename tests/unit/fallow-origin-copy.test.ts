@@ -2,7 +2,8 @@
 // origin, defaulting to 'imported' so every Part 6 text is unchanged; the badge helper and
 // the stale cause read the report.
 import { describe, expect, it } from 'vitest';
-import { evidenceBadgeOf, evidenceIndexFor, staleCauseOf } from '../../src/ui/read-models/evidence-index';
+import type { EvidenceReport } from '../../src/application/evidence/model';
+import { evidenceBadgeFor, evidenceIndexFor, staleCauseOf } from '../../src/ui/read-models/evidence-index';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { buildSourcesModel } from '../../src/ui/read-models/sources';
 import { findingsCsv, buildQualityModel } from '../../src/ui/read-models/findings';
@@ -26,10 +27,17 @@ describe('the badge (Z26)', () => {
     expect(EVIDENCE_BADGE('3.28.0', 'collected', 'collected', true)).toBe('fallow 3.28.0 · Collected · Verified source match · Untested version');
   });
 
-  it('evidenceBadgeOf takes the origin and the untested flag from the report', () => {
-    expect(evidenceBadgeOf(syntheticEvidenceReport(snap), false)).toEqual({ version: '3.27.0', state: 'imported', origin: 'imported', untested: false });
-    expect(evidenceBadgeOf(collectedEvidenceReport(snap, false), false)).toEqual({ version: '3.27.0', state: 'collected', origin: 'collected', untested: true });
-    expect(evidenceBadgeOf(collectedEvidenceReport(snap), true)).toEqual({ version: '3.27.0', state: 'stale', origin: 'collected', untested: false });
+  // Polish 5b fix round: through evidenceBadgeFor, the one exported badge helper (E9).
+  it('evidenceBadgeFor takes the origin and the untested flag from the report', () => {
+    const files = fileSummariesFor(snap);
+    const badge = (report: EvidenceReport, snapshotId = snap.snapshotId) => evidenceBadgeFor(evidenceIndexFor(files, report, snapshotId));
+    expect(badge(syntheticEvidenceReport(snap))).toEqual({ version: '3.27.0', state: 'imported', origin: 'imported', untested: false });
+    expect(badge(collectedEvidenceReport(snap, false))).toEqual({ version: '3.27.0', state: 'collected', origin: 'collected', untested: true });
+    expect(badge(collectedEvidenceReport(snap), 'another')).toEqual({ version: '3.27.0', state: 'stale', origin: 'collected', untested: false });
+  });
+
+  it('keeps evidenceBadgeOf module-private (no dead export)', async () => {
+    expect(Object.keys(await import('../../src/ui/read-models/evidence-index'))).not.toContain('evidenceBadgeOf');
   });
 
   it('staleCauseOf says why evidence is stale', () => {

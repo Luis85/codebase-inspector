@@ -57,6 +57,11 @@ export async function readPluginData(plugin: Plugin): Promise<PluginDataShape> {
   });
 }
 
+/** Replaces `key`'s slice with what `mutate` returns, under the data lock.
+ *
+ *  Polish E7 (L17): when `mutate` returns its input (the SAME reference), nothing changed and
+ *  nothing is saved. So `mutate` must never change its input in place: an in-place edit that
+ *  returns the same object would be silently dropped. Build and return a new value instead. */
 export async function writePluginDataSlice(
   plugin: Plugin,
   key: keyof PluginDataShape,

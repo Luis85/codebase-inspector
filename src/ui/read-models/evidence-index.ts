@@ -144,7 +144,8 @@ export interface EvidenceBadgeProps {
   untested: boolean;
 }
 
-export function evidenceBadgeOf(report: EvidenceReport, stale: boolean): EvidenceBadgeProps {
+/** Polish 5b fix round: module-private; screens use `evidenceBadgeFor` (E9). */
+function evidenceBadgeOf(report: EvidenceReport, stale: boolean): EvidenceBadgeProps {
   const origin = originOf(report);
   return {
     version: report.providerVersion, state: stale ? 'stale' : origin, origin,

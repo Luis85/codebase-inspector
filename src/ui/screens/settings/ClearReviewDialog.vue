@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { reviewFailureText } from '../../read-models/review-failure';
 import { useReportStore } from '../../stores/report-store';
 import { useReviewStore } from '../../stores/review-store';
 import {
@@ -36,7 +37,7 @@ function confirm(): Promise<void> {
     } else {
       error.value = SETTINGS_CLEAR_BUSY;
     }
-  }, SETTINGS_CLEAR_FAILED);
+  }, (e) => reviewFailureText(e, SETTINGS_CLEAR_FAILED));   // Polish 5b (L3): a refused write names its reason
 }
 </script>
 

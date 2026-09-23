@@ -3,7 +3,7 @@
 // `requestClose` that ignores Cancel/Escape/backdrop while busy (Part 4 E13, so the
 // outcome — an announcement or an error — is never lost mid-action), and `run`, which
 // sets busy/clears error before the action and always clears busy after, catching a
-// rejection into `failedMessage`. Each caller's action decides its own true/false split
+// rejection into `failed` (a message, or a function of the error). Each caller's action decides its own true/false split
 // (setting `error.value` itself for a refusal) — only the surrounding scaffold is shared.
 import { ref, type Ref } from 'vue';
 
@@ -14,7 +14,9 @@ export interface BusyAction {
   // useBusyAction()`), so @typescript-eslint/unbound-method needs the signature to say
   // neither closes over `this` (neither does — both are plain closures over `busy`/`error`).
   requestClose(this: void, emitClose: () => void): void;
-  run(this: void, action: () => Promise<void>, failedMessage: string): Promise<void>;
+  /** `failed` is the message for a rejection, or (Polish 5b fix round, L3) a function that
+   *  words the caught error itself — the review dialogs name a refused review write. */
+  run(this: void, action: () => Promise<void>, failed: string | ((error: unknown) => string)): Promise<void>;
 }
 
 export function useBusyAction(): BusyAction {
@@ -26,14 +28,14 @@ export function useBusyAction(): BusyAction {
     emitClose();
   }
 
-  async function run(action: () => Promise<void>, failedMessage: string): Promise<void> {
+  async function run(action: () => Promise<void>, failed: string | ((error: unknown) => string)): Promise<void> {
     if (busy.value) return;
     busy.value = true;
     error.value = '';
     try {
       await action();
-    } catch {
-      error.value = failedMessage;
+    } catch (caught: unknown) {
+      error.value = typeof failed === 'string' ? failed : failed(caught);
     } finally {
       busy.value = false;
     }

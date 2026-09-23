@@ -4,6 +4,7 @@
 // rejection stays in the dialog's own alert. Imported text is only ever interpolated,
 // never rendered as HTML (V15).
 import { computed } from 'vue';
+import { reviewFailureText } from '../../read-models/review-failure';
 import { useCityStore } from '../../stores/city-store';
 import { useReportStore } from '../../stores/report-store';
 import { useReviewStore } from '../../stores/review-store';
@@ -60,7 +61,7 @@ function confirm(): Promise<void> {
     } else {
       error.value = IMPORT_BUSY;
     }
-  }, IMPORT_FAILED);
+  }, (e) => reviewFailureText(e, IMPORT_FAILED));   // Polish 5b (L3): a refused write names its reason
 }
 </script>
 

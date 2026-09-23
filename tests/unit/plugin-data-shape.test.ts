@@ -3,7 +3,8 @@
 // (exactly what two near-simultaneous settings-tab events produce) could interleave and
 // silently lose one side's write. These tests reproduce both named failure modes
 // directly against the lock primitives, independent of any store or UI wiring.
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { describe, expect, it, vi } from 'vitest';
 import { Plugin } from '../mocks/obsidian';
 import { readPluginData, updatePluginDataRecord, writePluginDataSlice } from '../../src/adapters/storage/plugin-data-shape';
 import { asUnknownArray } from '../../src/domain/plain-data';
@@ -84,5 +85,20 @@ describe('plugin-data-shape locking', () => {
     await writePluginDataSlice(plugin, 'profiles', () => [{ profileId: 'after-failure' }]);
     const data = await readPluginData(plugin);
     expect(data.profiles).toEqual([{ profileId: 'after-failure' }]);
+  });
+});
+
+describe('writePluginDataSlice: a mutation that returns its input (Polish E7, 5b fix round)', () => {
+  it('saves nothing, so an in-place edit is dropped, and the function says mutate must not make one', async () => {
+    const plugin = makePlugin();
+    await writePluginDataSlice(plugin, 'profiles', () => [{ profileId: 'p1' }]);
+    const save = vi.spyOn(plugin, 'saveData');
+    await writePluginDataSlice(plugin, 'profiles', (current) => {
+      asUnknownArray(current).push({ profileId: 'in-place' });   // the misuse the doc forbids
+      return current;
+    });
+    expect(save).not.toHaveBeenCalled();
+    expect((await readPluginData(plugin)).profiles).toEqual([{ profileId: 'p1' }]);
+    expect(readFileSync('src/adapters/storage/plugin-data-shape.ts', 'utf8')).toContain('`mutate` must never change its input in place');
   });
 });

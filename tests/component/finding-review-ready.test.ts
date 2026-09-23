@@ -33,6 +33,11 @@ function bindHeld(fail = false) {
   return { w, review, release: () => { release?.(); } };
 }
 const hint = (w: ReturnType<typeof bindHeld>['w']) => w.find('.ci-finding-dialog__not-ready');
+/** What the dialog announces: its status region, and every non-empty alert inside it. */
+const announced = (w: ReturnType<typeof bindHeld>['w']) => ({
+  status: w.find('[role="dialog"] .ci-dialog__status').text(),
+  alerts: w.findAll('[role="dialog"] [role="alert"]').map((a) => a.text()).filter((t) => t !== ''),
+});
 
 describe('Finding dialog before the review state is read (Polish C-5a-M2)', () => {
   beforeEach(() => { setActivePinia(createPinia()); });
@@ -48,8 +53,11 @@ describe('Finding dialog before the review state is read (Polish C-5a-M2)', () =
     expect(hint(w).text()).toBe(FINDING_REVIEW_LOADING);
     expect(toggle.attributes('aria-describedby')).toBe(hint(w).attributes('id'));
     await toggle.trigger('click');
+    await w.find('.ci-finding-dialog__work-item').trigger('click');
     await flushPromises();
     expect(review.dispositions).toEqual([]);
+    expect(review.workItems).toEqual([]);
+    expect(announced(w), '5b fix round: a blocked press announces nothing').toEqual({ status: '', alerts: [] });
     release();
     await flushPromises();
     expect(review.ready).toBe(true);
@@ -73,6 +81,7 @@ describe('Finding dialog before the review state is read (Polish C-5a-M2)', () =
     await w.find('.ci-finding-dialog__dismissal').trigger('submit');
     await flushPromises();
     expect(review.dispositions).toEqual([]);
+    expect(announced(w), '5b fix round: a blocked press announces nothing').toEqual({ status: '', alerts: [] });
     expect(hint(w).text()).toBe(FINDING_REVIEW_LOADING);
     w.unmount();
   });

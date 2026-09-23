@@ -11,6 +11,10 @@ export const REVIEW_STORE_FULL = 'The saved review state for this codebase has r
 export const REVIEW_STORE_UNSUPPORTED = 'The saved review state for this codebase is in a format this version cannot change, so this change was not saved.';
 /** Y6: a record whose file or finding cannot be saved as a path inside this codebase. */
 export const REVIEW_SAVE_UNREPRESENTABLE = 'This change refers to something that cannot be saved as a path inside this codebase, so it was not saved.';
+/** Polish 5b fix round: a write from a tab still showing a codebase whose profile was removed. */
+export const REVIEW_STORE_RETIRED = 'This codebase was removed from the inspector, so this change was not saved.';
+/** Polish 5b fix round: Settings › Privacy & storage, in a tab still showing a removed codebase. */
+export const REVIEW_STORE_RETIRED_NOTE = 'This codebase was removed from the inspector, so changes to its review state are no longer saved.';
 /** Y7: Settings › Privacy & storage, while n saved records could not be read. */
 export const REVIEW_RECORDS_SKIPPED = (n: number): string =>
   `${plural(n, 'saved review record', 'saved review records')} could not be read, so ${n === 1 ? 'it is' : 'they are'} not shown. ${n === 1 ? 'It stays' : 'They stay'} in the plugin’s data file, unchanged.`;

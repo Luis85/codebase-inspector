@@ -30,7 +30,9 @@ import {
   STORED_ID_SUFFIX_MAX, decodeRecords, encodeDisposition, encodeRule, encodeWorkItem, storedFindingKey,
   type DecodedRecords, type StoredRecord,
 } from '../../ui/read-models/review-record-codec';
-import { REVIEW_SAVE_UNREPRESENTABLE, REVIEW_STORE_FULL, REVIEW_STORE_UNSUPPORTED } from '../../ui/inspector-copy';
+import {
+  REVIEW_SAVE_UNREPRESENTABLE, REVIEW_STORE_FULL, REVIEW_STORE_RETIRED, REVIEW_STORE_UNSUPPORTED,
+} from '../../ui/inspector-copy';
 import { isRecordWithField, readPluginData, writePluginDataSlice } from './plugin-data-shape';
 
 /** Y9: per codebase, as the JSON.stringify length of its record set (the same limit as
@@ -39,6 +41,7 @@ export const REVIEW_STORE_MAX_BYTES = 1_000_000;
 
 const ERROR_TEXT: Readonly<Record<ReviewStoreErrorCode, string>> = {
   full: REVIEW_STORE_FULL, unsupported: REVIEW_STORE_UNSUPPORTED, unrepresentable: REVIEW_SAVE_UNREPRESENTABLE,
+  retired: REVIEW_STORE_RETIRED,
 };
 
 /** A refused write (the port's ReviewStoreError, Polish E1): nothing was written and nobody
@@ -160,8 +163,7 @@ export function createPluginDataReviewRepository(plugin: Plugin, repositoryId: s
     }
     absorb(set);
     const decoded = decodeRecords(set, repositoryId);
-    // Polish E7: a retired instance refuses every write, so its set stays read-only.
-    lastDiagnostics = { skipped: decoded.skipped, unsupported: retired };
+    lastDiagnostics = { skipped: decoded.skipped, unsupported: false };
     return decoded;
   }
 
@@ -187,7 +189,7 @@ export function createPluginDataReviewRepository(plugin: Plugin, repositoryId: s
    *  (what is on disk is true), so it is never lowered; the marks the new set carries are only
    *  absorbed once it is written, so a refused write never moves the next id (Polish E7). */
   async function write(change: (set: RawSet) => RawSet | null, { bounded, whole = false }: WriteOptions): Promise<void> {
-    if (retired) throw refused('unsupported');
+    if (retired) throw refused('retired');
     const saved: { set: RawSet | null } = { set: null };
     await writePluginDataSlice(plugin, 'reviews', (current) => {
       const set = recordSetOf(current, repositoryId);
@@ -263,6 +265,9 @@ export function createPluginDataReviewRepository(plugin: Plugin, repositoryId: s
       return () => { listeners.delete(listener); };
     },
     diagnostics() {
+      // Polish E7 and the 5b fix round: a retired instance refuses every write, for its own
+      // reason (the codebase was removed), never a format one, whatever it reads from now on.
+      if (retired) return { skipped: 0, unsupported: false, retired: true };
       if (lastWritten !== null) {
         lastDiagnostics = { skipped: decodeRecords(lastWritten, repositoryId).skipped, unsupported: false };
         lastWritten = null;
@@ -272,8 +277,6 @@ export function createPluginDataReviewRepository(plugin: Plugin, repositoryId: s
     retire() {
       retired = true;
       reading = null;
-      // Polish E7: every write now refuses, so the set reads as read-only from here on.
-      lastDiagnostics = { skipped: 0, unsupported: true };
       lastWritten = null;
       notify();
     },

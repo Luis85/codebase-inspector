@@ -9,6 +9,8 @@ const REVIEW_WRITERS: readonly string[] = [
   'src/ui/components/FileInspector.vue', 'src/ui/screens/architecture/RuleEditor.vue', 'src/ui/screens/ArchitectureScreen.vue',
   'src/ui/screens/dependencies/PackageDetailDialog.vue', 'src/ui/screens/FileDetailScreen.vue', 'src/ui/screens/OwnershipScreen.vue',
   'src/ui/screens/quality/FindingReviewDialog.vue', 'src/ui/screens/TestsScreen.vue', 'src/ui/screens/workbench/WorkItemEditor.vue',
+  // Polish 5b fix round 1: the two replaceAll dialogs (through useBusyAction.run).
+  'src/ui/screens/settings/ImportReviewDialog.vue', 'src/ui/screens/settings/ClearReviewDialog.vue',
 ];
 
 describe('reviewFailureText (Polish E1)', () => {
