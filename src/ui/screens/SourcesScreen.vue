@@ -62,22 +62,25 @@ async function openRequested(): Promise<void> {
   await nextTick();
   if (store.snapshot) startConnect();
 }
-/** Polish C10 (L23): while the dialog's step is in flight, a newer request waits, the newest
- *  one winning, and is applied once the step settles; it is dropped if that step closed the
- *  dialog or the codebase changed. A remount mid-step would discard the step. */
-const dialogBusy = ref(false);
+/** Polish C10 (L23, amended in the 3a review): while the dialog's step is in flight, a newer
+ *  request waits, the newest one winning. It is applied once the step settles cleanly, and
+ *  dropped if the step ended with a refusal (E13: the outcome is never lost), closed the
+ *  dialog, or the codebase changed. A remount mid-step would discard the step. The dialog
+ *  reports its busy action synchronously, so plain variables suffice. */
+let dialogBusy = false;
 let deferred: (() => void) | null = null;
 function whenDialogIdle(apply: () => void): void {
-  if (connecting.value && dialogBusy.value) { deferred = apply; return; }
+  if (connecting.value && dialogBusy) { deferred = apply; return; }
   apply();
 }
-watch(dialogBusy, (now) => {
+function onDialogBusy(now: boolean, failed: boolean): void {
+  dialogBusy = now;
   const next = deferred;
   if (now || next === null) return;
   deferred = null;
-  if (connecting.value) next();
-});
-watch(connecting, (shown) => { if (!shown) { dialogBusy.value = false; deferred = null; } });
+  if (!failed && connecting.value) next();
+}
+watch(connecting, (shown) => { if (!shown) { dialogBusy = false; deferred = null; } }, { flush: 'sync' });
 /** Fix round 1 (M3): the dialogs never stack. The newer request wins and closes the Remove
  *  confirmation (removing nothing), then S14 opens. */
 function startConnect(): void {
@@ -242,7 +245,7 @@ function confirmRemove(): void {
       :installed="installedStart"
       @close="closeConnect"
       @done="attached"
-      @busy="dialogBusy = $event"
+      @busy="onDialogBusy"
     />
     <CiDialog
       v-if="removing"

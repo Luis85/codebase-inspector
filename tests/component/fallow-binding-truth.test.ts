@@ -11,7 +11,7 @@ import type { ReviewResult, StartOutcome } from '../../src/ui/read-models/fallow
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
-import { FALLOW_EXE_HINT_POSIX, FALLOW_EXE_HINT_WINDOWS, FALLOW_EXE_UNSUPPORTED } from '../../src/ui/inspector-copy';
+import { FALLOW_EXE_HINT_POSIX, FALLOW_EXE_HINT_WINDOWS, FALLOW_EXE_REFUSED, FALLOW_EXE_UNSUPPORTED } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { createFakeFallowAnalysis, fakeRunReview, type FakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
 
@@ -19,18 +19,38 @@ const mountS = () => mount(SourcesScreen, {
   attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn(), onScanRequested: vi.fn(), onCancelScan: vi.fn() } },
 });
 
-function setupWith(fake: FakeFallowAnalysis): FakeFallowAnalysis {
-  const analysis = useAnalysisStore();
-  analysis.setService(fake);
-  const evidence = useEvidenceStore();
-  evidence.setRepository(new InMemoryEvidenceStore());
-  const snap = buildSnapshotFixture({ files: 6, repositoryId: 'p1' });
+/** The codebase on screen, as App's repository watcher binds it. */
+function showCodebase(repositoryId: string): void {
+  const snap = buildSnapshotFixture({ files: 6, repositoryId });
   useCityStore().setCity(snap, computeLayout(snap));
-  evidence.bindRepository('p1');
-  analysis.bindRepository('p1');
+  useEvidenceStore().bindRepository(repositoryId);
+  useAnalysisStore().bindRepository(repositoryId);
+}
+function setupWith(fake: FakeFallowAnalysis): FakeFallowAnalysis {
+  useAnalysisStore().setService(fake);
+  useEvidenceStore().setRepository(new InMemoryEvidenceStore());
+  showCodebase('p1');
   return fake;
 }
 const setup = (): FakeFallowAnalysis => setupWith(createFakeFallowAnalysis());
+
+const PATH = 'C:\\Tools\\fallow\\fallow.exe';
+const RUN_REVIEW: StartOutcome = { kind: 'review', review: fakeRunReview('p1', 'snapshot-fixture', '/fixture/root'), reason: 'changed' };
+const CHECKED: ReviewResult = { ok: true, review: fakeRunReview('p1', 'snapshot-fixture', '/fixture/root') };
+/** Every check stays in flight until the test answers it. */
+function pendingChecks(fake: FakeFallowAnalysis): ((result: ReviewResult) => void)[] {
+  const answers: ((result: ReviewResult) => void)[] = [];
+  fake.review = () => new Promise((resolve) => { answers.push(resolve); });
+  return answers;
+}
+/** Opens the installed route at its path step and starts a check (in flight with pendingChecks). */
+async function startCheck(w: ReturnType<typeof mountS>): Promise<void> {
+  await w.find('.ci-fallow-run__choose').trigger('click');
+  await flushPromises();
+  await w.find('.ci-fallow-installed__path').setValue(PATH);
+  await w.find('.ci-fallow-installed__check').trigger('click');
+}
+const pathInput = (w: ReturnType<typeof mountS>): Element => w.find('.ci-fallow-installed__path').element;
 
 beforeEach(() => { setActivePinia(createPinia()); });
 
@@ -68,26 +88,105 @@ describe('Polish C2: a read-only record', () => {
 });
 
 describe('Polish C10: a request that lands mid-step', () => {
-  it('a run request during a busy check waits for the check, then opens its review', async () => {
+  it('review fix 1 (E13): a request held during a check that ends refused is dropped; the refusal stays', async () => {
     const fake = setup();
-    const answers: ((result: ReviewResult) => void)[] = [];
-    fake.review = () => new Promise((resolve) => { answers.push(resolve); });
-    fake.next.run = { kind: 'review', review: fakeRunReview('p1', 'snapshot-fixture', '/fixture/root'), reason: 'changed' };
+    const answers = pendingChecks(fake);
+    fake.next.run = RUN_REVIEW;
     const w = mountS();
     await flushPromises();
-    await w.find('.ci-fallow-run__choose').trigger('click');
-    await flushPromises();
-    await w.find('.ci-fallow-installed__path').setValue('C:\\Tools\\fallow\\fallow.exe');
-    await w.find('.ci-fallow-installed__check').trigger('click');
+    await startCheck(w);
     useAnalysisStore().requestRun();
     await flushPromises();
-    expect((w.find('.ci-fallow-installed__path').element as HTMLInputElement).value).toBe('C:\\Tools\\fallow\\fallow.exe');
     expect(answers).toHaveLength(1);
     answers[0]!({ ok: false, code: 'executable-missing', detail: '' });
+    await flushPromises();
+    expect(w.find('.ci-connect-fallow__error').text()).toBe(FALLOW_EXE_REFUSED['executable-missing'](''));
+    expect((pathInput(w) as HTMLInputElement).value).toBe(PATH);
+    expect(w.find('.ci-fallow-review').exists()).toBe(false);
+    expect(w.findAll('[role="dialog"]')).toHaveLength(1);
+    w.unmount();
+  });
+
+  it('review fix 3c: a request during a busy check is held (no remount), then applied once the check settles cleanly', async () => {
+    const fake = setup();
+    const answers = pendingChecks(fake);
+    fake.next.run = RUN_REVIEW;
+    const w = mountS();
+    await flushPromises();
+    await startCheck(w);
+    const input = pathInput(w);
+    useAnalysisStore().requestRun();
+    await flushPromises();
+    expect(fake.calls.map((c) => c.method)).toContain('run');
+    expect(pathInput(w)).toBe(input);
+    expect(w.find('.ci-fallow-review').exists()).toBe(false);
+    answers[0]!(CHECKED);
     await flushPromises();
     expect(w.find('.ci-fallow-review').exists()).toBe(true);
     expect(w.find('.ci-fallow-installed__retrust').exists()).toBe(true);
     expect(w.findAll('[role="dialog"]')).toHaveLength(1);
+    w.unmount();
+  });
+
+  it('review fix 2: a request in the same tick as the step starts is already held (the busy emit is sync)', async () => {
+    const fake = setup();
+    const answers = pendingChecks(fake);
+    const w = mountS();
+    await flushPromises();
+    await w.find('.ci-fallow-run__choose').trigger('click');
+    await flushPromises();
+    await w.find('.ci-fallow-installed__path').setValue(PATH);
+    const input = pathInput(w);
+    const checking = w.find('.ci-fallow-installed__check').trigger('click');
+    const importing = w.find('.ci-fallow-card__import').trigger('click');
+    await Promise.all([checking, importing]);
+    await flushPromises();
+    expect(pathInput(w)).toBe(input);
+    answers[0]!(CHECKED);
+    await flushPromises();
+    expect(w.find('.ci-connect-fallow__route').exists()).toBe(true);
+    w.unmount();
+  });
+
+  it('review fix 3a: two requests held during one step, the newest wins', async () => {
+    const fake = setup();
+    const answers = pendingChecks(fake);
+    fake.next.run = RUN_REVIEW;
+    const w = mountS();
+    await flushPromises();
+    await startCheck(w);
+    useAnalysisStore().requestRun();
+    await flushPromises();
+    await w.find('.ci-fallow-card__import').trigger('click');
+    await flushPromises();
+    answers[0]!(CHECKED);
+    await flushPromises();
+    expect(w.find('.ci-connect-fallow__route').exists()).toBe(true);
+    expect(w.find('.ci-fallow-review').exists()).toBe(false);
+    expect(w.findAll('[role="dialog"]')).toHaveLength(1);
+    w.unmount();
+  });
+
+  it('review fix 3b: a held request is dropped on a codebase switch, and never lands on the next codebase', async () => {
+    const fake = setup();
+    const answers = pendingChecks(fake);
+    fake.next.run = RUN_REVIEW;
+    const w = mountS();
+    await flushPromises();
+    await startCheck(w);
+    useAnalysisStore().requestRun();
+    await flushPromises();
+    showCodebase('p2');
+    await flushPromises();
+    answers[0]!(CHECKED);
+    await flushPromises();
+    expect(w.find('[role="dialog"]').exists()).toBe(false);
+    await startCheck(w);
+    await flushPromises();
+    answers[1]!({ ok: true, review: fakeRunReview('p2', 'snapshot-fixture', '/fixture/root') });
+    await flushPromises();
+    expect(w.find('.ci-fallow-review').exists()).toBe(true);
+    expect(w.find('.ci-fallow-installed__retrust').exists()).toBe(false);
     w.unmount();
   });
 
@@ -98,10 +197,7 @@ describe('Polish C10: a request that lands mid-step', () => {
     fake.next.run = { kind: 'choose-executable', read: { kind: 'none' } };
     const w = mountS();
     await flushPromises();
-    await w.find('.ci-fallow-run__choose').trigger('click');
-    await flushPromises();
-    await w.find('.ci-fallow-installed__path').setValue('C:\\Tools\\fallow\\fallow.exe');
-    await w.find('.ci-fallow-installed__check').trigger('click');
+    await startCheck(w);
     await flushPromises();
     await w.find('.ci-fallow-installed__trust').trigger('click');
     useAnalysisStore().requestRun();

@@ -32,7 +32,7 @@ import type { InstalledRouteStart } from '../../read-models/fallow-run';
 
 /** Part 7 Z29: which route opens first; the installed route's own starting point. */
 const props = withDefaults(defineProps<{ initialRoute?: 'choose' | 'installed'; installed?: InstalledRouteStart }>(), { initialRoute: 'choose', installed: undefined });
-const emit = defineEmits<{ close: []; done: [message: string]; busy: [busy: boolean] }>();
+const emit = defineEmits<{ close: []; done: [message: string]; busy: [busy: boolean, failed: boolean] }>();
 const route = ref<'choose' | 'installed'>(props.initialRoute);
 const city = useCityStore();
 const evidence = useEvidenceStore();
@@ -41,8 +41,10 @@ const { files } = useReadModels();
 /** K32: one busy action for both routes, so Cancel/Escape/backdrop stay ignored mid-step. */
 const action = useBusyAction();
 const { busy, error, requestClose: requestCloseWith, run } = action;
-/** Polish C10: SourcesScreen holds a newer request while a step is in flight (L23). */
-watch(busy, (now) => { emit('busy', now); });
+/** Polish C10 (L23 as amended): SourcesScreen holds a newer request while a step is in flight.
+ *  `failed`: the step ended with a refusal in the alert, which a held request must not erase
+ *  (E13). Sync, so a request in the same tick as the step's start is already held. */
+watch(busy, (now) => { emit('busy', now, !now && error.value !== ''); }, { flush: 'sync' });
 const importHeadingId = useUniqueId('ci-connect-fallow-import');
 const runHeadingId = useUniqueId('ci-connect-fallow-run');
 const mappingId = useUniqueId('ci-connect-fallow-mapping');
