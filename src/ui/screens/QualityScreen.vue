@@ -51,6 +51,12 @@ watch(() => quality.value.modules, (modules) => {
   const module = filter.value.module;
   if (module !== null && !modules.some((m) => m.name === module)) filter.value = { ...filter.value, module: null };
 });
+/** Part 6 fix round 1: likewise a rescan or report change can drop the filtered severity
+ *  from the options; fall back to all, so the select never misstates the filter. */
+watch(() => quality.value.severities, (severities) => {
+  const s = filter.value.severity;
+  if (s !== null && !severities.includes(s)) filter.value = { ...filter.value, severity: null };
+});
 
 /** Fix round 1: a rescan can drop the finding under review. Forget it, so the dialog
  *  cannot come back on its own when a later snapshot brings the fingerprint back. */

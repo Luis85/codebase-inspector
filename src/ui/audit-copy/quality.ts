@@ -98,8 +98,9 @@ const RULE_LABELS = new Map<string, string>(Object.entries(FINDING_RULE_LABEL));
  *  word reaches an Object.prototype member. */
 export const RULE_TEXT = (rule: string): string => RULE_LABELS.get(rule) ?? rule;
 /** Y35: one title per finding, "<symbol> · <what the tool reported>". A complexity finding
- *  names the measure fallow says it exceeded (fallow's `exceeded` word, verbatim), and a
- *  rule this version does not know falls back to the category title. */
+ *  whose `exceeded` word starts with "cyclomatic" shows the cyclomatic measure; any other
+ *  word shows the cognitive measure. A rule this version does not know falls back to the
+ *  category title. */
 export const FINDING_TITLE_FOR = (kind: FindingCategory, rule: string, symbol: string | null, detail: FindingDetail): string => {
   let what: string;
   switch (detail.kind) {
@@ -137,6 +138,6 @@ export const FINDING_DIALOG_RULE_VALUE = (rule: string, detail: FindingDetail): 
       return `${label}: ${detail.lineCount} lines, ${detail.tokenCount} tokens, ${others}.`;
     }
     default:
-      return `${label}${detail.typeOnly ? ' (type only)' : ''}. No static consumers reported in this analysis scope. Verify dynamic or framework usage before removal.`;
+      return `${label}${detail.typeOnly && rule !== 'unused-type' ? ' (type only)' : ''}. No static consumers reported in this analysis scope. Verify dynamic or framework usage before removal.`;
   }
 };

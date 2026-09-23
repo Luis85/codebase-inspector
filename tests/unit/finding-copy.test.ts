@@ -31,6 +31,10 @@ describe('finding copy (Part 6 Y35/Y36)', () => {
       .toBe('Duplication: 4 lines, 60 tokens, repeated within this file.');
     expect(FINDING_DIALOG_RULE_VALUE('unused-export', UNUSED))
       .toBe('Unused export. No static consumers reported in this analysis scope. Verify dynamic or framework usage before removal.');
+    // Fix round 1: the unused-type rule already says "type"; it is not repeated.
+    expect(FINDING_DIALOG_RULE_VALUE('unused-type', { kind: 'unused', typeOnly: true }))
+      .toBe('Unused type. No static consumers reported in this analysis scope. Verify dynamic or framework usage before removal.');
+    expect(FINDING_DIALOG_RULE_VALUE('unused-export', { kind: 'unused', typeOnly: true })).toMatch(/^Unused export \(type only\)\. /);
   });
 
   it('the File detail meta line gives the line or the range, then the rule; an unknown rule reads verbatim', () => {

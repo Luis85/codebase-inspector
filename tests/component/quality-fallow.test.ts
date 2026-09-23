@@ -137,6 +137,7 @@ describe('Code quality over a fallow report (Part 6 Y35)', () => {
     d.unmount();
   });
 
+  // E40: a mounted-screen regression pin for Task 8's findingsCsv (it passes before Task 9, like the A9 exemption).
   it('exports the rule, "reported" lines and the report\'s provenance, "stale" once the report predates the snapshot', async () => {
     const snap = withSnapshot();
     attachSyntheticReport(snap);
@@ -181,13 +182,34 @@ describe('Code quality over a fallow report (Part 6 Y35)', () => {
     w.unmount();
   });
 
-  it('renders an imported symbol that looks like HTML as literal text (spec §4)', () => {
+  it('renders an imported symbol that looks like HTML as literal text, in the table and the review dialog (spec §4)', async () => {
     const symbol = '<img src=x onerror=alert(1)>';
     attachSyntheticReport(withSnapshot(), { symbol });
     const w = mountQ();
-    expect(rowWith(w, `${symbol} · Unused export`)).toBeDefined();
+    const row = rowWith(w, `${symbol} · Unused export`);
+    expect(row).toBeDefined();
     expect(w.find('.ci-findings-table img').exists()).toBe(false);
     expect(w.find('.ci-findings-table').html()).toContain('&lt;img');
+    await row!.find('.ci-findings-table__open').trigger('click');
+    const summary = w.find('.ci-finding-dialog__summary');
+    expect(summary.text()).toBe(`${symbol} · Unused export`);
+    expect(summary.html()).toContain('&lt;img');
+    expect(w.find('.ci-finding-dialog img').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('a severity the new report lacks falls back to all severities, so the select never misstates the filter (fix round 1)', async () => {
+    const snap = withSnapshot();
+    attachSyntheticReport(snap);
+    const w = mountQ();
+    const select = w.find<HTMLSelectElement>('.ci-finding-filters__severity');
+    await select.setValue('high');
+    expect(w.findAll('.ci-table__row').length).toBeGreaterThan(0);
+    attachSyntheticReport(snap, { kind: 'dead-code' });   // rates nothing: no "high" any more
+    await nextTick();
+    await nextTick();
+    expect(select.element.value).toBe('');
+    expect(w.findAll('.ci-table__row')).toHaveLength(10);
     w.unmount();
   });
 });

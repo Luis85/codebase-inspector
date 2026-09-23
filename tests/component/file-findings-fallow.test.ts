@@ -77,4 +77,15 @@ describe('File detail findings (Part 6 Y36)', () => {
     expect(w.find('.ci-panel__header .ci-evidence-badge').text()).toBe(EVIDENCE_BADGE(SYNTHETIC_VERSION, 'stale'));
     w.unmount();
   });
+
+  it('renders an imported symbol that looks like HTML as literal text in the finding title (spec §4)', () => {
+    const symbol = '<img src=x onerror=alert(1)>';
+    attachSyntheticReport(onFile(0), { symbol });
+    const w = mountFile();
+    const title = w.findAll('.ci-file-finding__title').find((t) => t.text().startsWith(symbol));
+    expect(title?.text()).toBe(`${symbol} · Unused export`);
+    expect(title?.html()).toContain('&lt;img');
+    expect(w.find('.ci-findings img').exists()).toBe(false);
+    w.unmount();
+  });
 });
