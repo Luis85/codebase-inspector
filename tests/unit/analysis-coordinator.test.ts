@@ -37,7 +37,7 @@ function setup() {
   return { process, evidence, snapshots, clock, coordinator, seen };
 }
 const plan = (overrides: Partial<RunPlan> = {}): RunPlan => ({
-  subject: SUBJECT, snapshotId: SNAPSHOT.snapshotId, timeoutSeconds: 120, trustedVersion: '3.27.0',
+  subject: SUBJECT, snapshotId: SNAPSHOT.snapshotId, timeoutSeconds: 120,
   onProbePassed: () => Promise.resolve('continue'), ...overrides,
 });
 async function probed(s: ReturnType<typeof setup>, p: RunPlan = plan()): Promise<void> {
@@ -81,7 +81,7 @@ describe('AnalysisCoordinator: the happy path (Z21)', () => {
 
   it('labels an untested 3.x version and still runs it', async () => {
     const s = setup();
-    expect(s.coordinator.start(plan({ trustedVersion: null }))).toBe(true);
+    expect(s.coordinator.start(plan())).toBe(true);
     await s.process.settle(exitedWith(0, 'fallow 3.28.0'));
     expect(s.coordinator.stateOf('p1')).toMatchObject({ status: 'running', version: '3.28.0', tested: false });
   });

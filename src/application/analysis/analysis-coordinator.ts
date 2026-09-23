@@ -28,8 +28,6 @@ export interface RunPlan {
   subject: TrustSubject;
   snapshotId: string;
   timeoutSeconds: number;
-  /** null on a first run (Trust and run): the probe's version is then trusted by the service. */
-  trustedVersion: string | null;
   /** Called once the probe passed, before the analysis (A7). */
   onProbePassed: (version: string) => Promise<'continue' | 'version-changed' | 'changed-since-review'>;
 }
