@@ -18,9 +18,24 @@
 // field IS an array, in O(1) per element. read-fallow-report.ts then walks each such
 // array by hand with the matching element schema below (also exported), stopping at the
 // first failing element instead of validating the rest.
+//
+// Fix round 2 (E31, Important 1 continued): the same attack works through a record, not
+// only an array — `z.record(z.string(), z.number())` also validates every value before
+// returning, so `check.summary`/the flattened `summary` (an object with as many keys as
+// the report writer wants) was still unbounded. It is now `z.record(z.string(),
+// z.unknown())` here; `firstRecordFailure` below walks its values by hand, the record
+// counterpart of `firstArrayFailure`. Every other record/array container in this file
+// was re-checked against the same attack and is already bounded: the object-shaped
+// per-element schemas (`UNUSED_ENTRY`, `CLONE_INSTANCE`, `HEALTH_FINDING`,
+// `WORKSPACE_DIAGNOSTIC`) and the two-field health `summary` object all have a small,
+// fixed set of keys, not one the report controls.
 import { z } from 'zod';
 
 const COUNT = z.number().int().nonnegative();
+
+/** A `check.summary`/flattened `summary` value: exported so read-fallow-report.ts's
+ *  manual walk (`firstRecordFailure`) can validate one value at a time (Fix round 2). */
+export const SUMMARY_VALUE = z.number();
 
 /** An element schema for `unused_exports` and `unused_types`. */
 export const UNUSED_ENTRY = z.object({
@@ -32,7 +47,7 @@ export const UNUSED_ENTRY = z.object({
 });
 
 const CHECK_SHELL_FIELDS = {
-  summary: z.record(z.string(), z.number()),
+  summary: z.record(z.string(), z.unknown()),
   unused_exports: z.array(z.unknown()),
   unused_types: z.array(z.unknown()),
 };
@@ -97,22 +112,53 @@ export const FALLOW_REPORT = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('dupes'), ...COMMON_SHELL, ...DUPES_SHELL_FIELDS }),
 ]);
 
+/** One element's outcome for `firstArrayFailure`'s custom form: `path` is relative to
+ *  that element (an empty array names the element itself). */
+type ElementResult<T> = { ok: true; value: T } | { ok: false; path: PropertyKey[] };
+
 /** The first failing element of `items`, at `[...prefix, index, ...itemPath]`, or every
- *  element parsed and stripped by `itemSchema`. Stops at the first failure: the reason
- *  this file exists (E31, Important 1). */
+ *  element parsed and stripped by `check`. Stops at the first failure: the reason this
+ *  file exists (E31, Important 1). `check` is a zod schema for a flat element, or (Fix
+ *  round 2) a validator function for an element that itself needs a nested walk —
+ *  `buildDupes` (read-fallow-report.ts) uses this form so its own per-group-then-
+ *  per-instance loop does not have to repeat this one. */
 export function firstArrayFailure<T>(
   items: readonly unknown[],
-  itemSchema: z.ZodType<T>,
+  check: z.ZodType<T> | ((item: unknown) => ElementResult<T>),
   prefix: readonly PropertyKey[],
 ): { ok: true; values: T[] } | { ok: false; path: PropertyKey[] } {
+  const validate: (item: unknown) => ElementResult<T> = typeof check === 'function' ? check : (item) => {
+    const parsed = check.safeParse(item);
+    return parsed.success ? { ok: true, value: parsed.data } : { ok: false, path: parsed.error.issues[0]?.path ?? [] };
+  };
   const values: T[] = [];
   for (let i = 0; i < items.length; i += 1) {
-    const result = itemSchema.safeParse(items[i]);
+    const result = validate(items[i]);
+    if (!result.ok) return { ok: false, path: [...prefix, i, ...result.path] };
+    values.push(result.value);
+  }
+  return { ok: true, values };
+}
+
+/** The record counterpart of `firstArrayFailure` (Fix round 2, E31 Important 1): the
+ *  first bad value of `record`, at `[...prefix, key, ...issuePath]`, or every value
+ *  parsed by `valueSchema`, stopping at the first failure instead of validating the
+ *  rest. `__proto__` is always skipped — never validated, never copied into `values` —
+ *  so the output can never gain an inherited key, matching `z.record`'s own behaviour. */
+export function firstRecordFailure<T>(
+  record: Readonly<Record<string, unknown>>,
+  valueSchema: z.ZodType<T>,
+  prefix: readonly PropertyKey[],
+): { ok: true; values: Record<string, T> } | { ok: false; path: PropertyKey[] } {
+  const values: Record<string, T> = {};
+  for (const key of Object.keys(record)) {
+    if (key === '__proto__') continue;
+    const result = valueSchema.safeParse(record[key]);
     if (!result.success) {
       const issue = result.error.issues[0];
-      return { ok: false, path: [...prefix, i, ...(issue?.path ?? [])] };
+      return { ok: false, path: [...prefix, key, ...(issue?.path ?? [])] };
     }
-    values.push(result.data);
+    values[key] = result.data;
   }
   return { ok: true, values };
 }

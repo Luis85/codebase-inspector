@@ -1,40 +1,15 @@
 // Part 6 acceptance evidence (2) for the Fallow Ingestion deliverable: importing a report
 // runs no code, and nothing under src/ can start a process or hand a path to the shell.
-// A static scan of every source file. It covers:
-// - any mention of the child_process or worker_threads modules in code, in any spelling a
-//   static import, a dynamic import() or a window.require() call would use, including
-//   inside the specifier string itself;
-// - a call to spawn, spawnSync, exec, execSync, execFile, execFileSync or fork: bare
-//   (`spawn(`, `spawn?.(`, `spawn.call(`, `spawn.apply(`), as a member (`cp.spawn(`,
-//   `cp.fork?.(`), or through a computed/bracket property (`cp['spawn'](`) — EXCEPT a
-//   member `.exec(`: that is RegExp.prototype.exec, used today by src/domain/path-safety.ts
-//   and src/ui/stores/review-store.ts. The only way to hold a child_process object is the
-//   module, which the first check bans, and tests/unit/node-access-boundary.test.ts pins
-//   window.require to node-access.ts;
-// - `openPath`, `openExternal`, `openItem` and `showItemInFolder` (Electron's `shell`
-//   module, U42) anywhere in code.
-//
-// Fix round 1 (E31, Important 2): the first version of this file stripped comments with a
-// regex that did not know about strings, so `const g = 'dir/*'; spawn('x'); /** doc */`
-// scanned clean — the regex's own `/\*...*\//` matched from the `/*` INSIDE the string
-// through to the real trailing comment's `*/`, erasing the real `spawn(` call in between.
-// This version tokenizes with the TypeScript scanner instead (`ts.createScanner`), which
-// correctly finds string, template and regex literal boundaries no matter what they
-// contain. Two character streams are built from the token positions:
-// - `code`: comments AND every string/template/regex literal blanked out, so neither a
-//   comment nor prose inside a string (`'a fork (of…)'`) can look like a call or a path;
-// - `withStrings`: only comments blanked, literals left as written, so a banned module's
-//   name is still found inside the quotes of an import/require specifier.
-// HTML comments (`<!-- -->`, valid in a .vue template, not in TypeScript) are blanked
-// before the scanner runs, since the scanner has no notion of them.
-// Not exhaustive: a specifier or property name assembled at run time (string
-// concatenation, a variable used as a computed key) would still evade this scan. What it
-// covers is stated precisely per test below, rather than as a blanket claim.
+// The detector itself (a real TypeScript AST parse, plus a text scan of a .vue file's
+// <template> block) lives in tests/fixtures/process-guard.ts — see its header for what it
+// covers, why round 1's regex-then-scanner approach still had a blind spot, and how it
+// was fixed (fix round 2, E31). This file holds the whole-tree scan, the flags/does-not-
+// flag tables, and a self-test that pins the fixed blind spot against every real file.
 import { describe, expect, it } from 'vitest';
-import ts from 'typescript';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { injectSpawnCall, processHazards, type ProcessGuardKind } from '../fixtures/process-guard';
 
 const SRC_ROOT = fileURLToPath(new URL('../../src', import.meta.url));
 
@@ -48,70 +23,7 @@ function listSourceFiles(dir: string): string[] {
   return out;
 }
 
-const HTML_COMMENT = /<!--[\s\S]*?-->/g;
-
-const TRIVIA_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
-  ts.SyntaxKind.WhitespaceTrivia, ts.SyntaxKind.NewLineTrivia, ts.SyntaxKind.SingleLineCommentTrivia,
-  ts.SyntaxKind.MultiLineCommentTrivia, ts.SyntaxKind.ShebangTrivia, ts.SyntaxKind.ConflictMarkerTrivia,
-]);
-const LITERAL_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
-  ts.SyntaxKind.StringLiteral, ts.SyntaxKind.NoSubstitutionTemplateLiteral, ts.SyntaxKind.TemplateHead,
-  ts.SyntaxKind.TemplateMiddle, ts.SyntaxKind.TemplateTail, ts.SyntaxKind.RegularExpressionLiteral,
-]);
-
-function blank(chars: string[], start: number, end: number): void {
-  for (let i = start; i < end; i += 1) if (chars[i] !== '\n') chars[i] = ' ';
-}
-
-/** `code`: comments and every string/template/regex literal blanked out. `withStrings`:
- *  only comments blanked, so a literal's own text (an import specifier) is still there. */
-function tokenize(source: string): { code: string; withStrings: string } {
-  const withoutHtml = source.replace(HTML_COMMENT, (m) => ' '.repeat(m.length));
-  const scanner = ts.createScanner(ts.ScriptTarget.Latest, false);
-  scanner.setText(withoutHtml);
-  const codeChars = withoutHtml.split('');
-  const withStringsChars = withoutHtml.split('');
-  let kind = scanner.scan();
-  while (kind !== ts.SyntaxKind.EndOfFileToken) {
-    const start = scanner.getTokenStart();
-    const end = scanner.getTokenEnd();
-    if (TRIVIA_KINDS.has(kind)) {
-      blank(codeChars, start, end);
-      blank(withStringsChars, start, end);
-    } else if (LITERAL_KINDS.has(kind)) {
-      blank(codeChars, start, end);
-    }
-    kind = scanner.scan();
-  }
-  return { code: codeChars.join(''), withStrings: withStringsChars.join('') };
-}
-
-const BANNED_MODULE = /\b(child_process|worker_threads)\b/;
-// A process-starting name, EXCEPT as a bare `.name(` member (that form excludes `exec`,
-// RegExp.prototype.exec): bare (`spawn(`), optionally-chained (`spawn?.(`), a real member
-// (`cp.spawn(`, `cp.fork?.(`), or reached through `.call(`/`.apply(`.
-const BARE_NAMES = 'spawn|spawnSync|exec|execSync|execFile|execFileSync|fork';
-const MEMBER_NAMES = 'spawn|spawnSync|execSync|execFile|execFileSync|fork';
-const PROCESS_CALL = new RegExp(
-  `(?<![\\w$.])(?:${BARE_NAMES})(?:\\s*\\?\\.)?\\s*\\(`
-  + `|\\.(?:${MEMBER_NAMES})(?:\\s*\\?\\.)?\\s*\\(`
-  + `|(?<![\\w$.])(?:${BARE_NAMES})\\.(?:call|apply)\\s*\\(`,
-);
-// Fix round 1 (E31, minor 3): a computed/bracket property (`cp['spawn'](`) is checked
-// against `withStrings`, not `code`: the method name lives inside the quotes that `code`
-// blanks out, unlike the generic-prose case (`'a fork (of…)'`) this file must NOT flag.
-const BRACKET_CALL = new RegExp(`\\[\\s*['"](?:${MEMBER_NAMES})['"]\\s*\\]\\s*\\(`);
-const OPEN_PATH = /\bopenPath\b|\bopenExternal\b|\bopenItem\b|\bshowItemInFolder\b/;
-
-/** Every reason this source could start a process or open a path, as short labels. */
-function processHazards(source: string): string[] {
-  const { code, withStrings } = tokenize(source);
-  return [
-    ...(BANNED_MODULE.test(withStrings) ? ['process module'] : []),
-    ...(PROCESS_CALL.test(code) || BRACKET_CALL.test(withStrings) ? ['process call'] : []),
-    ...(OPEN_PATH.test(code) ? ['shell.openPath'] : []),
-  ];
-}
+const kindOf = (file: string): ProcessGuardKind => (file.endsWith('.vue') ? 'vue' : 'ts');
 
 describe('nothing under src/ runs a process (Part 6 acceptance 2)', () => {
   const files = listSourceFiles(SRC_ROOT);
@@ -122,56 +34,89 @@ describe('nothing under src/ runs a process (Part 6 acceptance 2)', () => {
 
   it('no file mentions child_process or worker_threads, calls spawn/exec/execFile/fork, or opens a path', () => {
     const offenders = files
-      .map((f) => ({ file: relative(SRC_ROOT, f).replace(/\\/g, '/'), hazards: processHazards(readFileSync(f, 'utf8')) }))
+      .map((f) => ({ file: relative(SRC_ROOT, f).replace(/\\/g, '/'), hazards: processHazards(readFileSync(f, 'utf8'), kindOf(f)) }))
       .filter((o) => o.hazards.length > 0);
     expect(offenders).toEqual([]);
+  });
+
+  // Fix round 2 (E31, Important 2, self-test for the fixed regression): round 1's plain
+  // token scanner missed an injected call in 68 of these 262 files (everything after a
+  // template substitution or a regex literal). Appending a real call to every file and
+  // asserting the detector still reports it pins that blind spot shut, independent of
+  // the hand-written snippets below.
+  it('flags an injected spawn(\'x\'); call in every real source file', () => {
+    const missed = files
+      .map((f) => relative(SRC_ROOT, f).replace(/\\/g, '/'))
+      .filter((rel) => {
+        const kind = kindOf(rel);
+        const injected = injectSpawnCall(readFileSync(join(SRC_ROOT, rel), 'utf8'), kind);
+        return !processHazards(injected, kind).includes('process call');
+      });
+    expect(missed).toEqual([]);
   });
 });
 
 // The detector itself, one case per spelling, independent of what src/ holds today.
 describe('process hazard detection', () => {
-  it.each([
-    ["import { spawn } from 'node:child_process';", 'process module'],
-    ["import * as cp from 'child_process';", 'process module'],
-    ["const cp = await import('node:child_process');", 'process module'],
-    ["const cp = window.require('child_process');", 'process module'],
-    ["const { Worker } = window.require('node:worker_threads');", 'process module'],
-    ["spawn('fallow', ['--format', 'json']);", 'process call'],
-    ["exec('fallow --version');", 'process call'],
-    ["execFile('fallow', []);", 'process call'],
-    ["runner.execFileSync('fallow');", 'process call'],
-    ["proc.spawn ('fallow');", 'process call'],
-    ["fork('worker.js');", 'process call'],
-    ["shell.openPath(report);", 'shell.openPath'],
-    ["const { openPath } = shell;", 'shell.openPath'],
-    // Fix round 1 (E31, Important 2): a comment-stripping regex that does not know about
-    // strings erases real code between a string that merely CONTAINS `/*` or `//` and the
-    // next genuine comment terminator.
-    ["const g = 'dir/*'; spawn('x'); /** doc */", 'process call'],
-    ["const s = '//'; exec(cmd)", 'process call'],
-    // Fix round 1 (E31, minor 3): spellings the first version missed.
-    ["spawn?.('fallow');", 'process call'],
-    ["cp.fork?.(['worker.js']);", 'process call'],
-    ["cp['spawn']('fallow');", 'process call'],
-    ["spawn.call(null, 'fallow');", 'process call'],
-    ["spawn.apply(null, ['fallow']);", 'process call'],
-    ['shell.openExternal(url);', 'shell.openPath'],
-    ['const { openItem } = shell;', 'shell.openPath'],
-    ['showItemInFolder(path);', 'shell.openPath'],
-  ])('flags %s', (source, label) => {
-    expect(processHazards(source)).toContain(label);
+  it.each<[string, ProcessGuardKind, string]>([
+    ["import { spawn } from 'node:child_process';", 'ts', 'process module'],
+    ["import * as cp from 'child_process';", 'ts', 'process module'],
+    ["const cp = await import('node:child_process');", 'ts', 'process module'],
+    ["const cp = window.require('child_process');", 'ts', 'process module'],
+    ["const { Worker } = window.require('node:worker_threads');", 'ts', 'process module'],
+    ["spawn('fallow', ['--format', 'json']);", 'ts', 'process call'],
+    ["exec('fallow --version');", 'ts', 'process call'],
+    ["execFile('fallow', []);", 'ts', 'process call'],
+    ["runner.execFileSync('fallow');", 'ts', 'process call'],
+    ["proc.spawn ('fallow');", 'ts', 'process call'],
+    ["fork('worker.js');", 'ts', 'process call'],
+    ["shell.openPath(report);", 'ts', 'shell.openPath'],
+    ["const { openPath } = shell;", 'ts', 'shell.openPath'],
+    // Fix round 1 (Important 2): a comment-stripping regex that does not know about
+    // strings erased the real spawn( call between a string containing "/*" and the next
+    // genuine "*/".
+    ["const g = 'dir/*'; spawn('x'); /** doc */", 'ts', 'process call'],
+    ["const s = '//'; exec(cmd)", 'ts', 'process call'],
+    // Fix round 1 (minor 3): spellings the tokenizer version missed.
+    ["spawn?.('fallow');", 'ts', 'process call'],
+    ["cp.fork?.(['worker.js']);", 'ts', 'process call'],
+    ["cp['spawn']('fallow');", 'ts', 'process call'],
+    ["spawn.call(null, 'fallow');", 'ts', 'process call'],
+    ["spawn.apply(null, ['fallow']);", 'ts', 'process call'],
+    ['shell.openExternal(url);', 'ts', 'shell.openPath'],
+    ['const { openItem } = shell;', 'ts', 'shell.openPath'],
+    ['showItemInFolder(path);', 'ts', 'shell.openPath'],
+    // Fix round 2 (Important 2, the scanner regression): a token scanner never re-enters
+    // template or regex mode, so everything after a "${…}" substitution or a "/…/ "
+    // literal was mis-tokenised. A real parse (tests/fixtures/process-guard.ts) does not
+    // have this blind spot.
+    ["const t = `${dir}/*`; spawn('x'); /** doc */", 'ts', 'process call'],
+    ["const t = `a${x}b'c`; spawn('x');", 'ts', 'process call'],
+    ["const re = /[/*]/; spawn('x'); /** doc */", 'ts', 'process call'],
+    ["const re = /'/; spawn('x');", 'ts', 'process call'],
+    ["cp[`spawn`]('x')", 'ts', 'process call'],
+    // Fix round 2: a .vue <template> attribute, scanned as text (not parsed as TS).
+    ['<template><button @click="exec(cmd)">Run</button></template>', 'vue', 'process call'],
+    ['<template><button @click="shell.openPath(p)">Run</button></template>', 'vue', 'shell.openPath'],
+  ])('flags %s (%s)', (source, kind, label) => {
+    expect(processHazards(source, kind)).toContain(label);
   });
 
-  it.each([
-    "const drive = /^[A-Za-z]:/.exec(posix)?.[0] ?? null;",
-    "const digits = pattern.exec(id)?.[1];",
-    "// spawn('fallow') is Part 7's job, never this one",
-    "/* import { exec } from 'node:child_process' */ const x = 1;",
-    "<!-- openPath is not used --><p>Run nothing</p>",
-    "const executable = 'fallow'; const spawned = false; const forked = 0;",
-    // Fix round 1 (E31, minor 3): prose inside a string, not a real call.
-    "const note = 'a fork (of…) in the road, not a process';",
-  ])('does not flag %s', (source) => {
-    expect(processHazards(source)).toEqual([]);
+  it.each<[string, ProcessGuardKind]>([
+    ["const drive = /^[A-Za-z]:/.exec(posix)?.[0] ?? null;", 'ts'],
+    ["const digits = pattern.exec(id)?.[1];", 'ts'],
+    ["// spawn('fallow') is Part 7's job, never this one", 'ts'],
+    ["/* import { exec } from 'node:child_process' */ const x = 1;", 'ts'],
+    ["const executable = 'fallow'; const spawned = false; const forked = 0;", 'ts'],
+    // Fix round 1 (minor 3): prose inside a string, not a real call.
+    ["const note = 'a fork (of…) in the road, not a process';", 'ts'],
+    // Fix round 2: prose inside a template, still not a real call.
+    ['const t = `${x} fork (now)`;', 'ts'],
+    // A .vue template with no hazard in either its markup or its script.
+    ['<template><p>Run nothing</p></template><script>const x = 1;</script>', 'vue'],
+    // Neither a <template> nor a <script> wrapper: nothing to scan, so nothing to flag.
+    ['<!-- openPath is not used --><p>Run nothing</p>', 'vue'],
+  ])('does not flag %s', (source, kind) => {
+    expect(processHazards(source, kind)).toEqual([]);
   });
 });

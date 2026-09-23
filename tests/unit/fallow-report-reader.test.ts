@@ -142,6 +142,33 @@ describe('fallow reader: stops at the first bad array element (Fix round 1, E31 
     });
     expect(fallowOutcome(doc)).toBe('invalid health.findings.2.path');
   });
+
+  // Fix round 2 (E31, Important 1 continued): the same attack works through a record,
+  // not only an array — `check.summary`/the flattened `summary` is an object with as
+  // many keys as the report writer wants.
+  it('refuses a huge summary record of bad values without validating the rest of it', () => {
+    const doc = fallowDoc('dead-code-3.27.0', (d) => {
+      const summary: Record<string, string> = {};
+      for (let i = 0; i < 300000; i += 1) summary[`k${i}`] = '';
+      d.summary = summary;
+    });
+    const start = Date.now();
+    const outcome = fallowOutcome(doc);
+    const elapsed = Date.now() - start;
+    expect(outcome).toBe('invalid summary.k0');
+    expect(elapsed).toBeLessThan(2000);
+  });
+
+  it('never lets __proto__ in a summary record become an inherited key', () => {
+    const doc = fallowDoc('dead-code-3.27.0', (d) => {
+      d.summary = JSON.parse('{"__proto__": {"polluted": true}, "unused_exports": 1}');
+    });
+    const report = rawReport(doc);
+    if (report.kind !== 'dead-code') throw new Error('expected a dead-code report');
+    expect(Object.prototype.hasOwnProperty.call(report.summary, '__proto__')).toBe(false);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(report.summary.unused_exports).toBe(1);
+  });
 });
 
 describe('fallow reader: what it tolerates (Part 6 Y22)', () => {

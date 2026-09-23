@@ -11,9 +11,15 @@
 // safeParse` never validates their elements. `buildReport` below walks each one by hand
 // with `firstArrayFailure`, which stops at the first bad element instead of validating —
 // and collecting an issue for — every one of them.
+//
+// Fix round 2 (E31, Important 1 continued): the same attack works through
+// `check.summary`/the flattened `summary`, a record whose key count the report also
+// controls. `buildCheck` now walks it with `firstRecordFailure`, the record counterpart
+// of `firstArrayFailure`.
 import type { z } from 'zod';
 import {
-  CLONE_GROUP_SHELL, CLONE_INSTANCE, FALLOW_REPORT, HEALTH_FINDING, UNUSED_ENTRY, WORKSPACE_DIAGNOSTIC, firstArrayFailure,
+  CLONE_GROUP_SHELL, CLONE_INSTANCE, FALLOW_REPORT, HEALTH_FINDING, SUMMARY_VALUE, UNUSED_ENTRY, WORKSPACE_DIAGNOSTIC,
+  firstArrayFailure, firstRecordFailure,
 } from './fallow-report-schema';
 import {
   FALLOW_REPORT_MAX_BYTES, isSupportedFallow, type FallowImportErrorCode, type FallowReadResult,
@@ -54,16 +60,18 @@ function unsupportedDetail(head: ReportHead): string {
   return `${head.kind.slice(0, KIND_TEXT_MAX)}@${head.schema}`;
 }
 
-type ShellCheck = { summary: Record<string, number>; unused_exports: unknown[]; unused_types: unknown[] };
+type ShellCheck = { summary: Record<string, unknown>; unused_exports: unknown[]; unused_types: unknown[] };
 type ShellHealth = { findings: unknown[]; summary: { max_cyclomatic_threshold: number; max_cognitive_threshold: number } };
 type ShellDupes = { clone_groups: unknown[]; clone_groups_omitted?: number };
 
 function buildCheck(raw: ShellCheck, prefix: Path): Built<RawCheckSection> {
+  const summaryResult = firstRecordFailure(raw.summary, SUMMARY_VALUE, [...prefix, 'summary']);
+  if (!summaryResult.ok) return summaryResult;
   const exportsResult = firstArrayFailure(raw.unused_exports, UNUSED_ENTRY, [...prefix, 'unused_exports']);
   if (!exportsResult.ok) return exportsResult;
   const typesResult = firstArrayFailure(raw.unused_types, UNUSED_ENTRY, [...prefix, 'unused_types']);
   if (!typesResult.ok) return typesResult;
-  return { ok: true, value: { summary: raw.summary, unused_exports: exportsResult.values, unused_types: typesResult.values } };
+  return { ok: true, value: { summary: summaryResult.values, unused_exports: exportsResult.values, unused_types: typesResult.values } };
 }
 
 function buildHealth(raw: ShellHealth, prefix: Path): Built<RawHealthSection> {
@@ -73,20 +81,30 @@ function buildHealth(raw: ShellHealth, prefix: Path): Built<RawHealthSection> {
 }
 
 /** Two levels of hot array: each clone group is walked before its own `instances`, so
- *  neither can be used to force zod to collect issues for a huge array in one call. */
+ *  neither can be used to force zod to collect issues for a huge array in one call.
+ *  Fix round 2 (minor): reuses `firstArrayFailure`'s own loop (via its custom-validator
+ *  form) for the outer `clone_groups` walk instead of repeating it here; the inner
+ *  `instances` walk (prefixed just `['instances']`, relative to the group) still goes
+ *  through the same helper in its usual zod-schema form. */
 function buildDupes(raw: ShellDupes, prefix: Path): Built<RawDupesSection> {
-  const values: RawCloneGroup[] = [];
-  for (let i = 0; i < raw.clone_groups.length; i += 1) {
-    const groupResult = CLONE_GROUP_SHELL.safeParse(raw.clone_groups[i]);
-    if (!groupResult.success) return { ok: false, path: [...prefix, 'clone_groups', i, ...(groupResult.error.issues[0]?.path ?? [])] };
-    const instancesResult = firstArrayFailure(groupResult.data.instances, CLONE_INSTANCE, [...prefix, 'clone_groups', i, 'instances']);
+  const groupsResult = firstArrayFailure<RawCloneGroup>(raw.clone_groups, (item) => {
+    const groupResult = CLONE_GROUP_SHELL.safeParse(item);
+    if (!groupResult.success) return { ok: false, path: groupResult.error.issues[0]?.path ?? [] };
+    const instancesResult = firstArrayFailure(groupResult.data.instances, CLONE_INSTANCE, ['instances']);
     if (!instancesResult.ok) return instancesResult;
-    values.push({
-      fingerprint: groupResult.data.fingerprint, token_count: groupResult.data.token_count, line_count: groupResult.data.line_count,
-      instances: instancesResult.values,
-    });
-  }
-  return { ok: true, value: raw.clone_groups_omitted === undefined ? { clone_groups: values } : { clone_groups: values, clone_groups_omitted: raw.clone_groups_omitted } };
+    return {
+      ok: true,
+      value: {
+        fingerprint: groupResult.data.fingerprint, token_count: groupResult.data.token_count, line_count: groupResult.data.line_count,
+        instances: instancesResult.values,
+      },
+    };
+  }, [...prefix, 'clone_groups']);
+  if (!groupsResult.ok) return groupsResult;
+  return {
+    ok: true,
+    value: raw.clone_groups_omitted === undefined ? { clone_groups: groupsResult.values } : { clone_groups: groupsResult.values, clone_groups_omitted: raw.clone_groups_omitted },
+  };
 }
 
 function buildDiagnostics(items: unknown[] | undefined, prefix: Path): Built<RawWorkspaceDiagnostic[] | undefined> {
