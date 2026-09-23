@@ -14,7 +14,9 @@ import { useCityStore } from '../../stores/city-store';
 import { useAnalysisStore } from '../../stores/analysis-store';
 import { useBusyAction } from '../../kit/use-busy-action';
 import type { AnalysisRunState, FallowRunErrorCode, InstalledRouteStart } from '../../read-models/fallow-run';
-import { FALLOW_EXE_FORGET_FAILED, FALLOW_EXE_FORGOTTEN, FALLOW_RUN_ERROR, FALLOW_RUN_START_FAILED } from '../../inspector-copy';
+import {
+  FALLOW_EXE_FORGET_FAILED, FALLOW_EXE_FORGOTTEN, FALLOW_RUN_BUSY_HINT, FALLOW_RUN_ERROR, FALLOW_RUN_START_FAILED,
+} from '../../inspector-copy';
 
 export type FallowRunRefusal = { code: FallowRunErrorCode; detail: string };
 
@@ -59,6 +61,12 @@ export function useFallowRun(open: (start: InstalledRouteStart) => void, announc
     return failure.value === '';
   };
 
+  /** Held for the banner and announced. */
+  const refuse = (code: FallowRunErrorCode, detail: string): void => {
+    refusal.value = { code, detail };
+    announce(FALLOW_RUN_ERROR[code](detail));
+  };
+
   const run = async (): Promise<void> => {
     const snapshot = city.snapshot;
     if (!snapshot || analysis.active || busy.value) return;
@@ -70,10 +78,10 @@ export function useFallowRun(open: (start: InstalledRouteStart) => void, announc
       if (outcome === null || city.snapshot?.snapshotId !== snapshot.snapshotId) return;
       if (outcome.kind === 'review') open({ startAt: 'review', review: outcome.review, reason: outcome.reason });
       else if (outcome.kind === 'choose-executable') open({ startAt: 'path' });
-      else if (outcome.kind === 'refused') {
-        refusal.value = { code: outcome.code, detail: outcome.detail };
-        announce(FALLOW_RUN_ERROR[outcome.code](outcome.detail));
-      }
+      else if (outcome.kind === 'refused') refuse(outcome.code, outcome.detail);
+      // Final review: busy without a run on screen (another view's start, or a Trust and run
+      // still being prepared) is said, not dropped.
+      else if (outcome.kind === 'busy') announce(FALLOW_RUN_BUSY_HINT);
     }, FALLOW_RUN_START_FAILED);
     settle(repositoryId);
   };
@@ -84,9 +92,12 @@ export function useFallowRun(open: (start: InstalledRouteStart) => void, announc
     if (analysis.active || busy.value) return;
     const repositoryId = analysis.repositoryId;
     refusal.value = null;
-    let forgotten = false;
-    await guarded(async () => { forgotten = await analysis.forget(); }, FALLOW_EXE_FORGET_FAILED);
-    if (settle(repositoryId) && forgotten) announce(FALLOW_EXE_FORGOTTEN);
+    const answer: { outcome: Awaited<ReturnType<typeof analysis.forget>> } = { outcome: null };
+    await guarded(async () => { answer.outcome = await analysis.forget(); }, FALLOW_EXE_FORGET_FAILED);
+    if (!settle(repositoryId)) return;
+    if (answer.outcome === 'removed') refuse('profile-removed', '');
+    else if (answer.outcome === 'busy') announce(FALLOW_RUN_BUSY_HINT);
+    else if (answer.outcome === 'forgotten') announce(FALLOW_EXE_FORGOTTEN);
   };
   return { refusal, failure, run, cancel, forget };
 }

@@ -262,8 +262,7 @@ describe('announcements (Z33, E17): a run ending is announced once, by the banne
     const banner = w.find('.ci-fallow-run__banner').element;
     fake.setState('p1', { status: 'completed', runId: 'r1', finishedAt: AT, version: '3.27.0', tested: true, matchedFindings: 5, matchedFiles: 4 });
     await flushPromises();
-    // The same live element changes its text: the screen reader reads it once.
-    expect(w.find('.ci-fallow-run__banner').element).toBe(banner);
+    expect(w.find('.ci-fallow-run__banner').element).toBe(banner);   // the same live element: read once
     expect(w.find('[role="status"].ci-fallow-run__banner').text()).toBe(FALLOW_RUN_COMPLETED(5, 4));
     expect(w.find('.ci-sources__live').text()).toBe('');
     fake.setState('p1', { status: 'cancelled', runId: 'r2' });

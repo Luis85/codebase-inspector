@@ -118,6 +118,8 @@ export const FALLOW_EXE_FORGET_FAILED = 'The fallow executable could not be forg
 /** Final review: a start, a check, a Forget or a time limit for a codebase whose profile was
  *  removed in Settings, from a view still open on it (FallowRunErrorCode `profile-removed`). */
 export const FALLOW_PROFILE_REMOVED = 'This codebase’s profile was removed in settings, so nothing was run or changed.';
+/** Final review: a "Trust and run" answered neither started nor refused. */
+export const FALLOW_TRUST_NOT_STARTED = 'The fallow analysis did not start, and nothing was run. Change the path, then check the executable again.';
 
 /* The run banner (Z33). K26: "current findings stay" is said only when there are some. */
 export const FALLOW_RUN_PROBING = (hasEvidence: boolean): string =>

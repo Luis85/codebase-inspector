@@ -21,7 +21,7 @@ import type { InstalledRouteStart, ReviewResult, RunReview } from '../../read-mo
 import {
   FALLOW_CANCEL, FALLOW_CHANGE_PATH, FALLOW_EXE_CHECK, FALLOW_EXE_HINT_POSIX, FALLOW_EXE_HINT_WINDOWS, FALLOW_EXE_LABEL,
   FALLOW_EXE_REFUSED, FALLOW_INSTALL_NOTE, FALLOW_REVIEW_RETRUST, FALLOW_REVIEW_TITLE_RUN, FALLOW_ROUTE_RUN_TITLE,
-  FALLOW_RUN_BUSY_HINT, FALLOW_RUN_ERROR, FALLOW_RUN_START_FAILED, FALLOW_TRUST_AND_RUN,
+  FALLOW_RUN_BUSY_HINT, FALLOW_RUN_ERROR, FALLOW_RUN_START_FAILED, FALLOW_TRUST_AND_RUN, FALLOW_TRUST_NOT_STARTED,
 } from '../../inspector-copy';
 import FallowRunReview from './FallowRunReview.vue';
 
@@ -123,8 +123,8 @@ function trustAndRun(): Promise<void> {
     const outcome = await analysis.trustAndRun(snapshot, reviewed);
     if (!bound() || outcome === null) return;
     if (outcome.kind === 'started') { emit('started'); return; }
-    if (outcome.kind === 'busy') { await refuse(FALLOW_RUN_BUSY_HINT); return; }
-    if (outcome.kind !== 'refused') return;
+    // Final review: every other outcome is said in the alert; none leaves the review silent.
+    if (outcome.kind !== 'refused') { await refuse(outcome.kind === 'busy' ? FALLOW_RUN_BUSY_HINT : FALLOW_TRUST_NOT_STARTED); return; }
     if (outcome.code === 'changed-since-review') { await reviewAgain(snapshot, reviewed.facts.executablePath); return; }
     await refuse(FALLOW_RUN_ERROR[outcome.code](outcome.detail));
   });

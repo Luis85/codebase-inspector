@@ -587,14 +587,14 @@ command whenever tests are added.
 
 Counts refreshed 2026-09-23 to the living suite after WP-02 Part 6 (the WP-01 gate
 itself was taken at the counts in git history), refreshed again at WP-02 Part 7
-(task 14), and again after the WP-02 polish pass (2026-09-24, task 9). Only the derivable figures — the per-layer FILE counts and their total, and
+(task 14), and again after the WP-02 polish pass (2026-09-24, task 9 and its final-review fixes). Only the derivable figures — the per-layer FILE counts and their total, and
 the `src/` file floor below — were refreshed; the per-layer TEST counts stay as
 transcribed at the WP-01 gate per the "TRANSCRIBED" note two sections down.
 
 **The heading directly below states two different vintages as one measurement, and a
 reader should not have to guess which is which.** The FILE counts — the per-layer total
 below, and the `src/` file floor two sections down — are current as of the WP-02 polish pass. The
-per-layer total is 244, which is not what `npm run test` itself runs: it is 243 files
+per-layer total is 246, which is not what `npm run test` itself runs: it is 245 files
 plus the opt-in `tests/fallow-real` layer's one file, which never runs inside it (see the
 Real fallow row above). The TEST counts in that same heading (1088 tests, 1087 passed,
 1 skipped) and every per-layer Tests cell in the table below are the WP-01-gate
@@ -602,8 +602,8 @@ transcription described above; the Contract row is the exception: its guard deri
 from its files, so it includes Part 7's runner contract (`tests/contracts/fallow-runner.test.ts`,
 K28); they are **not** the living suite's totals, and the guard below only checks that
 they sum to each other, not that they match a fresh run. The living suite's own
-measurement, taken after the WP-02 polish pass (`npm run verify`, 2026-09-24): 243 files,
-2683 tests, 2682 passed, 1 skipped, with no timeout under full-suite load (the Part 7
+measurement, taken after the WP-02 polish pass and its final-review fixes (`npm run verify`, 2026-09-24): 245 files,
+2697 tests, 2696 passed, 1 skipped, with no timeout under full-suite load (the Part 7
 measurement, 229 files and 2549 tests, had counted two whole-`src/` scans that timed out
 under load and passed when re-run alone).
 `tests/unit/install-script.test.ts` passes at this commit too: its checks build their own
@@ -611,7 +611,7 @@ throwaway vault trees under `os.tmpdir()` and do not depend on this worktree hav
 `.obsidian/` folder of its own, so the environmental failure recorded through Part 6 did
 not reproduce here — the disk/live result is recorded rather than that prediction
 (corrected during execution, Part 7 task 14).
-**244 files, 1088 tests, 1087 passed,
+**246 files, 1088 tests, 1087 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -641,10 +641,10 @@ above whenever tests are added.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 122 | yes | 504 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
+| Unit | `tests/unit/**` | 123 | yes | 504 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
 | Contract | `tests/contracts/**` | 5 | yes | 62 | **one suite, two implementations** (40) — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift — plus this directory's other three pinned files, `height-scale.test.ts` (task 13's four preserved scale.ts properties), `microcopy.test.ts` (task 12's catalogue-completeness sweep) and `fallow-runner.test.ts` (Part 7 K28: the real adapter against a real spawned process, injected `node:child_process`, Z38) |
 | Integration (real temp dirs) | `tests/integration/**` | 9 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
-| Component (jsdom) | `tests/component/**` | 82 | yes | 340 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header |
+| Component (jsdom) | `tests/component/**` | 83 | yes | 340 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header |
 | Host (Obsidian doubles) | `tests/host/**` | 20 | yes | 114 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
 | Benchmark | `tests/benchmarks/**` | 1 | yes | 5 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers |
@@ -841,8 +841,8 @@ check these against the suite and against the matrix itself:
 - The **reference hardware** rows, which describe a machine.
 - The `npm run analyze` **total of 9**. Its internal breakdown is checked, but the figure
   itself needs the tool, which is not part of `npm run verify` and needs network.
-- The **living suite's own totals** named in the G8 vintage note above (243 files, 2683
-  tests, 2682 passed, 1 skipped, after the WP-02 polish pass). Nothing in the suite can assert its own whole-run tally from
+- The **living suite's own totals** named in the G8 vintage note above (245 files, 2697
+  tests, 2696 passed, 1 skipped, after the WP-02 polish pass's final-review fixes). Nothing in the suite can assert its own whole-run tally from
   inside itself, for the same reason the per-layer test counts are transcribed rather
   than derived. Re-take with `npx vitest run`.
 

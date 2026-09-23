@@ -89,10 +89,10 @@ describe('useAnalysisStore (Z28)', () => {
     expect(store.cancel()).toBe(true);
     expect(fake.calls.filter((c) => c.method === 'cancel')).toEqual([{ method: 'cancel', profileId: 'p1' }]);
     fake.next.forget = 'busy';
-    expect(await store.forget()).toBe(false);
+    expect(await store.forget()).toBe('busy');
     fake.next.forget = 'forgotten';
     fake.setState('p1', { status: 'idle' });
-    expect(await store.forget()).toBe(true);
+    expect(await store.forget()).toBe('forgotten');
   });
 
   it('forget lets a store failure reject, so the caller can say why (review fix 1)', async () => {
@@ -194,7 +194,7 @@ describe('Polish C1, C11, C13: binding truth in the store', () => {
     expect(store.executableName).toBe('fallow');
   });
 
-  it('C11: a Forget that succeeded resolves true even when the re-read fails', async () => {
+  it('C11: a Forget that succeeded resolves forgotten even when the re-read fails', async () => {
     const fake = createFakeFallowAnalysis();
     fake.setBinding('p1', { kind: 'bound', binding: { profileId: 'p1', executablePath: 'C:\\f\\fallow.exe', timeoutSeconds: 120, trust: null } });
     const store = useAnalysisStore();
@@ -202,7 +202,7 @@ describe('Polish C1, C11, C13: binding truth in the store', () => {
     store.bindRepository('p1');
     await flushPromises();
     fake.readBinding = () => Promise.reject(new Error('EIO'));
-    await expect(store.forget()).resolves.toBe(true);
+    await expect(store.forget()).resolves.toBe('forgotten');
     expect(store.readFailed).toBe(true);
   });
 

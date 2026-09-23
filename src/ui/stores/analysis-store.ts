@@ -114,17 +114,17 @@ export const useAnalysisStore = defineStore('fallow-analysis', () => {
     service.cancel(repositoryId.value);
     return true;
   };
-  /** True when the executable was forgotten; false while a run is in flight or unbound. A
-   *  data.json failure (the service's AnalyzerStoreError) REJECTS: the caller's
+  /** The service's answer (final review: `busy` and `removed` are said, not dropped); null while
+   *  unbound. A data.json failure (the service's AnalyzerStoreError) REJECTS: the caller's
    *  useBusyAction surfaces it, so a failed Forget is never mistaken for "busy". Polish C11:
    *  the re-read after it never rejects (a failed one is `readFailed`), so a Forget that
    *  happened is never reported as failed. */
-  const forget = async (): Promise<boolean> => {
+  const forget = async (): Promise<'forgotten' | 'busy' | 'removed' | null> => {
     const id = repositoryId.value;
-    if (service === null || id === '') return false;
+    if (service === null || id === '') return null;
     const result = await service.forget(id);
     await refreshBinding();
-    return result === 'forgotten';
+    return result;
   };
   onScopeDispose(() => {
     unsubscribe?.();
