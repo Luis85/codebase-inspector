@@ -1,6 +1,7 @@
 // WP-02 spec §4.5: review decisions live behind a port. Parts 1-4 ship in-memory only;
 // Part 2 adds boundary rules (spec P5). Part 3 adds dispositions (Q3) and work-item
-// targets (Q4).
+// targets (Q4). Part 6 adds id allocation (Y10), change notifications (Y12) and storage
+// diagnostics (Y7), which the durable adapter implements the same way.
 import type { EntityId } from '../../../domain/entity-id';
 
 export type WorkItemStatus = 'investigate' | 'planned' | 'in-progress' | 'verified';
@@ -106,6 +107,37 @@ export interface FindingDisposition {
 
 export const DISMISS_REASON_MAX = 1000;
 
+/** Part 6 Y10: the two id sequences `allocateId` draws from. */
+export type ReviewIdKind = 'workItem' | 'rule';
+
+/** Part 6 Y7: what a durable adapter could not list — records skipped (kept on disk, not
+ *  listed) and a record set in a format it does not support. Valid after the first list. */
+export interface ReviewStorageDiagnostics { skipped: number; unsupported: boolean }
+
+/** Part 6 Y7: nothing skipped, nothing unsupported — the in-memory adapter's answer, and
+ *  what the review store shows before a load (controller ruling Part 6 E10: defined once). */
+export const noStorageDiagnostics = (): ReviewStorageDiagnostics => ({ skipped: 0, unsupported: false });
+
+/** Part 6 Y10: `wi-N`, or `AR-` with at least three digits (`AR-007`), as before Part 6. */
+export function formatReviewId(kind: ReviewIdKind, n: number): string {
+  return kind === 'workItem' ? `wi-${n}` : `AR-${String(n).padStart(3, '0')}`;
+}
+
+/** Part 6 Y10: the number in a `wi-N` or `AR-N` id, or null for any other id. At most 15
+ *  digits, so a high-water mark built from it is always an exact integer. */
+export function reviewIdSuffix(id: string): number | null {
+  const digits = /^(?:wi|AR)-(\d{1,15})$/.exec(id)?.[1];
+  return digits === undefined ? null : parseInt(digits, 10);
+}
+
+/** Part 6 R1: a whole review state, written by `ReviewRepository.replaceAll` in one step (an
+ *  import, or nothing for a clear). */
+export interface ReviewReplaceState {
+  workItems: readonly WorkItem[];
+  rules: readonly BoundaryRule[];
+  dispositions: readonly FindingDisposition[];
+}
+
 export interface ReviewRepository {
   listWorkItems(): Promise<WorkItem[]>;
   saveWorkItem(item: WorkItem): Promise<void>;
@@ -116,21 +148,63 @@ export interface ReviewRepository {
   listDispositions(): Promise<FindingDisposition[]>;
   saveDisposition(d: FindingDisposition): Promise<void>;
   removeDisposition(fingerprint: string): Promise<void>;
+  /** Part 6 R1: replaces every work item, rule and disposition of this codebase with `state`,
+   *  atomically: all or nothing, one notification. Raises the high-water marks past the ids
+   *  given and never lowers them. */
+  replaceAll(state: ReviewReplaceState): Promise<void>;
+  /** Part 6 Y10: the next unused id of `kind`, synchronously; never the same id twice. A
+   *  high-water mark per kind: every save raises it past the saved id, a removal never lowers
+   *  it, and a durable adapter seeds it from storage on its first list — so a caller
+   *  allocates only after one list has finished (the review store's `ready`). */
+  allocateId(kind: ReviewIdKind): string;
+  /** Part 6 Y12: `listener` runs once after every successful write — from any caller — and
+   *  before that write's promise resolves; never for a rejected write. Returns the
+   *  unsubscribe function. */
+  subscribe(listener: () => void): () => void;
+  /** Part 6 Y7: see `ReviewStorageDiagnostics`. */
+  diagnostics(): ReviewStorageDiagnostics;
 }
 
+/** Tests, the harness and every codebase before the host wires its registry (Part 6 Y11).
+ *  Same id allocation and notifications as the durable adapter; listing seeds the high-water
+ *  mark too, although here every record already came through a save. Never throws (R9). */
 export function createInMemoryReviewRepository(): ReviewRepository {
   const items = new Map<string, WorkItem>();
   const rules = new Map<string, BoundaryRule>();
   const dispositions = new Map<string, FindingDisposition>();
+  const high: Record<ReviewIdKind, number> = { workItem: 0, rule: 0 };
+  const listeners = new Set<() => void>();
+  const raise = (kind: ReviewIdKind, ids: Iterable<string>): void => {
+    for (const id of ids) high[kind] = Math.max(high[kind], reviewIdSuffix(id) ?? 0);
+  };
+  const wrote = (): Promise<void> => {
+    // A copy, so a listener that unsubscribes (or subscribes) mid-notification is safe.
+    for (const listener of Array.from(listeners)) listener();
+    return Promise.resolve();
+  };
   return {
-    listWorkItems: () => Promise.resolve([...items.values()]),
-    saveWorkItem: (item) => { items.set(item.id, { ...item }); return Promise.resolve(); },
-    removeWorkItem: (id) => { items.delete(id); return Promise.resolve(); },
-    listRules: () => Promise.resolve([...rules.values()]),
-    saveRule: (rule) => { rules.set(rule.id, { ...rule }); return Promise.resolve(); },
-    removeRule: (id) => { rules.delete(id); return Promise.resolve(); },
+    listWorkItems: () => { raise('workItem', items.keys()); return Promise.resolve([...items.values()]); },
+    saveWorkItem: (item) => { items.set(item.id, { ...item }); raise('workItem', [item.id]); return wrote(); },
+    removeWorkItem: (id) => { items.delete(id); return wrote(); },
+    listRules: () => { raise('rule', rules.keys()); return Promise.resolve([...rules.values()]); },
+    saveRule: (rule) => { rules.set(rule.id, { ...rule }); raise('rule', [rule.id]); return wrote(); },
+    removeRule: (id) => { rules.delete(id); return wrote(); },
     listDispositions: () => Promise.resolve([...dispositions.values()]),
-    saveDisposition: (d) => { dispositions.set(d.fingerprint, { ...d }); return Promise.resolve(); },
-    removeDisposition: (fingerprint) => { dispositions.delete(fingerprint); return Promise.resolve(); },
+    saveDisposition: (d) => { dispositions.set(d.fingerprint, { ...d }); return wrote(); },
+    removeDisposition: (fingerprint) => { dispositions.delete(fingerprint); return wrote(); },
+    replaceAll: (state) => {
+      items.clear();
+      rules.clear();
+      dispositions.clear();
+      for (const w of state.workItems) items.set(w.id, { ...w });
+      for (const r of state.rules) rules.set(r.id, { ...r });
+      for (const d of state.dispositions) dispositions.set(d.fingerprint, { ...d });
+      raise('workItem', items.keys());
+      raise('rule', rules.keys());
+      return wrote();
+    },
+    allocateId: (kind) => { high[kind] += 1; return formatReviewId(kind, high[kind]); },
+    subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    diagnostics: noStorageDiagnostics,
   };
 }

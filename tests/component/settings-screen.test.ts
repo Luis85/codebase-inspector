@@ -97,6 +97,7 @@ describe('SettingsScreen (Part 4)', () => {
   });
 
   it('clears the review state only after confirmation, and announces it', async () => {
+    await useReviewStore().bindRepository('repo'); // Part 6 Y14: only a bound codebase is cleared
     await useReviewStore().addWorkItemForFile('repo\0file\0src/a.ts', 'A', new Date());
     useReportStore().applyNote('keep?');
     const w = mountS();
@@ -117,10 +118,11 @@ describe('SettingsScreen (Part 4)', () => {
 
   it('a rejecting repository keeps the dialog open, shows the error, and keeps the review state (fix round 1, Minor 5)', async () => {
     const review = useReviewStore();
+    await review.bindRepository('repo'); // Part 6 Y14
     // Part 5 V32: the rejecting repository must HOLD the item. With an empty one, the reload
     // inside clearAll emptied the list, and "keeps the review state" was never checked.
     const repo = createInMemoryReviewRepository();
-    review.setRepository({ ...repo, removeWorkItem: () => Promise.reject(new Error('disk')) });
+    review.setRepository({ ...repo, replaceAll: () => Promise.reject(new Error('disk')) }); // Part 6 R1: Clear is one port replace
     await review.addWorkItemForFile(makeEntityId('repo', 'file', 'src/a.ts'), 'A', new Date());
     expect(await repo.listWorkItems()).toHaveLength(1);
     useReportStore().applyNote('keep?');
@@ -141,6 +143,7 @@ describe('SettingsScreen (Part 4)', () => {
   // that lands after the clear can never be written back and reappear on the next load.
   it('while a change is pending, Clear refuses with SETTINGS_CLEAR_BUSY and leaves everything in place', async () => {
     const review = useReviewStore();
+    await review.bindRepository('repo'); // Part 6 Y14: refused for the pending save, not for being unbound
     useReportStore().applyNote('keep?');
     review.setRepository({ ...createInMemoryReviewRepository(), saveWorkItem: () => new Promise<void>(() => {}) });
     void review.addWorkItemForFile('repo\0file\0src/a.ts', 'A', new Date());

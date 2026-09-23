@@ -16,7 +16,7 @@ import { repositoryDigest, reviewStateJson, reviewStateSource, type ReviewStateS
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReportStore } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { NO_CHECKS, createInMemoryReviewRepository, type WorkItem } from '../../src/ui/stores/ports/review-repository';
+import { NO_CHECKS, createInMemoryReviewRepository, type ReviewReplaceState } from '../../src/ui/stores/ports/review-repository';
 import {
   IMPORT_BUSY, IMPORT_CONFIRM_TEXT, IMPORT_ERROR, IMPORT_FAILED, IMPORT_ORIGIN, IMPORT_STALE, IMPORTED, SETTINGS_IMPORT_HINT,
   SETTINGS_IMPORT_OPEN,
@@ -29,9 +29,12 @@ const noop = (): void => {};
 const provide = { onSelectCodebase: vi.fn() };
 const mountS = () => mount(SettingsScreen, { attachTo: document.body, global: { provide } });
 
-function withSnapshot(): CodebaseSnapshot {
+/** Part 6 Y14: also binds the review store, as App.vue's repository watcher would; replaceAll
+ *  refuses while unbound. Awaited, so no bind-time load can land on a later add. */
+async function withSnapshot(): Promise<CodebaseSnapshot> {
   const snap = buildSnapshotFixture({ files: 6, directories: 1, repositoryId: 'repo-a' });
   useCityStore().setCity(snap, computeLayout(snap));
+  await useReviewStore().bindRepository(snap.repositoryId);
   return snap;
 }
 
@@ -100,7 +103,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
     expect(click).not.toHaveBeenCalled();
     w.unmount();
 
-    withSnapshot();
+    await withSnapshot();
     const w2 = await openPrivacy();
     const ready = w2.find('.ci-settings__import');
     expect(ready.attributes('aria-disabled')).toBeUndefined();
@@ -115,7 +118,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
   });
 
   it('refuses a broken file with one alert, and a new pick replaces the message', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const w = await openPrivacy();
     await pick(w, '{');
     const alert = w.find('.ci-settings__import-error');
@@ -134,7 +137,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
   // role="alert") for the whole duration of a new, slower read, because it was only
   // cleared once that read resolved. It must clear as soon as the new pick starts.
   it('clears a stale error immediately on a new pick, before a slow read resolves', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const w = await openPrivacy();
     await pick(w, '{');
     expect(w.find('.ci-settings__import-error').text()).toBe(IMPORT_ERROR['not-json'](''));
@@ -149,7 +152,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
   });
 
   it('refuses a file from another codebase and names its folder', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const w = await openPrivacy();
     await pick(w, stateText(snap, 'x', { folder: 'other-app', repository: repositoryDigest('repo-b') }));
     expect(w.find('.ci-settings__import-error').text()).toBe(IMPORT_ERROR['other-codebase']('other-app'));
@@ -158,7 +161,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
   });
 
   it('opens the dialog with the counts and origin for a valid file; Cancel changes nothing', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const w = await openPrivacy();
     await pick(w, stateText(snap));
     expect(w.find('.ci-settings__import-error').exists()).toBe(false);
@@ -171,7 +174,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
   });
 
   it('Replace swaps the state in, closes the dialog and re-announces the outcome in the Settings live region', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const review = useReviewStore();
     // Part 5 E20: report.restore only applies for the bound codebase (mirrors
     // bindRepository's own guard). In the real app, App.vue's shell-level watcher binds
@@ -207,13 +210,13 @@ describe('Import review state (Part 5 V13–V16)', () => {
   });
 
   it('ignores Cancel, Escape and a second Replace while the replacement is in flight (Part 4 E13)', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const review = useReviewStore();
     const repo = createInMemoryReviewRepository();
     let release: () => void = noop;
     const gate = new Promise<void>((r) => { release = r; });
-    const save = vi.fn(async (item: WorkItem) => { await gate; await repo.saveWorkItem(item); });
-    review.setRepository({ ...repo, saveWorkItem: save });
+    const save = vi.fn(async (state: ReviewReplaceState) => { await gate; await repo.replaceAll(state); });
+    review.setRepository({ ...repo, replaceAll: save }); // Part 6 R1: Replace is one port call
     const w = await openPrivacy();
     await pick(w, stateText(snap));
     await w.find('.ci-import-dialog__confirm').trigger('click');
@@ -231,10 +234,10 @@ describe('Import review state (Part 5 V13–V16)', () => {
   });
 
   it('a rejection keeps the dialog open with IMPORT_FAILED and announces nothing; a refusal shows IMPORT_BUSY', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const review = useReviewStore();
     const repo = createInMemoryReviewRepository();
-    review.setRepository({ ...repo, saveRule: () => Promise.reject(new Error('disk')) });
+    review.setRepository({ ...repo, replaceAll: () => Promise.reject(new Error('disk')) });
     const w = await openPrivacy();
     await pick(w, stateText(snap));
     await w.find('.ci-import-dialog__confirm').trigger('click');
@@ -255,7 +258,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
   });
 
   it('renders an imported HTML-looking title as literal text in the Workbench (V15)', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const title = '<img src=x onerror=alert(1)>';
     const w = await openPrivacy();
     await pick(w, stateText(snap, title));
@@ -273,7 +276,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
   // or while the file is still being read, must never write one codebase's ids into
   // another's bucket (Part 4 E8/E11).
   it('drops a parsed file silently if the codebase on screen changed while it was still being read (E19a)', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const review = useReviewStore();
     const w = await openPrivacy();
     const release = await pickSlow(w, stateText(snap));
@@ -289,7 +292,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
   });
 
   it('closes the import dialog silently when the codebase on screen changes while it is open; nothing is applied (E19b)', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const review = useReviewStore();
     const w = await openPrivacy();
     await pick(w, stateText(snap));
@@ -304,7 +307,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
   });
 
   it('ImportReviewDialog.confirm refuses with IMPORT_STALE, applying nothing, when its candidate no longer matches the codebase on screen (E19c defence in depth)', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const review = useReviewStore();
     const path = snap.entities.find((e) => e.kind === 'file')!.path;
     const candidate: ImportCandidate = {
@@ -331,7 +334,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
   // between pick and confirm, E19) must not restore the report onto, or announce success
   // for, the codebase that ends up on screen.
   it('applies nothing and announces nothing when the codebase on screen switches while replaceAll is still gated (E20)', async () => {
-    const snap = withSnapshot();
+    const snap = await withSnapshot();
     const review = useReviewStore();
     const report = useReportStore();
     await review.bindRepository('repo-a');
@@ -339,7 +342,7 @@ describe('Import review state (Part 5 V13–V16)', () => {
     const repoA = review.repository;
     let release: () => void = noop;
     const gate = new Promise<void>((r) => { release = r; });
-    review.setRepository({ ...repoA, saveWorkItem: async (item: WorkItem) => { await gate; await repoA.saveWorkItem(item); } });
+    review.setRepository({ ...repoA, replaceAll: async (state: ReviewReplaceState) => { await gate; await repoA.replaceAll(state); } });
     const w = await openPrivacy();
     await pick(w, stateText(snap));
     await w.find('.ci-import-dialog__confirm').trigger('click');

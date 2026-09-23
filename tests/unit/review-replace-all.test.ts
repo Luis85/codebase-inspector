@@ -6,7 +6,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useReportStore } from '../../src/ui/stores/report-store';
 import {
-  NO_CHECKS, createInMemoryReviewRepository, type BoundaryRule, type FindingDisposition, type WorkItem,
+  NO_CHECKS, createInMemoryReviewRepository, type BoundaryRule, type FindingDisposition, type ReviewReplaceState, type WorkItem,
 } from '../../src/ui/stores/ports/review-repository';
 
 const NOW = new Date('2026-09-22T10:00:00.000Z');
@@ -30,7 +30,8 @@ async function seeded(store: Store): Promise<void> {
 }
 
 describe('review store replaceAll (Part 5 V16)', () => {
-  beforeEach(() => { setActivePinia(createPinia()); });
+  // Part 6 Y14: replaceAll and clearAll refuse while unbound, so each test starts bound.
+  beforeEach(async () => { setActivePinia(createPinia()); await useReviewStore().bindRepository('repo-t'); });
 
   it('replaces every item, rule and decision through the port, and new ids continue after the imported ones', async () => {
     const repo = createInMemoryReviewRepository();
@@ -48,7 +49,7 @@ describe('review store replaceAll (Part 5 V16)', () => {
     expect((await store.addRule('x', 'y', 'New rule', NOW))?.id).toBe('AR-008');
   });
 
-  it('keeps an imported item whose id a current item already had: removals finish before saves start', async () => {
+  it('keeps an imported item whose id a current item already had (one atomic port replace, Part 6 R1)', async () => {
     const store = useReviewStore();
     await store.addWorkItem({ kind: 'package', name: 'old' }, 'review', 'Old item', NOW);
     expect(await store.replaceAll({ workItems: [{ ...ITEMS[0]!, id: 'wi-1' }], rules: [], dispositions: [] })).toBe(true);
@@ -82,17 +83,19 @@ describe('review store replaceAll (Part 5 V16)', () => {
     expect(store.workItems.map((w) => w.title)).toEqual(['P']);
   });
 
-  it('a partial failure still attempts every save, reloads from the port, and rethrows the first rejection', async () => {
+  // Part 6 R1: the port replaces atomically, so a failure changes nothing. (Until Part 6 this
+  // pinned Part 5's per-record partial failure: every other save landed, the rule did not.)
+  it('a rejected replace changes nothing, reloads what the port still holds, and rethrows it', async () => {
     const repo = createInMemoryReviewRepository();
     const store = useReviewStore();
-    store.setRepository({ ...repo, saveRule: () => Promise.reject(new Error('disk full')) });
-    await store.addWorkItem({ kind: 'package', name: 'old' }, 'review', 'Old item', NOW);
+    store.setRepository({ ...repo, replaceAll: () => Promise.reject(new Error('disk full')) });
+    const old = await store.addWorkItem({ kind: 'package', name: 'old' }, 'review', 'Old item', NOW);
     await expect(store.replaceAll(IMPORTED)).rejects.toThrow('disk full');
-    expect(await repo.listWorkItems()).toEqual(ITEMS);
-    expect(await repo.listDispositions()).toEqual(DECISIONS);
-    expect(store.workItems).toEqual(ITEMS);
-    expect(store.dispositions).toEqual(DECISIONS);
-    expect(store.rules).toEqual([]);
+    expect(await repo.listWorkItems()).toEqual([old]);
+    expect(await repo.listRules()).toEqual([]);
+    expect(await repo.listDispositions()).toEqual([]);
+    expect(store.workItems).toEqual([old]);
+    expect(store.bulkBusy).toBe(false);
   });
 
   // Fix round 3, minor 1: bulkBusy used to clear one `await` BEFORE the reload that
@@ -122,6 +125,20 @@ describe('review store replaceAll (Part 5 V16)', () => {
     expect((await store.addWorkItem({ kind: 'package', name: 'after' }, 'review', 'After', NOW))?.id).toBe('wi-2');
   });
 
+  // Part 6 Y16 (Part 5 E25's parked test): now that a port can reject, replaceAll's own
+  // reload can too. bulkBusy still clears, that rejection is what the caller sees, and the
+  // store stays usable. REGRESSION PIN: passes before Task 2 (TDD-RED exception, ruling R9).
+  it('clears bulkBusy and surfaces the rejection when its own reload rejects (Y16)', async () => {
+    const repo = createInMemoryReviewRepository();
+    const store = useReviewStore();
+    store.setRepository({ ...repo, listRules: () => Promise.reject(new Error('read failed')) });
+    await expect(store.replaceAll(IMPORTED)).rejects.toThrow('read failed');
+    expect(store.bulkBusy).toBe(false);
+    expect(store.hasPendingChanges).toBe(false);
+    expect(await repo.listWorkItems()).toEqual(ITEMS);
+    expect((await store.addWorkItem({ kind: 'package', name: 'after' }, 'review', 'After', NOW))?.id).toBe('wi-13');
+  });
+
   // Part 5 E20: a codebase switch (bindRepository) that lands while replaceAll is still
   // running writes to the codebase it started for — correct, and it stays — but that
   // codebase is no longer the one on screen, so the call did not apply to what is now
@@ -132,7 +149,7 @@ describe('review store replaceAll (Part 5 V16)', () => {
     await store.bindRepository('repo-a');
     let release: () => void = noop;
     const gate = new Promise<void>((r) => { release = r; });
-    store.setRepository({ ...repoA, saveWorkItem: async (item: WorkItem) => { await gate; await repoA.saveWorkItem(item); } });
+    store.setRepository({ ...repoA, replaceAll: async (state: ReviewReplaceState) => { await gate; await repoA.replaceAll(state); } });
     const running = store.replaceAll(IMPORTED);
     await store.bindRepository('repo-b');
     release();
@@ -153,11 +170,7 @@ describe('review store replaceAll (Part 5 V16)', () => {
     await store.bindRepository('repo-a');
     let release: () => void = noop;
     const gate = new Promise<void>((r) => { release = r; });
-    store.setRepository({
-      ...repoA,
-      saveWorkItem: async (item: WorkItem) => { await gate; await repoA.saveWorkItem(item); },
-      saveRule: () => Promise.reject(new Error('disk full')),
-    });
+    store.setRepository({ ...repoA, replaceAll: async () => { await gate; throw new Error('disk full'); } });
     const running = store.replaceAll(IMPORTED);
     await store.bindRepository('repo-b');
     release();
@@ -167,7 +180,8 @@ describe('review store replaceAll (Part 5 V16)', () => {
 });
 
 describe('review store clearAll (Part 5 P1/T19)', () => {
-  beforeEach(() => { setActivePinia(createPinia()); });
+  // Part 6 Y14: replaceAll and clearAll refuse while unbound, so each test starts bound.
+  beforeEach(async () => { setActivePinia(createPinia()); await useReviewStore().bindRepository('repo-t'); });
 
   it.each<[string, (s: Store) => void]>([
     ['a new work item is still saving', (s) => { void s.addWorkItem({ kind: 'package', name: 'slow' }, 'review', 'Slow', NOW); }],
@@ -210,7 +224,8 @@ describe('review store clearAll (Part 5 P1/T19)', () => {
 });
 
 describe('review store bulk gate (Part 5 E18)', () => {
-  beforeEach(() => { setActivePinia(createPinia()); });
+  // Part 6 Y14: replaceAll and clearAll refuse while unbound, so each test starts bound.
+  beforeEach(async () => { setActivePinia(createPinia()); await useReviewStore().bindRepository('repo-t'); });
 
   it('refuses an addWorkItem started during a gated replaceAll, and every imported item survives intact', async () => {
     const repo = createInMemoryReviewRepository();

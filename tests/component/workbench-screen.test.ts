@@ -9,6 +9,7 @@ import { downloadText } from '../../src/ui/export/download';
 import WorkbenchScreen from '../../src/ui/screens/WorkbenchScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
+import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
@@ -203,17 +204,7 @@ describe('WorkbenchScreen (Part 4)', () => {
     const review = useReviewStore();
     let releaseSave: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => { releaseSave = resolve; });
-    review.setRepository({
-      listWorkItems: () => Promise.resolve([]),
-      saveWorkItem: () => gate,
-      removeWorkItem: () => Promise.resolve(),
-      listRules: () => Promise.resolve([]),
-      saveRule: () => Promise.resolve(),
-      removeRule: () => Promise.resolve(),
-      listDispositions: () => Promise.resolve([]),
-      saveDisposition: () => Promise.resolve(),
-      removeDisposition: () => Promise.resolve(),
-    });
+    review.setRepository({ ...createInMemoryReviewRepository(), saveWorkItem: () => gate });
     const w = mountW();
     useCityStore().select(ids[0]!);
     await nextTick();

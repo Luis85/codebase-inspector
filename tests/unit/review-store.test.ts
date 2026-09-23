@@ -103,17 +103,7 @@ describe('review store', () => {
     const store = useReviewStore();
     let releaseSave: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => { releaseSave = resolve; });
-    store.setRepository({
-      listWorkItems: () => Promise.resolve([]),
-      saveWorkItem: () => gate,
-      removeWorkItem: () => Promise.resolve(),
-      listRules: () => Promise.resolve([]),
-      saveRule: () => Promise.resolve(),
-      removeRule: () => Promise.resolve(),
-      listDispositions: () => Promise.resolve([]),
-      saveDisposition: () => Promise.resolve(),
-      removeDisposition: () => Promise.resolve(),
-    });
+    store.setRepository({ ...createInMemoryReviewRepository(), saveWorkItem: () => gate });
     const first = store.addWorkItemForFile('e1', 'first', NOW);
     expect(store.isPendingFor('e1')).toBe(true);
     const second = store.addWorkItemForFile('e1', 'second', NOW);

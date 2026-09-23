@@ -44,7 +44,7 @@ describe('review store per codebase (Part 5 V8)', () => {
     await store.bindRepository('repo-a');
     await store.addWorkItem(fileIn('repo-a', 'src/a.ts'), 'refactor', 'A1', NOW);
     const a2 = await store.addWorkItem(fileIn('repo-a', 'src/b.ts'), 'refactor', 'A2', NOW);
-    // wi-2 is removed, but its id stays spent: only the bucket's counter remembers that.
+    // wi-2 is removed, but its id stays spent: the repository's high-water mark remembers it (Part 6 Y10).
     expect(await store.removeWorkItem(a2!.id)).toBe(true);
     await store.addRule('ui', 'domain', 'Layering', NOW);
     await store.acknowledge('fp-a', NOW);

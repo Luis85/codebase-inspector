@@ -16,7 +16,7 @@ async function withItem() {
 }
 
 describe('editable work items (Part 4 W8/W9)', () => {
-  beforeEach(() => { setActivePinia(createPinia()); });
+  beforeEach(async () => { setActivePinia(createPinia()); await useReviewStore().bindRepository('repo-t'); }); // Part 6 Y14
 
   it('creates items with medium priority, empty notes and no checks, or with the given init', async () => {
     const store = useReviewStore();

@@ -5,6 +5,7 @@ import { nextTick } from 'vue';
 import FileInspector from '../../src/ui/components/FileInspector.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
+import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../../tests/fixtures/snapshot-builder';
 import { CITY_RENDERER_KEY } from '../../src/ui/renderer-handle';
@@ -131,17 +132,7 @@ describe('FileInspector.vue (C10)', () => {
 
   it('shows a failure message and stays enabled when the repository rejects the add', async () => {
     const { target } = openWithFile();
-    useReviewStore().setRepository({
-      listWorkItems: () => Promise.resolve([]),
-      saveWorkItem: () => Promise.reject(new Error('disk full')),
-      removeWorkItem: () => Promise.resolve(),
-      listRules: () => Promise.resolve([]),
-      saveRule: () => Promise.resolve(),
-      removeRule: () => Promise.resolve(),
-      listDispositions: () => Promise.resolve([]),
-      saveDisposition: () => Promise.resolve(),
-      removeDisposition: () => Promise.resolve(),
-    });
+    useReviewStore().setRepository({ ...createInMemoryReviewRepository(), saveWorkItem: () => Promise.reject(new Error('disk full')) });
     const wrapper = mountInspector();
     await wrapper.find('.ci-inspector__plan-button').trigger('click');
     await flushPromises();
@@ -159,17 +150,7 @@ describe('FileInspector.vue (C10)', () => {
     const { target } = openWithFile();
     let releaseSave: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => { releaseSave = resolve; });
-    useReviewStore().setRepository({
-      listWorkItems: () => Promise.resolve([]),
-      saveWorkItem: () => gate,
-      removeWorkItem: () => Promise.resolve(),
-      listRules: () => Promise.resolve([]),
-      saveRule: () => Promise.resolve(),
-      removeRule: () => Promise.resolve(),
-      listDispositions: () => Promise.resolve([]),
-      saveDisposition: () => Promise.resolve(),
-      removeDisposition: () => Promise.resolve(),
-    });
+    useReviewStore().setRepository({ ...createInMemoryReviewRepository(), saveWorkItem: () => gate });
     const wrapper = mountInspector();
     const button = wrapper.find('.ci-inspector__plan-button');
     await button.trigger('click');
