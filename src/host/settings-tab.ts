@@ -11,8 +11,13 @@ import type { ProfileStore } from '../application/ports/profile-store';
 import type { LocalBindingStore } from '../application/ports/local-binding-store';
 import type { SourceFileSystemPort } from '../application/ports/source-filesystem-port';
 import type { ReviewRepositoryRegistry } from '../adapters/storage/review-repository-registry';
-import { PROFILE_ANALYZER_PURGE_FAILED, PROFILE_REVIEW_PURGE_FAILED, SETTINGS_FALLOW_BUSY, SETTINGS_FALLOW_LIMIT_INVALID } from '../ui/inspector-copy';
+import {
+  PROFILE_ANALYZER_PURGE_FAILED, PROFILE_REVIEW_PURGE_FAILED, SETTINGS_FALLOW_BUSY,
+  SETTINGS_FALLOW_LIMIT_INVALID, SETTINGS_FALLOW_STORE_FAILED,
+} from '../ui/inspector-copy';
 import type { FallowAnalysisService } from '../application/analysis/fallow-analysis-service';
+import { AnalyzerStoreError } from '../application/analysis/analyzer-record';
+import type { EvidenceRepository } from '../application/ports/evidence-repository';
 import type { CodebaseProfile } from '../domain/model';
 import { buildSettingDefinitions } from './setting-definitions';
 import type { ProfileEntry } from './setting-definitions';
@@ -48,6 +53,9 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     private readonly reviewRegistry: Pick<ReviewRepositoryRegistry, 'purge'>,
     // Part 7 Z11/Z12: the plugin's fallow analysis service (main.ts passes its one instance).
     private readonly analysis: Pick<FallowAnalysisService, 'readBinding' | 'forget' | 'setTimeLimit' | 'purgeProfile'>,
+    // Polish D5 (L22): the plugin's one session evidence repository, so a removed codebase's
+    // findings go with it (main.ts passes its instance).
+    private readonly evidence: Pick<EvidenceRepository, 'remove'>,
   ) {
     super(app, plugin);
   }
@@ -90,12 +98,17 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     this.update();
   }
 
-  /** Every reason on one line, in a Notice. `void notice` because Notice is constructed
-   *  for its side effect and nothing here reads the handle back. */
+  /** Every reason on one line, in a Notice. Polish D2: built by `notify`, the one Notice maker. */
   private showFailure(e: unknown, describe?: (reason: string) => string): void {
     const reason = validationFailureText(e);
-    const notice = new Notice(describe ? describe(reason) : reason, 8000);
-    void notice;
+    this.notify(describe ? describe(reason) : reason);
+  }
+
+  /** Polish D1: a refused analyzer write names its reason in words; any other error is shown
+   *  as every other failure is. */
+  private showAnalyzerFailure(e: unknown): void {
+    if (e instanceof AnalyzerStoreError) { this.notify(SETTINGS_FALLOW_STORE_FAILED[e.code]); return; }
+    this.showFailure(e);
   }
 
   override getSettingDefinitions(): SettingDefinitionItem[] {
@@ -141,13 +154,27 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
   }
 
   private async deleteProfile(id: string): Promise<void> {
-    await this.profileStore.remove(id);
+    // Polish D4: a failed removal is shown, keeps everything, and the list refreshes. The list's
+    // onDelete calls this with `void`, so a rejection here was unhandled.
+    try {
+      await this.profileStore.remove(id);
+    } catch (e) {
+      this.showFailure(e);
+      await this.refresh();
+      return;
+    }
     // Part 6 Y17: only once the profile is gone, so a failed removal keeps both. A failed
     // purge says the profile went but its review decisions stayed, with the reason (spec 7,
     // E29); the list refreshes.
     await this.reviewRegistry.purge(id).catch((e: unknown) => { this.showFailure(e, PROFILE_REVIEW_PURGE_FAILED); });
     // Part 7 Z11: and its fallow executable setting, whatever its format (a run in flight is cancelled).
     await this.analysis.purgeProfile(id).catch((e: unknown) => { this.showFailure(e, PROFILE_ANALYZER_PURGE_FAILED); });
+    // Polish D5: and its session evidence, last, for this profile only.
+    try {
+      this.evidence.remove(id);
+    } catch (e) {
+      this.showFailure(e);
+    }
     await this.refresh();
   }
 
@@ -156,7 +183,7 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     try {
       if ((await this.analysis.forget(profileId)) === 'busy') this.notify(SETTINGS_FALLOW_BUSY);
     } catch (e) {
-      this.showFailure(e);
+      this.showAnalyzerFailure(e);
     }
     await this.refresh();
   }
@@ -168,7 +195,7 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     try {
       if ((await this.analysis.setTimeLimit(profileId, seconds)) === 'invalid') this.notify(SETTINGS_FALLOW_LIMIT_INVALID);
     } catch (e) {
-      this.showFailure(e);
+      this.showAnalyzerFailure(e);
     }
     await this.refresh();
   }

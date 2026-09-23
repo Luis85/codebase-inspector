@@ -8,11 +8,14 @@ import { Plugin } from '../mocks/obsidian';
 import { CodebaseInspectorSettingTab } from '../../src/host/settings-tab';
 import { PluginDataProfileStore } from '../../src/adapters/storage/plugin-data-profile-store';
 import { createReviewRepositoryRegistry, type ReviewRepositoryRegistry } from '../../src/adapters/storage/review-repository-registry';
+import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
 import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
 import { createFakeBindingStoreHarness } from '../fixtures/fake-binding-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
-import { createFakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
+import { createFakeFallowAnalysis, type FakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
+import { emptyEvidenceReport } from '../fixtures/evidence-report';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
+import type { EvidenceRepository } from '../../src/application/ports/evidence-repository';
 import type { CodebaseProfile } from '../../src/domain/model';
 import { PROFILE_REVIEW_PURGE_FAILED } from '../../src/ui/inspector-copy';
 
@@ -30,10 +33,13 @@ function findList(defs: SettingDefinitionItem[]): SettingDefinitionList {
   return found;
 }
 
-function newTab(profileStore: ProfileStore, registry: Pick<ReviewRepositoryRegistry, 'purge'>): CodebaseInspectorSettingTab {
+function newTab(
+  profileStore: ProfileStore, registry: Pick<ReviewRepositoryRegistry, 'purge'>,
+  options: { analysis?: FakeFallowAnalysis; evidence?: Pick<EvidenceRepository, 'remove'> } = {},
+): CodebaseInspectorSettingTab {
   return new CodebaseInspectorSettingTab(
     {} as unknown as App, {} as unknown as ObsidianPlugin, profileStore, createFakeBindingStoreHarness().store,
-    () => createFakeSourceFileSystem({}).port, registry, createFakeFallowAnalysis());
+    () => createFakeSourceFileSystem({}).port, registry, options.analysis ?? createFakeFallowAnalysis(), options.evidence ?? { remove: vi.fn() });
 }
 
 afterEach(() => {
@@ -69,16 +75,40 @@ describe('settings tab: removing a profile purges its review state (Part 6 Y17)'
     expect(findList(tab.getSettingDefinitions()).items).toEqual([]);
   });
 
-  // E29 (fix round 1): a failed removal keeps both. `deleteProfile` still lets that
-  // rejection propagate (its missing catch is deferred, U47), so the test awaits it directly.
-  it('never purges when removing the profile fails', async () => {
+  it('Polish D4: a failed removal is shown, keeps the profile, and purges and removes nothing', async () => {
     const { store } = createFakeProfileStoreHarness();
     await store.save(profile('p1'));
     vi.spyOn(store, 'remove').mockRejectedValue(new Error('Could not write data.json.'));
     const purge = vi.fn<(repositoryId: string) => Promise<void>>(() => Promise.resolve());
-    const tab = newTab(store, { purge });
-    const deleteProfile = (tab as unknown as { deleteProfile(id: string): Promise<void> }).deleteProfile.bind(tab);
-    await expect(deleteProfile('p1')).rejects.toThrow('Could not write data.json.');
+    const evidence = { remove: vi.fn() };
+    const tab = newTab(store, { purge }, { evidence });
+    await tab.refresh();
+    findList(tab.getSettingDefinitions()).onDelete!(0);
+    await flushPromises();
+    expect(document.querySelector('.notice')?.textContent).toBe('Could not write data.json.');
     expect(purge).not.toHaveBeenCalled();
+    expect(evidence.remove).not.toHaveBeenCalled();
+    expect(findList(tab.getSettingDefinitions()).items).toHaveLength(1);
+  });
+
+  it('Polish D5: removes only the removed profile\'s session evidence, after the analyzer purge', async () => {
+    const { store } = createFakeProfileStoreHarness();
+    await store.save(profile('p1'));
+    await store.save(profile('p2'));
+    const evidence = new InMemoryEvidenceStore();
+    evidence.put('p1', emptyEvidenceReport('s1'));
+    evidence.put('p2', emptyEvidenceReport('s2'));
+    const analysis = createFakeFallowAnalysis();
+    const purge = vi.spyOn(analysis, 'purgeProfile');
+    const remove = vi.spyOn(evidence, 'remove');
+    const tab = newTab(store, { purge: () => Promise.resolve() }, { analysis, evidence });
+    await tab.refresh();
+    const index = findList(tab.getSettingDefinitions()).items!.findIndex((item) => 'name' in item && item.name === 'p1');
+    findList(tab.getSettingDefinitions()).onDelete!(index);
+    await flushPromises();
+    expect(evidence.get('p1')).toBeNull();
+    expect(evidence.get('p2')).not.toBeNull();
+    expect(remove.mock.calls).toEqual([['p1']]);
+    expect(purge.mock.invocationCallOrder[0]).toBeLessThan(remove.mock.invocationCallOrder[0]!);
   });
 });

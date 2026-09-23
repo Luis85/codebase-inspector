@@ -3,6 +3,7 @@
 // marks, and each failure says what stays usable. Every value from a process, a file or
 // data.json is interpolated as text only.
 import type { ExecutableFormat, ExecutableRefusal } from '../../application/ports/executable-inspector';
+import type { AnalyzerStoreErrorCode } from '../../application/analysis/analyzer-record';
 import type { FallowRunErrorCode } from '../../application/analysis/fallow-run-errors';
 import { FALLOW_REPORT_MAX_BYTES } from '../../application/evidence/raw-fallow';
 import { COPY_16, FALLOW_MATCHED, FALLOW_SUPPORTED_TEXT } from './fallow';
@@ -177,5 +178,12 @@ export const SETTINGS_FALLOW_FORGET = 'Forget';
 export const SETTINGS_FALLOW_LIMIT_DESC = 'Seconds before a fallow analysis is stopped, from 10 to 1800.';
 export const SETTINGS_FALLOW_LIMIT_INVALID = 'Enter a whole number of seconds from 10 to 1800.';
 export const SETTINGS_FALLOW_BUSY = 'Cancel the fallow analysis for this codebase first.';
+/** Polish D1: a refused analyzer write in Settings, by AnalyzerStoreError code — never the
+ *  store's own "analyzer store: <code>" message. */
+export const SETTINGS_FALLOW_STORE_FAILED: Readonly<Record<AnalyzerStoreErrorCode, string>> = {
+  unsupported: FALLOW_EXE_UNSUPPORTED,
+  'not-bound': 'No fallow executable is chosen for this codebase any more, so nothing was changed.',
+  changed: 'The fallow executable setting changed while this was saved, so nothing was changed. Check it and try again.',
+};
 export const PROFILE_ANALYZER_PURGE_FAILED = (reason: string): string =>
   `The profile was removed, but its fallow executable setting could not be removed: ${reason}`;

@@ -9,7 +9,7 @@
 // (tests/mocks/obsidian.ts) that render() itself would receive from the real host.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Setting } from '../mocks/obsidian';
 import type { App, Plugin, Setting as ObsidianSetting, SettingDefinitionItem, SettingDefinitionList,
   SettingDefinitionPage, SettingDefinitionRender, SettingGroup } from 'obsidian';
@@ -41,7 +41,7 @@ async function makeTab(
   for (const p of profiles) await profileHarness.store.save(p);
   for (const b of bindings) await bindingHarness.store.save(b);
   const tab = new CodebaseInspectorSettingTab(
-    app, {} as unknown as Plugin, profileHarness.store, bindingHarness.store, () => filesystem, { purge: () => Promise.resolve() }, createFakeFallowAnalysis());
+    app, {} as unknown as Plugin, profileHarness.store, bindingHarness.store, () => filesystem, { purge: () => Promise.resolve() }, createFakeFallowAnalysis(), { remove: vi.fn() });
   await tab.refresh();
   return { tab, profileStore: profileHarness.store, bindingStore: bindingHarness.store };
 }

@@ -3,7 +3,7 @@
 // tests/component/settings-tab.test.ts rather than appended to it: that file is at 435
 // of the 450-line tests/** budget, and `max-lines` is a protected architectural rule --
 // splitting is the clean idiom, weakening the rule is not.
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Setting } from '../mocks/obsidian';
 import type { App, Plugin, Setting as ObsidianSetting, SettingDefinitionItem,
   SettingDefinitionList, SettingDefinitionPage, SettingDefinitionRender, SettingGroup } from 'obsidian';
@@ -23,7 +23,7 @@ function makeProfile(overrides: Partial<CodebaseProfile> = {}): CodebaseProfile 
 function newTab(profileStore: ProfileStore): CodebaseInspectorSettingTab {
   return new CodebaseInspectorSettingTab(
     {} as unknown as App, {} as unknown as Plugin, profileStore, createFakeBindingStoreHarness().store,
-    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, createFakeFallowAnalysis());
+    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, createFakeFallowAnalysis(), { remove: vi.fn() });
 }
 
 async function makeTab(profiles: readonly CodebaseProfile[]) {

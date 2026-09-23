@@ -88,7 +88,7 @@ export default class CodebaseInspectorPlugin extends Plugin {
     // only, so building the real Node-backed port is deferred to the moment Connect/
     // Reconnect is actually clicked, never during onload itself.
     const settingTab = new CodebaseInspectorSettingTab(
-      this.app, this, profileStore, bindingStore, () => createNodeSourceFileSystem(), reviewRegistry, analysis);
+      this.app, this, profileStore, bindingStore, () => createNodeSourceFileSystem(), reviewRegistry, analysis, evidenceStore);
     this.addSettingTab(settingTab);
     void settingTab.refresh();
 

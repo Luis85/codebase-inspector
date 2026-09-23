@@ -10,10 +10,11 @@ import type { App, Plugin, Setting as ObsidianSetting, SettingDefinitionList,
 import { CodebaseInspectorSettingTab } from '../../src/host/settings-tab';
 import { STORAGE_DISCLOSURE_TEXT, analyzerDescription } from '../../src/host/setting-definitions';
 import type { AnalyzerBindingRead } from '../../src/application/analysis/analyzer-record';
+import { AnalyzerStoreError } from '../../src/application/analysis/analyzer-record';
 import type { CodebaseProfile } from '../../src/domain/model';
 import {
   FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE, FALLOW_EXE_UNSUPPORTED, FALLOW_TRUST_VALUE, PROFILE_ANALYZER_PURGE_FAILED,
-  SETTINGS_FALLOW_BUSY, SETTINGS_FALLOW_LIMIT_DESC, SETTINGS_FALLOW_LIMIT_INVALID,
+  SETTINGS_FALLOW_BUSY, SETTINGS_FALLOW_LIMIT_DESC, SETTINGS_FALLOW_LIMIT_INVALID, SETTINGS_FALLOW_STORE_FAILED,
 } from '../../src/ui/inspector-copy';
 import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
 import { createFakeBindingStoreHarness } from '../fixtures/fake-binding-store';
@@ -36,7 +37,7 @@ async function makeTab(read: AnalyzerBindingRead | null): Promise<{ tab: Codebas
   if (read !== null) analysis.setBinding('p1', read);
   const tab = new CodebaseInspectorSettingTab(
     {} as unknown as App, {} as unknown as Plugin, profiles.store, createFakeBindingStoreHarness().store,
-    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, analysis);
+    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, analysis, { remove: vi.fn() });
   await tab.refresh();
   return { tab, analysis };
 }
@@ -120,6 +121,28 @@ describe('Forget and the time limit go through the service (Z10, Z11)', () => {
     await tab.waitForPendingUpdates();
     expect(setTimeLimit).toHaveBeenLastCalledWith('p1', Number.NaN);
     expect(document.querySelector('.notice')?.textContent).toBe(SETTINGS_FALLOW_LIMIT_INVALID);
+  });
+});
+
+describe('Polish D1, D3: a failed Forget or time limit is shown in words', () => {
+  it('D1: a refused Forget shows the reason, never "analyzer store: not-bound"', async () => {
+    const { tab, analysis } = await makeTab(BOUND);
+    vi.spyOn(analysis, 'forget').mockRejectedValue(new AnalyzerStoreError('not-bound'));
+    render(tab, 'fallow executable').controlEl.querySelector('button')!.click();
+    await tab.waitForPendingUpdates();
+    expect(document.querySelector('.notice')?.textContent).toBe(SETTINGS_FALLOW_STORE_FAILED['not-bound']);
+  });
+
+  it('D3: a time limit whose write throws an ordinary error shows that error and refreshes', async () => {
+    const { tab, analysis } = await makeTab(BOUND);
+    vi.spyOn(analysis, 'setTimeLimit').mockRejectedValue(new Error('Could not write data.json.'));
+    const refresh = vi.spyOn(tab, 'refresh');
+    const input = render(tab, 'fallow time limit').controlEl.querySelector('input')!;
+    input.value = '600';
+    input.dispatchEvent(new Event('change'));
+    await tab.waitForPendingUpdates();
+    expect(document.querySelector('.notice')?.textContent).toBe('Could not write data.json.');
+    expect(refresh).toHaveBeenCalled();
   });
 });
 

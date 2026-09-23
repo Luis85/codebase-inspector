@@ -164,7 +164,7 @@ function makeTab(): CodebaseInspectorSettingTab {
   return new CodebaseInspectorSettingTab(
     {} as never, {} as never,
     createFakeProfileStoreHarness().store, createFakeBindingStoreHarness().store,
-    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, createFakeFallowAnalysis());
+    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, createFakeFallowAnalysis(), { remove: vi.fn() });
 }
 
 describe('the settings tab is rendered, not merely refreshed', () => {
