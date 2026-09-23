@@ -66,7 +66,12 @@ const reportedCategories = computed(() => {
       v-if="lensActive"
       class="ci-legend__swatches"
     >
-      <li class="ci-legend__entry">
+      <!-- No measured lot reported (all on unavailable lots, or none matched): no row, never
+           a "Reported finding" row with nothing to point at. -->
+      <li
+        v-if="reportedCategories.length > 0"
+        class="ci-legend__entry"
+      >
         <span
           class="ci-legend__swatch-group"
           aria-hidden="true"

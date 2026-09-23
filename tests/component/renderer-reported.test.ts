@@ -11,13 +11,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../mocks/obsidian';
 import { Color, InstancedMesh } from 'three';
-import { buildCity, type CityMeshes } from '../../src/visualization/instanced-city';
+import { DIM_MIX, buildCity, type CityMeshes } from '../../src/visualization/instanced-city';
 import type { CityPalette, CityRendererPort } from '../../src/visualization/renderer-port';
 import type { LayoutResult } from '../../src/domain/layout/types';
 import { CATEGORY_IDS } from '../../src/domain/classify';
 import {
   HEIGHT, ID, WIDTH, captureGetContext, layoutOf, makeWinDouble, paletteFixture, stubGetContext,
 } from '../fixtures/renderer-doubles';
+
+/** Every fake WebGLRenderer the port constructs, newest last, so a test can see whether a
+ *  frame was actually drawn (the tests/component/renderer-contract.test.ts probe). */
+const probe = vi.hoisted(() => ({ renderers: [] as { render: ReturnType<typeof vi.fn> }[] }));
 
 vi.mock('three', async (importOriginal) => {
   const actual = await importOriginal<typeof import('three')>();
@@ -30,6 +34,7 @@ vi.mock('three', async (importOriginal) => {
     dispose = vi.fn();
     forceContextLoss = vi.fn();
     getContext = vi.fn(() => ({ getExtension: () => null }));
+    constructor() { probe.renderers.push(this); }
   }
   return { ...actual, WebGLRenderer: FakeWebGLRenderer };
 });
@@ -38,6 +43,8 @@ const PALETTE = paletteFixture();
 const hex = (css: string): number => new Color(css).getHex();
 const CATEGORY = hex(PALETTE.categories[CATEGORY_IDS[0]]);
 const NEUTRAL = hex(PALETTE.unavailable);
+/** A category colour dimmed by the search filter, computed the way paintInstances does. */
+const DIMMED_CATEGORY = new Color(PALETTE.categories[CATEGORY_IDS[0]]).lerp(new Color(PALETTE.background), DIM_MIX).getHex();
 
 /** Three measured lots (f0..f2) and one whose metric is unavailable (f3). */
 function lensLayout(): LayoutResult {
@@ -80,7 +87,9 @@ describe('buildCity: setReported recolours measured lots only (Y40)', () => {
     const city = await built();
     const { measured, markers } = meshes(city);
     expect(colours(measured)).toEqual([CATEGORY, CATEGORY, CATEGORY]);
+    const version = measured.instanceColor!.version;
     city.setReported(new Set([ID('src/f1.ts')]));
+    expect(measured.instanceColor!.version).toBeGreaterThan(version);   // needsUpdate: the GPU copy is re-uploaded
     expect(colours(measured)).toEqual([NEUTRAL, CATEGORY, NEUTRAL]);
     expect(colours(markers)).toEqual([NEUTRAL]);            // the unavailable marker never changes
     city.dispose();
@@ -135,33 +144,49 @@ describe('buildCity: setReported recolours measured lots only (Y40)', () => {
     city.setFilter(new Set([ID('src/f0.ts')]));
     const [f0, f1] = colours(meshes(city).measured);
     expect(f0).toBe(NEUTRAL);                               // matched, not reported: undimmed neutral
-    expect(f1).not.toBe(CATEGORY);                          // reported, not matched: dimmed category
+    expect(f1).toBe(DIMMED_CATEGORY);                       // reported, not matched: dimmed category
     city.dispose();
   });
 });
 
 describe('the port: setReported through CityRendererPort (Y40)', () => {
   let restoreGetContext: () => void;
+  /** Every port a test builds, disposed after it (the city-renderer.test.ts discipline). */
+  const ports: CityRendererPort[] = [];
   beforeEach(() => {
     restoreGetContext = captureGetContext();
     stubGetContext('ok');
   });
   afterEach(() => {
+    ports.splice(0).forEach((port) => { port.dispose(); });
     restoreGetContext();
     document.body.replaceChildren();
   });
 
-  async function makePort(): Promise<CityRendererPort> {
-    const { win } = makeWinDouble();
+  async function makePort(): Promise<{ port: CityRendererPort; runFrames: () => void; render: ReturnType<typeof vi.fn> }> {
+    const { win, runFrames } = makeWinDouble();
     const { createCityRenderer } = await import('../../src/visualization/city-renderer');
     const port = createCityRenderer(document.body.createDiv(), win, () => {});
+    ports.push(port);
     port.resize(WIDTH, HEIGHT, 1);
     port.setColors(PALETTE);
-    return port;
+    return { port, runFrames, render: probe.renderers[probe.renderers.length - 1]!.render };
   }
 
+  it('asks for a frame: the recolour is drawn, not left until something else redraws', async () => {
+    const { port, runFrames, render } = await makePort();
+    await port.setLayout(...layout('s1', 1));
+    runFrames();
+    render.mockClear();
+    runFrames();
+    expect(render).not.toHaveBeenCalled();                   // settled: nothing else is drawing
+    port.setReported(new Set([ID('src/f1.ts')]));
+    runFrames();
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
   it('applies a set sent BEFORE the first layout once the city lands', async () => {
-    const port = await makePort();
+    const { port } = await makePort();
     const setColorAt = vi.spyOn(InstancedMesh.prototype, 'setColorAt');
     port.setReported(new Set([ID('src/f2.ts')]));            // no city yet: nothing painted, nothing thrown
     expect(setColorAt).not.toHaveBeenCalled();
@@ -170,7 +195,7 @@ describe('the port: setReported through CityRendererPort (Y40)', () => {
   });
 
   it('keeps the set across setColors and a NEW city, and null restores it', async () => {
-    const port = await makePort();
+    const { port } = await makePort();
     const setColorAt = vi.spyOn(InstancedMesh.prototype, 'setColorAt');
     await port.setLayout(...layout('s1', 1));
     port.setReported(new Set([ID('src/f0.ts')]));
@@ -184,7 +209,7 @@ describe('the port: setReported through CityRendererPort (Y40)', () => {
   });
 
   it('never moves the camera', async () => {
-    const port = await makePort();
+    const { port } = await makePort();
     await port.setLayout(...layout('s1', 1));
     const camera = port.getCamera();
     port.setReported(new Set([ID('src/f1.ts')]));
@@ -195,6 +220,7 @@ describe('the port: setReported through CityRendererPort (Y40)', () => {
     stubGetContext('null');
     const { createCityRenderer } = await import('../../src/visualization/city-renderer');
     const port = createCityRenderer(document.body.createDiv(), makeWinDouble().win, () => {});
+    ports.push(port);
     expect(() => { port.setReported(new Set()); port.setReported(null); }).not.toThrow();
   });
 });

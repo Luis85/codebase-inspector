@@ -65,7 +65,7 @@ export interface BuildOptions {
 
 const DEFAULT_CHUNK = 400;
 const DISTRICT_SLAB_HEIGHT = 0.08;
-const DIM_MIX = 0.82;              // how far a filtered-out lot moves toward the background
+export const DIM_MIX = 0.82;             // how far a filtered-out lot moves toward the background
 const SELECTION_INFLATE = 1.06;
 const BUILDING_ROUGHNESS = 0.85;   // matte: a rough dielectric keeps the specular lobe
 const BUILDING_METALNESS = 0;      // broad and dim, so lighting stays inside its budget

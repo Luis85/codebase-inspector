@@ -248,6 +248,17 @@ describe('MetricLegend in the findings lens (Y40)', () => {
     expect(w.findAll('.ci-legend__swatch-group .ci-legend__swatch')).toHaveLength(1);
     expect(w.find('.ci-legend__swatch--none').exists()).toBe(true);
   });
+
+  it('drops the Reported row, never a row with no swatch, when no measured lot is reported', async () => {
+    const unavailable = useCityStore().layout?.lots.find((l) => l.metricState === 'unavailable');
+    expect(unavailable?.entityId).toBe(fileAt(0).id);        // the fixture's one unavailable lot is file 0
+    attachSyntheticReport(snapshotWithOnlyFiles(snapshot, [fileAt(0).path]));
+    useLensStore().setLens('findings');
+    const w = keep(mount(MetricLegend));
+    await nextTick();
+    expect(w.findAll('.ci-legend__entry').map((e) => e.text())).toEqual([LENS_LEGEND_NONE]);
+    expect(w.find('.ci-legend__swatch-group').exists()).toBe(false);
+  });
 });
 
 describe('the list-mode Reported column (Y40)', () => {
