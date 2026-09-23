@@ -253,6 +253,12 @@ Four read-only tables checked every task's text against the real code at HEAD, a
 - the 1 failure is the known `clean-vault-install` network-sweep timeout under load (the documented flake, which passes alone);
 - build and assert-bundle OK.
 
-**Residuals the owner must decide on:**
-- B1 — the runner contract's grandchild poll deadline (10 s) exceeds its `it`'s default timeout (5 s), so a hang there still reports a generic timeout instead of the poll's own clear error;
-- no explicit per-test timeout on the two whole-`src` scan tests (`no-process-execution.test.ts`; `clean-vault-install`'s network sweep), which can each exceed vitest's 5 s default under full-suite load though both pass alone.
+**Residuals (resolved at finish, supersedes E19 and E20):**
+- B1 — the runner contract's grandchild poll deadline (10 s) exceeded its `it`'s default timeout (5 s), so a hang there reported a generic timeout instead of the poll's own clear error;
+- no explicit per-test timeout on the two whole-`src` scan tests (`no-process-execution.test.ts`; `clean-vault-install`'s network sweep), which exceeded vitest's 5 s default under full-suite load though both pass alone.
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| Part 7 E21 | The finishing gate ran the full suite three times, and the `clean-vault-install` network sweep failed on all three. It is not a flake on this machine: `npm run verify` stayed red. E19 and E20 are reversed, and 7ced8d2 fixes both residuals. The fix gives explicit per-test timeouts to the whole-`src` scans (30 s; four tests) and to the grandchild-poll test (20 s, above its 10 s poll deadline). No assertion changed and no global timeout was set. | A genuinely hung scan now takes up to 30 s to report. |
+
+**Controller's verify at 7ced8d2:** `npm run verify` exit 0. 229/229 test files; 2548 passed and 1 skipped; build and assert-bundle OK (dist/main.js 1103 kB).
