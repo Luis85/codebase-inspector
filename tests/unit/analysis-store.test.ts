@@ -86,6 +86,16 @@ describe('useAnalysisStore (Z28)', () => {
     expect(await store.forget()).toBe(true);
   });
 
+  it('forget lets a store failure reject, so the caller can say why (review fix 1)', async () => {
+    const fake = createFakeFallowAnalysis();
+    const failure = new Error('data.json could not be written');
+    fake.forget = () => Promise.reject(failure);
+    const store = useAnalysisStore();
+    store.setService(fake);
+    store.bindRepository('p1');
+    await expect(store.forget()).rejects.toBe(failure);
+  });
+
   it('$dispose drops its subscription to the plugin-level service', () => {
     const fake = createFakeFallowAnalysis();
     const store = useAnalysisStore();

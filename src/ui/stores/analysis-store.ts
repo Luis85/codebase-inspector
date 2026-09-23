@@ -96,19 +96,14 @@ export const useAnalysisStore = defineStore('fallow-analysis', () => {
     service.cancel(repositoryId.value);
     return true;
   };
-  /** True when the executable was forgotten; false while a run is in flight, while unbound,
-   *  or when data.json could not be written (the service's AnalyzerStoreError, Task 5's
-   *  deferred minor: it rejects outside its declared result, so it is caught here). */
+  /** True when the executable was forgotten; false while a run is in flight or unbound. A
+   *  data.json failure (the service's AnalyzerStoreError) REJECTS: the caller's
+   *  useBusyAction surfaces it, so a failed Forget is never mistaken for "busy". */
   const forget = async (): Promise<boolean> => {
     const id = repositoryId.value;
     if (service === null || id === '') return false;
-    let result: 'forgotten' | 'busy' | 'failed';
-    try {
-      result = await service.forget(id);
-    } catch {
-      result = 'failed';
-    }
-    await refreshBinding().catch(() => { binding.value = null; });
+    const result = await service.forget(id);
+    await refreshBinding();
     return result === 'forgotten';
   };
   onScopeDispose(() => {
