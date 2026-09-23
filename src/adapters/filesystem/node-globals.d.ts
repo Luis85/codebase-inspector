@@ -33,12 +33,22 @@ export interface NodeStatsLike {
   isSymbolicLink(): boolean;
 }
 
+/** Part 7 Z4: enough of fs.promises' FileHandle to read an executable's first bytes. */
+export interface NodeFileHandleLike {
+  read(buffer: Uint8Array, offset: number, length: number, position: number): Promise<{ bytesRead: number }>;
+  close(): Promise<void>;
+}
+
 export interface NodeFsPromisesLike {
   readdir(path: string): Promise<string[]>;
   readdir(path: string, options: { withFileTypes: true }): Promise<NodeDirentLike[]>;
   lstat(path: string): Promise<NodeStatsLike>;
   stat(path: string): Promise<NodeStatsLike>;
   readFile(path: string): Promise<Uint8Array>;
+  /** Part 7 Z4/Z5: the executable's and the root's real paths. */
+  realpath(path: string): Promise<string>;
+  /** Part 7 Z4: opened read-only for the 4-byte native-format check, then closed. */
+  open(path: string, flags: 'r'): Promise<NodeFileHandleLike>;
 }
 
 export interface NodeFsLike {
