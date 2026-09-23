@@ -2,7 +2,7 @@
 // supported set named from FALLOW_SUPPORTED itself, and not-shown labels that fall back
 // to fallow's own key.
 import { describe, expect, it } from 'vitest';
-import { FALLOW_SUPPORTED } from '../../src/application/evidence/raw-fallow';
+import { FALLOW_REPORT_MAX_BYTES, FALLOW_SUPPORTED } from '../../src/application/evidence/raw-fallow';
 import {
   FALLOW_IMPORT_ERROR, FALLOW_SUPPORTED_TEXT, FALLOW_UNSUPPORTED, fallowNotShownLabel,
 } from '../../src/ui/inspector-copy';
@@ -14,6 +14,13 @@ describe('fallow import copy (Part 6 Y20, Y25, Y31)', () => {
     for (const code of codes) {
       expect(FALLOW_IMPORT_ERROR[code as keyof typeof FALLOW_IMPORT_ERROR]('')).toContain('Nothing was imported.');
     }
+  });
+
+  // Fix round 1 (E31, minor 5): the size in the "too-large" message is derived from
+  // FALLOW_REPORT_MAX_BYTES, so the copy cannot drift from the limit it describes.
+  it('names the real size limit, derived from FALLOW_REPORT_MAX_BYTES', () => {
+    const megabytes = FALLOW_REPORT_MAX_BYTES / (1024 * 1024);
+    expect(FALLOW_IMPORT_ERROR['too-large']('')).toBe(`That file is larger than ${megabytes} MB, so it was not read. Nothing was imported.`);
   });
 
   it('names every supported kind and schema', () => {

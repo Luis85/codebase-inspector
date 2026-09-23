@@ -5,7 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { parseFallowReportText, readFallowReportFile } from '../../src/application/evidence/read-fallow-report';
 import { FALLOW_REPORT_MAX_BYTES, FALLOW_SUPPORTED } from '../../src/application/evidence/raw-fallow';
 import {
-  DROPPED_KEYS, FALLOW_FIXTURES, deepKeys, fallowDoc, fallowOutcome, fallowText, rawReport, rows, type FallowDoc, type FallowFixture,
+  DROPPED_KEYS, FALLOW_FIXTURES, deepKeys, deepStrings, fallowDoc, fallowOutcome, fallowText, fixtureSourceLines, rawReport, rows,
+  type FallowDoc, type FallowFixture,
 } from '../fixtures/fallow-fixture';
 
 const BOM = String.fromCharCode(0xfeff);
@@ -50,6 +51,25 @@ describe('fallow reader: the recorded fixtures (Part 6 Y20, Y21)', () => {
     const keys = deepKeys(rawReport(name));
     expect(keys.size).toBeGreaterThan(0);
     for (const dropped of DROPPED_KEYS) expect({ name, dropped, kept: keys.has(dropped) }).toEqual({ name, dropped, kept: false });
+  });
+
+  // Fix round 1 (E31, minor 4): the drop test above only proves the KEY `fragment` is
+  // gone. This proves the source TEXT it once carried is gone too, by scanning every
+  // string value of the parsed report for any fixture source line.
+  it('has fragment in the raw recordings this scan depends on (precondition)', () => {
+    for (const name of ['combined-3.27.0', 'dupes-3.27.0', 'combined-3.21.0'] as const satisfies readonly FallowFixture[]) {
+      expect(deepKeys(JSON.parse(fallowText(name))).has('fragment')).toBe(true);
+    }
+  });
+
+  it.each(FALLOW_FIXTURES)('keeps no fixture source line anywhere in the parsed report from %s', (name) => {
+    const sourceLines = fixtureSourceLines();
+    expect(sourceLines.length).toBeGreaterThan(0);
+    const reportStrings = deepStrings(rawReport(name));
+    expect(reportStrings.length).toBeGreaterThan(0);
+    for (const line of sourceLines) {
+      for (const value of reportStrings) expect({ name, line, contains: value.includes(line) }).toEqual({ name, line, contains: false });
+    }
   });
 });
 
@@ -102,6 +122,25 @@ describe('fallow reader: refusals (Part 6 Y20, Y31)', () => {
     ['dupes-3.27.0', (d) => { rows(d, 'clone_groups')[0]!.token_count = 1.5; }, 'invalid clone_groups.0.token_count'],
   ])('refuses a broken single-command report (%s) at its top-level path', (name, change, expected) => {
     expect(fallowOutcome(fallowDoc(name, change))).toBe(expected);
+  });
+});
+
+describe('fallow reader: stops at the first bad array element (Fix round 1, E31 Important 1)', () => {
+  it('refuses a huge array of bad findings without validating the rest of it', () => {
+    const doc = fallowDoc('combined-3.27.0', (d) => { d.health!.findings = Array.from({ length: 300000 }, () => ({})); });
+    const start = Date.now();
+    const outcome = fallowOutcome(doc);
+    const elapsed = Date.now() - start;
+    expect(outcome).toBe('invalid health.findings.0.path');
+    expect(elapsed).toBeLessThan(2000);
+  });
+
+  it('names a bad element that is not first, after two valid ones', () => {
+    const doc = fallowDoc('combined-3.27.0', (d) => {
+      const good = d.health!.findings[0]!;
+      d.health!.findings = [good, good, {}];
+    });
+    expect(fallowOutcome(doc)).toBe('invalid health.findings.2.path');
   });
 });
 

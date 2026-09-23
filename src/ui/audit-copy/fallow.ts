@@ -1,6 +1,10 @@
 // Part 6: fallow report import. Re-exported by inspector-copy.ts. Tasks 7-11 add the
 // dialog, card, badge and lens strings to this file.
-import { FALLOW_SUPPORTED, type FallowImportErrorCode, type FallowReportKind } from '../../application/evidence/raw-fallow';
+import { FALLOW_REPORT_MAX_BYTES, FALLOW_SUPPORTED, type FallowImportErrorCode, type FallowReportKind } from '../../application/evidence/raw-fallow';
+
+/** Fix round 1 (E31, minor 5): "16 MB", derived instead of hard-coded, so the copy and
+ *  the limit it describes cannot drift apart. */
+const FALLOW_MAX_SIZE_TEXT = `${FALLOW_REPORT_MAX_BYTES / (1024 * 1024)} MB`;
 
 function supportedText(): string {
   const byKind = new Map<FallowReportKind, number[]>();
@@ -21,7 +25,7 @@ export const FALLOW_UNSUPPORTED = (kind: string, schema: string): string =>
  *  `unsupported` and the first issue's path for `invalid`; the other codes ignore it.
  *  A refusal never touches evidence that is already attached. */
 export const FALLOW_IMPORT_ERROR: Readonly<Record<FallowImportErrorCode, (detail: string) => string>> = {
-  'too-large': () => 'That file is larger than 16 MB, so it was not read. Nothing was imported.',
+  'too-large': () => `That file is larger than ${FALLOW_MAX_SIZE_TEXT}, so it was not read. Nothing was imported.`,
   'not-json': () => 'That file is not valid JSON. Nothing was imported.',
   unsupported: (found) => {
     const at = found.lastIndexOf('@');

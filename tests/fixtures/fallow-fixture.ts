@@ -83,6 +83,20 @@ export function deepKeys(value: unknown): Set<string> {
   return keys;
 }
 
+/** Fix round 1 (E31, minor 4): every string value at any depth of a JSON-like value, so a
+ *  test can prove source text never survives the parse, not just that its key does not. */
+export function deepStrings(value: unknown): string[] {
+  const strings: string[] = [];
+  const visit = (v: unknown): void => {
+    if (Array.isArray(v)) { v.forEach(visit); return; }
+    if (typeof v === 'string') { strings.push(v); return; }
+    if (typeof v !== 'object' || v === null) return;
+    for (const child of Object.values(v)) visit(child);
+  };
+  visit(value);
+  return strings;
+}
+
 /** Y23: fields fallow writes that must never survive the parse. */
 export const DROPPED_KEYS = [
   'fragment', 'actions', 'suggestions', 'clone_families', 'vital_signs', 'file_scores', 'hotspots', 'targets',
