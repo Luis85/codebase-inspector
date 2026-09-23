@@ -104,6 +104,24 @@ describe('finding ids (Part 6 Y24)', () => {
     for (const f of found) expect(f.detail).toEqual({ kind: 'duplication', tokenCount: 93, lineCount: 15, partnerFiles: 2 });
     expect(found.map((f) => f.id).sort()).toEqual(['src/index.ts', 'src/text/sum-a.ts', 'src/text/sum-b.ts'].map((p) => duId(FIXTURE_FINGERPRINT, p)).sort());
   });
+
+  it('normalises 20 000 same-named findings in one file in linear time (Fix round 1, Important 1)', () => {
+    const base = rows(fallowDoc('health-3.27.0'), 'findings')[0]!;
+    const COUNT = 20_000;
+    // Only the fields the schema reads: the recorded fixture's `fragment` is real source
+    // text (Y21), and spreading it 20 000 times would trip the 16 MB report guard.
+    const many = Array.from({ length: COUNT }, (_, i) => ({
+      path: 'src/text/format.ts', name: 'sameName', line: i + 1, col: 1,
+      cyclomatic: base.cyclomatic, cognitive: base.cognitive, line_count: base.line_count, exceeded: base.exceeded, severity: base.severity,
+    }));
+    const doc = fallowDoc('health-3.27.0', (d) => { d.findings = many; });
+    const start = Date.now();
+    const found = normalized(doc).findings;
+    expect(Date.now() - start).toBeLessThan(1000);
+    // Structural proof, not just "it was fast": the ids are exactly 0..n-1 in source
+    // order, so the occurrence index was never recomputed with an O(k) copy per finding.
+    expect(found.map((f) => f.id)).toEqual(many.map((_, i) => cxId('src/text/format.ts', 'sameName', i)));
+  });
 });
 
 describe('report paths (Part 6 Y23, Y26)', () => {

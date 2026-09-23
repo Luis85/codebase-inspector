@@ -18,37 +18,59 @@ export function resolveFindings(
   return { matched, unmatchedPaths: [...unmatched].sort() };
 }
 
-/** Every leading folder of every path, as `a/`, `a/b/`, … */
-function leadingFolders(paths: readonly string[]): Set<string> {
-  const out = new Set<string>();
-  for (const path of paths) {
-    const segments = path.split('/');
-    for (let i = 1; i < segments.length; i += 1) out.add(`${segments.slice(0, i).join('/')}/`);
+/** Every leading folder of one path, as `a/`, `a/b/`, … (never the path itself). Built by
+ *  growing one string, not by re-joining a growing slice, so the cost is linear in the
+ *  path's own segment count (Fix round 1, Important 2). */
+function leadingFoldersOf(path: string): string[] {
+  const segments = path.split('/');
+  const out: string[] = [];
+  let prefix = '';
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    prefix = `${prefix}${segments[i]}/`;
+    out.push(prefix);
   }
   return out;
 }
 
-/** Y26: every unmatched path under `prefix` matches once it is removed, at least one path
- *  is under it, and no snapshot path is under it (so removing it can never break a path
- *  that already matches: `normalizeFallow` strips it from every path). */
-function qualifies(prefix: string, paths: readonly string[], snapshotPaths: ReadonlySet<string>): boolean {
-  let any = false;
-  for (const path of paths) {
-    if (!path.startsWith(prefix)) continue;
-    if (!snapshotPaths.has(path.slice(prefix.length))) return false;
-    any = true;
-  }
-  if (!any) return false;
-  for (const snapshotPath of snapshotPaths) if (snapshotPath.startsWith(prefix)) return false;
-  return true;
+/** Every leading folder of every snapshot path, once, so "a snapshot path lies under
+ *  `prefix`" (E12) is an O(1) set lookup instead of a scan of the whole snapshot per
+ *  candidate prefix (Fix round 1, Important 2). */
+function snapshotFolders(snapshotPaths: ReadonlySet<string>): Set<string> {
+  const out = new Set<string>();
+  for (const path of snapshotPaths) for (const folder of leadingFoldersOf(path)) out.add(folder);
+  return out;
 }
 
-/** Y26: the shortest qualifying leading folder, or null. Two qualifying folders of that
- *  same shortest length are ambiguous, and nothing is offered. */
+interface PrefixCounts { total: number; matched: number }
+
+/** Y26: the shortest qualifying leading folder, or null. A folder qualifies when at
+ *  least one unmatched path lies under it, every unmatched path under it matches once
+ *  stripped, and no snapshot path already lies under it (E12). Two qualifying folders of
+ *  that same shortest length are ambiguous, and nothing is offered.
+ *  Fix round 1 (Important 2): linear in the number of path segments — each unmatched
+ *  path's own leading folders are visited once (never once per OTHER path), and
+ *  "lies under the snapshot" is the one set built above, not a fresh scan per prefix. */
 export function suggestStripPrefix(paths: readonly string[], snapshotPaths: ReadonlySet<string>): string | null {
-  const qualifying = [...leadingFolders(paths)].filter((prefix) => qualifies(prefix, paths, snapshotPaths));
-  if (qualifying.length === 0) return null;
-  const shortest = qualifying.reduce((min, p) => Math.min(min, p.length), Number.POSITIVE_INFINITY);
-  const best = qualifying.filter((p) => p.length === shortest);
-  return best.length === 1 ? best[0]! : null;
+  const folders = snapshotFolders(snapshotPaths);
+  const counts = new Map<string, PrefixCounts>();
+  for (const path of paths) {
+    for (const prefix of leadingFoldersOf(path)) {
+      const entry = counts.get(prefix) ?? { total: 0, matched: 0 };
+      entry.total += 1;
+      if (snapshotPaths.has(path.slice(prefix.length))) entry.matched += 1;
+      counts.set(prefix, entry);
+    }
+  }
+  let best: string | null = null;
+  let ambiguous = false;
+  for (const [prefix, { total, matched }] of counts) {
+    if (total !== matched || folders.has(prefix)) continue;
+    if (best === null || prefix.length < best.length) {
+      best = prefix;
+      ambiguous = false;
+    } else if (prefix.length === best.length) {
+      ambiguous = true;
+    }
+  }
+  return ambiguous ? null : best;
 }

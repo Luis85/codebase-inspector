@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { FINDING_CATEGORIES } from '../../src/application/evidence/model';
 import { buildEvidenceReport, normalizeFallow } from '../../src/application/evidence/normalize-fallow';
 import {
-  DROPPED_KEYS, FALLOW_FIXTURES, deepKeys, fallowDoc, fallowText, fixtureSourceLines, rawReport, rows, type FallowDoc, type FallowFixture,
+  DROPPED_KEYS, FALLOW_FIXTURES, deepKeys, deepStrings, fallowDoc, fallowText, fixtureSourceLines, rawReport, rows, type FallowDoc, type FallowFixture,
 } from '../fixtures/fallow-fixture';
 import { LABEL_OPTIONS, PARTITION, SUM_A, SUM_B, UNUSED_HELPER, where } from '../fixtures/fallow-expected';
 
@@ -129,17 +129,35 @@ describe('normalizeFallow: no source text is kept (Part 6 Y23)', () => {
     const keys = deepKeys(result);
     expect(keys.size).toBeGreaterThan(0);
     for (const dropped of DROPPED_KEYS) expect({ name, dropped, kept: keys.has(dropped) }).toEqual({ name, dropped, kept: false });
-    const text = JSON.stringify(result);
-    expect(lines.filter((line) => text.includes(line))).toEqual([]);
+    // Fix round 1 (Important 3): deepStrings, not a single JSON.stringify scan, so a
+    // fixture line containing a quote or backslash is not missed by JSON escaping.
+    const strings = deepStrings(result);
+    expect(lines.filter((line) => strings.some((s) => s.includes(line)))).toEqual([]);
   });
 
   it('the attached report keeps none either', () => {
     const report = buildEvidenceReport({
       raw: rawReport('combined-3.27.0'), fileName: 'combined.json', importedAt: '2026-09-23T10:00:00.000Z', snapshotId: 'snap-1', stripPrefix: null,
     });
-    const text = JSON.stringify(report);
-    expect(lines.filter((line) => text.includes(line))).toEqual([]);
+    const strings = deepStrings(report);
+    expect(lines.filter((line) => strings.some((s) => s.includes(line)))).toEqual([]);
     for (const dropped of DROPPED_KEYS) expect(deepKeys(report).has(dropped)).toBe(false);
+  });
+
+  it('a raw report carrying source text the parser never actually produces (fragment, injected by hand on a health finding, a clone group, a clone instance and an unused entry) still yields none', () => {
+    const raw = rawReport('combined-3.27.0');
+    const mutable = raw as unknown as {
+      health: { findings: Record<string, unknown>[] };
+      dupes: { clone_groups: (Record<string, unknown> & { instances: Record<string, unknown>[] })[] };
+      check: { unused_exports: Record<string, unknown>[] };
+    };
+    const line = lines[0]!;
+    mutable.health.findings[0]!.fragment = line;
+    mutable.dupes.clone_groups[0]!.fragment = line;
+    mutable.dupes.clone_groups[0]!.instances[0]!.fragment = line;
+    mutable.check.unused_exports[0]!.fragment = line;
+    const result = normalizeFallow(raw, NO_STRIP);
+    expect(deepStrings(result)).not.toContain(line);
   });
 });
 

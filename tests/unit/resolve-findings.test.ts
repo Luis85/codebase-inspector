@@ -67,4 +67,13 @@ describe('suggestStripPrefix (Part 6 Y26)', () => {
   it('offers nothing when two different folders of the same length would each work (ambiguous)', () => {
     expect(suggestStripPrefix(['a/x.ts', 'b/y.ts'], snapshot('x.ts', 'y.ts'))).toBeNull();
   });
+
+  it('runs quickly for 8 000 unmatched paths in distinct folders against a 20 000-file snapshot (Fix round 1, Important 2)', () => {
+    const unmatchedPaths = Array.from({ length: 8_000 }, (_, i) => `folder${i}/src/a.ts`);
+    const snapshotPaths: ReadonlySet<string> = new Set(Array.from({ length: 20_000 }, (_, i) => `unrelated/file${i}.ts`));
+    const start = Date.now();
+    const result = suggestStripPrefix(unmatchedPaths, snapshotPaths);
+    expect(Date.now() - start).toBeLessThan(1000);
+    expect(result).toBeNull();
+  });
 });

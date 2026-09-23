@@ -66,49 +66,68 @@ function pathMapper(stripPrefix: string | null, rejected: Set<string>): PathMapp
   };
 }
 
-const findingId = (prefix: 'CX' | 'DU' | 'UN', key: string): string => `${prefix}-${fnv1a32Hex(key)}`;
 const byPosition = (a: RawHealthFinding, b: RawHealthFinding): number => a.line - b.line || a.col - b.col;
 
+/** Y24: one finding awaiting its id. `key` is what Y24 hashes, kept apart from the
+ *  finding itself so a hash collision between two DIFFERENT keys (Fix round 1,
+ *  Minor→E33) can be resolved without ever dropping a finding. */
+interface DraftFinding {
+  key: string;
+  prefix: 'CX' | 'DU' | 'UN';
+  finding: Omit<EvidenceFinding, 'id'>;
+}
+
+interface MappedHealthFinding { finding: RawHealthFinding; path: string }
+
 /** Y24: the index of each finding among same-named findings in its file, counted in
- *  source order (line, then column), so reordering the report never renames a finding. */
-function occurrenceIndexes(findings: readonly RawHealthFinding[], mapPath: PathMapper): Map<RawHealthFinding, number> {
+ *  source order (line, then column), so reordering the report never renames a finding.
+ *  Fix round 1 (Important 1): takes each finding's mapped path already computed once by
+ *  the caller, and grows a group with one push instead of copying the array on every
+ *  finding (was O(k^2) for k same-named findings in one file). */
+function occurrenceIndexes(mapped: readonly MappedHealthFinding[]): Map<RawHealthFinding, number> {
   const groups = new Map<string, RawHealthFinding[]>();
-  for (const f of findings) {
-    const path = mapPath(f.path);
-    if (path === null) continue;
-    const key = `${path}|${f.name}`;
-    groups.set(key, [...(groups.get(key) ?? []), f]);
+  for (const { finding, path } of mapped) {
+    const key = `${path}|${finding.name}`;
+    const group = groups.get(key);
+    if (group) group.push(finding);
+    else groups.set(key, [finding]);
   }
   const index = new Map<RawHealthFinding, number>();
-  for (const group of groups.values()) [...group].sort(byPosition).forEach((f, i) => index.set(f, i));
+  for (const group of groups.values()) {
+    group.sort(byPosition);
+    group.forEach((f, i) => index.set(f, i));
+  }
   return index;
 }
 
-/** Y23: one finding per health finding. */
-function complexityFindings(health: RawHealthSection, mapPath: PathMapper): EvidenceFinding[] {
-  const occurrence = occurrenceIndexes(health.findings, mapPath);
-  const out: EvidenceFinding[] = [];
-  for (const f of health.findings) {
-    const path = mapPath(f.path);
-    if (path === null) continue;
-    out.push({
-      id: findingId('CX', `${path}|${f.name}|${occurrence.get(f) ?? 0}`),
-      category: 'complexity', rule: 'complexity', severity: f.severity, path,
+/** Y23: one finding per health finding. Fix round 1 (Important 1): `mapPath` runs once
+ *  per finding, its result reused for both the occurrence index and the finding itself. */
+function complexityFindings(health: RawHealthSection, mapPath: PathMapper): DraftFinding[] {
+  const mapped: MappedHealthFinding[] = [];
+  for (const finding of health.findings) {
+    const path = mapPath(finding.path);
+    if (path !== null) mapped.push({ finding, path });
+  }
+  const occurrence = occurrenceIndexes(mapped);
+  return mapped.map(({ finding: f, path }) => ({
+    key: `${path}|${f.name}|${occurrence.get(f) ?? 0}`,
+    prefix: 'CX' as const,
+    finding: {
+      category: 'complexity' as const, rule: 'complexity' as const, severity: f.severity, path,
       line: f.line, endLine: null, symbol: f.name,
       detail: {
-        kind: 'complexity', cognitive: f.cognitive, cyclomatic: f.cyclomatic, lineCount: f.line_count, exceeded: f.exceeded,
+        kind: 'complexity' as const, cognitive: f.cognitive, cyclomatic: f.cyclomatic, lineCount: f.line_count, exceeded: f.exceeded,
         cognitiveThreshold: health.summary.max_cognitive_threshold, cyclomaticThreshold: health.summary.max_cyclomatic_threshold,
       },
-    });
-  }
-  return out;
+    },
+  }));
 }
 
 /** Y23: one finding per (clone group, instance file). A file holding two instances of the
  *  same group gets one finding, with its earliest instance's range. `partnerFiles`
  *  counts the group's other distinct files, a refused path included. */
-function duplicationFindings(dupes: RawDupesSection, mapPath: PathMapper): EvidenceFinding[] {
-  const out: EvidenceFinding[] = [];
+function duplicationFindings(dupes: RawDupesSection, mapPath: PathMapper): DraftFinding[] {
+  const out: DraftFinding[] = [];
   for (const group of dupes.clone_groups) {
     const refused = new Set<string>();
     const first = new Map<string, RawCloneInstance>();
@@ -124,10 +143,13 @@ function duplicationFindings(dupes: RawDupesSection, mapPath: PathMapper): Evide
     const partnerFiles = first.size + refused.size - 1;
     for (const [path, instance] of first) {
       out.push({
-        id: findingId('DU', `${group.fingerprint}|${path}`),
-        category: 'duplication', rule: 'duplication', severity: null, path,
-        line: instance.start_line, endLine: instance.end_line, symbol: null,
-        detail: { kind: 'duplication', tokenCount: group.token_count, lineCount: group.line_count, partnerFiles },
+        key: `${group.fingerprint}|${path}`,
+        prefix: 'DU',
+        finding: {
+          category: 'duplication', rule: 'duplication', severity: null, path,
+          line: instance.start_line, endLine: instance.end_line, symbol: null,
+          detail: { kind: 'duplication', tokenCount: group.token_count, lineCount: group.line_count, partnerFiles },
+        },
       });
     }
   }
@@ -135,16 +157,19 @@ function duplicationFindings(dupes: RawDupesSection, mapPath: PathMapper): Evide
 }
 
 /** Y23: one finding per unused export and per unused type. */
-function unusedFindings(entries: readonly RawUnusedEntry[], rule: FindingRule, mapPath: PathMapper): EvidenceFinding[] {
-  const out: EvidenceFinding[] = [];
+function unusedFindings(entries: readonly RawUnusedEntry[], rule: FindingRule, mapPath: PathMapper): DraftFinding[] {
+  const out: DraftFinding[] = [];
   for (const e of entries) {
     const path = mapPath(e.path);
     if (path === null) continue;
     out.push({
-      id: findingId('UN', `${path}|${e.export_name}|${rule}`),
-      category: 'unused-exports', rule, severity: null, path,
-      line: e.line, endLine: null, symbol: e.export_name,
-      detail: { kind: 'unused', typeOnly: e.is_type_only },
+      key: `${path}|${e.export_name}|${rule}`,
+      prefix: 'UN',
+      finding: {
+        category: 'unused-exports', rule, severity: null, path,
+        line: e.line, endLine: null, symbol: e.export_name,
+        detail: { kind: 'unused', typeOnly: e.is_type_only },
+      },
     });
   }
   return out;
@@ -164,14 +189,21 @@ function notShownOf(s: Sections): NotShownCount[] {
   return out;
 }
 
-/** Keeps the first finding for each id: an identical key is the same finding reported twice. */
-function distinctById(findings: readonly EvidenceFinding[]): EvidenceFinding[] {
-  const seen = new Set<string>();
+/** Y24: the first finding wins when the same key is reported twice. A hash COLLISION
+ *  between two different keys never drops a finding either (Fix round 1, Minor→E33): the
+ *  later key is rehashed with a `#n` suffix until its id is free, so both survive with
+ *  distinct, still-pattern-matching ids. */
+function assignIds(drafts: readonly DraftFinding[]): EvidenceFinding[] {
+  const seenKeys = new Set<string>();
+  const usedIds = new Set<string>();
   const out: EvidenceFinding[] = [];
-  for (const f of findings) {
-    if (seen.has(f.id)) continue;
-    seen.add(f.id);
-    out.push(f);
+  for (const draft of drafts) {
+    if (seenKeys.has(draft.key)) continue;
+    seenKeys.add(draft.key);
+    let id = `${draft.prefix}-${fnv1a32Hex(draft.key)}`;
+    for (let n = 1; usedIds.has(id); n += 1) id = `${draft.prefix}-${fnv1a32Hex(`${draft.key}#${n}`)}`;
+    usedIds.add(id);
+    out.push({ ...draft.finding, id });
   }
   return out;
 }
@@ -187,7 +219,7 @@ export function normalizeFallow(raw: RawFallowReport, opts: { stripPrefix: strin
   const s = sectionsOf(raw);
   const rejected = new Set<string>();
   const mapPath = pathMapper(opts.stripPrefix, rejected);
-  const findings = distinctById([
+  const findings = assignIds([
     ...(s.health !== null ? complexityFindings(s.health, mapPath) : []),
     ...(s.dupes !== null ? duplicationFindings(s.dupes, mapPath) : []),
     ...(s.check !== null ? unusedFindings(s.check.unused_exports, 'unused-export', mapPath) : []),
