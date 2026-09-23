@@ -9,6 +9,10 @@ vi.mock('../../src/ui/read-models/security', async (importOriginal) => {
 });
 
 describe('Security read model laziness (V18)', () => {
+  // Explicit timeout: under the full suite this test's cold dynamic import of
+  // use-read-models (behind the security vi.mock) transforms the whole read-model
+  // module graph in a busy worker, which alone can exceed vitest's 5s default.
+  // That import cost is not the laziness behaviour under test.
   it('importing use-read-models builds nothing; the first read builds once; later reads reuse it', async () => {
     const security = await import('../../src/ui/read-models/security');
     const build = vi.mocked(security.buildSecurityModel);
@@ -21,7 +25,7 @@ describe('Security read model laziness (V18)', () => {
     setActivePinia(createPinia());   // a second leaf
     expect(useReadModels().security.value).toBe(first);
     expect(build).toHaveBeenCalledTimes(1);
-  });
+  }, 20_000);
 
   it('buildSecurityModel is pure over its input; securityModelFor memoizes per package array', async () => {
     const { buildSecurityModel } = await import('../../src/ui/read-models/security');
