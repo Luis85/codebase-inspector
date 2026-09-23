@@ -153,6 +153,17 @@ describe('AnalysisCoordinator: failures keep old evidence (acceptance 4, Z23)', 
     await probed(s, plan({ onProbePassed: () => Promise.reject(new Error('disk full')) }));
     expect(s.coordinator.stateOf('p1')).toMatchObject({ status: 'failed', code: 'spawn-failed', detail: 'internal' });
   });
+
+  it('Polish B5: a probe the port ends as cancelled, unasked, ends the run cancelled and marks nothing stale', async () => {
+    const s = setup();
+    const old = emptyEvidenceReport(SNAPSHOT.snapshotId);
+    s.evidence.put('p1', old);
+    expect(s.coordinator.start(plan())).toBe(true);
+    await s.process.settle({ kind: 'cancelled', stderrTail: '' });
+    expect(s.coordinator.stateOf('p1').status).toBe('cancelled');
+    expect(s.evidence.get('p1')).toBe(old);
+    expect(s.process.requests).toHaveLength(1);
+  });
 });
 
 describe('AnalysisCoordinator: cancelled or superseded runs never publish (acceptance 5)', () => {
@@ -167,7 +178,7 @@ describe('AnalysisCoordinator: cancelled or superseded runs never publish (accep
     expect(s.evidence.get('p1')).toBeNull();
   });
 
-  it('cancel while running forbids publication even if the report was already complete', async () => {
+  it('cancel while running stops the process and publishes nothing', async () => {
     const s = setup();
     await probed(s);
     s.coordinator.cancel('p1');
@@ -176,6 +187,19 @@ describe('AnalysisCoordinator: cancelled or superseded runs never publish (accep
     expect(s.coordinator.stateOf('p1').status).toBe('cancelled');
     expect(s.evidence.get('p1')).toBeNull();
     expect(s.seen).toEqual(['probing', 'running', 'cancelling', 'cancelled']);
+  });
+
+  it('Polish B8: a cancel while onProbePassed is pending ends cancelled, and the analysis never starts', async () => {
+    const s = setup();
+    const verdicts: ((verdict: 'continue') => void)[] = [];
+    await probed(s, plan({ onProbePassed: () => new Promise((resolve) => { verdicts.push(resolve); }) }));
+    expect(s.coordinator.stateOf('p1').status).toBe('probing');
+    s.coordinator.cancel('p1');
+    expect(s.coordinator.stateOf('p1').status).toBe('cancelling');
+    verdicts[0]!('continue');
+    await delay(0);
+    expect(s.coordinator.stateOf('p1').status).toBe('cancelled');
+    expect(s.process.requests).toHaveLength(1);
   });
 
   it('a subscriber cancelling on PROBE_PASSED is honoured: the run is never started', async () => {
@@ -242,7 +266,10 @@ describe('AnalysisCoordinator: shutdown (Z24)', () => {
     const s = setup();
     await probed(s);
     expect(s.coordinator.start(plan({ subject: { ...SUBJECT, profileId: 'p2' } }))).toBe(true);
+    // Polish B8: p1's complete report has arrived; shutdown lands before the coordinator reads it.
+    const arriving = s.process.settle(exitedWith(0, REPORT));
     s.coordinator.shutdown();
+    await arriving;
     expect(s.process.killAllCalls()).toBe(1);
     await delay(0);
     expect(s.coordinator.stateOf('p1').status).toBe('cancelled');
@@ -329,11 +356,23 @@ describe('AnalysisCoordinator: a throwing subscriber never corrupts a run (fix r
 });
 
 describe('AnalysisCoordinator: a re-entrant cancel never leaves a run stuck (fix round 1)', () => {
-  it('an evidence subscriber cancelling on put still reaches cancelled, not stuck in cancelling', async () => {
+  it('an evidence subscriber cancelling on put still reaches cancelled, not stuck in cancelling, and keeps the report it had already published (Polish B6)', async () => {
     const s = setup();
     s.evidence.subscribe(() => { s.coordinator.cancel('p1'); });
     await probed(s);
     await s.process.settle(exitedWith(0, REPORT));
     expect(s.coordinator.stateOf('p1').status).toBe('cancelled');
+    expect(s.evidence.get('p1')?.collected?.origin).toBe('collected');
   });
+});
+
+describe('the fake process port (Polish B9)', () => {
+  it('answers a token cancelled before the call at once, as the real runner does', async () => {
+    const port = createFakeProcessPort();
+    const { token, cancel } = createCancellationToken();
+    cancel();
+    const request = { executablePath: '/x/fallow', args: ['--version'], cwd: '/x', timeoutMs: 5_000, maxStdoutBytes: 4_096, maxStderrBytes: 65_536 };
+    await expect(port.run(request, token)).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+    expect(port.pending()).toBe(0);
+  }, 2_000);
 });

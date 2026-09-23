@@ -21,15 +21,16 @@ import {
 } from './fallow-invocation';
 import { OPERATIONAL_FAILURES, type FallowRunErrorCode } from './fallow-run-errors';
 import {
-  IDLE, isActive, mayPublish, reduceAnalysis, type AnalysisAction, type AnalysisIdentity, type AnalysisRunState,
+  IDLE, isActive, isCancellable, mayPublishAnalysis, reduceAnalysis, type AnalysisAction, type AnalysisIdentity, type AnalysisRunState,
 } from './analysis-state';
 
 export interface RunPlan {
   subject: TrustSubject;
   snapshotId: string;
   timeoutSeconds: number;
-  /** Called once the probe passed, before the analysis (A7). */
-  onProbePassed: (version: string) => Promise<'continue' | 'version-changed' | 'changed-since-review'>;
+  /** Called once the probe passed, before the analysis (A7). Every verdict but `continue`
+   *  ends the run as that (non-operational) failure (Polish B2). */
+  onProbePassed: (version: string) => Promise<'continue' | 'version-changed' | 'changed-since-review' | 'store-unsupported'>;
 }
 
 export interface AnalysisCoordinatorDeps {
@@ -82,7 +83,7 @@ export class AnalysisCoordinator {
   /** Cancelling forbids publication at once; `cancelled` follows the process's own end. */
   cancel(profileId: string): void {
     const state = this.stateOf(profileId);
-    if (state.status !== 'probing' && state.status !== 'running') return;
+    if (!isCancellable(state)) return;
     this.dispatch(profileId, { type: 'CANCEL_REQUESTED', runId: state.identity.runId });
     this.cancels.get(state.identity.runId)?.();
   }
@@ -96,7 +97,7 @@ export class AnalysisCoordinator {
     this.deps.process.killAll();
     for (const cancel of Array.from(this.cancels.values())) cancel();
     for (const [profileId, state] of Array.from(this.states)) {
-      if (state.status === 'probing' || state.status === 'running') this.dispatch(profileId, { type: 'CANCEL_REQUESTED', runId: state.identity.runId });
+      if (isCancellable(state)) this.dispatch(profileId, { type: 'CANCEL_REQUESTED', runId: state.identity.runId });
     }
     this.listeners.clear();
   }
@@ -110,6 +111,7 @@ export class AnalysisCoordinator {
     try {
       const probe = await this.deps.process.run(request(FALLOW_VERSION_ARGS, FALLOW_VERSION_TIMEOUT_MS, FALLOW_VERSION_MAX_BYTES), token);
       if (this.stopIfCancelled(profileId, runId)) return;
+      if (probe.kind === 'cancelled') { this.stopUnasked(profileId, runId); return; }
       const version = classifyVersionProbe(probe);
       if (!version.ok) { this.fail(profileId, runId, version.code, version.detail, logOf(probe)); return; }
       const verdict = await plan.onProbePassed(version.version);
@@ -123,11 +125,7 @@ export class AnalysisCoordinator {
       const outcome = await this.deps.process.run(request(FALLOW_RUN_ARGS(root), plan.timeoutSeconds * 1000, FALLOW_STDOUT_MAX_BYTES), token);
       if (this.stopIfCancelled(profileId, runId)) return;
       const result = classifyFallowExit(outcome, plan.timeoutSeconds);
-      if (result.kind === 'cancelled') {
-        this.dispatch(profileId, { type: 'CANCEL_REQUESTED', runId });
-        this.dispatch(profileId, { type: 'PROCESS_STOPPED', runId });
-        return;
-      }
+      if (result.kind === 'cancelled') { this.stopUnasked(profileId, runId); return; }
       if (result.kind === 'failed') { this.fail(profileId, runId, result.code, result.detail, logOf(outcome)); return; }
 
       const snapshot = this.deps.snapshots.get(identity.snapshotId);
@@ -151,13 +149,15 @@ export class AnalysisCoordinator {
 
       const latestSnapshotId = this.deps.snapshots.latestFor(profileId)?.snapshotId ?? null;
       const evidenceUnchanged = this.deps.evidence.get(profileId) === evidenceAtStart;
-      if (!mayPublish(identity, this.stateOf(profileId), { latestSnapshotId, evidenceUnchanged })) {
+      if (!mayPublishAnalysis(identity, this.stateOf(profileId), { latestSnapshotId, evidenceUnchanged })) {
         this.fail(profileId, runId, latestSnapshotId === identity.snapshotId ? 'superseded' : 'snapshot-changed', '', '');
         return;
       }
       // The atomic swap: no await between these two lines. Fix round 1: a throwing evidence
       // subscriber is isolated — the write itself already succeeded before it notified, so
       // it must not be misread below (or by the catch) as this run having failed.
+      // A subscriber cancelling inside `put` keeps the report just published (Polish B6, L15):
+      // `finally` then confirms `cancelled`.
       this.isolate(() => { this.deps.evidence.put(profileId, report); });
       this.dispatch(profileId, {
         type: 'RUN_COMPLETED', runId, finishedAt, matchedFindings: matched.length, matchedFiles: new Set(matched.map((f) => f.path)).size,
@@ -180,6 +180,13 @@ export class AnalysisCoordinator {
     if (state.status !== 'cancelling' || state.identity.runId !== runId) return false;
     this.dispatch(profileId, { type: 'PROCESS_STOPPED', runId });
     return true;
+  }
+
+  /** Polish B5 (L14): the port ended the process as cancelled although nobody asked (its own
+   *  killAll): confirmed as a cancel, on the probe and the run path alike. */
+  private stopUnasked(profileId: string, runId: string): void {
+    this.dispatch(profileId, { type: 'CANCEL_REQUESTED', runId });
+    this.dispatch(profileId, { type: 'PROCESS_STOPPED', runId });
   }
 
   /** Z23: an operational failure keeps the evidence and marks it stale; the others leave it

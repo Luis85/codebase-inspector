@@ -4,7 +4,7 @@
 // unchanged evidence.
 import { describe, expect, it } from 'vitest';
 import {
-  IDLE, isActive, isCancellable, mayPublish, reduceAnalysis, type AnalysisIdentity, type AnalysisRunState,
+  IDLE, isActive, isCancellable, mayPublishAnalysis, reduceAnalysis, type AnalysisIdentity, type AnalysisRunState,
 } from '../../src/application/analysis/analysis-state';
 
 const ID: AnalysisIdentity = { profileId: 'p1', snapshotId: 's1', rootFingerprint: 'aaaaaaaa', subjectFingerprint: 'bbbbbbbb', runId: 'r1', generation: 0 };
@@ -73,24 +73,24 @@ describe('reduceAnalysis (Z20)', () => {
   });
 });
 
-describe('mayPublish (Z20)', () => {
+describe('mayPublishAnalysis (Z20, Polish B10)', () => {
   it('publishes the running identity on the latest snapshot with unchanged evidence', () => {
-    expect(mayPublish(ID, running, NOW)).toBe(true);
+    expect(mayPublishAnalysis(ID, running, NOW)).toBe(true);
   });
 
   it('never while probing or cancelling', () => {
-    expect(mayPublish(ID, started, NOW)).toBe(false);
-    expect(mayPublish(ID, reduceAnalysis(running, { type: 'CANCEL_REQUESTED', runId: 'r1' }), NOW)).toBe(false);
+    expect(mayPublishAnalysis(ID, started, NOW)).toBe(false);
+    expect(mayPublishAnalysis(ID, reduceAnalysis(running, { type: 'CANCEL_REQUESTED', runId: 'r1' }), NOW)).toBe(false);
   });
 
   it.each(Object.keys(ID) as (keyof AnalysisIdentity)[])('never when the identity differs in %s', (key) => {
     const changed = { ...ID, [key]: key === 'generation' ? 5 : 'other' };
-    expect(mayPublish(changed, running, key === 'snapshotId' ? { ...NOW, latestSnapshotId: 'other' } : NOW)).toBe(false);
+    expect(mayPublishAnalysis(changed, running, key === 'snapshotId' ? { ...NOW, latestSnapshotId: 'other' } : NOW)).toBe(false);
   });
 
   it('never when a newer snapshot exists, or the evidence changed meanwhile', () => {
-    expect(mayPublish(ID, running, { latestSnapshotId: 's2', evidenceUnchanged: true })).toBe(false);
-    expect(mayPublish(ID, running, { latestSnapshotId: null, evidenceUnchanged: true })).toBe(false);
-    expect(mayPublish(ID, running, { latestSnapshotId: 's1', evidenceUnchanged: false })).toBe(false);
+    expect(mayPublishAnalysis(ID, running, { latestSnapshotId: 's2', evidenceUnchanged: true })).toBe(false);
+    expect(mayPublishAnalysis(ID, running, { latestSnapshotId: null, evidenceUnchanged: true })).toBe(false);
+    expect(mayPublishAnalysis(ID, running, { latestSnapshotId: 's1', evidenceUnchanged: false })).toBe(false);
   });
 });

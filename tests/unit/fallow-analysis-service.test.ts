@@ -3,54 +3,18 @@
 // remembers trust until what it covers changes, and refuses stale or busy starts.
 import { setTimeout as delay } from 'node:timers/promises';
 import { describe, expect, it } from 'vitest';
-import { AnalysisCoordinator } from '../../src/application/analysis/analysis-coordinator';
 import { createFallowAnalysisService } from '../../src/application/analysis/fallow-analysis-service';
 import { FALLOW_ENV_ALLOW_LIST, FALLOW_RUN_ARGS } from '../../src/application/analysis/fallow-invocation';
-import { fingerprintTrust, type TrustSubject } from '../../src/application/analysis/analyzer-trust';
-import { createCancellationToken } from '../../src/application/scan-coordinator';
-import type { SourceFileSystemPort } from '../../src/application/ports/source-filesystem-port';
-import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
-import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
+import { fingerprintTrust } from '../../src/application/analysis/analyzer-trust';
 import { createFixedClock } from '../fixtures/clock';
-import { createFakeProcessPort, exitedWith } from '../fixtures/fake-process-port';
-import { createFakeExecutableInspector, factsFor } from '../fixtures/fake-executable-inspector';
+import { exitedWith } from '../fixtures/fake-process-port';
+import { factsFor } from '../fixtures/fake-executable-inspector';
 import { createInMemoryAnalyzerStore } from '../fixtures/in-memory-analyzer-store';
-import { snapshotWithPaths } from '../fixtures/evidence-report';
-import { FIXTURE_PROJECT_FILES } from '../fixtures/fallow-expected';
+import {
+  EXE, ROOT, SNAPSHOT, createServiceWorld, dirPort, reviewed, subjectOf, trusted, type ServiceWorld,
+} from '../fixtures/fallow-service-world';
 
-const SNAPSHOT = snapshotWithPaths(FIXTURE_PROJECT_FILES, 'p1');
-const ROOT = SNAPSHOT.scope.rootPath;
-const EXE = '/opt/fallow/bin/fallow';
-const subjectOf = (facts = factsFor(EXE)): TrustSubject => ({ profileId: 'p1', machineId: 'm', rootPath: ROOT, args: FALLOW_RUN_ARGS(ROOT), facts });
-/** A SourceFileSystemPort whose `stat` answers for the root; the other members are unused here. */
-const dirPort = (exists: () => boolean): SourceFileSystemPort => ({
-  stat: () => Promise.resolve({ exists: exists(), isDirectory: exists(), isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 }),
-}) as unknown as SourceFileSystemPort;
-
-function setup() {
-  const process = createFakeProcessPort();
-  const evidence = new InMemoryEvidenceStore();
-  const clock = createFixedClock('2026-09-23T10:00:00.000Z');
-  const snapshots = new InMemorySnapshotStore(clock);
-  snapshots.put(SNAPSHOT);
-  const coordinator = new AnalysisCoordinator({ process, evidence, snapshots, clock, createCancellationToken });
-  const store = createInMemoryAnalyzerStore('m');
-  const inspector = createFakeExecutableInspector('fallow');
-  const root = { exists: true };
-  const service = createFallowAnalysisService({
-    store, inspector, coordinator, snapshots, getFilesystem: () => dirPort(() => root.exists), machineId: 'm', clock,
-  });
-  return { process, evidence, snapshots, coordinator, store, inspector, root, service };
-}
-async function trusted(s: ReturnType<typeof setup>, version = '3.27.0'): Promise<void> {
-  await s.store.bind('p1', EXE);
-  await s.store.grantTrust('p1', { fingerprint: fingerprintTrust(subjectOf(), version), version, grantedAt: '2026-09-23T09:00:00.000Z' }, EXE);
-}
-async function reviewed(s: ReturnType<typeof setup>) {
-  const result = await s.service.review('p1', SNAPSHOT, EXE);
-  if (!result.ok) throw new Error(`test setup: review refused (${result.code})`);
-  return result.review;
-}
+const setup = (): ServiceWorld => createServiceWorld();
 
 describe('every binding write is announced (final review)', () => {
   it('bind, trust, a time limit, a Forget and a purge each notify with the profile id; a refused write does not', async () => {

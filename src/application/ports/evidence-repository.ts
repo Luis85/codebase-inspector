@@ -6,7 +6,10 @@ import type { EvidenceReport } from '../evidence/model';
 export interface EvidenceRepository {
   /** The report attached to this codebase, or null. The stored object itself, never a copy. */
   get(repositoryId: string): EvidenceReport | null;
-  /** Attaches the codebase's report, replacing any earlier one, then notifies every subscriber. */
+  /** Attaches the codebase's report, replacing any earlier one, THEN notifies every subscriber,
+   *  synchronously: a subscriber already reads the new report. The analysis coordinator relies
+   *  on this order (Polish B6): a subscriber that cancels re-entrantly during `put` ends the run
+   *  `cancelled`, with the complete, verified report it had already published kept. */
   put(repositoryId: string, report: EvidenceReport): void;
   /** Removes it and notifies. Removing nothing notifies nobody. */
   remove(repositoryId: string): void;

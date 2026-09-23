@@ -101,6 +101,14 @@ function normalisedPath(raw: string): string | null {
   }
 }
 
+/** Polish B2 (L13): a trust write the store refused is never an operational failure, so good
+ *  evidence is not marked stale. Only the store's own refusal is mapped; anything else is a
+ *  real error and still ends the run as the internal failure. */
+function refusedTrustWrite(e: unknown): 'store-unsupported' | 'changed-since-review' | null {
+  if (!(e instanceof AnalyzerStoreError)) return null;
+  return e.code === 'unsupported' ? 'store-unsupported' : 'changed-since-review';
+}
+
 export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): FallowAnalysisService {
   const { inspector, coordinator, snapshots, machineId, clock } = deps;
   const bindingListeners = new Set<(profileId: string) => void>();
@@ -173,18 +181,19 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
     const started = coordinator.start({
       subject, snapshotId: snapshot.snapshotId, timeoutSeconds,
       onProbePassed: async (version) => {
-        if (trustedVersion === null) {
-          try {
+        try {
+          if (trustedVersion === null) {
             await store.grantTrust(profileId, { fingerprint: fingerprintTrust(subject, version), version, grantedAt: clock.nowIso() }, subject.facts.executablePath);
-          } catch (e) {
-            if (e instanceof AnalyzerStoreError) return 'changed-since-review';
-            throw e;
+            return 'continue';
           }
-          return 'continue';
+          if (version === trustedVersion) return 'continue';
+          await store.revokeTrust(profileId);
+          return 'version-changed';
+        } catch (e) {
+          const verdict = refusedTrustWrite(e);
+          if (verdict === null) throw e;
+          return verdict;
         }
-        if (version === trustedVersion) return 'continue';
-        await store.revokeTrust(profileId);
-        return 'version-changed';
       },
     });
     return started ? { kind: 'started' } : { kind: 'busy' };
@@ -236,6 +245,9 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
       if (!inspection.ok) return { kind: 'refused', ...refusalOf(inspection) };
       const subject = subjectOf(profileId, snapshot, inspection.facts);
       if (fingerprintTrust(subject, '') !== reviewed.subjectFingerprint) return { kind: 'refused', code: 'changed-since-review', detail: '' };
+      // Polish B1: a run may have started during the awaits above (another leaf, the command).
+      // Its binding is never replaced under it.
+      if (isActive(coordinator.stateOf(profileId))) return { kind: 'busy' };
       try {
         await store.bind(profileId, reviewed.facts.executablePath);
       } catch (e) {

@@ -3,18 +3,15 @@
 // process. `detail` is always data for the copy (src/ui/audit-copy/fallow-run.ts), never copy.
 import type { FallowImportErrorCode } from '../evidence/raw-fallow';
 
-export type FallowRunErrorCode =
-  | 'root-unavailable' | 'executable-missing' | 'executable-refused' | 'changed-since-review' | 'store-unsupported'
-  | 'version-probe-failed' | 'version-unsupported' | 'version-changed' | 'spawn-failed' | 'timed-out'
-  | 'output-too-large' | 'output-incomplete' | 'output-not-json' | 'output-unsupported' | 'output-invalid'
-  | 'analyzer-error' | 'exit-code' | 'source-mismatch' | 'snapshot-changed' | 'superseded';
-
-export const FALLOW_RUN_ERROR_CODES: readonly FallowRunErrorCode[] = [
+/** Polish B4: the one list; the type is derived from it, so a code cannot be added to only one. */
+export const FALLOW_RUN_ERROR_CODES = [
   'root-unavailable', 'executable-missing', 'executable-refused', 'changed-since-review', 'store-unsupported',
   'version-probe-failed', 'version-unsupported', 'version-changed', 'spawn-failed', 'timed-out',
   'output-too-large', 'output-incomplete', 'output-not-json', 'output-unsupported', 'output-invalid',
   'analyzer-error', 'exit-code', 'source-mismatch', 'snapshot-changed', 'superseded',
-];
+] as const;
+
+export type FallowRunErrorCode = (typeof FALLOW_RUN_ERROR_CODES)[number];
 
 /** Not operational: a changed trust subject, a newer data format, a newer snapshot or
  *  newer evidence, or a report that matches nothing. None of these marks evidence stale. */

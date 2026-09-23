@@ -41,8 +41,9 @@ export function isActive(state: AnalysisRunState): boolean {
   return state.status === 'probing' || state.status === 'running' || state.status === 'cancelling';
 }
 
-/** M36's rule for the cancel command: only a probing or running analysis can be cancelled. */
-export function isCancellable(state: AnalysisRunState): boolean {
+/** M36's rule for the cancel command: only a probing or running analysis can be cancelled.
+ *  Polish B3: a type guard, used by the coordinator and the reducer alike. */
+export function isCancellable(state: AnalysisRunState): state is Extract<AnalysisRunState, { status: 'probing' | 'running' }> {
   return state.status === 'probing' || state.status === 'running';
 }
 
@@ -58,7 +59,7 @@ export function reduceAnalysis(state: AnalysisRunState, action: AnalysisAction):
         timeoutSeconds: state.timeoutSeconds, version: action.version, tested: action.tested,
       };
     case 'CANCEL_REQUESTED':
-      if ((state.status !== 'probing' && state.status !== 'running') || state.identity.runId !== action.runId) return state;
+      if (!isCancellable(state) || state.identity.runId !== action.runId) return state;
       return { status: 'cancelling', identity: state.identity };
     case 'PROCESS_STOPPED':
       if (state.status !== 'cancelling' || state.identity.runId !== action.runId) return state;
@@ -70,7 +71,7 @@ export function reduceAnalysis(state: AnalysisRunState, action: AnalysisAction):
         matchedFindings: action.matchedFindings, matchedFiles: action.matchedFiles,
       };
     case 'RUN_FAILED':
-      if ((state.status !== 'probing' && state.status !== 'running') || state.identity.runId !== action.runId) return state;
+      if (!isCancellable(state) || state.identity.runId !== action.runId) return state;
       return {
         status: 'failed', runId: action.runId, code: action.code, detail: action.detail, logExcerpt: action.logExcerpt,
         evidenceKept: action.evidenceKept, finishedAt: action.finishedAt,
@@ -84,7 +85,7 @@ export function reduceAnalysis(state: AnalysisRunState, action: AnalysisAction):
 
 /** Z20: validation (the Part 6 schema and the mismatch rule) is the caller's; this is the
  *  identity, cancellation and supersession half. `cancelling` forbids publication at once. */
-export function mayPublish(
+export function mayPublishAnalysis(
   identity: AnalysisIdentity, state: AnalysisRunState, current: { latestSnapshotId: string | null; evidenceUnchanged: boolean },
 ): boolean {
   if (state.status !== 'running') return false;

@@ -32,6 +32,9 @@ export function createFakeProcessPort(): FakeProcessPort {
     requests,
     run(request: ProcessRequest, token: CancellationToken): Promise<ProcessOutcome> {
       requests.push(request);
+      // Polish B9: parity with the real runner, which never spawns for a token already cancelled
+      // (and a token's onCancelled never fires for a cancel that already happened).
+      if (token.cancelled) return Promise.resolve({ kind: 'cancelled', stderrTail: '' });
       return new Promise<ProcessOutcome>((resolve) => {
         const entry: Pending = { request, resolve };
         queue.push(entry);
