@@ -53,4 +53,18 @@ describe('WP-02 stylesheets', () => {
     const served = [...list![1]!.matchAll(/'([\w/.-]+\.css)'/g)].map((m) => m[1]);
     expect(served).toEqual(CASCADE_PATHS);
   });
+
+  // Part 6 Task 10 fix round 2 (E46): in the ~200px fallow card, a max-content label column
+  // left every value one character wide. The base list stacks labels over values; only the
+  // wide variant (the S14 review step) puts them side by side, with a bounded label column.
+  it('the fallow facts list is one column unless wide, and the wide label column is bounded (E46)', () => {
+    const css = read('screens-configure.css');
+    const base = /\.ci-fallow-facts\s*\{([^}]*)\}/.exec(css)?.[1];
+    const wide = /\.ci-fallow-facts--wide\s*\{([^}]*)\}/.exec(css)?.[1];
+    expect(base, 'the .ci-fallow-facts rule').toBeDefined();
+    expect(base).toMatch(/grid-template-columns:\s*minmax\(0, 1fr\);/);
+    expect(base).not.toContain('max-content');
+    expect(wide, 'the .ci-fallow-facts--wide rule').toBeDefined();
+    expect(wide).toMatch(/grid-template-columns:\s*fit-content\(40%\) minmax\(0, 1fr\);/);
+  });
 });

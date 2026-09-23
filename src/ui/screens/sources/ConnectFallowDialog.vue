@@ -148,6 +148,7 @@ function attach(): void {
           :matched-findings="review.matchedFindings"
           :matched-files="review.matchedFiles"
           :unmatched-paths="review.unmatchedPaths"
+          wide
         />
         <p
           v-if="review.suggestion !== null"

@@ -128,6 +128,7 @@ describe('Connect fallow (Part 6 Y38, S14)', () => {
     await pick(w, withNotShown(syntheticFallowJson(snap, { unmatchedPaths: strays })));
     expect(document.activeElement).toBe(w.find('.ci-connect-fallow h3').element);
     expect(w.find('.ci-fallow-facts__file').text()).toBe('fallow-report.json');
+    expect(w.find('.ci-connect-fallow .ci-fallow-facts').classes()).toContain('ci-fallow-facts--wide');   // E46
     expect(w.find('.ci-fallow-facts__matched').text()).toBe(FALLOW_MATCHED(19, 10));
     expect(w.find('.ci-fallow-facts__unmatched summary').text()).toBe(FALLOW_UNMATCHED_SUMMARY(25, 20));
     expect(w.findAll('.ci-fallow-facts__unmatched li').map((li) => li.text())).toEqual(strays.slice(0, 20));

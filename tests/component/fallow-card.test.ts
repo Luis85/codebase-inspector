@@ -73,6 +73,7 @@ describe('the fallow card (Part 6 Y37)', () => {
       FALLOW_ROW_NOT_SHOWN, FALLOW_ROW_WARNINGS,
     ]);
     expect(card.find('.ci-fallow-facts__file').text()).toBe(report.fileName);
+    expect(card.find('.ci-fallow-facts').classes()).not.toContain('ci-fallow-facts--wide');   // E46: stacked at card width
     expect(card.text()).toContain(formatAbsoluteTime(report.importedAt, Intl));
     expect(card.find('.ci-fallow-facts__matched').text()).toBe(FALLOW_MATCHED(19, 10));
     expect(card.findAll('.ci-fallow-facts__unmatched li').map((li) => li.text())).toEqual(['ghost/a.ts']);

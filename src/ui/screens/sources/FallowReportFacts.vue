@@ -13,6 +13,8 @@ import { FINDING_CATEGORIES, UNMATCHED_SHOWN, type EvidenceReport } from '../../
 
 const props = defineProps<{
   report: EvidenceReport; matchedFindings: number; matchedFiles: number; unmatchedPaths: readonly string[]; showImportedAt?: boolean;
+  /** E46: labels beside values, for the wide S14 review step. The ~200px card stacks them. */
+  wide?: boolean;
 }>();
 const importedAt = computed(() => formatAbsoluteTime(props.report.importedAt, Intl));
 const categories = computed(() => FINDING_CATEGORIES.map((c) => FALLOW_CATEGORY_LINE(FINDING_KIND_LABEL[c], props.report.normalized.categories[c])));
@@ -22,7 +24,10 @@ const notShown = computed(() => props.report.normalized.notShown.map((s) => FALL
 </script>
 
 <template>
-  <dl class="ci-fallow-facts">
+  <dl
+    class="ci-fallow-facts"
+    :class="{ 'ci-fallow-facts--wide': wide }"
+  >
     <dt>{{ FALLOW_ROW_REPORT }}</dt>
     <dd>{{ FALLOW_REPORT_VALUE(report.providerVersion, report.reportKind, report.schemaVersion) }}</dd>
     <dt>{{ FALLOW_ROW_FILE }}</dt>

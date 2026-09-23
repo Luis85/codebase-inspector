@@ -51,10 +51,16 @@
 :where(.codebase-inspector-root) .ci-fallow-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-fallow-card p { margin: 0; }
 :where(.codebase-inspector-root) .ci-fallow-card__actions { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); }
+/* E46: in the ~200px card a label column starved the values to one character, so labels
+   stack over values; only the wide S14 review step sets them side by side, the label
+   column bounded so a value never has less than 60% of the row. */
 :where(.codebase-inspector-root) .ci-fallow-facts {
-  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-1) var(--ci-space-3);
-  margin: 0; font-size: var(--font-ui-small, 0.9em);
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 0;
+  align-self: stretch; margin: 0; font-size: var(--font-ui-small, 0.9em);
 }
+:where(.codebase-inspector-root) .ci-fallow-facts dd + dt { margin-top: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-fallow-facts--wide { grid-template-columns: fit-content(40%) minmax(0, 1fr); gap: var(--ci-space-1) var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-fallow-facts--wide dd + dt { margin-top: 0; }
 :where(.codebase-inspector-root) .ci-fallow-facts dt { color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-fallow-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-fallow-facts__list { margin: 0; padding-left: 1.2em; }
