@@ -211,6 +211,31 @@ describe('stopping a process (Z17, Z18)', () => {
     await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
   });
 
+  it('Polish A1 (review fix 3): a child kill() that throws still escalates and settles at the final deadline, leaving no timer', async () => {
+    for (const platform of ['linux', 'win32']) {
+      const spawned = fakeSpawn();
+      const runner = createFallowRunner({ spawn: spawned.spawn, env: {}, platform, killProcess: throwDenied });
+      const { token, cancel } = createCancellationToken();
+      const done = runner.run(REQUEST, token);
+      spawned.children[0]!.kill = throwInvalid;
+      expect(() => { cancel(); }, platform).not.toThrow();
+      expect(() => { vi.advanceTimersByTime(2_000); }, platform).not.toThrow();
+      vi.advanceTimersByTime(2_000);
+      await expect(done, platform).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+      expect(vi.getTimerCount(), platform).toBe(0);
+    }
+  });
+
+  it('Polish A2 (review fix 5): a pipe error after the run settled is swallowed, signals nothing and arms no timer', async () => {
+    const s = setup();
+    const done = s.runner.run(REQUEST, s.token);
+    s.runner.killAll();
+    await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+    expect(() => { s.child().stdout.emitError('EPIPE'); s.child().stderr.emitError('ECONNRESET'); }).not.toThrow();
+    expect(s.kills).toEqual([[-4242, 'SIGKILL']]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('Polish A2: a stdout pipe error stops the child and ends output-incomplete, leaving no timer', async () => {
     const s = setup();
     const done = s.runner.run(REQUEST, s.token);

@@ -132,6 +132,7 @@ describe('Polish A10: short files and the host platform', () => {
 
   it('without a platform it reads Obsidian\'s Platform flags', async () => {
     const saved = { isWin: Platform.isWin, isMacOS: Platform.isMacOS };
+    const before = { ...Platform };
     try {
       const t = await tree({ 'mac/fallow': MACH_O });
       const exe = join(t.root, 'mac', 'fallow');
@@ -145,5 +146,7 @@ describe('Polish A10: short files and the host platform', () => {
     } finally {
       Object.assign(Platform, saved);
     }
+    // Review fix 4: the restore is exact — no own `isMacOS: undefined` left on the mock.
+    expect({ ...Platform }).toStrictEqual(before);
   });
 });

@@ -155,11 +155,19 @@ describe('process hazard detection', () => {
     ['o.shell = true;', 'ts', 'shell option'],
     ["o['shell'] = 'cmd.exe';", 'ts', 'shell option'],
     ["Object.defineProperty(o, 'shell', { value: true });", 'ts', 'shell option'],
+    // Polish A7 (review fix 2): the logical assignments set it too.
+    ['o.shell ||= true;', 'ts', 'shell option'],
+    ['o.shell ??= true;', 'ts', 'shell option'],
+    ["o['shell'] &&= 'cmd.exe';", 'ts', 'shell option'],
     // Polish G2: fail closed on what the SFC parser could not read or this detector does not scan.
     ["<template><p>x</p></template><SCRIPT>spawn('x')</SCRIPT>", 'vue', 'unscannable'],
     ["<docs>spawn('x')</docs><template><p/></template>", 'vue', 'unscannable'],
     ["<template><p/></template><script setup>\nconst a = 1;\n</script><script setup>\nspawn('x');\n</script>", 'vue', 'unscannable'],
     ['<template><div></template><script setup>\nconst x = 1;\n</script>', 'vue', 'unscannable'],
+    // Polish G2 (review fix 1): an external `src` block is never read, so it fails closed too.
+    ['<template src="./t.html"></template>', 'vue', 'unscannable'],
+    ['<template><p/></template><script src="./a.ts"></script>', 'vue', 'unscannable'],
+    ['<template><p/></template><script setup src="./a.ts"></script>', 'vue', 'unscannable'],
     ['shell.openPath.call(shell, p);', 'ts', 'shell.openPath'],
   ])('flags %s (%s) as %s', (source, kind, label) => {
     expect(processHazards(source, kind)).toContain(label);

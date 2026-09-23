@@ -97,6 +97,12 @@ export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcess
       let settled = false;
       let unsubscribe: (() => void) | null = null;
 
+      // Polish A1 review fix 3: ChildProcess.kill THROWS for a signal the platform does not
+      // support (EINVAL, ENOSYS). Inside stop() or the SIGKILL grace that throw would skip
+      // arming the next timer, so it is swallowed: the final deadline still settles the run.
+      const killChild = (name?: 'SIGTERM' | 'SIGKILL'): void => {
+        try { running.kill(name); } catch { /* not signalled; the deadline settles the run */ }
+      };
       const signal = (name: 'SIGTERM' | 'SIGKILL'): void => {
         const pid = running.pid;
         if (platform !== 'win32' && pid !== undefined) {
@@ -105,11 +111,11 @@ export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcess
           } catch (e) {
             // Polish A1: ESRCH is "the group is already gone". Anything else (EPERM, EINVAL)
             // means the group was NOT signalled, so the direct child is signalled instead.
-            if (errorCodeOf(e) !== 'ESRCH') running.kill(name);
+            if (errorCodeOf(e) !== 'ESRCH') killChild(name);
           }
           return;
         }
-        running.kill();
+        killChild();
       };
       const destroyPipes = (): void => { running.stdout?.destroy(); running.stderr?.destroy(); };
       const after = (ms: number, fn: () => void): void => { timers.add(setTimer(fn, ms)); };

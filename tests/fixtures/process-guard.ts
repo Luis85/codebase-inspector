@@ -16,10 +16,12 @@
 //   execFileSync and fork (a member `.exec(` stays RegExp.prototype.exec);
 // - 'shell option' (new) is an object-literal property named `shell` — plain, string-keyed,
 //   computed with a string key, or shorthand — whose value is not the literal `false`; since
-//   polish A7 also `o.shell = x`, `o['shell'] = x` and `Object.defineProperty(o, 'shell', …)`;
+//   polish A7 also `o.shell = x` (or `||=`, `??=`, `&&=`), `o['shell'] = x` and
+//   `Object.defineProperty(o, 'shell', …)`;
 // - 'process module' and 'shell.openPath' are unchanged;
-// - 'unscannable' (polish G2) is a `.vue` file the SFC parser reported an error for, or one
-//   with a custom block: it fails the scan rather than passing unread.
+// - 'unscannable' (polish G2) is a `.vue` file the SFC parser reported an error for, one
+//   with a custom block, or one whose template or script is an external `src` block (its
+//   file is never read): it fails the scan rather than passing unread.
 // tests/unit/no-process-execution.test.ts allows exactly 'process module' in
 // src/adapters/fallow/node-process-access.ts and exactly 'spawn call' in
 // src/adapters/fallow/fallow-runner.ts. Everything else stays banned everywhere.
@@ -121,9 +123,15 @@ function propertyNameText(name: ts.PropertyName): string | undefined {
   return undefined;
 }
 
-/** Polish A7: `o.shell = x` or `o['shell'] = x`, where x is not the literal `false`. */
+/** The assignments that can set a property: `=`, `||=`, `??=` and `&&=` (review fix 2). */
+const SETTING_TOKENS: ReadonlySet<ts.SyntaxKind> = new Set([
+  ts.SyntaxKind.EqualsToken, ts.SyntaxKind.BarBarEqualsToken,
+  ts.SyntaxKind.QuestionQuestionEqualsToken, ts.SyntaxKind.AmpersandAmpersandEqualsToken,
+]);
+
+/** Polish A7: `o.shell = x` or `o['shell'] = x` (or `||=`, `??=`, `&&=`), where x is not the literal `false`. */
 function isShellAssignment(node: ts.Node): boolean {
-  if (!ts.isBinaryExpression(node) || node.operatorToken.kind !== ts.SyntaxKind.EqualsToken) return false;
+  if (!ts.isBinaryExpression(node) || !SETTING_TOKENS.has(node.operatorToken.kind)) return false;
   const target = unwrap(node.left);
   const name = ts.isPropertyAccessExpression(target) ? target.name.text
     : ts.isElementAccessExpression(target) ? literalText(target.argumentExpression) : undefined;
@@ -183,7 +191,9 @@ function processHazardsVue(source: string): ProcessHazard[] {
   // Polish G2: fail closed. A parse error (an unclosed tag, a second <script setup>) or a block
   // this detector does not read (<docs>, an upper-case <SCRIPT>, any custom block) could hide a
   // call, so the file is reported instead of passing silently.
-  if (errors.length > 0 || descriptor.customBlocks.length > 0) parts.add('unscannable');
+  // Review fix 1: an external `src` block parses cleanly with empty content, and its file is never read.
+  const external = [descriptor.template, descriptor.script, descriptor.scriptSetup].some((block) => block?.src !== undefined);
+  if (errors.length > 0 || descriptor.customBlocks.length > 0 || external) parts.add('unscannable');
   if (descriptor.template?.content) scanTemplateText(descriptor.template.content).forEach((h) => parts.add(h));
   if (descriptor.script?.content) processHazardsTs(descriptor.script.content).forEach((h) => parts.add(h));
   if (descriptor.scriptSetup?.content) processHazardsTs(descriptor.scriptSetup.content).forEach((h) => parts.add(h));
