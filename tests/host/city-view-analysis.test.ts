@@ -16,24 +16,13 @@ import { createFixedClock } from '../fixtures/clock';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { dataPortDeps } from '../fixtures/data-port-deps';
 import { createFakeFallowAnalysis, type FakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
+import { makePluginDouble } from '../fixtures/city-view-doubles';
 
 // A fresh leaf opens on Overview, so no renderer is ever built; the mock keeps three.js out.
 vi.mock('../../src/visualization/city-renderer', () => ({ createCityRenderer: vi.fn() }));
 
 const ID: AnalysisIdentity = { profileId: 'p1', snapshotId: 's1', rootFingerprint: 'a', subjectFingerprint: 'b', runId: 'r1', generation: 0 };
 const RUNNING = { status: 'running', identity: ID, rootPath: '/repo', startedAt: '2026-09-23T10:00:00.000Z', timeoutSeconds: 120, version: '3.27.0', tested: true } as const;
-
-function makePluginDouble() {
-  return {
-    app: {
-      workspace: {
-        onLayoutReady: vi.fn(), getLeavesOfType: vi.fn(() => []), getLeaf: vi.fn(),
-        revealLeaf: vi.fn(async () => {}), on: vi.fn(() => ({})), offref: vi.fn(),
-      },
-      vault: { adapter: { read: vi.fn(), list: vi.fn() }, configDir: '.obsidian' },
-    },
-  };
-}
 
 function makeDeps(fallowAnalysis: FakeFallowAnalysis): CityViewDeps {
   const snapshotStore = new InMemorySnapshotStore(createFixedClock());

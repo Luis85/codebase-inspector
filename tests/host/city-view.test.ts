@@ -11,6 +11,7 @@ import { createFixedClock } from '../fixtures/clock';
 import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
+import { makePluginDouble } from '../fixtures/city-view-doubles';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
@@ -84,26 +85,6 @@ vi.mock('../../src/visualization/city-renderer', () => ({
 
 // Imported AFTER vi.mock so this binding is the mocked, spy-wrapped function.
 const { createCityRenderer: createRendererSpy } = await import('../../src/visualization/city-renderer');
-
-function makePluginDouble(): {
-  app: { workspace: Record<string, ReturnType<typeof vi.fn>>; vault: { adapter: Record<string, ReturnType<typeof vi.fn>>; configDir: string } };
-} {
-  return {
-    app: {
-      workspace: {
-        onLayoutReady: vi.fn(),
-        getLeavesOfType: vi.fn(() => []),
-        getLeaf: vi.fn(),
-        revealLeaf: vi.fn(async () => {}),
-        on: vi.fn(() => ({})),
-        offref: vi.fn(),
-      },
-      // The REAL vault.configDir, never a literal '.obsidian' in production (ruling
-      // M44) -- named '.obsidian' here only because that IS this fake vault's real one.
-      vault: { adapter: { read: vi.fn(), list: vi.fn() }, configDir: '.obsidian' },
-    },
-  };
-}
 
 function makeLeafDouble(width = 1000): { width: number } {
   return { width };

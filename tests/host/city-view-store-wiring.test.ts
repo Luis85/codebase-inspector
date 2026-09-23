@@ -1,10 +1,12 @@
 // Split out of city-view.test.ts (task 9 fix round 1, item 1's own new tests plus
 // the item-8 fix to "creates its own Pinia instance per view" pushed that file over
 // the 450-line tests/** budget). Same 'jsdom' project routing reason as that file:
-// needs a real DOM to mount Vue and measure contentEl. Helper doubles are
+// needs a real DOM to mount Vue and measure contentEl. Most helper doubles are
 // deliberately duplicated here rather than shared, matching this codebase's own
 // per-test-file self-containment convention (see any two component test files'
-// own `makeRendererDouble()`).
+// own `makeRendererDouble()`) -- except `makePluginDouble`, which polish G1 moved
+// to tests/fixtures/city-view-doubles.ts because every real-CityView host test
+// built the identical plugin double.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { CityView } from '../../src/host/city-view';
@@ -16,6 +18,7 @@ import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
 import { installControllableResizeObserver } from '../mocks/window-harness';
 import { makeEntityId } from '../../src/domain/entity-id';
+import { makePluginDouble } from '../fixtures/city-view-doubles';
 import type { CameraBookmark, CodebaseProfile, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityRendererEvent, CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
@@ -98,20 +101,6 @@ vi.mock('../../src/visualization/city-renderer', () => ({
 }));
 
 const { createCityRenderer: createRendererSpy } = await import('../../src/visualization/city-renderer');
-
-function makePluginDouble(): {
-  app: { workspace: Record<string, ReturnType<typeof vi.fn>>; vault: { adapter: Record<string, ReturnType<typeof vi.fn>>; configDir: string } };
-} {
-  return {
-    app: {
-      workspace: {
-        onLayoutReady: vi.fn(), getLeavesOfType: vi.fn(() => []), getLeaf: vi.fn(),
-        revealLeaf: vi.fn(async () => {}), on: vi.fn(() => ({})), offref: vi.fn(),
-      },
-      vault: { adapter: { read: vi.fn(), list: vi.fn() }, configDir: '.obsidian' },
-    },
-  };
-}
 
 function makeLeafDouble(width = 1000): { width: number } {
   return { width };

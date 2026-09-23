@@ -19,24 +19,13 @@ import { createFixedClock } from '../fixtures/clock';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { dataPortDeps } from '../fixtures/data-port-deps';
 import { emptyEvidenceReport } from '../fixtures/evidence-report';
+import { makePluginDouble } from '../fixtures/city-view-doubles';
 import type { CityViewDeps } from '../../src/host/city-view';
 import type { EvidenceRepository } from '../../src/application/ports/evidence-repository';
 
 // A fresh leaf opens on Overview, so no renderer is ever built. The mock only keeps
 // three.js out of this file.
 vi.mock('../../src/visualization/city-renderer', () => ({ createCityRenderer: vi.fn() }));
-
-function makePluginDouble() {
-  return {
-    app: {
-      workspace: {
-        onLayoutReady: vi.fn(), getLeavesOfType: vi.fn(() => []), getLeaf: vi.fn(),
-        revealLeaf: vi.fn(async () => {}), on: vi.fn(() => ({})), offref: vi.fn(),
-      },
-      vault: { adapter: { read: vi.fn(), list: vi.fn() }, configDir: '.obsidian' },
-    },
-  };
-}
 
 /** The shared repository, counting its live subscriptions. */
 function counting(): { repository: EvidenceRepository; live: () => number } {

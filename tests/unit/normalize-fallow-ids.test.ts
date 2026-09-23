@@ -75,6 +75,15 @@ describe('finding ids (Part 6 Y24)', () => {
     expect(ids(withTwoExports(false))).toHaveLength(6);
   });
 
+  it('Polish G4 (E34): two identical unused-export rows (same path, name, line) give one finding', () => {
+    const doc = fallowDoc('dead-code-3.27.0', (d) => {
+      const entries = rows(d, 'unused_exports');
+      entries.push({ ...entries[0]! });
+    });
+    const unused = normalized(doc).findings.filter((f) => f.rule === 'unused-export');
+    expect(unused).toHaveLength(1);
+  });
+
   it('numbers same-named functions in a file by their position in the source, not by report order', () => {
     const base = rows(fallowDoc('health-3.27.0'), 'findings')[0]!;
     const arrow = (line: number, path = 'src/text/format.ts') => ({ ...base, path, name: '<arrow>', line, col: 3 });
@@ -136,6 +145,18 @@ describe('report paths (Part 6 Y23, Y26)', () => {
     expect(result.findings.map((f) => f.id)).toEqual([SUM_B.id]);
     expect(result.findings[0]!.detail).toEqual(SUM_B.detail);
     expect(result.rejectedPaths).toEqual(['../outside.ts', '/abs/partition.ts', 'C:/x/sum-a.ts']);
+  });
+
+  it('Polish G4 (E34): refuses a UNC path, a bare C:\\ drive root and a path containing NUL', () => {
+    const doc = fallowDoc('combined-3.27.0', (d) => {
+      d.check!.unused_exports[0]!.path = '\\\\server\\share\\file.ts';
+      d.health!.findings[0]!.path = 'C:\\';
+      d.dupes!.clone_groups[0]!.instances[0]!.file = `src/a${String.fromCharCode(0)}b.ts`;
+    });
+    const result = normalized(doc);
+    expect(result.rejectedPaths).toEqual(
+      ['C:\\', `src/a${String.fromCharCode(0)}b.ts`, '\\\\server\\share\\file.ts'].sort(),
+    );
   });
 
   it('accepts a Windows-style relative path as the same file', () => {

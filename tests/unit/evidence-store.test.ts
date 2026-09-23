@@ -1,6 +1,6 @@
 // Part 6 Y29 (ruling R7): the leaf's evidence store mirrors the shared repository's entry
 // for the bound codebase, and never keeps a copy of its own that could diverge from the port.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { isReactive } from 'vue';
 import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
@@ -113,6 +113,32 @@ describe('evidence store (Part 6 Y29, R7)', () => {
     const forP2 = emptyEvidenceReport('s1', 'p2.json');
     repository.put('p2', forP2);
     expect(store.report).toBe(forP2);
+  });
+
+  it('Polish G4 (E36): a notification for another codebase does not refresh the bound report', () => {
+    const repository = new InMemoryEvidenceStore();
+    const getSpy = vi.spyOn(repository, 'get');
+    leaf(repository, 'p1');
+    getSpy.mockClear();
+    repository.put('p2', emptyEvidenceReport('s1', 'p2.json'));
+    // The listen() callback's `changed === id` guard: a foreign codebase's change never
+    // triggers refresh(), so the bound report is never even re-read for it.
+    expect(getSpy).not.toHaveBeenCalled();
+  });
+
+  it('Polish G4 (E36): setRepository called twice moves the subscription -- the new repository\'s notifications reach the store and the old one\'s no longer do', () => {
+    const a = counting();
+    const b = counting();
+    const store = leaf(a.repository, 'p1');
+    expect(a.live()).toBe(1);
+    store.setRepository(b.repository);
+    expect(a.live()).toBe(0);
+    expect(b.live()).toBe(1);
+    a.repository.put('p1', emptyEvidenceReport('s1', 'a.json'));
+    expect(store.report).toBeNull();
+    const forP1 = emptyEvidenceReport('s1', 'b.json');
+    b.repository.put('p1', forP1);
+    expect(store.report).toBe(forP1);
   });
 
   it('$dispose drops the subscription on the shared repository', () => {

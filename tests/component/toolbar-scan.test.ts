@@ -17,7 +17,7 @@
 // this task ships only what IS reachable: this Scan control. No SourceIdentity.vue,
 // no source-identity.test.ts — there is nothing yet for either to render.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import '../mocks/obsidian';
@@ -77,8 +77,15 @@ describe('toolbar Scan control (F7)', () => {
     expect(scan().attributes('aria-disabled')).toBe('true');
     expect(scan().attributes('disabled')).toBeUndefined();
     expect(scan().text()).toBe(COPY_07);
+    // E17: a refused press announces nothing -- the status region's text is unchanged.
+    // flushPromises (not just nextTick) so the CANCELLING_BANNER's reannounce() clear-then-set
+    // (two microtask hops) has fully settled before capturing the baseline.
+    await flushPromises();
+    const said = wrapper.findAll('[role="status"]').map((r) => r.text());
     await scan().trigger('click');
     expect(onScanRequested).not.toHaveBeenCalled();
+    await flushPromises();
+    expect(wrapper.findAll('[role="status"]').map((r) => r.text())).toEqual(said);
 
     useRunStore().setLifecycle({ ...initialScanLifecycleState(), run: { status: 'cancelled', runId: 'r1' } });
     await nextTick();

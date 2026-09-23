@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { nextTick } from 'vue';
 import '../mocks/obsidian';
 
 vi.mock('../../src/ui/export/download', () => ({ downloadText: vi.fn() }));
@@ -30,7 +29,6 @@ function mountInShell() {
   return { w, done: () => { w.unmount(); shell.remove(); } };
 }
 const inDialog = () => document.activeElement?.closest('.ci-finding-dialog') != null;
-const flush = async () => { await Promise.resolve(); await nextTick(); await nextTick(); };
 
 describe('QualityScreen', () => {
   beforeEach(() => { setActivePinia(createPinia()); vi.mocked(downloadText).mockClear(); });
@@ -75,13 +73,13 @@ describe('QualityScreen', () => {
     await open.trigger('click');
     expect(w.find('.ci-finding-dialog').exists()).toBe(true);
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
-    await flush();
+    await flushPromises();
     expect(useReviewStore().dispositions).toHaveLength(1);
     expect(w.find('.ci-finding-dialog__reopen').exists()).toBe(true);
     expect(w.find('[role="dialog"] .ci-dialog__status').text()).toBe('Finding acknowledged. No repository suppression was written.');
     expect(w.find('.ci-quality__live').text()).toBe('');
     await w.find('.ci-finding-dialog__close').trigger('click');
-    await flush();
+    await flushPromises();
     const rows = w.findAll('.ci-table__row').map((r) => r.text());
     expect(rows.length).toBeGreaterThan(0);
     expect(rows).not.toContain(identity);
@@ -97,25 +95,25 @@ describe('QualityScreen', () => {
     const ack = w.find('.ci-finding-dialog__acknowledge');
     (ack.element as HTMLElement).focus();
     await ack.trigger('click');
-    await flush();
+    await flushPromises();
     expect(w.find('.ci-finding-dialog__reopen').exists()).toBe(true);
     expect(inDialog()).toBe(true);
     await w.find('.ci-finding-dialog__reopen').trigger('click');
-    await flush();
+    await flushPromises();
     expect(w.find('.ci-finding-dialog__acknowledge').exists()).toBe(true);
     expect(inDialog()).toBe(true);
     await w.find('.ci-finding-dialog__dismiss').trigger('click');
-    await flush();
+    await flushPromises();
     expect(document.activeElement?.tagName).toBe('TEXTAREA');
     await w.find('.ci-finding-dialog__cancel').trigger('click');
-    await flush();
+    await flushPromises();
     expect(w.find('.ci-finding-dialog textarea').exists()).toBe(false);
     expect(inDialog()).toBe(true);
     await w.find('.ci-finding-dialog__dismiss').trigger('click');
     await w.find('.ci-finding-dialog textarea').setValue('Kept for the plugin API');
     (w.find('.ci-finding-dialog__save-dismissal').element as HTMLElement).focus();
     await w.find('.ci-finding-dialog form').trigger('submit');
-    await flush();
+    await flushPromises();
     expect(useReviewStore().dispositions[0]).toMatchObject({ status: 'dismissed' });
     expect(inDialog()).toBe(true);
     done();
@@ -128,10 +126,10 @@ describe('QualityScreen', () => {
     expect(w.find('.ci-finding-dialog').exists()).toBe(true);
     const other = buildSnapshotFixture({ files: 60, directories: 3, repositoryId: 'repo-other' });
     useCityStore().setCity(other, computeLayout(other));
-    await flush();
+    await flushPromises();
     expect(w.find('.ci-finding-dialog').exists()).toBe(false);
     useCityStore().setCity(snap, computeLayout(snap));
-    await flush();
+    await flushPromises();
     expect(w.find('.ci-finding-dialog').exists()).toBe(false);
     w.unmount();
   });
@@ -144,7 +142,7 @@ describe('QualityScreen', () => {
     expect(before.length).toBeGreaterThan(0);
     expect(before.every((r) => r.text().includes('dir-2'))).toBe(true);
     withSnapshot(60, 2);
-    await flush();
+    await flushPromises();
     expect((w.find('.ci-finding-filters__module').element as HTMLSelectElement).value).toBe('');
     const after = w.findAll('.ci-table__row');
     expect(after.length).toBeGreaterThan(0);
@@ -169,7 +167,7 @@ describe('QualityScreen', () => {
     const spy = vi.spyOn(review, 'acknowledge').mockResolvedValue(null);
     await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
-    await flush();
+    await flushPromises();
     expect(spy).toHaveBeenCalledOnce();
     expect(w.find('[role="dialog"] .ci-dialog__status').text()).toBe('');
     expect(w.find('.ci-finding-dialog__error').exists()).toBe(false);
@@ -182,7 +180,7 @@ describe('QualityScreen', () => {
     vi.spyOn(useReviewStore(), 'acknowledge').mockRejectedValue(new Error('disk'));
     await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
-    await flush();
+    await flushPromises();
     expect(w.find('.ci-finding-dialog__error').text()).toBe('Could not save this decision.');
     expect(w.find('[role="dialog"] .ci-dialog__status').text()).toBe('');
     w.unmount();
@@ -193,11 +191,11 @@ describe('QualityScreen', () => {
     const w = mountQ();
     await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
-    await flush();
+    await flushPromises();
     expect(w.find('[role="dialog"] .ci-dialog__status').text()).toBe('Finding acknowledged. No repository suppression was written.');
     vi.spyOn(useReviewStore(), 'addWorkItemForFile').mockRejectedValueOnce(new Error('disk'));
     await w.find('.ci-finding-dialog__work-item').trigger('click');
-    await flush();
+    await flushPromises();
     expect(w.find('[role="dialog"] .ci-dialog__status').text()).toBe('');
     expect(w.find('.ci-finding-dialog__error').text()).toBe('Could not save this decision.');
     w.unmount();
@@ -209,12 +207,12 @@ describe('QualityScreen', () => {
     await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     await w.find('.ci-finding-dialog__dismiss').trigger('click');
     await w.find('.ci-finding-dialog__save-dismissal').trigger('click');
-    await flush();
+    await flushPromises();
     expect(w.find('.ci-finding-dialog__error').text()).toBe('Enter a reason before dismissing the finding.');
     expect(useReviewStore().dispositions).toHaveLength(0);
     await w.find('.ci-finding-dialog textarea').setValue('Exported for the plugin API');
     await w.find('.ci-finding-dialog__save-dismissal').trigger('click');
-    await flush();
+    await flushPromises();
     expect(useReviewStore().dispositions[0]).toMatchObject({ status: 'dismissed', reason: 'Exported for the plugin API' });
     w.unmount();
   });
@@ -224,12 +222,12 @@ describe('QualityScreen', () => {
     const w = mountQ();
     await w.findAll('.ci-findings-table__open')[0]!.trigger('click');
     await w.find('.ci-finding-dialog__acknowledge').trigger('click');
-    await flush();
+    await flushPromises();
     await w.find('.ci-finding-dialog__reopen').trigger('click');
-    await flush();
+    await flushPromises();
     expect(useReviewStore().dispositions).toHaveLength(0);
     await w.find('.ci-finding-dialog__work-item').trigger('click');
-    await flush();
+    await flushPromises();
     expect(useReviewStore().workItemCount).toBe(1);
     w.unmount();
   });
@@ -243,13 +241,13 @@ describe('QualityScreen', () => {
     const before = button.text();
     (button.element as HTMLElement).focus();
     await button.trigger('click');
-    await flush();
+    await flushPromises();
     expect(button.attributes('disabled')).toBeUndefined();
     expect(button.attributes('aria-disabled')).toBe('true');
     expect(button.text()).not.toBe(before);
     expect(document.activeElement).toBe(button.element);
     await button.trigger('click');
-    await flush();
+    await flushPromises();
     expect(spy).toHaveBeenCalledOnce();
     expect(useReviewStore().workItemCount).toBe(1);
     done();
@@ -318,7 +316,7 @@ describe('QualityScreen', () => {
     await second.trigger('click');
     expect(w.find('.ci-finding-dialog').exists()).toBe(true);
     await w.find('.ci-finding-dialog__close').trigger('click');
-    await flush();
+    await flushPromises();
     expect(document.activeElement).toBe(second.element);
     done();
   });

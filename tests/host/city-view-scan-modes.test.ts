@@ -1,9 +1,10 @@
 // Split out of city-view.test.ts, task 11 fix round 1, item 0 (it was at the
 // tests/** 450-line cap). Same 'jsdom' project routing reason as that file (real
 // DOM to mount Vue and measure contentEl); vitest.config.ts's `city-view*.test.ts`
-// glob picks this up by the same prefix. Helper doubles are deliberately
+// glob picks this up by the same prefix. Most helper doubles are deliberately
 // duplicated rather than shared, matching this codebase's own per-test-file
-// self-containment convention.
+// self-containment convention -- except `makePluginDouble`, shared by polish G1
+// (tests/fixtures/city-view-doubles.ts).
 import { describe, expect, it, vi } from 'vitest';
 import { CityView } from '../../src/host/city-view';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
@@ -12,6 +13,7 @@ import { createFixedClock } from '../fixtures/clock';
 import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
+import { makePluginDouble } from '../fixtures/city-view-doubles';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
@@ -76,24 +78,6 @@ const inertPort: CityRendererPort = {
 vi.mock('../../src/visualization/city-renderer', () => ({
   createCityRenderer: vi.fn(() => inertPort),
 }));
-
-function makePluginDouble(): {
-  app: { workspace: Record<string, ReturnType<typeof vi.fn>>; vault: { adapter: Record<string, ReturnType<typeof vi.fn>>; configDir: string } };
-} {
-  return {
-    app: {
-      workspace: {
-        onLayoutReady: vi.fn(),
-        getLeavesOfType: vi.fn(() => []),
-        getLeaf: vi.fn(),
-        revealLeaf: vi.fn(async () => {}),
-        on: vi.fn(() => ({})),
-        offref: vi.fn(),
-      },
-      vault: { adapter: { read: vi.fn(), list: vi.fn() }, configDir: '.obsidian' },
-    },
-  };
-}
 
 function makeLeafDouble(width = 1000): { width: number } {
   return { width };

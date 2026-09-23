@@ -142,6 +142,8 @@ describe('Connect fallow (Part 6 Y38, S14)', () => {
     await w.find('.ci-connect-fallow__cancel').trigger('click');
     expect(w.find('.ci-connect-fallow').exists()).toBe(false);
     expect(useEvidenceStore().report).toBeNull();
+    // Polish G4 (E42): Cancel returns focus to the card's own Import button, the opener.
+    expect(document.activeElement).toBe(w.find('.ci-fallow-card__import').element);
     w.unmount();
   });
 
@@ -180,6 +182,8 @@ describe('Connect fallow (Part 6 Y38, S14)', () => {
     await flushPromises();
     expect(w.find('.ci-connect-fallow').exists()).toBe(false);
     expect(useEvidenceStore().report?.fileName).toBe('fallow-report.json');
+    // Polish G4 (E42): a successful Attach also returns focus to the card's Import button.
+    expect(document.activeElement).toBe(w.find('.ci-fallow-card__import').element);
     const message = FALLOW_ATTACHED(19, 10);
     expect(w.find('.ci-sources__live').text()).toBe(message);
 

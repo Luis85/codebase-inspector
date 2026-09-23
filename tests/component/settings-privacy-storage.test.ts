@@ -67,6 +67,19 @@ describe('Settings › Privacy & storage: the saved review state (Part 6 Y7, R3)
     w.unmount();
   });
 
+  it('Polish G4 (E30): a read failure beside skipped records shows the read-failure note, not the skipped count', async () => {
+    await boundTo({ reviews: { p1: { v: 1, workItems: [], rules: [], dispositions: [] } } });
+    const w = mountS();
+    await openPrivacy(w);
+    // PrivacyRows.vue's own precedence order: loadFailed, then retired, then
+    // unsupported, then skipped -- both conditions true at once must still read as
+    // the read failure, the more serious of the two.
+    useReviewStore().$patch({ loadFailed: true, storageDiagnostics: { skipped: 3, unsupported: false } });
+    await nextTick();
+    expect(noteOf(w).text()).toBe(REVIEW_STORE_READ_FAILED);
+    w.unmount();
+  });
+
   it('says the saved state is read-only while its format is unsupported', async () => {
     await boundTo({ reviews: { p1: { v: 2, workItems: [] } } });
     const w = mountS();

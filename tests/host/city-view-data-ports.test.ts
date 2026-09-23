@@ -12,6 +12,7 @@ import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
 import { createInMemoryReviewRepository, type ReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { makePluginDouble } from '../fixtures/city-view-doubles';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
@@ -37,18 +38,6 @@ function publishedSnapshot(): CodebaseSnapshot {
     ...buildSnapshotFixture({ files: 1, repositoryId: 'p1' }),
     snapshotId: 's1',
     scope: { rootPath: '/fake-root', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false as const },
-  };
-}
-
-function makePluginDouble() {
-  return {
-    app: {
-      workspace: {
-        onLayoutReady: vi.fn(), getLeavesOfType: vi.fn(() => []), getLeaf: vi.fn(),
-        revealLeaf: vi.fn(() => Promise.resolve()), on: vi.fn(() => ({})), offref: vi.fn(),
-      },
-      vault: { adapter: { read: vi.fn(), list: vi.fn() }, configDir: '.obsidian' },
-    },
   };
 }
 

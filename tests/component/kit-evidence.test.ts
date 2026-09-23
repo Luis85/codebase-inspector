@@ -13,11 +13,13 @@ describe('EvidenceBadge (Part 6 Y32, C13)', () => {
     expect(w.text()).toBe('fallow 3.27.0 · Imported · Unverified source match');
     expect(w.text()).toBe(EVIDENCE_BADGE('3.27.0', 'imported'));
     expect(w.classes()).toEqual(['ci-evidence-badge', 'ci-evidence-badge--imported']);
+    w.unmount();
   });
   it('says Stale in words, never in colour alone', () => {
     const w = mount(EvidenceBadge, { props: { version: '3.21.0', state: 'stale' } });
     expect(w.text()).toBe('fallow 3.21.0 · Stale · Unverified source match');
     expect(w.classes()).toContain('ci-evidence-badge--stale');
+    w.unmount();
   });
 
   it('Part 7 Z26: renders the collected state with its own class, and the untested flag', () => {
@@ -38,5 +40,6 @@ describe('NotAnalysed (Part 6 Y35)', () => {
     expect(button.text()).toBe(FALLOW_IMPORT_ACTION);
     await button.trigger('click');
     expect(w.emitted('import')).toHaveLength(1);
+    w.unmount();
   });
 });

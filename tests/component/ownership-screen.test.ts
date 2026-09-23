@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 import '../mocks/obsidian';
@@ -85,7 +85,7 @@ describe('OwnershipScreen', () => {
     const btn = w.find('.ci-steward-action__add');
     expect(btn.find('.ci-icon').attributes('data-icon')).toBe('plus');
     await btn.trigger('click');
-    await Promise.resolve(); await nextTick();
+    await flushPromises();
     const item = review.workItems[0]!;
     expect(item.target.kind).toBe('module');
     expect(item.intent).toBe('pairing');
@@ -96,7 +96,7 @@ describe('OwnershipScreen', () => {
     expect(w.find('.ci-steward-action__add .ci-icon').attributes('data-icon')).toBe('check');
     // A second click on the now-added action must not call addWorkItem again.
     await w.find('.ci-steward-action__add').trigger('click');
-    await Promise.resolve(); await nextTick();
+    await flushPromises();
     expect(spy).toHaveBeenCalledTimes(1);
     w.unmount();
   });
@@ -119,7 +119,7 @@ describe('OwnershipScreen', () => {
     withSnapshot();
     const w = mountO();
     await w.find('.ci-steward-action__add').trigger('click');
-    await Promise.resolve(); await nextTick();
+    await flushPromises();
     expect(w.find('[role="status"]').text()).toBe('Work item added.');
     w.unmount();
   });
@@ -130,7 +130,7 @@ describe('OwnershipScreen', () => {
     const review = useReviewStore();
     vi.spyOn(review, 'addWorkItem').mockResolvedValueOnce(null);
     await w.find('.ci-steward-action__add').trigger('click');
-    await Promise.resolve(); await nextTick();
+    await flushPromises();
     expect(w.find('[role="status"]').text()).toBe('');
     w.unmount();
   });
@@ -141,7 +141,7 @@ describe('OwnershipScreen', () => {
     const review = useReviewStore();
     vi.spyOn(review, 'addWorkItem').mockRejectedValueOnce(new Error('nope'));
     await w.find('.ci-steward-action__add').trigger('click');
-    await Promise.resolve(); await nextTick();
+    await flushPromises();
     expect(w.find('[role="status"]').text()).toBe('Could not add this work item.');
     w.unmount();
   });

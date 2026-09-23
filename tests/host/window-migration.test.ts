@@ -20,6 +20,7 @@ import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
 import { createPopoutWindow, destroyAllPopoutWindows, installControllableResizeObserver, migrateElement } from '../mocks/window-harness';
 import { migrationCallbacks } from '../mocks/obsidian';
+import { makePluginDouble } from '../fixtures/city-view-doubles';
 import type { CameraBookmark, CodebaseProfile, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityPalette, CityRendererEvent, CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
@@ -105,18 +106,6 @@ function makeProfileStoreDouble(initial: CodebaseProfile[] = []): ProfileStore {
     save: vi.fn(async (p: CodebaseProfile) => { profiles.push(p); }),
     remove: vi.fn(async () => {}),
     update: vi.fn(async () => {}),
-  };
-}
-
-function makePluginDouble(): { app: { workspace: Record<string, ReturnType<typeof vi.fn>>; vault: { adapter: Record<string, ReturnType<typeof vi.fn>>; configDir: string } } } {
-  return {
-    app: {
-      workspace: {
-        onLayoutReady: vi.fn(), getLeavesOfType: vi.fn(() => []), getLeaf: vi.fn(),
-        revealLeaf: vi.fn(async () => {}), on: vi.fn(() => ({})), offref: vi.fn(),
-      },
-      vault: { adapter: { read: vi.fn(), list: vi.fn() }, configDir: '.obsidian' },
-    },
   };
 }
 
