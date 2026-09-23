@@ -9,7 +9,7 @@
 //   same dialog and under its busy action); nothing runs before its "Trust and run".
 // Nothing is installed. A failure never touches the attached evidence (Y31), and report
 // text is only ever interpolated (E34).
-import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { formatAbsoluteTime } from '../../copy';
 import { readFallowReportFile, reviewFallowCandidate, type FallowCandidate } from '../../read-models/fallow-candidate';
 import { useReadModels } from '../../read-models/use-read-models';
@@ -32,7 +32,7 @@ import type { InstalledRouteStart } from '../../read-models/fallow-run';
 
 /** Part 7 Z29: which route opens first; the installed route's own starting point. */
 const props = withDefaults(defineProps<{ initialRoute?: 'choose' | 'installed'; installed?: InstalledRouteStart }>(), { initialRoute: 'choose', installed: undefined });
-const emit = defineEmits<{ close: []; done: [message: string] }>();
+const emit = defineEmits<{ close: []; done: [message: string]; busy: [busy: boolean] }>();
 const route = ref<'choose' | 'installed'>(props.initialRoute);
 const city = useCityStore();
 const evidence = useEvidenceStore();
@@ -41,6 +41,8 @@ const { files } = useReadModels();
 /** K32: one busy action for both routes, so Cancel/Escape/backdrop stay ignored mid-step. */
 const action = useBusyAction();
 const { busy, error, requestClose: requestCloseWith, run } = action;
+/** Polish C10: SourcesScreen holds a newer request while a step is in flight (L23). */
+watch(busy, (now) => { emit('busy', now); });
 const importHeadingId = useUniqueId('ci-connect-fallow-import');
 const runHeadingId = useUniqueId('ci-connect-fallow-run');
 const mappingId = useUniqueId('ci-connect-fallow-mapping');

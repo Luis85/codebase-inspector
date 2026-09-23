@@ -55,6 +55,8 @@ export type StartOutcome =
   | { kind: 'busy' };
 
 export interface FallowAnalysisService {
+  /** Polish C1 (K41 amended, L2): the platform's executable name, without reading the binding. */
+  readonly executableName: 'fallow.exe' | 'fallow';
   readBinding(profileId: string): Promise<AnalyzerBindingView>;
   review(profileId: string, snapshot: CodebaseSnapshot, executablePath: string): Promise<ReviewResult>;
   checkTrust(profileId: string, snapshot: CodebaseSnapshot): Promise<TrustCheck>;
@@ -225,6 +227,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
   }
 
   return {
+    executableName: inspector.executableName,
     async readBinding(profileId) {
       return { ...(await store.read(profileId)), executableName: inspector.executableName };
     },

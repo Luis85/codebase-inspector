@@ -15,7 +15,7 @@ import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
 import {
   COPY_15, FALLOW_EXE_CHANGE, FALLOW_EXE_CHOOSE, FALLOW_EXE_FORGET_FAILED, FALLOW_EXE_NONE, FALLOW_RUN_ACTION, FALLOW_RUN_BUSY_HINT,
   FALLOW_RUN_CANCEL, FALLOW_RUN_CANCELLED, FALLOW_RUN_COMPLETED, FALLOW_RUN_ERROR, FALLOW_RUN_HINT, FALLOW_RUN_KEPT, FALLOW_RUN_START_FAILED,
-  FALLOW_TRUST_VALUE,
+  FALLOW_EXE_READ_FAILED, FALLOW_TRUST_VALUE,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { attachSyntheticReport, syntheticEvidenceReport } from '../fixtures/evidence-report';
@@ -357,7 +357,7 @@ describe('the banner follows the current run; failures never escape (PF15, carri
     w.unmount();
   });
 
-  it('an unreadable binding reads as none: no spinner, Run still asks the service', async () => {
+  it('Polish C1: an unreadable binding says so, offers no Forget, and Run still asks the service', async () => {
     const fake = setup();
     fake.readBinding = () => Promise.reject(new Error('data.json could not be read'));
     fake.setBinding('p1', BOUND);
@@ -365,7 +365,8 @@ describe('the banner follows the current run; failures never escape (PF15, carri
     await flushPromises();
     expect(useAnalysisStore().binding).toBeNull();
     expect(w.find('.ci-fallow-run__banner').exists()).toBe(false);
-    expect(w.find('.ci-fallow-run__facts').text()).toContain(FALLOW_EXE_NONE);
+    expect(w.find('.ci-fallow-run__facts').text()).toContain(FALLOW_EXE_READ_FAILED);
+    expect(w.find('.ci-fallow-run__forget').exists()).toBe(false);
     await w.find('.ci-fallow-run__run').trigger('click');
     await flushPromises();
     expect(fake.calls.map((c) => c.method)).toContain('run');

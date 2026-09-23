@@ -14,8 +14,14 @@ import type {
 export const useAnalysisStore = defineStore('fallow-analysis', () => {
   const repositoryId = ref('');
   const run = shallowRef<AnalysisRunState>(IDLE);
-  /** null until the first read for the bound codebase lands. */
+  /** null until the first read for the bound codebase lands, or after a failed one (`readFailed`). */
   const binding = shallowRef<AnalyzerBindingView | null>(null);
+  /** Polish C1: the last read of the binding failed (data.json unreadable). `binding` null with
+   *  `readFailed` false means "not read yet". */
+  const readFailed = ref(false);
+  /** Polish C1 (K41 amended, L2): from the service itself, so the path hint never waits for
+   *  (or depends on) a binding read. */
+  const executableName = shallowRef<'fallow.exe' | 'fallow' | null>(null);
   /** Z35: raised by the `run-fallow-analysis` command; SourcesScreen consumes it. */
   const runRequested = ref(false);
   const active = computed(() => isActive(run.value));
@@ -27,17 +33,23 @@ export const useAnalysisStore = defineStore('fallow-analysis', () => {
   const refreshRun = (): void => {
     run.value = service !== null && repositoryId.value !== '' ? service.stateOf(repositoryId.value) : IDLE;
   };
-  /** A read that lands after a rebind is dropped (the ticket moved on). */
+  /** A read that lands after a rebind is dropped (the ticket moved on). Polish C1: a failed read
+   *  is kept as `readFailed`, never folded into "no executable chosen". It never rejects. */
   const refreshBinding = async (): Promise<void> => {
     const id = repositoryId.value;
     const current = service;
     readTicket += 1;
     const ticket = readTicket;
-    if (current === null || id === '') { binding.value = null; return; }
-    const view = await current.readBinding(id);
-    if (ticket === readTicket && id === repositoryId.value) binding.value = view;
+    if (current === null || id === '') { binding.value = null; readFailed.value = false; return; }
+    const still = (): boolean => ticket === readTicket && id === repositoryId.value;
+    try {
+      const view = await current.readBinding(id);
+      if (still()) { binding.value = view; readFailed.value = false; }
+    } catch {
+      if (still()) { binding.value = null; readFailed.value = true; }
+    }
   };
-  const refreshQuietly = (): void => { void refreshBinding().catch(() => { binding.value = null; }); };
+  const refreshQuietly = (): void => { void refreshBinding(); };
   const listen = (): void => {
     unsubscribe?.();
     unsubscribe = null;
@@ -55,6 +67,7 @@ export const useAnalysisStore = defineStore('fallow-analysis', () => {
   };
   const setService = (next: FallowAnalysisService): void => {
     service = next;
+    executableName.value = next.executableName;
     listen();
     refreshRun();
     refreshQuietly();
@@ -65,6 +78,7 @@ export const useAnalysisStore = defineStore('fallow-analysis', () => {
     repositoryId.value = id;
     runRequested.value = false;
     binding.value = null;
+    readFailed.value = false;
     listen();
     refreshRun();
     refreshQuietly();
@@ -102,7 +116,9 @@ export const useAnalysisStore = defineStore('fallow-analysis', () => {
   };
   /** True when the executable was forgotten; false while a run is in flight or unbound. A
    *  data.json failure (the service's AnalyzerStoreError) REJECTS: the caller's
-   *  useBusyAction surfaces it, so a failed Forget is never mistaken for "busy". */
+   *  useBusyAction surfaces it, so a failed Forget is never mistaken for "busy". Polish C11:
+   *  the re-read after it never rejects (a failed one is `readFailed`), so a Forget that
+   *  happened is never reported as failed. */
   const forget = async (): Promise<boolean> => {
     const id = repositoryId.value;
     if (service === null || id === '') return false;
@@ -115,7 +131,7 @@ export const useAnalysisStore = defineStore('fallow-analysis', () => {
     unsubscribe = null;
   });
   return {
-    repositoryId, run, binding, runRequested, active, cancellable,
-    setService, bindRepository, refreshBinding, requestRun, consumeRunRequest, review, startOrReview, trustAndRun, cancel, forget,
+    repositoryId, run, binding, readFailed, executableName, runRequested, active, cancellable,
+    setService, bindRepository, requestRun, consumeRunRequest, review, startOrReview, trustAndRun, cancel, forget,
   };
 });

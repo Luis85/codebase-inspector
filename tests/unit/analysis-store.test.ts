@@ -170,3 +170,45 @@ describe('useAnalysisStore follows binding writes made elsewhere (final review)'
     expect(reads.mock.calls).toHaveLength(settled + 1);
   });
 });
+
+describe('Polish C1, C11, C13: binding truth in the store', () => {
+  it('C1: a failed read is readFailed, not "none"; the next good read clears it', async () => {
+    const fake = createFakeFallowAnalysis('fallow');
+    const read = fake.readBinding.bind(fake);
+    let failing = true;
+    fake.readBinding = (id) => (failing ? Promise.reject(new Error('EIO')) : read(id));
+    const store = useAnalysisStore();
+    store.setService(fake);
+    store.bindRepository('p1');
+    await flushPromises();
+    expect([store.binding, store.readFailed]).toEqual([null, true]);
+    failing = false;
+    fake.setBinding('p1', { kind: 'none' });
+    await flushPromises();
+    expect([store.binding, store.readFailed]).toEqual([{ kind: 'none', executableName: 'fallow' }, false]);
+  });
+
+  it('C1 (L2): the executable name comes from the service before any read lands', () => {
+    const store = useAnalysisStore();
+    store.setService(createFakeFallowAnalysis('fallow'));
+    expect(store.executableName).toBe('fallow');
+  });
+
+  it('C11: a Forget that succeeded resolves true even when the re-read fails', async () => {
+    const fake = createFakeFallowAnalysis();
+    fake.setBinding('p1', { kind: 'bound', binding: { profileId: 'p1', executablePath: 'C:\\f\\fallow.exe', timeoutSeconds: 120, trust: null } });
+    const store = useAnalysisStore();
+    store.setService(fake);
+    store.bindRepository('p1');
+    await flushPromises();
+    fake.readBinding = () => Promise.reject(new Error('EIO'));
+    await expect(store.forget()).resolves.toBe(true);
+    expect(store.readFailed).toBe(true);
+  });
+
+  it('C13: refreshBinding is internal to the store', () => {
+    const store = useAnalysisStore();
+    // @ts-expect-error Polish C13: not part of the store's surface.
+    expect(store.refreshBinding).toBeUndefined();
+  });
+});

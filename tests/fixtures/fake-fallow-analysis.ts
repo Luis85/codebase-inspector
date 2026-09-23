@@ -40,6 +40,7 @@ export function createFakeFallowAnalysis(executableName: 'fallow.exe' | 'fallow'
   const call = (method: string, profileId: string): void => { calls.push({ method, profileId }); };
   const fake: FakeFallowAnalysis = {
     calls,
+    executableName,
     next: { run: { kind: 'started' }, trustAndRun: { kind: 'started' }, review: null, forget: 'forgotten', setTimeLimit: 'saved' },
     setState(profileId, state) { states.set(profileId, state); notify(profileId); },
     setBinding(profileId, read) { bindings.set(profileId, read); notify(profileId); bindingChanged(profileId); },

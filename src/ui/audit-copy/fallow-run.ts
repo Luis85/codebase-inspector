@@ -98,6 +98,9 @@ export const FALLOW_EXE_NONE = 'No executable chosen. Import a report, or choose
 export const FALLOW_EXE_OTHER_DEVICE = 'The executable was chosen on another device. Choose it again on this one.';
 export const FALLOW_EXE_INVALID = 'This codebase’s executable setting could not be read. Choose the executable again.';
 export const FALLOW_EXE_UNSUPPORTED = 'This codebase’s executable setting was saved by a newer version of the plugin. It is kept unchanged and cannot be used here.';
+/** Polish C1: the binding could not be read, which is not the same as none being chosen. QF17:
+ *  shown on Data & scans itself, so it never says to open it again. */
+export const FALLOW_EXE_READ_FAILED = 'This codebase’s executable setting could not be read from the plugin’s data file. Nothing was changed. Try again, or reopen this codebase.';
 export const FALLOW_RUN_HINT = 'Open a codebase first: fallow runs on the folder of the codebase on screen.';
 export const FALLOW_RUN_BUSY_HINT = 'Wait for the fallow analysis to finish, or cancel it.';
 /** A check, a Run, or a Trust and run whose data-file read or write threw (the store rejects,

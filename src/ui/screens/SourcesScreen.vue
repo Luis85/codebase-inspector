@@ -62,22 +62,42 @@ async function openRequested(): Promise<void> {
   await nextTick();
   if (store.snapshot) startConnect();
 }
+/** Polish C10 (L23): while the dialog's step is in flight, a newer request waits, the newest
+ *  one winning, and is applied once the step settles; it is dropped if that step closed the
+ *  dialog or the codebase changed. A remount mid-step would discard the step. */
+const dialogBusy = ref(false);
+let deferred: (() => void) | null = null;
+function whenDialogIdle(apply: () => void): void {
+  if (connecting.value && dialogBusy.value) { deferred = apply; return; }
+  apply();
+}
+watch(dialogBusy, (now) => {
+  const next = deferred;
+  if (now || next === null) return;
+  deferred = null;
+  if (connecting.value) next();
+});
+watch(connecting, (shown) => { if (!shown) { dialogBusy.value = false; deferred = null; } });
 /** Fix round 1 (M3): the dialogs never stack. The newer request wins and closes the Remove
  *  confirmation (removing nothing), then S14 opens. */
 function startConnect(): void {
-  removing.value = false;
-  connectRoute.value = 'choose';
-  installedStart.value = undefined;
-  connectKey.value += 1;
-  connecting.value = true;
+  whenDialogIdle(() => {
+    removing.value = false;
+    connectRoute.value = 'choose';
+    installedStart.value = undefined;
+    connectKey.value += 1;
+    connecting.value = true;
+  });
 }
 /** Part 7 Z32/Z35: the installed route, at its path step or its review. */
 function openInstalled(start: InstalledRouteStart): void {
-  removing.value = false;
-  connectRoute.value = 'installed';
-  installedStart.value = start;
-  connectKey.value += 1;
-  connecting.value = true;
+  whenDialogIdle(() => {
+    removing.value = false;
+    connectRoute.value = 'installed';
+    installedStart.value = start;
+    connectKey.value += 1;
+    connecting.value = true;
+  });
 }
 const { refusal: runRefusal, failure: runFailure, run: runAnalysis, cancel: cancelAnalysis, forget: forgetExecutable } =
   useFallowRun(openInstalled, (message) => { void reannounce(liveMessage, message); });
@@ -94,7 +114,7 @@ watch(() => evidenceStore.importRequested, (requested) => {
 
 /** Part 4 E8/E11: a codebase switch closes both dialogs. Nothing is attached or removed,
  *  and nothing is announced: the user did not act. */
-watch(() => store.snapshot?.repositoryId, () => { connecting.value = false; removing.value = false; });
+watch(() => store.snapshot?.repositoryId, () => { connecting.value = false; removing.value = false; deferred = null; });
 
 /** W3 (A8, P14): scan states live on the city route, so go there before the host starts. */
 function changeSource(): void {
@@ -222,6 +242,7 @@ function confirmRemove(): void {
       :installed="installedStart"
       @close="closeConnect"
       @done="attached"
+      @busy="dialogBusy = $event"
     />
     <CiDialog
       v-if="removing"

@@ -37,8 +37,9 @@ const review = shallowRef<RunReview | null>(null);
 const retrust = ref(false);
 const heading = ref<HTMLElement | null>(null);
 const input = ref<HTMLInputElement | null>(null);
-/** fallow.exe unless the service says `fallow` (the path hint and the review's Environment row). */
-const windows = computed(() => analysis.binding?.executableName !== 'fallow');
+/** fallow.exe unless the service says `fallow` (Polish C1: from the service, not the binding
+ *  read), for the path hint and the review's Environment row. */
+const windows = computed(() => analysis.executableName !== 'fallow');
 const hint = computed(() => (windows.value ? FALLOW_EXE_HINT_WINDOWS : FALLOW_EXE_HINT_POSIX));
 let disposed = false;
 onBeforeUnmount(() => { disposed = true; });

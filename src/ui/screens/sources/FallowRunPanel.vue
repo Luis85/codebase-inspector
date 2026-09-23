@@ -3,8 +3,9 @@
 // and its time limit, and Run / Cancel analysis / Choose or Change executable… / Forget
 // executable. The panel reports presses; SourcesScreen (use-fallow-run.ts) acts on them.
 // Blocked controls stay focusable (aria-disabled plus a guarded handler, E40).
-// An unread or unreadable binding (the store's `null`) reads as "No executable chosen": there
-// is no spinner to hang, and Run still asks the service, which reads the record itself.
+// An unread binding reads as "No executable chosen"; an unreadable one (the store's
+// `readFailed`) says it could not be read. There is no spinner to hang, and Run still asks
+// the service, which reads the record itself.
 import { computed, nextTick, ref, watch } from 'vue';
 import { useAnalysisStore } from '../../stores/analysis-store';
 import { useUniqueId } from '../../unique-id';
@@ -13,7 +14,7 @@ import {
 } from '../../read-models/fallow-run';
 import {
   FALLOW_EXE_CHANGE, FALLOW_EXE_CHOOSE, FALLOW_EXE_FORGET, FALLOW_EXE_INVALID, FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE,
-  FALLOW_EXE_UNSUPPORTED, FALLOW_LIMIT_VALUE, FALLOW_ROW_EXECUTABLE, FALLOW_ROW_LIMIT, FALLOW_ROW_TRUST, FALLOW_RUN_ACTION,
+  FALLOW_EXE_READ_FAILED, FALLOW_EXE_UNSUPPORTED, FALLOW_LIMIT_VALUE, FALLOW_ROW_EXECUTABLE, FALLOW_ROW_LIMIT, FALLOW_ROW_TRUST, FALLOW_RUN_ACTION,
   FALLOW_RUN_CANCEL, FALLOW_RUN_HINT, FALLOW_TRUST_VALUE,
 } from '../../inspector-copy';
 import FallowRunBanner from './FallowRunBanner.vue';
@@ -41,7 +42,8 @@ const banner = computed((): Banner | null => {
 const bound = computed(() => (analysis.binding?.kind === 'bound' ? analysis.binding.binding : null));
 const executableText = computed(() => {
   const read = analysis.binding;
-  if (read === null || read.kind === 'none') return FALLOW_EXE_NONE;
+  if (read === null) return analysis.readFailed ? FALLOW_EXE_READ_FAILED : FALLOW_EXE_NONE;
+  if (read.kind === 'none') return FALLOW_EXE_NONE;
   if (read.kind === 'other-machine') return FALLOW_EXE_OTHER_DEVICE;
   if (read.kind === 'invalid') return FALLOW_EXE_INVALID;
   if (read.kind === 'unsupported') return FALLOW_EXE_UNSUPPORTED;
@@ -65,7 +67,11 @@ watch(canForget, async (now) => {
   await nextTick();
   chooseButton.value?.focus();
 });
-const chooseBlocked = computed(() => analysis.active || !props.hasSnapshot);
+const unsupported = computed(() => analysis.binding?.kind === 'unsupported');
+/** Polish C2: an unsupported record cannot be replaced from here (it is read-only, Z2), so
+ *  Choose is blocked, described by the row that says why. */
+const chooseBlocked = computed(() => analysis.active || !props.hasSnapshot || unsupported.value);
+const executableId = useUniqueId('ci-fallow-run-exe');
 /** E40: ONE element for Run and Cancel analysis, so the focus stays on it when the run starts,
  *  ends or goes to cancelling under it (two v-if branches would swap in a new <button>).
  *  While cancelling it stays Cancel analysis, blocked (aria-disabled plus the guard below). */
@@ -101,7 +107,7 @@ function forget(): void {
     />
     <dl class="ci-fallow-run__facts">
       <dt>{{ FALLOW_ROW_EXECUTABLE }}</dt>
-      <dd>
+      <dd :id="executableId">
         <code v-if="bound">{{ executableText }}</code>
         <template v-else>
           {{ executableText }}
@@ -138,7 +144,7 @@ function forget(): void {
         type="button"
         class="ci-fallow-run__choose"
         :aria-disabled="chooseBlocked ? 'true' : undefined"
-        :aria-describedby="!hasSnapshot ? runHintId : analysis.active ? busyHintId : undefined"
+        :aria-describedby="!hasSnapshot ? runHintId : analysis.active ? busyHintId : unsupported ? executableId : undefined"
         @click="choose"
       >
         {{ bound ? FALLOW_EXE_CHANGE : FALLOW_EXE_CHOOSE }}
