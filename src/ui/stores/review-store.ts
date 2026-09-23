@@ -11,7 +11,7 @@ import {
 } from './ports/review-repository';
 import {
   EMPTY_REPLACEMENT, anyPending, beginLoad, bucketFor, createBucketState, endLoad, listenTo, ownWrite, pendingOf, release,
-  reloadIfBound, reserve, ruleKey, stopListening, type BucketState, type ReviewPending, type ReviewRepositoryFactory,
+  reserve, ruleKey, settleOwnWrite, stopListening, type BucketState, type ReviewPending, type ReviewRepositoryFactory,
 } from './review-buckets';
 
 interface ReviewState {
@@ -176,13 +176,11 @@ export const useReviewStore = defineStore('review', {
       try {
         await ownWrite(bucket, () => repo.saveWorkItem(item), this);
         // Part 5 V9: saved in its own codebase either way (so the real result is returned),
-        // but shown only while that codebase is still bound. Polish E4 (L16): a load that
-        // started during the write may hold it, or may reflect another leaf removing it, so
-        // the stored truth is reloaded instead of pushed.
-        if (this.repository === repo) {
-          if (bucket.loadTicket !== ticket) reloadIfBound(this, bucket);
-          else if (!this.workItems.some((w) => w.id === item.id)) this.workItems.push(item);
-        }
+        // but shown only while that codebase is still bound; Polish E4: or reloaded (settleOwnWrite).
+        const reload = settleOwnWrite(this, repo, bucket, ticket, () => {
+          if (!this.workItems.some((w) => w.id === item.id)) this.workItems.push(item);
+        });
+        if (reload) await reload;   // fix round 1: the key stays reserved until the lists show it
         return item;
       } finally {
         release(this.pending, codebase, 'work', key);
@@ -281,11 +279,10 @@ export const useReviewStore = defineStore('review', {
       reserve(this.pending, codebase, 'rule', key);
       try {
         await ownWrite(bucket, () => repo.saveRule(rule), this);
-        if (this.repository === repo) {
-          // Polish E4 (L16): as addWorkItem, a load that started during the write wins.
-          if (bucket.loadTicket !== ticket) reloadIfBound(this, bucket);
-          else if (!this.rules.some((r) => r.id === rule.id)) this.rules.push(rule);
-        }
+        const reload = settleOwnWrite(this, repo, bucket, ticket, () => {   // Polish E4, as addWorkItem
+          if (!this.rules.some((r) => r.id === rule.id)) this.rules.push(rule);
+        });
+        if (reload) await reload;
         return rule;
       } finally {
         release(this.pending, codebase, 'rule', key);
@@ -311,12 +308,12 @@ export const useReviewStore = defineStore('review', {
       reserve(this.pending, codebase, 'fingerprint', fp);
       try {
         await ownWrite(bucket, () => repo.saveDisposition(disposition), this);
-        if (this.repository === repo) {
-          // Polish E4 (L16): a load that started during this write reflects another leaf's
-          // change; an upsert now could put back what that change removed. Reload instead.
-          if (bucket.loadTicket !== ticket) reloadIfBound(this, bucket);
-          else this.dispositions = [...this.dispositions.filter((d) => d.fingerprint !== fp), disposition];
-        }
+        // Polish E4 (L16): a load that started during this write reflects another leaf's
+        // change; an upsert now could put back what that change removed (settleOwnWrite).
+        const reload = settleOwnWrite(this, repo, bucket, ticket, () => {
+          this.dispositions = [...this.dispositions.filter((d) => d.fingerprint !== fp), disposition];
+        });
+        if (reload) await reload;
         return disposition;
       } finally {
         release(this.pending, codebase, 'fingerprint', fp);

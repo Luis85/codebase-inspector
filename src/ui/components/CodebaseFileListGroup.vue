@@ -74,12 +74,9 @@ function focusDistrict(): void {
   emit('focusDistrict', props.group.directoryId);
 }
 
-/** Part 6 Y40: the Reported cell — the count, or an em dash for none (never a 0 that could
- *  read as "measured clean"), with a spoken phrase after the path. Polish E11: both are
- *  formatted by the same copy module, so they read the same count. */
-function reportedText(count: number | null): string {
-  return LENS_LIST_TEXT(count);
-}
+/** Part 6 Y40: the Reported cell — LENS_LIST_TEXT's count, or an em dash for none (never a 0
+ *  that could read as "measured clean"), with a spoken phrase after the path. Polish E11: both
+ *  are formatted by the same copy module, so they read the same count. */
 function reportedLabel(count: number | null): string {
   return LENS_LIST_CELL(count ?? 0);
 }
@@ -149,7 +146,7 @@ function reportedLabel(count: number | null): string {
           <span
             v-if="rowState(entity.id).reported !== null"
             class="ci-file-list__reported"
-          ><span aria-hidden="true">{{ reportedText(rowState(entity.id).reported) }}</span><span class="visually-hidden">{{ reportedLabel(rowState(entity.id).reported) }}</span></span>
+          ><span aria-hidden="true">{{ LENS_LIST_TEXT(rowState(entity.id).reported) }}</span><span class="visually-hidden">{{ reportedLabel(rowState(entity.id).reported) }}</span></span>
         </button>
       </li>
     </ul>

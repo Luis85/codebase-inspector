@@ -5,7 +5,7 @@ import { flushPromises } from '@vue/test-utils';
 import { createPinia } from 'pinia';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import {
-  createInMemoryReviewRepository, type FindingDisposition, type ReviewRepository,
+  createInMemoryReviewRepository, type FindingDisposition, type ReviewRepository, type WorkItem,
 } from '../../src/ui/stores/ports/review-repository';
 
 const AT = '2026-09-23T10:00:00.000Z';
@@ -18,16 +18,22 @@ function gate(): { promise: Promise<void>; open: () => void } {
   return { promise, open: () => { open(); } };
 }
 
-/** The same repository, whose saves land (and notify) at once but resolve only when `until`
- *  opens: the notification window a slow disk opens. */
-function delayedSaves(inner: ReviewRepository, until: Promise<void>): ReviewRepository {
+/** The same repository, whose saves resolve only when `until` opens: the window a slow disk
+ *  opens. A save lands (and notifies) at once, or with `late` only once `until` opens, so a
+ *  load during the write lists without it. */
+function delayedSaves(inner: ReviewRepository, until: Promise<void>, late = false): ReviewRepository {
+  const slowly = async (write: () => Promise<void>): Promise<void> => {
+    if (late) await until;
+    await write();
+    await until;
+  };
   return {
     listWorkItems: () => inner.listWorkItems(), removeWorkItem: (id) => inner.removeWorkItem(id),
-    saveWorkItem: async (i) => { await inner.saveWorkItem(i); await until; },
+    saveWorkItem: (i) => slowly(() => inner.saveWorkItem(i)),
     listRules: () => inner.listRules(), removeRule: (id) => inner.removeRule(id),
-    saveRule: async (r) => { await inner.saveRule(r); await until; },
+    saveRule: (r) => slowly(() => inner.saveRule(r)),
     listDispositions: () => inner.listDispositions(),
-    saveDisposition: async (d) => { await inner.saveDisposition(d); await until; },
+    saveDisposition: (d) => slowly(() => inner.saveDisposition(d)),
     removeDisposition: (fp) => inner.removeDisposition(fp), replaceAll: (s) => inner.replaceAll(s),
     allocateId: (k) => inner.allocateId(k), subscribe: (l) => inner.subscribe(l), diagnostics: () => inner.diagnostics(),
   };
@@ -52,14 +58,15 @@ describe('Polish E3: decide waits for the bound codebase to be read', () => {
   });
 });
 
-/** Leaf A writes through a repository whose saves resolve only when `slow` opens; leaf B
- *  shares the same stored state and writes straight through. Both are bound and read. */
-async function twoLeaves() {
+/** Leaf A writes through a repository whose saves resolve only when `slow` opens (and, with
+ *  `late`, land only then); leaf B shares the same stored state and writes straight through.
+ *  Both are bound and read. */
+async function twoLeaves(late = false) {
   const shared = createInMemoryReviewRepository();
   const slow = gate();
   const a = useReviewStore(createPinia());
   const b = useReviewStore(createPinia());
-  a.setRepositoryFactory(() => delayedSaves(shared, slow.promise));
+  a.setRepositoryFactory(() => delayedSaves(shared, slow.promise, late));
   b.setRepositoryFactory(() => shared);
   await a.bindRepository('c1');
   await b.bindRepository('c1');
@@ -109,5 +116,75 @@ describe('Polish E4: an own write never resurrects what another leaf removed', (
     await flushPromises();
     expect(a.rules).toEqual([]);
     expect(await shared.listRules()).toEqual([]);
+  });
+});
+
+const FILE_A = { kind: 'file', entityId: 'file:src/a.ts' } as const;
+const FILE_B = { kind: 'file', entityId: 'file:src/b.ts' } as const;
+
+/** Holds leaf A's work-item and rule lists until the returned gate opens (or fails them). */
+function holdListsOf(store: ReturnType<typeof useReviewStore>, fail = false): () => void {
+  const held = gate();
+  const repo = store.repository;
+  const items = repo.listWorkItems.bind(repo);
+  const rules = repo.listRules.bind(repo);
+  const hold = async (): Promise<void> => { await held.promise; if (fail) throw new Error('read failed'); };
+  repo.listWorkItems = async () => { await hold(); return items(); };
+  repo.listRules = async () => { await hold(); return rules(); };
+  return held.open;
+}
+
+const targets = (items: readonly WorkItem[]): string[] => items.map((w) => (w.target.kind === 'file' ? w.target.entityId : '')).sort();
+
+describe('Polish E4 fix round 1: the add stays reserved until its reload settles', () => {
+  it('a second add of the same work item while the reload is in flight is refused, so nothing is saved twice', async () => {
+    const { shared, slow, a, b } = await twoLeaves(true);
+    const adding = a.addWorkItem(FILE_A, 'refactor', 'Split a.ts', new Date(AT));
+    await flushPromises();
+    // Another leaf's write lands first. A's own write, landing later, then finds its
+    // notification slot used up and reloads (Y12), so a load starts during the write.
+    expect(await b.addWorkItem(FILE_B, 'refactor', 'Split b.ts', new Date(AT))).not.toBeNull();
+    await flushPromises();
+    const release = holdListsOf(a);
+    slow.open();
+    await flushPromises();
+    expect(await a.addWorkItem(FILE_A, 'refactor', 'Split a.ts', new Date(AT))).toBeNull();
+    release();
+    expect(await adding).not.toBeNull();
+    await flushPromises();
+    expect(targets(await shared.listWorkItems())).toEqual([FILE_A.entityId, FILE_B.entityId]);
+    expect(targets(a.workItems)).toEqual([FILE_A.entityId, FILE_B.entityId]);
+  });
+
+  it('a second add of the same rule while the reload is in flight is refused', async () => {
+    const { shared, slow, a, b } = await twoLeaves(true);
+    const adding = a.addRule('src/ui', 'src/host', 'The UI never reaches the host.', new Date(AT));
+    await flushPromises();
+    expect(await b.addRule('src/host', 'src/ui', 'Nor the host the UI.', new Date(AT))).not.toBeNull();
+    await flushPromises();
+    const release = holdListsOf(a);
+    slow.open();
+    await flushPromises();
+    expect(await a.addRule('src/ui', 'src/host', 'The UI never reaches the host.', new Date(AT))).toBeNull();
+    release();
+    expect(await adding).not.toBeNull();
+    await flushPromises();
+    expect(await shared.listRules()).toHaveLength(2);
+    expect(a.rules).toHaveLength(2);
+  });
+
+  it('a reload that fails after the save returns the saved item and marks the read failed', async () => {
+    const { shared, slow, a, b } = await twoLeaves(true);
+    const adding = a.addWorkItem(FILE_A, 'refactor', 'Split a.ts', new Date(AT));
+    await flushPromises();
+    expect(await b.addWorkItem(FILE_B, 'refactor', 'Split b.ts', new Date(AT))).not.toBeNull();
+    await flushPromises();
+    const release = holdListsOf(a, true);
+    slow.open();
+    await flushPromises();
+    release();
+    expect((await adding)?.target).toEqual(FILE_A);   // it was saved: a failure here would invite a duplicate retry
+    expect(a.loadFailed).toBe(true);                  // R1: Settings says the read failed
+    expect(await shared.listWorkItems()).toHaveLength(2);
   });
 });
