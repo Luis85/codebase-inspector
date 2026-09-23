@@ -16,7 +16,9 @@ export default tseslint.config(
   // language plugin obsidianmd's recommended config applies to package.json.
   // .obsidian/** is this working directory's own local vault config (gitignored, holds
   // other unrelated third-party plugins' bundled main.js) — never our source.
-  { ignores: ['dist/**', 'docs/**', 'node_modules/**', 'package.json', '.obsidian/**'] },
+  // tests/fixtures/fallow/project/** is Part 6's fallow fixture project (Y21): analysed by
+  // fallow, excluded from tsconfig.test.json, so it cannot be type-aware linted either.
+  { ignores: ['dist/**', 'docs/**', 'node_modules/**', 'package.json', '.obsidian/**', 'tests/fixtures/fallow/project/**'] },
   ...tseslint.configs.recommendedTypeChecked,
   ...vue.configs['flat/recommended'],
   ...obsidianmd.configs.recommended,   // no-nodejs-modules, hardcoded-config-path,

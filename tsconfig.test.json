@@ -6,5 +6,7 @@
     // once this project's include list sweeps src/**/*.ts in alongside tests/**/*.ts.
     "types": ["vite/client", "vitest/globals", "node"]
   },
-  "include": ["tests/**/*.ts", "src/**/*.ts", "src/**/*.vue"]
+  "include": ["tests/**/*.ts", "src/**/*.ts", "src/**/*.vue"],
+  // Part 6 Y21: the fallow fixture project is analysed by fallow, never compiled.
+  "exclude": ["tests/fixtures/fallow/project/**"]
 }
