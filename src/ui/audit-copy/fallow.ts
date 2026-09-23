@@ -2,6 +2,7 @@
 // dialog, card, badge and lens strings to this file.
 import { FALLOW_REPORT_MAX_BYTES, FALLOW_SUPPORTED, type FallowImportErrorCode, type FallowReportKind } from '../../application/evidence/raw-fallow';
 import type { EvidenceOrigin } from '../../application/evidence/model';
+import { CANCEL } from './shared';
 
 /** Fix round 1 (E31, minor 5): "16 MB", derived instead of hard-coded, so the copy and
  *  the limit it describes cannot drift apart. */
@@ -132,7 +133,7 @@ export const FALLOW_IMPORT_HINT = 'Open a codebase first: report paths are match
 export const FALLOW_REMOVE = 'Remove report';
 export const FALLOW_REMOVE_TITLE = 'Remove the fallow report?';
 export const FALLOW_REMOVE_TEXT = 'Its findings leave every screen and read Not analysed. Your finding decisions are kept, and you can import the report again.';
-export const FALLOW_REMOVE_CANCEL = 'Cancel';
+export const FALLOW_REMOVE_CANCEL = CANCEL;
 export const FALLOW_REMOVED = 'fallow report removed. Findings read Not analysed.';
 export const FALLOW_DIALOG_EYEBROW = 'Add evidence';
 export const FALLOW_DIALOG_TITLE = 'Connect fallow';
@@ -140,8 +141,10 @@ export const FALLOW_DIALOG_INTRO = 'Keep exploring the structural city while you
 export const FALLOW_DISCLOSURE = 'The plugin does not download or install fallow. Imported reports cannot authorize commands or source access.';
 export const FALLOW_SNAPSHOT_FILES = (n: number): string => `Current structural snapshot: ${nounCount(n, 'file', 'files')}`;
 export const FALLOW_CHOOSE = 'Choose report…';
-export const FALLOW_CANCEL = 'Cancel';
+export const FALLOW_CANCEL = CANCEL;
 export const FALLOW_REVIEW_TITLE = 'Review the report';
+/** Polish F5: the review step says what the badge says, in words (Y27). */
+export const FALLOW_REVIEW_UNVERIFIED = 'Unverified source match: a report carries no folder or revision, so its paths are matched to this snapshot by name only.';
 export const FALLOW_ATTACH = 'Attach report';
 export const FALLOW_MATCHED = (findings: number, files: number): string =>
   `${nounCount(findings, 'finding', 'findings')} in ${nounCount(files, 'file', 'files')}`;

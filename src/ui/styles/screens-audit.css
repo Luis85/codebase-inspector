@@ -47,6 +47,7 @@
 :where(.codebase-inspector-root) button.ci-coverage-map__tile--unknown { background: var(--ci-text-faint); }
 :where(.codebase-inspector-root) button.ci-coverage-map__tile[aria-pressed="true"] { outline: 2px solid var(--ci-focus); outline-offset: 1px; }
 :where(.codebase-inspector-root) button.ci-coverage-map__tile:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 1px; }
+:where(.codebase-inspector-root) .ci-coverage-gaps__open { margin-inline-end: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-coverage-gaps__more { margin-top: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-tests__duration { display: inline-flex; align-items: center; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-unknown-state {

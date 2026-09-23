@@ -193,6 +193,10 @@ describe('F13: the filter notice becomes two real controls', () => {
     // The tail COPY_30 used to render as PROSE is gone as literal text — replaced by
     // the two buttons above, not restated beside them.
     expect(wrapper.text()).not.toContain('Reveal file or clear selection.');
+    // Polish F4: the derivation is string surgery on COPY_30; a catalogue reword must fail
+    // here, not produce a nonsense label.
+    expect(COPY_30_REVEAL_LABEL).toBe('Reveal file');
+    expect(COPY_30_CLEAR_LABEL).toBe('Clear selection');
   });
 
   it('clearing selection from the notice keeps the query', async () => {

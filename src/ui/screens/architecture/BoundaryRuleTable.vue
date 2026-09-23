@@ -4,7 +4,7 @@ import type { RuleEvaluation } from '../../read-models/architecture';
 import { moduleLabel } from '../../read-models/file-summaries';
 import {
   ARCH_ADD_RULE, RULE_COL_ACTIONS, RULE_COL_ID, RULE_COL_IMPORTS, RULE_COL_RULE, RULE_COL_STATUS, RULE_REMOVE,
-  RULE_REMOVE_LABEL, RULE_SENTENCE, RULE_STATUS_LABEL, RULES_EMPTY, RULES_TABLE_CAPTION,
+  RULE_REMOVE_LABEL, RULE_SENTENCE, RULE_SHOW, RULE_SHOW_LABEL, RULE_STATUS_LABEL, RULES_EMPTY, RULES_TABLE_CAPTION,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
@@ -42,7 +42,7 @@ const columns: readonly TableColumn<RuleEvaluation>[] = [
     :rows="rules"
     :row-key="(r) => r.rule.id"
     :caption="RULES_TABLE_CAPTION"
-    @activate="emit('select', $event.rule.id)"
+    :interactive="false"
   >
     <template #cell-id="{ row }">
       <code>{{ row.rule.id }}</code>
@@ -66,10 +66,17 @@ const columns: readonly TableColumn<RuleEvaluation>[] = [
     <template #cell-actions="{ row }">
       <button
         type="button"
+        class="ci-rule-table__show"
+        :aria-label="RULE_SHOW_LABEL(row.rule.id)"
+        @click="emit('select', row.rule.id)"
+      >
+        {{ RULE_SHOW }}
+      </button>
+      <button
+        type="button"
         class="ci-rule-table__remove"
         :aria-label="RULE_REMOVE_LABEL(row.rule.id)"
-        @click.stop="emit('remove', row.rule.id)"
-        @keydown.stop
+        @click="emit('remove', row.rule.id)"
       >
         {{ RULE_REMOVE }}
       </button>

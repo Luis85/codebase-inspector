@@ -1,4 +1,6 @@
 // Part 3: strings shared by the six Audit screens. Re-exported by inspector-copy.ts.
+/** Polish F5: the one "Cancel"; the per-surface names below are aliases of it. */
+export const CANCEL = 'Cancel';
 export const SAMPLE_BADGE_DETAIL = 'Sample data';
 export const SHOW_MORE = (n: number): string => `Show ${n} more`;
 export const RESET_FILTERS = 'Reset filters';

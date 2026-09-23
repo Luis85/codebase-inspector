@@ -9,12 +9,11 @@ import { useEvidenceStore } from '../stores/evidence-store';
 import { useRunStore } from '../stores/run-store';
 import { useAnalysisStore } from '../stores/analysis-store';
 import {
-  FALLOW_REMOVE, FALLOW_REMOVE_CANCEL, FALLOW_REMOVE_TEXT, FALLOW_REMOVE_TITLE, FALLOW_REMOVED, SOURCES_CALLOUT,
-  SOURCES_CALLOUT_TITLE, SOURCES_CHANGE, SOURCES_EYEBROW, SOURCES_RESCAN, SOURCES_SUBTITLE, SOURCES_TITLE,
+  FALLOW_REMOVED, SOURCES_CALLOUT, SOURCES_CALLOUT_TITLE, SOURCES_CHANGE, SOURCES_EYEBROW, SOURCES_RESCAN,
+  SOURCES_SUBTITLE, SOURCES_TITLE,
 } from '../inspector-copy';
 import PageHeader from '../kit/PageHeader.vue';
 import Callout from '../kit/Callout.vue';
-import CiDialog from '../kit/Dialog.vue';
 import Icon from '../kit/Icon.vue';
 import { noop } from '../kit/noop';
 import { reannounce } from '../kit/reannounce';
@@ -23,6 +22,7 @@ import ScanStatusPanel from './sources/ScanStatusPanel.vue';
 import ProviderGrid from './sources/ProviderGrid.vue';
 import FallowCardDetails from './sources/FallowCardDetails.vue';
 import ConnectFallowDialog from './sources/ConnectFallowDialog.vue';
+import FallowRemoveDialog from './sources/FallowRemoveDialog.vue';
 import { useFallowRun } from './sources/use-fallow-run';
 
 const store = useCityStore();
@@ -255,31 +255,10 @@ function confirmRemove(): void {
       @done="attached"
       @busy="onDialogBusy"
     />
-    <CiDialog
+    <FallowRemoveDialog
       v-if="removing"
-      :label="FALLOW_REMOVE_TITLE"
       @close="removing = false"
-    >
-      <div class="ci-fallow-remove">
-        <h3>{{ FALLOW_REMOVE_TITLE }}</h3>
-        <p>{{ FALLOW_REMOVE_TEXT }}</p>
-        <div class="ci-fallow-remove__actions">
-          <button
-            type="button"
-            class="ci-fallow-remove__cancel"
-            @click="removing = false"
-          >
-            {{ FALLOW_REMOVE_CANCEL }}
-          </button>
-          <button
-            type="button"
-            class="mod-warning ci-fallow-remove__confirm"
-            @click="confirmRemove"
-          >
-            {{ FALLOW_REMOVE }}
-          </button>
-        </div>
-      </div>
-    </CiDialog>
+      @confirm="confirmRemove"
+    />
   </div>
 </template>

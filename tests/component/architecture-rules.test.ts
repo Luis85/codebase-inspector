@@ -3,12 +3,15 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import '../mocks/obsidian';
 import ArchitectureScreen from '../../src/ui/screens/ArchitectureScreen.vue';
+import BoundaryRuleTable from '../../src/ui/screens/architecture/BoundaryRuleTable.vue';
 import RuleEditor from '../../src/ui/screens/architecture/RuleEditor.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { computeLayout } from '../../src/domain/layout/layout';
+import { unknown } from '../../src/ui/evidence';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
-import { architectureGraphFor } from '../../src/ui/read-models/architecture';
+import { architectureGraphFor, type RuleEvaluation } from '../../src/ui/read-models/architecture';
+import { RULE_SHOW_LABEL } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
 const NOW = new Date('2026-09-21T10:00:00.000Z');
@@ -76,7 +79,7 @@ describe('boundary rules', () => {
     await w.find('.ci-architecture__toggle input').setValue(true);
     expect(w.findAll('.ci-module-map__edge--violation')).toHaveLength(1);
     await openRulesTab(w);
-    await w.find('.ci-table__row').trigger('click');
+    await w.find('.ci-rule-table__show').trigger('click');
     expect(w.find('.ci-boundary').text()).toContain('No shortcuts');
     expect(w.findAll('.ci-boundary .ci-module-inspector__file').length).toBeGreaterThan(0);
     w.unmount();
@@ -103,7 +106,7 @@ describe('boundary rules', () => {
     const w = mountArch();
     expect(w.find('.ci-module-inspector .ci-panel__subtitle').text()).toBe('dir-0');
     await openRulesTab(w);
-    await w.find('.ci-table__row').trigger('click');
+    await w.find('.ci-rule-table__show').trigger('click');
     expect(w.find('.ci-module-inspector .ci-panel__subtitle').text()).toBe('dir-3');
     w.unmount();
   });
@@ -164,6 +167,31 @@ describe('boundary rules', () => {
     await flushPromises();
     expect(useReviewStore().ruleCount).toBe(0);
     expect(w.find('.ci-rule-table__empty').exists()).toBe(true);
+    w.unmount();
+  });
+});
+
+describe('Polish F1 (V19): the rule table', () => {
+  const RULE: RuleEvaluation = {
+    rule: { id: 'AR-001', from: 'ui', to: 'domain', rationale: 'Layering', createdAt: '2026-09-23T10:00:00.000Z' },
+    status: 'not-evaluated', violatingImports: unknown('not evaluated'),
+  };
+
+  it('rule rows are static; Show selects the rule, a row click does not', async () => {
+    const w = mount(BoundaryRuleTable, { props: { rules: [RULE] }, attachTo: document.body });
+    const row = w.find('.ci-table__row');
+    expect(row.classes()).toContain('ci-table__row--static');
+    expect(row.attributes('tabindex')).toBeUndefined();
+    await row.trigger('click');
+    await row.trigger('keydown', { key: 'Enter' });
+    expect(w.emitted('select')).toBeUndefined();
+    const show = w.find('.ci-rule-table__show');
+    expect(show.attributes('aria-label')).toBe(RULE_SHOW_LABEL('AR-001'));
+    await show.trigger('click');
+    expect(w.emitted('select')).toEqual([['AR-001']]);
+    await w.find('.ci-rule-table__remove').trigger('click');
+    expect(w.emitted('remove')).toEqual([['AR-001']]);
+    expect(w.emitted('select')).toHaveLength(1);
     w.unmount();
   });
 });

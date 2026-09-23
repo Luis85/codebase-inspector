@@ -7,7 +7,7 @@ import { useReviewStore } from '../../stores/review-store';
 import type { WorkTarget } from '../../stores/ports/review-repository';
 import {
   SHOW_MORE, TESTS_COL_ACTIONS, TESTS_COL_BRANCHES, TESTS_COL_COMMITS, TESTS_COL_COVERAGE, TESTS_COL_FILE, TESTS_GAPS_CAPTION,
-  TESTS_GAPS_NONE, TESTS_PLAN, TESTS_PLAN_LABEL, TESTS_PLANNED, TESTS_PLANNED_LABEL,
+  TESTS_GAPS_NONE, TESTS_OPEN, TESTS_OPEN_LABEL, TESTS_PLAN, TESTS_PLAN_LABEL, TESTS_PLANNED, TESTS_PLANNED_LABEL,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
@@ -49,7 +49,7 @@ function plan(f: FileSummary): void {
         :row-key="(r) => r.id"
         :caption="TESTS_GAPS_CAPTION"
         :limit="limit"
-        @activate="emit('open', $event.id)"
+        :interactive="false"
       >
         <template #cell-file="{ row }">
           <span class="ci-file-cell">
@@ -69,11 +69,18 @@ function plan(f: FileSummary): void {
         <template #cell-actions="{ row }">
           <button
             type="button"
+            class="ci-coverage-gaps__open"
+            :aria-label="TESTS_OPEN_LABEL(row.name)"
+            @click="emit('open', row.id)"
+          >
+            {{ TESTS_OPEN }}
+          </button>
+          <button
+            type="button"
             class="ci-coverage-gaps__plan"
             :aria-label="planned(row) ? TESTS_PLANNED_LABEL(row.name) : TESTS_PLAN_LABEL(row.name)"
             :aria-disabled="blocked(row)"
-            @click.stop="plan(row)"
-            @keydown.stop
+            @click="plan(row)"
           >
             {{ planned(row) ? TESTS_PLANNED : TESTS_PLAN }}
           </button>

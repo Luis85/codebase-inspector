@@ -32,6 +32,9 @@ onBeforeUnmount(() => {
   panel.value?.closest<HTMLElement>('.ci-shell')?.focus();
 });
 
+/** Node.DOCUMENT_POSITION_FOLLOWING, without reaching a bare global. */
+const FOLLOWING = 4;
+
 /** Escape is claimed here so the city's escape chain (CityWorkspace.vue) never also
  *  resolves it — spec 5.2's "one layer per press". That chain returns early on
  *  `event.defaultPrevented`; stopPropagation additionally keeps the press from ever
@@ -46,13 +49,16 @@ function onKeydown(event: KeyboardEvent): void {
   if (event.key !== 'Tab') return;
   const items = focusables();
   const first = items[0]; const last = items[items.length - 1];
-  if (!first || !last) return;
   const active = panel.value?.ownerDocument.activeElement;
-  // An active element outside the list (a tabindex="-1" heading focused after a step
-  // change) counts as sitting before `first`: Shift+Tab from it wraps to `last`.
+  if (!first || !last || !active) return;
+  // Polish F5: an active element outside the list (a tabindex="-1" heading) wraps by where it
+  // is: after `last`, Tab goes to `first`; before `first`, Shift+Tab goes to `last`; anywhere
+  // between, the browser's own order is right and nothing is prevented.
   const listed = items.some((el) => el === active);
-  if (!event.shiftKey && active === last) { event.preventDefault(); first.focus(); }
-  else if (event.shiftKey && (active === first || !listed)) { event.preventDefault(); last.focus(); }
+  const afterLast = !listed && (last.compareDocumentPosition(active) & FOLLOWING) !== 0;
+  const beforeFirst = !listed && (active.compareDocumentPosition(first) & FOLLOWING) !== 0;
+  if (!event.shiftKey && (active === last || afterLast)) { event.preventDefault(); first.focus(); }
+  else if (event.shiftKey && (active === first || beforeFirst)) { event.preventDefault(); last.focus(); }
 }
 </script>
 

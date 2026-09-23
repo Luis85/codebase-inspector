@@ -114,7 +114,7 @@ export class CityScanController {
    *  needs an active CityView, which is gone the instant onClose runs). Discarding the
    *  result after the fact is not the same as actually STOPPING the disk I/O. */
   cancelIfRunning(): void {
-    if (this.coordinator.state.status === 'running') this.coordinator.cancel(this.coordinator.state.runId);
+    this.cancelScan();
   }
 
   subscribe(listener: (lifecycle: ScanLifecycleState) => void): () => void {

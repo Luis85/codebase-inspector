@@ -1,6 +1,7 @@
 // WP-02 user-facing strings. Sourced from docs/concept/prototype (screen-map.json and the
 // screen specification), NOT from the WP-01 microcopy catalogue — which is why they live
 // here and not in copy.ts (bound to that catalogue by tests/contracts/microcopy.test.ts).
+import { CANCEL } from './audit-copy/shared';
 export const SAMPLE_DATA_NOTICE = 'Includes sample data';
 export const SAMPLE_DATA_DETAIL = 'Values marked Sample are illustrative, not measured from this codebase.';
 export const OVERVIEW_EYEBROW = 'Workspace / Overview';
@@ -154,7 +155,7 @@ export const RULE_EDITOR_FROM = 'Module';
 export const RULE_EDITOR_TO = 'must not import';
 export const RULE_EDITOR_RATIONALE = 'Rationale';
 export const RULE_EDITOR_SAVE = 'Save rule';
-export const RULE_EDITOR_CANCEL = 'Cancel';
+export const RULE_EDITOR_CANCEL = CANCEL;
 export const RULE_EDITOR_SAME_MODULE = 'Choose two different modules.';
 export const RULE_EDITOR_DUPLICATE = 'A rule for these two modules already exists.';
 export const RULE_EDITOR_FAILED = 'Could not save this rule.';
@@ -171,6 +172,8 @@ export const RULE_STATUS_LABEL: Readonly<Record<'passing' | 'violation' | 'not-e
 };
 export const RULE_REMOVE = 'Remove';
 export const RULE_REMOVE_LABEL = (id: string): string => `Remove rule ${id}`;
+export const RULE_SHOW = 'Show';
+export const RULE_SHOW_LABEL = (id: string): string => `Show rule ${id}`;
 export const RULE_REMOVE_FAILED = 'Could not remove this rule.';
 export const BOUNDARY_INSPECTOR_TITLE = 'Boundary inspector';
 export const BOUNDARY_INSPECTOR_SUBTITLE = 'Intended rule vs. sample evidence.';

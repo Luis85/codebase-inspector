@@ -7,6 +7,7 @@
 :where(.codebase-inspector-root) .ci-sources__run { display: flex; align-items: flex-start; gap: var(--ci-space-2); margin: 0; }
 :where(.codebase-inspector-root) .ci-sources__run--warning { color: var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-sources__run--success .ci-icon { color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-sources__cancel { margin-top: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-providers { display: flex; flex-direction: column; gap: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-providers__title { margin: 0; }
 :where(.codebase-inspector-root) .ci-providers__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: repeat(auto-fill, minmax(16em, 1fr)); }

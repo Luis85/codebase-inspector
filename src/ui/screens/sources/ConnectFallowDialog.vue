@@ -22,8 +22,8 @@ import { useUniqueId } from '../../unique-id';
 import {
   FALLOW_ATTACH, FALLOW_ATTACH_REFUSED, FALLOW_ATTACHED, FALLOW_CANCEL, FALLOW_CHOOSE, FALLOW_DIALOG_EYEBROW,
   FALLOW_DIALOG_INTRO, FALLOW_DIALOG_TITLE, FALLOW_DISCLOSURE, FALLOW_IMPORT_ERROR, FALLOW_INSTALL_NOTE, FALLOW_MAPPING_OFFER,
-  FALLOW_REPLACE_NOTE, FALLOW_REVIEW_TITLE, FALLOW_ROUTE_IMPORT_TEXT, FALLOW_ROUTE_IMPORT_TITLE, FALLOW_ROUTE_RUN_ACTION,
-  FALLOW_ROUTE_RUN_TEXT, FALLOW_ROUTE_RUN_TITLE, FALLOW_RUN_BUSY_HINT, FALLOW_SNAPSHOT_FILES,
+  FALLOW_REPLACE_NOTE, FALLOW_REVIEW_TITLE, FALLOW_REVIEW_UNVERIFIED, FALLOW_ROUTE_IMPORT_TEXT, FALLOW_ROUTE_IMPORT_TITLE,
+  FALLOW_ROUTE_RUN_ACTION, FALLOW_ROUTE_RUN_TEXT, FALLOW_ROUTE_RUN_TITLE, FALLOW_RUN_BUSY_HINT, FALLOW_SNAPSHOT_FILES,
 } from '../../inspector-copy';
 import CiDialog from '../../kit/Dialog.vue';
 import { reannounce } from '../../kit/reannounce';
@@ -242,6 +242,9 @@ function attach(): void {
         >
           {{ FALLOW_REVIEW_TITLE }}
         </h3>
+        <p class="ci-note ci-connect-fallow__unverified">
+          {{ FALLOW_REVIEW_UNVERIFIED }}
+        </p>
         <FallowReportFacts
           :report="review.report"
           :matched-findings="review.matchedFindings"

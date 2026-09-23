@@ -3,6 +3,7 @@
 // per finding, and the review dialog's provider and rule rows.
 import type { FindingCategory, FindingDetail, FindingRule } from '../../application/evidence/model';
 import type { FindingSeverity } from '../read-models/severity';
+import { CANCEL } from './shared';
 export const QUALITY_EYEBROW = 'Audit / Code quality';
 export const QUALITY_TITLE = 'From findings to decisions.';
 export const QUALITY_SUBTITLE = 'Triage static-analysis evidence without losing its source, scope, or uncertainty.';
@@ -85,7 +86,7 @@ export const FINDING_DISMISS_PLACEHOLDER = 'For example: intentionally exported 
 export const FINDING_DISMISS_REQUIRED = 'Enter a reason before dismissing the finding.';
 export const FINDING_DISMISS_TOO_LONG = (max: number): string => `Keep the reason to ${max} characters or fewer.`;
 export const FINDING_DISMISS_SAVE = 'Record dismissal';
-export const FINDING_DISMISS_CANCEL = 'Cancel';
+export const FINDING_DISMISS_CANCEL = CANCEL;
 export const FINDING_DECISION_FAILED = 'Could not save this decision.';
 /** Polish C-5a-M2: the dialog's decisions wait for the bound codebase's saved review state. */
 export const FINDING_REVIEW_LOADING = 'Loading this codebase’s saved review state… Decisions can be recorded once it is read.';

@@ -53,6 +53,7 @@
 }
 :where(.codebase-inspector-root) button.ci-module-inspector__file:hover { background: var(--ci-hover); }
 :where(.codebase-inspector-root) .ci-rule-table__empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-3); color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-rule-table__show { margin-inline-end: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-rule-status { font-weight: var(--font-semibold); margin-right: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-rule-status--violation { color: var(--ci-tone-danger); }
 :where(.codebase-inspector-root) .ci-rule-status--passing { color: var(--ci-tone-success); }

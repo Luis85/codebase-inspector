@@ -126,6 +126,10 @@ describe('CSS class scope (E55, Part 5 V21)', () => {
     }
   });
 
+  it('Polish F2: the scan panel\'s Cancel scan has a rule', () => {
+    expect(readFileSync(join(STYLES, 'screens-configure.css'), 'utf8')).toMatch(/\.ci-sources__cancel\s*\{/);
+  });
+
   it('kit.css defines the shared classes', () => {
     for (const cls of [
       '.ci-note', '.ci-empty', '.ci-empty__title', '.ci-selected-strip', '.ci-screen__cards', '.ci-screen__grid', '.ci-chip ', '.ci-chip--sample',

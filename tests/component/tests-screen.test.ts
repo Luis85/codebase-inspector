@@ -167,6 +167,23 @@ describe('TestsScreen', () => {
     w.unmount();
   });
 
+  it('Polish F1 (V19): gap rows are static; Open file opens the file, a row click does not', async () => {
+    withSnapshot(80);
+    const store = useCityStore();
+    store.navigate('tests');
+    const w = mountT();
+    const row = w.find('.ci-coverage-gaps .ci-table__row');
+    expect(row.attributes('tabindex')).toBeUndefined();
+    await row.trigger('click');
+    expect(store.route).toBe('tests');
+    const open = w.find('.ci-coverage-gaps__open');
+    expect(open.attributes('aria-label')!.startsWith('Open file')).toBe(true);
+    await open.trigger('click');
+    expect(store.route).toBe('file');
+    expect(store.selectedEntityId).not.toBeNull();
+    w.unmount();
+  });
+
   it('Polish E1: a refused plan names its reason; any other failure keeps the generic text', async () => {
     withSnapshot(80);
     const w = mountT();

@@ -15,7 +15,8 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import {
   FALLOW_ATTACHED, FALLOW_DIALOG_TITLE, FALLOW_DISCLOSURE, FALLOW_IMPORT_ERROR, FALLOW_MAPPING_OFFER, FALLOW_MATCHED,
-  FALLOW_NOT_SHOWN_ITEM, FALLOW_REPLACE_NOTE, FALLOW_SNAPSHOT_FILES, FALLOW_UNMATCHED_SUMMARY, fallowNotShownLabel,
+  FALLOW_NOT_SHOWN_ITEM, FALLOW_REPLACE_NOTE, FALLOW_REVIEW_UNVERIFIED, FALLOW_SNAPSHOT_FILES, FALLOW_UNMATCHED_SUMMARY,
+  fallowNotShownLabel,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { attachSyntheticReport, snapshotWithPaths, syntheticFallowJson } from '../fixtures/evidence-report';
@@ -141,6 +142,15 @@ describe('Connect fallow (Part 6 Y38, S14)', () => {
     await w.find('.ci-connect-fallow__cancel').trigger('click');
     expect(w.find('.ci-connect-fallow').exists()).toBe(false);
     expect(useEvidenceStore().report).toBeNull();
+    w.unmount();
+  });
+
+  it('Polish F5: the review step says the source match is unverified', async () => {
+    const snap = withSnapshot();
+    const w = mountS();
+    await openDialog(w);
+    await pick(w, syntheticFallowJson(snap));
+    expect(w.find('.ci-connect-fallow__unverified').text()).toBe(FALLOW_REVIEW_UNVERIFIED);
     w.unmount();
   });
 

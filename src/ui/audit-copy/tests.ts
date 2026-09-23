@@ -41,6 +41,8 @@ export const TESTS_PLAN = 'Plan tests';
 export const TESTS_PLANNED = 'Tests planned';
 /** WCAG 2.5.3: each accessible name starts with the button's visible text. */
 export const TESTS_PLAN_LABEL = (name: string): string => `Plan tests for ${name}`;
+export const TESTS_OPEN = 'Open file';
+export const TESTS_OPEN_LABEL = (name: string): string => `Open file ${name}`;
 export const TESTS_PLANNED_LABEL = (name: string): string => `Tests planned for ${name}`;
 export const TESTS_PLAN_TITLE = (name: string): string => `Characterize ${name} with tests`;
 export const TESTS_PLAN_FAILED = 'Could not add this work item.';

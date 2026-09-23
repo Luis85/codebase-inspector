@@ -1,5 +1,6 @@
 // Part 4: Settings. Re-exported by inspector-copy.ts.
 import type { SettingsTab } from '../screens/settings/settings-tabs';
+import { CANCEL } from './shared';
 function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;
 }
@@ -54,7 +55,7 @@ export const SETTINGS_CLEAR_DIALOG_TITLE = 'Clear review state?';
 export const SETTINGS_CLEAR_DIALOG_TEXT = (items: number, decisions: number, rules: number): string =>
   `This removes ${plural(items, 'work item', 'work items')}, ${plural(decisions, 'finding decision', 'finding decisions')} and ${plural(rules, 'boundary rule', 'boundary rules')}, and the report note. It cannot be undone. Export the review state first if you want a record.`;
 export const SETTINGS_CLEAR_CONFIRM = 'Clear everything';
-export const SETTINGS_CLEAR_CANCEL = 'Cancel';
+export const SETTINGS_CLEAR_CANCEL = CANCEL;
 export const SETTINGS_CLEARED = 'Review state cleared.';
 export const SETTINGS_CLEAR_FAILED = 'Could not clear the review state.';
 /** Part 5 P1: `clearAll()` refuses (false) while a change is still pending. */
@@ -92,7 +93,7 @@ export const IMPORT_ORIGIN = (folder: string): string => `Exported from the code
 export const IMPORT_ORIGIN_UNKNOWN = 'Unknown origin: the file does not say which codebase it came from (a v1 file, or exported with no codebase open).';
 export const IMPORT_REPLACE_TEXT = 'Every work item, finding decision and boundary rule saved for this codebase, and the report’s sections and note, will be replaced. This cannot be undone. Export the review state first if you want a record.';
 export const IMPORT_CONFIRM = 'Replace review state';
-export const IMPORT_CANCEL = 'Cancel';
+export const IMPORT_CANCEL = CANCEL;
 export const IMPORTED = (items: number, decisions: number, rules: number): string =>
   `Review state imported: ${plural(items, 'work item', 'work items')}, ${plural(decisions, 'finding decision', 'finding decisions')} and ${plural(rules, 'boundary rule', 'boundary rules')}.`;
 export const IMPORT_FAILED = 'Could not import the whole review state. The lists show what was saved.';

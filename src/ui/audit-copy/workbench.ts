@@ -1,5 +1,6 @@
 // Part 4: Refactor workbench and the Work-item editor. Re-exported by inspector-copy.ts.
 import type { WorkIntent, WorkPriority } from '../stores/ports/review-repository';
+import { CANCEL } from './shared';
 
 export const WORKBENCH_EYEBROW = 'Act / Refactor workbench';
 export const WORKBENCH_TITLE = 'Turn evidence into a refactoring plan.';
@@ -60,7 +61,7 @@ export const WORK_CHECKLIST_TITLE = 'Verification checklist';
 export const WORK_CHECKLIST_HINT = 'Verified needs all three checks. Changing a status never changes source code.';
 export const WORK_SAVE = 'Save changes';
 export const WORK_CREATE = 'Create work item';
-export const WORK_CANCEL = 'Cancel';
+export const WORK_CANCEL = CANCEL;
 export const WORK_DELETE = 'Delete item';
 export const WORK_DELETE_CONFIRM_TEXT = 'Delete this work item? It is removed from this codebase’s saved review state.';
 export const WORK_DELETE_CONFIRM = 'Delete work item';
