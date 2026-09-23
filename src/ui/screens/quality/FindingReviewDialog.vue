@@ -1,24 +1,31 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import type { EntityId } from '../../../domain/entity-id';
+import { formatAbsoluteTime } from '../../copy';
 import { useReadModels } from '../../read-models/use-read-models';
 import { severityTone } from '../../read-models/findings';
 import { useReviewStore } from '../../stores/review-store';
 import { DISMISS_REASON_MAX } from '../../stores/ports/review-repository';
 import { useUniqueId } from '../../unique-id';
 import {
-  DIALOG_CLOSE, FINDING_ACKNOWLEDGE, FINDING_ACKNOWLEDGED, FINDING_ADD_WORK_ITEM, FINDING_DECISION_FAILED, FINDING_DIALOG_CONFIDENCE,
-  FINDING_DIALOG_CONFIDENCE_VALUE, FINDING_DIALOG_LOCATION, FINDING_DIALOG_PROVIDER, FINDING_DIALOG_PROVIDER_VALUE,
-  FINDING_DIALOG_REASON, FINDING_DIALOG_TITLE, FINDING_DISMISS, FINDING_DISMISS_CANCEL, FINDING_DISMISS_HINT,
+  DIALOG_CLOSE, FINDING_ACKNOWLEDGE, FINDING_ACKNOWLEDGED, FINDING_ADD_WORK_ITEM, FINDING_DECISION_FAILED,
+  FINDING_DIALOG_LOCATION, FINDING_DIALOG_PROVIDER, FINDING_DIALOG_PROVIDER_VALUE, FINDING_DIALOG_REASON,
+  FINDING_DIALOG_RULE, FINDING_DIALOG_RULE_VALUE, FINDING_DIALOG_TITLE, FINDING_DISMISS, FINDING_DISMISS_CANCEL, FINDING_DISMISS_HINT,
   FINDING_DISMISS_PLACEHOLDER, FINDING_DISMISS_REASON, FINDING_DISMISS_REQUIRED, FINDING_DISMISS_SAVE, FINDING_DISMISS_TITLE,
   FINDING_DISMISS_TOO_LONG, FINDING_DISMISSED, FINDING_IN_PLAN, FINDING_OPEN_FILE, FINDING_REOPEN, FINDING_REOPENED,
   FINDING_STATUS_LABEL, QUALITY_LOCATION, SEVERITY_TEXT, WORK_ITEM_TITLE,
 } from '../../inspector-copy';
 import CiDialog from '../../kit/Dialog.vue';
+import EvidenceBadge from '../../kit/EvidenceBadge.vue';
 
 const props = defineProps<{ fingerprint: string }>();
 const emit = defineEmits<{ close: []; openFile: [id: EntityId] }>();
 const { quality } = useReadModels();
+/** Part 6 Y35: who reported the finding, and when. The badge says the source match is unverified. */
+const provider = computed(() => {
+  const r = quality.value.evidence.report;
+  return r ? FINDING_DIALOG_PROVIDER_VALUE(r.providerVersion, formatAbsoluteTime(r.importedAt, Intl)) : '';
+});
 const review = useReviewStore();
 const base = useUniqueId('ci-finding-dialog');
 /** Looked up live, so the status chip follows every decision while the dialog is open. */
@@ -121,6 +128,11 @@ async function addWorkItem(): Promise<void> {
           class="ci-chip"
           :class="`ci-chip--status-${finding.status}`"
         >{{ FINDING_STATUS_LABEL[finding.status] }}</span>
+        <EvidenceBadge
+          v-if="quality.evidence.report"
+          :version="quality.evidence.report.providerVersion"
+          :state="quality.evidence.state === 'stale' ? 'stale' : 'imported'"
+        />
       </p>
       <p class="ci-finding-dialog__summary">
         {{ finding.title }}
@@ -129,9 +141,9 @@ async function addWorkItem(): Promise<void> {
         <dt>{{ FINDING_DIALOG_LOCATION }}</dt>
         <dd>{{ finding.file.path }} · {{ QUALITY_LOCATION(finding.line, finding.moduleLabel) }}</dd>
         <dt>{{ FINDING_DIALOG_PROVIDER }}</dt>
-        <dd>{{ FINDING_DIALOG_PROVIDER_VALUE }}</dd>
-        <dt>{{ FINDING_DIALOG_CONFIDENCE }}</dt>
-        <dd>{{ FINDING_DIALOG_CONFIDENCE_VALUE }}</dd>
+        <dd>{{ provider }}</dd>
+        <dt>{{ FINDING_DIALOG_RULE }}</dt>
+        <dd>{{ FINDING_DIALOG_RULE_VALUE(finding.rule, finding.detail) }}</dd>
         <template v-if="finding.reason">
           <dt>{{ FINDING_DIALOG_REASON }}</dt>
           <dd>{{ finding.reason }}</dd>

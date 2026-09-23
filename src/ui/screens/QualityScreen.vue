@@ -1,26 +1,32 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
+import { formatAbsoluteTime } from '../copy';
 import { useCsvExport } from '../export/use-csv-export';
 import {
   DEFAULT_QUALITY_FILTER, FINDINGS_PAGE, filterFindings, findingsCsv, type QualityFilter, type QualityFinding,
 } from '../read-models/findings';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
+import { useEvidenceStore } from '../stores/evidence-store';
 import {
-  QUALITY_CSV_FILENAME, QUALITY_EXPORT, QUALITY_EYEBROW, QUALITY_FOOTNOTE, QUALITY_SUBTITLE,
-  QUALITY_TABLE_TITLE, QUALITY_TITLE,
+  COPY_16, QUALITY_CSV_FILENAME, QUALITY_EXPORT, QUALITY_EYEBROW, QUALITY_FOOTNOTE, QUALITY_SUBTITLE,
+  QUALITY_NO_FINDINGS_REPORTED, QUALITY_TABLE_TITLE, QUALITY_TITLE,
 } from '../inspector-copy';
 import PageHeader from '../kit/PageHeader.vue';
 import MetricCard from '../kit/MetricCard.vue';
 import Panel from '../kit/Panel.vue';
+import Callout from '../kit/Callout.vue';
 import Icon from '../kit/Icon.vue';
+import EvidenceBadge from '../kit/EvidenceBadge.vue';
+import NotAnalysed from '../kit/NotAnalysed.vue';
 import NoSnapshot from './NoSnapshot.vue';
 import FindingFilters from './quality/FindingFilters.vue';
 import FindingsTable from './quality/FindingsTable.vue';
 import FindingReviewDialog from './quality/FindingReviewDialog.vue';
 
 const store = useCityStore();
+const evidenceStore = useEvidenceStore();
 const { quality } = useReadModels();
 const filter = ref<QualityFilter>({ ...DEFAULT_QUALITY_FILTER });
 const shown = ref(FINDINGS_PAGE);
@@ -31,6 +37,14 @@ const root = ref<HTMLElement | null>(null);
 const exportText = useCsvExport(root, liveMessage);
 
 const rows = computed(() => filterFindings(quality.value.findings, filter.value));
+/** Part 6 Y30/Y32/Y35: the report the model was built from (null: Not analysed), and whether
+ *  it predates the snapshot on screen. */
+const report = computed(() => quality.value.evidence.report);
+const stale = computed(() => quality.value.evidence.state === 'stale');
+const staleNotice = computed(() => (report.value && stale.value ? COPY_16(formatAbsoluteTime(report.value.importedAt, Intl)) : ''));
+/** Part 6 E13: another leaf on this codebase can remove or replace the shared report while
+ *  Export has focus, so it is aria-disabled and exportCsv ignores the press (E40/E44/E50). */
+const exportBlocked = computed(() => rows.value.length === 0);
 watch(filter, () => { shown.value = FINDINGS_PAGE; });
 /** Hotspots F3: a rescan or snapshot switch can drop the filtered module; fall back to all. */
 watch(() => quality.value.modules, (modules) => {
@@ -81,8 +95,18 @@ function openFile(id: EntityId): void {
   store.navigate('file');
 }
 
+/** Y35/Y39: the S14 dialog lives on Data & scans. Go there and ask for it, exactly as the
+ *  "Import analysis report" command does; the file picker then opens from a real click in it. */
+function importReport(): void {
+  store.navigate('sources');
+  evidenceStore.requestImport();
+}
+
 /** Every filtered finding, handed to the user through this leaf's own document. */
-function exportCsv(): void { exportText(QUALITY_CSV_FILENAME, () => findingsCsv(rows.value, quality.value.evidence)); }
+function exportCsv(): void {
+  if (exportBlocked.value) return;
+  exportText(QUALITY_CSV_FILENAME, () => findingsCsv(rows.value, quality.value.evidence));
+}
 </script>
 
 <template>
@@ -99,7 +123,7 @@ function exportCsv(): void { exportText(QUALITY_CSV_FILENAME, () => findingsCsv(
         <button
           type="button"
           class="ci-quality__export"
-          :disabled="rows.length === 0"
+          :aria-disabled="exportBlocked ? 'true' : undefined"
           @click="exportCsv"
         >
           <Icon name="download" />
@@ -115,6 +139,20 @@ function exportCsv(): void { exportText(QUALITY_CSV_FILENAME, () => findingsCsv(
     </p>
     <NoSnapshot v-if="!store.snapshot" />
     <template v-else>
+      <div
+        v-if="report"
+        class="ci-quality__evidence"
+      >
+        <EvidenceBadge
+          :version="report.providerVersion"
+          :state="stale ? 'stale' : 'imported'"
+        />
+      </div>
+      <Callout
+        v-if="staleNotice"
+        tone="warning"
+        :title="staleNotice"
+      />
       <div class="ci-screen__cards">
         <MetricCard
           v-for="card in quality.cards"
@@ -126,7 +164,12 @@ function exportCsv(): void { exportText(QUALITY_CSV_FILENAME, () => findingsCsv(
           :tone="card.tone"
         />
       </div>
+      <NotAnalysed
+        v-if="!report"
+        @import="importReport"
+      />
       <section
+        v-else
         class="ci-quality__panel"
         tabindex="-1"
       >
@@ -134,11 +177,21 @@ function exportCsv(): void { exportText(QUALITY_CSV_FILENAME, () => findingsCsv(
           <FindingFilters
             v-model:filter="filter"
             :modules="quality.modules"
+            :severities="quality.severities"
             @reset="resetFilters"
           />
+          <!-- Part 6 E14: nothing reported on screen is not "no match", and has nothing to reset. -->
+          <p
+            v-if="quality.findings.length === 0"
+            class="ci-note ci-quality__none"
+          >
+            {{ QUALITY_NO_FINDINGS_REPORTED }}
+          </p>
           <FindingsTable
+            v-else
             :rows="rows"
             :limit="shown"
+            :stale="stale"
             @open="open"
             @more="shown += FINDINGS_PAGE"
             @reset="resetFilters"

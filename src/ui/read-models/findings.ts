@@ -8,7 +8,7 @@ import { unknown, type MetricValue } from '../evidence';
 import { toCsv, type CsvColumn } from '../export/csv';
 import type { FindingDisposition } from '../stores/ports/review-repository';
 import {
-  FALLOW_NOT_ANALYSED, FINDING_TITLE, NO_FILES_REASON, QUALITY_CARD_COMPLEXITY, QUALITY_CARD_COMPLEXITY_CAPTION, QUALITY_CARD_DUPLICATION,
+  FALLOW_NOT_ANALYSED, FINDING_TITLE_FOR, NO_FILES_REASON, QUALITY_CARD_COMPLEXITY, QUALITY_CARD_COMPLEXITY_CAPTION, QUALITY_CARD_DUPLICATION,
   QUALITY_CARD_DUPLICATION_CAPTION, QUALITY_CARD_OPEN, QUALITY_CARD_OPEN_CAPTION, QUALITY_CARD_OPEN_CAPTION_STALE, QUALITY_CARD_UNUSED,
   QUALITY_CARD_UNUSED_CAPTION,
 } from '../inspector-copy';
@@ -28,6 +28,8 @@ export interface QualityModel {
   byFingerprint: ReadonlyMap<string, QualityFinding>;
   modules: readonly { name: string; label: string }[];
   cards: readonly QualityCard[];
+  /** R6: the severities the findings use, in severityRank order (the severity filter's options). */
+  severities: readonly string[];
   /** The evidence the model was built from: its state, report and categories (Y35). */
   evidence: EvidenceIndex;
 }
@@ -64,7 +66,7 @@ export function findingFingerprint(fileId: EntityId, findingId: string): string 
 export function titledFindings(file: FileSummary, evidence: EvidenceIndex): FileFinding[] {
   return (evidence.byFile.get(file.id) ?? []).map((f) => ({
     id: f.id, kind: f.category, rule: f.rule, severity: f.severity ?? 'unrated', line: f.line, endLine: f.endLine,
-    symbol: f.symbol, detail: f.detail, title: FINDING_TITLE[f.category], fingerprint: findingFingerprint(file.id, f.id),
+    symbol: f.symbol, detail: f.detail, title: FINDING_TITLE_FOR(f.category, f.rule, f.symbol, f.detail), fingerprint: findingFingerprint(file.id, f.id),
   }));
 }
 
@@ -86,6 +88,11 @@ function baseFindings(files: readonly FileSummary[], evidence: EvidenceIndex): r
 function openCaption(value: MetricValue, state: EvidenceIndexState, total: number, decided: number): string {
   if (value.state === 'unknown') return value.reason ?? FALLOW_NOT_ANALYSED;
   return state === 'stale' ? QUALITY_CARD_OPEN_CAPTION_STALE(total, decided) : QUALITY_CARD_OPEN_CAPTION(total, decided);
+}
+
+/** R6: a word a later fallow adds is listed too, after moderate and before unrated. */
+function presentSeverities(findings: readonly QualityFinding[]): string[] {
+  return [...new Set(findings.map((f) => f.severity))].sort((a, b) => severityRank(a) - severityRank(b) || a.localeCompare(b));
 }
 
 export function buildQualityModel(
@@ -111,6 +118,7 @@ export function buildQualityModel(
       { id: 'unused-exports', label: QUALITY_CARD_UNUSED, icon: 'file-x', value: count('unused-exports'), caption: QUALITY_CARD_UNUSED_CAPTION, tone: 'accent' },
       { id: 'duplication', label: QUALITY_CARD_DUPLICATION, icon: 'copy', value: count('duplication'), caption: QUALITY_CARD_DUPLICATION_CAPTION, tone: 'accent' },
     ],
+    severities: presentSeverities(findings),
     evidence,
   };
 }

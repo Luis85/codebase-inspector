@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { FINDINGS_PAGE, severityRank, severityTone, type QualityFinding } from '../../read-models/findings';
 import {
-  FINDING_KIND_LABEL, FINDING_STATUS_LABEL, QUALITY_COL_EVIDENCE, QUALITY_COL_FINDING, QUALITY_COL_LOCATION,
+  FINDING_STATUS_LABEL, QUALITY_COL_EVIDENCE, QUALITY_COL_FINDING, QUALITY_COL_LOCATION,
   QUALITY_COL_REVIEW, QUALITY_COL_SEVERITY, QUALITY_COL_STATUS, QUALITY_LOCATION, QUALITY_NO_MATCH, QUALITY_NO_MATCH_TITLE,
-  QUALITY_REVIEW, QUALITY_REVIEW_LABEL, QUALITY_SHOWING, QUALITY_TABLE_CAPTION, RESET_FILTERS, SEVERITY_TEXT, SHOW_MORE,
+  QUALITY_REVIEW, QUALITY_REVIEW_LABEL, QUALITY_SHOWING, QUALITY_TABLE_CAPTION, RESET_FILTERS, RULE_TEXT, SEVERITY_TEXT, SHOW_MORE,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
+import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
 
-defineProps<{ rows: readonly QualityFinding[]; limit: number }>();
+/** Part 6 Y30/Y35: `stale` marks every row when the report predates the snapshot. */
+defineProps<{ rows: readonly QualityFinding[]; limit: number; stale: boolean }>();
 const emit = defineEmits<{ open: [finding: QualityFinding]; more: []; reset: [] }>();
 
 const columns: readonly TableColumn<QualityFinding>[] = [
@@ -72,7 +74,11 @@ const columns: readonly TableColumn<QualityFinding>[] = [
         </template>
         <template #cell-evidence="{ row }">
           <span class="ci-findings-table__evidence">
-            <span class="ci-chip">{{ FINDING_KIND_LABEL[row.kind] }}</span>
+            <span class="ci-chip">{{ RULE_TEXT(row.rule) }}</span>
+            <ProvenanceBadge
+              v-if="stale"
+              state="stale"
+            />
           </span>
         </template>
         <template #cell-status="{ row }">

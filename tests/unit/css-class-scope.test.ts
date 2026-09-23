@@ -131,7 +131,7 @@ describe('CSS class scope (E55, Part 5 V21)', () => {
       '.ci-note', '.ci-empty', '.ci-empty__title', '.ci-selected-strip', '.ci-screen__cards', '.ci-screen__grid', '.ci-chip ', '.ci-chip--sample',
       '.ci-screen ', '.ci-severity ', '.ci-severity--critical', '.ci-severity--high', '.ci-severity--moderate', '.ci-severity--unrated', '.ci-ref-id',
       '.ci-band-legend ', '.ci-band-legend__key::before', '.ci-band-legend__key--low', '.ci-band-legend__key--mid', '.ci-band-legend__key--high',
-      '.ci-file-cell ', '.ci-file-cell__name', '.ci-file-cell__path', '.ci-priority ',
+      '.ci-file-cell ', '.ci-file-cell__name', '.ci-file-cell__path', '.ci-priority ', '.ci-evidence-badge ', '.ci-not-analysed ',
     ]) {
       expect(KIT.includes(`:where(.codebase-inspector-root) ${cls}`), cls).toBe(true);
     }

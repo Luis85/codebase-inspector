@@ -5,7 +5,7 @@ import { fileSummariesFor, type FileSummary } from '../../src/ui/read-models/fil
 import { buildFileDetail } from '../../src/ui/read-models/file-detail';
 import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
 import { unknown } from '../../src/ui/evidence';
-import { FALLOW_NOT_ANALYSED, FINDING_TITLE } from '../../src/ui/inspector-copy';
+import { FALLOW_NOT_ANALYSED, FINDING_TITLE_FOR } from '../../src/ui/inspector-copy';
 
 const snap = buildSnapshotFixture({ files: 12, directories: 2, unavailable: 1 });
 const files = fileSummariesFor(snap);
@@ -54,7 +54,7 @@ describe('file detail findings (Part 6 Y34)', () => {
     expect(own.length).toBeGreaterThan(0);
     expect(d.findings.map((f) => f.id)).toEqual(own.map((f) => f.id));
     expect(d.findingsCount).toMatchObject({ state: 'collected', value: own.length, provenance: { source: 'fallow' } });
-    expect(d.findings[0]).toMatchObject({ fingerprint: `${file.id}#${own[0]!.id}`, title: FINDING_TITLE[own[0]!.category] });
+    expect(d.findings[0]).toMatchObject({ fingerprint: `${file.id}#${own[0]!.id}`, title: FINDING_TITLE_FOR(own[0]!.category, own[0]!.rule, own[0]!.symbol, own[0]!.detail) });
   });
   it('keeps the tool\'s own severity, and reads "unrated" where the tool gives none (Y35)', () => {
     const evidence = evidenceIndexFor(files, syntheticEvidenceReport(snap), snap.snapshotId);

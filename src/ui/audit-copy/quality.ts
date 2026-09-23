@@ -1,4 +1,7 @@
 // Part 3 §2: Code quality screen and the Finding review dialog.
+// Part 6 Y35/Y36: findings are an imported fallow report's: the tool's own rule, a title
+// per finding, and the review dialog's provider and rule rows.
+import type { FindingCategory, FindingDetail, FindingRule } from '../../application/evidence/model';
 export const QUALITY_EYEBROW = 'Audit / Code quality';
 export const QUALITY_TITLE = 'From findings to decisions.';
 export const QUALITY_SUBTITLE = 'Triage static-analysis evidence without losing its source, scope, or uncertainty.';
@@ -9,7 +12,7 @@ export const QUALITY_CARD_OPEN_CAPTION = (total: number, decided: number): strin
 /** Part 6 E37: stale evidence (Y30) was imported against another snapshot, so it never says "in this snapshot". */
 export const QUALITY_CARD_OPEN_CAPTION_STALE = (total: number, decided: number): string => `${total} findings in the imported report · ${decided} decided`;
 export const QUALITY_CARD_COMPLEXITY = 'Complexity findings';
-export const QUALITY_CARD_COMPLEXITY_CAPTION = 'Functions with cognitive complexity of 30 or more';
+export const QUALITY_CARD_COMPLEXITY_CAPTION = 'Functions the report lists above its complexity thresholds';
 export const QUALITY_CARD_UNUSED = 'Unused-export findings';
 export const QUALITY_CARD_UNUSED_CAPTION = 'Verify entry points before removal';
 export const QUALITY_CARD_DUPLICATION = 'Duplication findings';
@@ -45,7 +48,7 @@ const SEVERITY_LABELS = new Map<string, string>(Object.entries(SEVERITY_LABEL));
 export const SEVERITY_TEXT = (severity: string): string => SEVERITY_LABELS.get(severity) ?? severity;
 export const QUALITY_RESET = 'Reset';
 export const QUALITY_TABLE_TITLE = 'Findings';
-export const QUALITY_TABLE_CAPTION = 'Static findings, one row per finding';
+export const QUALITY_TABLE_CAPTION = 'Reported findings, one row per finding';
 export const QUALITY_COL_SEVERITY = 'Severity';
 export const QUALITY_COL_FINDING = 'Finding';
 export const QUALITY_COL_LOCATION = 'Location';
@@ -59,12 +62,12 @@ export const QUALITY_LOCATION = (line: number | null, module: string): string =>
 export const QUALITY_SHOWING = (shown: number, total: number): string => `Showing ${shown} of ${total} matching findings`;
 export const QUALITY_NO_MATCH_TITLE = 'No findings match these filters';
 export const QUALITY_NO_MATCH = 'Try another type, severity, module or status.';
-export const QUALITY_FOOTNOTE = 'Findings are sample data. Decisions are kept in this session only and never written to the repository.';   // E21: use spec wording
+/** Part 6 E14: a report is attached, but no finding of it resolved to a file on screen. */
+export const QUALITY_NO_FINDINGS_REPORTED = 'No findings reported for this codebase. That is not the same as zero complexity.';
+export const QUALITY_FOOTNOTE = 'Findings come from the imported fallow report and are kept for this session only. Decisions are saved with this codebase’s review state in the plugin’s own data; the repository is never changed.';
 export const FINDING_DIALOG_TITLE = 'Review finding';
 export const FINDING_DIALOG_PROVIDER = 'Provider';
-export const FINDING_DIALOG_PROVIDER_VALUE = 'Sample findings';
-export const FINDING_DIALOG_CONFIDENCE = 'Confidence';
-export const FINDING_DIALOG_CONFIDENCE_VALUE = 'Illustrative, manual confirmation required';   // E21: use spec wording
+export const FINDING_DIALOG_PROVIDER_VALUE = (version: string, date: string): string => `fallow ${version} · imported report, ${date}`;
 export const FINDING_DIALOG_LOCATION = 'Location';
 export const FINDING_DIALOG_REASON = 'Disposition note';
 export const FINDING_OPEN_FILE = 'Open file detail';
@@ -85,3 +88,55 @@ export const FINDING_DECISION_FAILED = 'Could not save this decision.';
 export const FINDING_ACKNOWLEDGED = 'Finding acknowledged. No repository suppression was written.';
 export const FINDING_REOPENED = 'Finding reopened for review.';
 export const FINDING_DISMISSED = 'Dismissal and reason saved.';
+
+/* Part 6 Y35/Y36: the tool's rule and a title per finding. */
+export const FINDING_RULE_LABEL: Readonly<Record<FindingRule, string>> = {
+  complexity: 'Complexity', duplication: 'Duplication', 'unused-export': 'Unused export', 'unused-type': 'Unused type',
+};
+const RULE_LABELS = new Map<string, string>(Object.entries(FINDING_RULE_LABEL));
+/** Like SEVERITY_TEXT: a rule this version does not know reads verbatim, and a Map means no
+ *  word reaches an Object.prototype member. */
+export const RULE_TEXT = (rule: string): string => RULE_LABELS.get(rule) ?? rule;
+/** Y35: one title per finding, "<symbol> · <what the tool reported>". A complexity finding
+ *  names the measure fallow says it exceeded (fallow's `exceeded` word, verbatim), and a
+ *  rule this version does not know falls back to the category title. */
+export const FINDING_TITLE_FOR = (kind: FindingCategory, rule: string, symbol: string | null, detail: FindingDetail): string => {
+  let what: string;
+  switch (detail.kind) {
+    case 'complexity':
+      what = detail.exceeded.startsWith('cyclomatic')
+        ? `Cyclomatic complexity ${detail.cyclomatic} (threshold ${detail.cyclomaticThreshold})`
+        : `Cognitive complexity ${detail.cognitive} (threshold ${detail.cognitiveThreshold})`;
+      break;
+    case 'duplication':
+      what = `Duplicated block · ${detail.lineCount} lines`;
+      break;
+    default:
+      what = RULE_LABELS.get(rule) ?? FINDING_TITLE[kind];
+  }
+  return symbol === null ? what : `${symbol} · ${what}`;
+};
+/** Y36: File detail's line under each finding: the line or the range, then the rule. */
+export const FINDING_META = (line: number | null, endLine: number | null, rule: string): string => {
+  const where = line === null ? 'Line unknown' : endLine !== null && endLine !== line ? `Lines ${line}–${endLine}` : `Line ${line}`;
+  return `${where} · ${RULE_TEXT(rule)}`;
+};
+export const FILE_NO_FINDINGS_REPORTED = 'No findings reported for this file. That is not the same as zero complexity.';
+/** Y35: the rule and its thresholds replace the old confidence row. Unused exports carry
+ *  COPY-20's caution. */
+export const FINDING_DIALOG_RULE = 'Rule';
+export const FINDING_DIALOG_RULE_VALUE = (rule: string, detail: FindingDetail): string => {
+  const label = RULE_TEXT(rule);
+  switch (detail.kind) {
+    case 'complexity':
+      return `${label}: cognitive ${detail.cognitive} (threshold ${detail.cognitiveThreshold}), cyclomatic ${detail.cyclomatic} (threshold ${detail.cyclomaticThreshold}). Reported above threshold.`;
+    case 'duplication': {
+      const others = detail.partnerFiles === 0
+        ? 'repeated within this file'
+        : `also in ${detail.partnerFiles} other ${detail.partnerFiles === 1 ? 'file' : 'files'}`;
+      return `${label}: ${detail.lineCount} lines, ${detail.tokenCount} tokens, ${others}.`;
+    }
+    default:
+      return `${label}${detail.typeOnly ? ' (type only)' : ''}. No static consumers reported in this analysis scope. Verify dynamic or framework usage before removal.`;
+  }
+};

@@ -4,11 +4,12 @@ import { useUniqueId } from '../../unique-id';
 import {
   FINDING_KIND_LABEL, FINDING_STATUS_LABEL, QUALITY_ALL_KINDS, QUALITY_ALL_MODULES, QUALITY_ALL_SEVERITIES,
   QUALITY_ALL_STATUSES, QUALITY_FILTER_KIND, QUALITY_FILTER_MODULE, QUALITY_FILTER_QUERY, QUALITY_FILTER_SEVERITY,
-  QUALITY_FILTER_STATUS, QUALITY_RESET, SEVERITY_LABEL,
+  QUALITY_FILTER_STATUS, QUALITY_RESET, SEVERITY_TEXT,
 } from '../../inspector-copy';
 import Icon from '../../kit/Icon.vue';
 
-defineProps<{ modules: readonly { name: string; label: string }[] }>();
+/** Part 6 Y35 (R6): `severities` are the model's own, in severityRank order. */
+defineProps<{ modules: readonly { name: string; label: string }[]; severities: readonly string[] }>();
 const filter = defineModel<QualityFilter>('filter', { required: true });
 const emit = defineEmits<{ reset: [] }>();
 const base = useUniqueId('ci-finding-filters');
@@ -64,11 +65,11 @@ function set<K extends keyof QualityFilter>(key: K, value: QualityFilter[K]): vo
         {{ QUALITY_ALL_SEVERITIES }}
       </option>
       <option
-        v-for="(label, severity) in SEVERITY_LABEL"
+        v-for="severity in severities"
         :key="severity"
         :value="severity"
       >
-        {{ label }}
+        {{ SEVERITY_TEXT(severity) }}
       </option>
     </select>
     <label

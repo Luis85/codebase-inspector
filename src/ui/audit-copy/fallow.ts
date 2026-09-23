@@ -102,3 +102,12 @@ export const OVERVIEW_FALLOW_ROW = 'Static findings (fallow)';
 export const OVERVIEW_FALLOW_SOURCE = (version: string): string => `Imported fallow ${version} report`;
 /** S22 / COPY-16 (Y30): the stale-evidence notice. Tasks 9 and 11 show it. */
 export const COPY_16 = (absoluteDate: string): string => `Showing evidence from ${absoluteDate}. It is not current for this snapshot.`;
+
+/* Part 6 Task 9 (Y32, Y35, Y36): the evidence badge and the Not-analysed state. COPY_16 is Task 8's (R4). */
+/** C13 (R8): provider, version, freshness and source match, in words. A fallow report carries
+ *  no root or revision, so the match is always unverified (Y27). */
+export const EVIDENCE_BADGE = (version: string, state: 'imported' | 'stale'): string =>
+  `fallow ${version} · ${state === 'stale' ? 'Stale' : 'Imported'} · Unverified source match`;
+export const FALLOW_NOT_ANALYSED_TITLE = 'Not analysed';
+export const FALLOW_NOT_ANALYSED_BODY = 'No fallow report is attached to this codebase, so its findings are unknown, not zero. Import a report to see them. Imported reports are kept for this session only.';
+export const FALLOW_IMPORT_ACTION = 'Import report…';

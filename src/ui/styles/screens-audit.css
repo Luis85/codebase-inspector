@@ -175,3 +175,6 @@
 }
 :where(.codebase-inspector-root) .ci-stewardship .ci-chip { margin-right: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-stewardship__city { white-space: nowrap; }
+
+/* Part 6 Task 9: the report's badge over the Code quality cards. */
+:where(.codebase-inspector-root) .ci-quality__evidence { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); }

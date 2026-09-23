@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
+import { useEvidenceStore } from '../stores/evidence-store';
 import { useReviewStore } from '../stores/review-store';
 import {
   ADD_TO_PLAN_FAILED, FILE_BROWSE_HOTSPOTS, FILE_EYEBROW, FILE_HISTORY_FOOTNOTE, FILE_HISTORY_NONE, FILE_HISTORY_SUBTITLE,
@@ -21,6 +22,7 @@ import FindingReviewDialog from './quality/FindingReviewDialog.vue';
 const store = useCityStore();
 const review = useReviewStore();
 const { fileDetail, quality } = useReadModels();
+const evidenceStore = useEvidenceStore();
 const liveMessage = ref('');
 /** The fingerprint under review; the dialog is shared with Code quality. */
 const reviewing = ref<string | null>(null);
@@ -51,6 +53,13 @@ async function addWorkItem(): Promise<void> {
   } catch {
     liveMessage.value = ADD_TO_PLAN_FAILED;
   }
+}
+
+/** Part 6 Y36/Y39: the S14 dialog lives on Data & scans. Go there and ask for it, as the
+ *  "Import analysis report" command does. */
+function importReport(): void {
+  store.navigate('sources');
+  evidenceStore.requestImport();
 }
 </script>
 
@@ -106,7 +115,10 @@ async function addWorkItem(): Promise<void> {
           :findings="fileDetail.findings"
           :count="fileDetail.findingsCount"
           :statuses="quality.byFingerprint"
+          :evidence="quality.evidence.state"
+          :version="quality.evidence.report?.providerVersion ?? ''"
           @review="reviewing = $event"
+          @import="importReport"
         />
       </div>
       <div class="ci-file-detail__grid">
