@@ -79,3 +79,69 @@ This ledger records every ruling made while planning and executing Part 6, and w
 | U49 | `FallowReportFacts.vue` is a third sources component. The fallow card and the S14 review step both show the same `<dl>`, rendered once, and the XSS test covers both. | None. |
 | U50 | The shared fixture gains `snapshotWithOnlyFiles` (Task 11), because the synthetic report puts a finding on every file of its snapshot. The harness `?report=demo` covers ten harness files: 19 findings on 10 files, plus one unmatched path. | None. |
 | U51 | Task 4's copy table rewrites 14 strings: the seven in U26, plus `IMPORT_REPLACE_TEXT`, `WORKBENCH_CARD_TOTAL_CAPTION`, `WORK_DELETE_CONFIRM_TEXT` and `PLAN_MD_NOTE`, which also said "session", and the new `REVIEW_STORE_READ_FAILED`, `SETTINGS_CLEAR_HINT` and storage-line strings. The Clear hint has its own wording, because the Import hint talks about file paths. | Low. |
+
+## Execution rulings
+
+### Pre-flight conflict scan (before Task 1, HEAD 98d19ae)
+
+Five read-only scanners checked every task's text against the real code at HEAD, against the spec, and against the text of the tasks it consumes. One row per task and one row per task pair that shares a file or an interface.
+
+| Scope | What was checked | Finding | Ruling |
+|---|---|---|---|
+| Task 1 | Every anchor in view-surface, AppToolbar, AnnouncementRegion, inspector-copy, harness seed/mount/page, and the four tests it edits; RED claims | OK. A blocked Scan still takes the kit hover fill (kit.css:267), as Cancel already does | E21 |
+| Task 2 | Port, buckets and store text; review-store 400 → 323; the four hand-built 9-member port doubles; the A1 test rewrites | OK, complete. The Y16 test is really RED at HEAD; `noDiagnostics` is defined twice; the spec's Y13 wording differs | E6, E10, E11 |
+| Task 3 | Storage helpers, record schemas, `findingRef`/`exportedTarget`, the contract cases traced by hand | OK. The durable `removeDisposition` with an unstorable key does not notify; the storage `export *` lands under Task 1's comment; `listOf` repeats `asUnknownArray` | E8, E9, E21 |
+| Task 4 | 14 `CityViewDeps` literal sites in 8 files; the 14 copy strings; the settings-tab constructions; the city-view budget (275 → 278) | OK. Its two new host tests do not spread `dataPortDeps()` | E3 |
+| Task 5 | Step 0 anchors; zod 4.6.5 strip behaviour; the no-process guard over `src` (0 hits) | OK. Step 0's value check misses several values the tests hard-code | E7 |
+| Task 6 | `normalizeRelativePath`, `FINDING_ID_PATTERN`, `hash.ts`; ids, order and prefix cases traced by hand | OK. `suggestStripPrefix` adds two conditions that are in neither Y26 nor a ruling | E12 |
+| Task 7 | commands, the report `checkpoint4:commands` block, App anchor, city-view 278 → 284, Pinia setup-store `$dispose` | `[...set]` fails oxlint `unicorn/no-useless-spread` (also in Tasks 2 and 3) | E5 |
+| Task 8 | Every consumer of the sample findings and of the retired severity classes; every anchor; the fixture arithmetic | **The "Post-Task-8 file state" appendix is missing from the plan**, and Step 8(b) replaces the whole of `findings.ts` with it | E1 |
+| Task 9 | Every anchor against Task 8's text; line caps; css-class-scope | The Illustrative sweep can never be empty; the Export button keeps native `disabled`; a report with no findings on screen reads "No findings match these filters" | E13, E14, E15 |
+| Task 10 | Every anchor at HEAD; the tests against Tasks 5–9's code | OK. `fallow-candidate.ts` is a screen-folder module that imports `src/application` | E20 |
+| Task 11 | The renderer doubles (18 at HEAD, each on an existing line); component anchors | OK. It pluralises again instead of reusing `nounCount`; the toolbar gates on the raw store | E17, E18 |
+| Task 12 | Harness anchors; the count procedure against fb84ca3/d5ee2c9 | OK. The demo files miss `dir-2`; two Step 8 visual checks are worded so that they cannot hold | E19 |
+| 1 ↔ 11 | Both edit AppToolbar.vue | OK. The two tasks edit disjoint lines | — |
+| 1 ↔ 12 | `?run=cancelling` vs `?report=demo` in the harness | OK. Task 12's anchors avoid Task 1's lines | — |
+| 2 ↔ 3 | 13-member port, `ReviewReplaceState`, the id helpers, the notification contract | OK, except the unstorable-key removal | E8 |
+| 2 ↔ 4 | `setRepositoryFactory`, `detach`, `ready`, `loadFailed`, `storageDiagnostics` | OK. Settings › Clear shows the wrong reason between Tasks 2 and 4 | E16 |
+| 3 ↔ 4 | Registry, purge, storage copy | OK | — |
+| 3 ↔ 1 | inspector-copy `export *` lines | The comment block is mislabelled | E9 |
+| 4 ↔ 7 | `data-ports.ts`, `dataPortDeps()`, App's `.catch(noop)` line | **Blocker**: Task 4's `city-view-data-ports.test.ts` literal and `data-ports.test.ts` cast break Task 7's typecheck and runtime | E3 |
+| 4 ↔ 11 | Task 4's `inertPort: CityRendererPort` is a 19th double | Task 11 misses it | E22 |
+| 4 ↔ 8, 4 ↔ 9 | `FINDING_DISMISS_HINT`/`FINDING_DISMISSED`, `QUALITY_FOOTNOTE` | OK. `QUALITY_FOOTNOTE` says "session" between Tasks 4 and 9 | E16 |
+| 5 ↔ 6 | fixture helper and raw types | OK | — |
+| 5 ↔ 7 | `audit-copy/fallow.ts` appends | OK | — |
+| 5 → 10 | reader, error copy, `fallowNotShownLabel` | OK | — |
+| 6 ↔ 7, 6 ↔ 8, 6 → 10 | `EvidenceReport`, `resolveFindings`, `buildEvidenceReport` | OK | — |
+| 7 ↔ 8, 7 ↔ 9, 7 → 10 | evidence store API, the shared fixture | OK | — |
+| 7 → 10 | `city-view-evidence.test.ts` reads `importRequested` after a flush | It breaks once SourcesScreen consumes the request (Task 10) | E4 |
+| 8 ↔ 9 | Task 9's Edits against Task 8's text | 3 of the 5 `findings.ts` anchors exist only in the missing appendix; Task 9 breaks Task 8's `file-detail-model` title assertion | E1, E2 |
+| 8 → 10, 9 → 10 | index, `COPY_16`, EvidenceBadge | OK (`FINDING_KIND_LABEL` already exists at HEAD) | E21 |
+| 8 ↔ 11, 9 ↔ 11 | index, fixture, EvidenceBadge | OK | — |
+| 10 ↔ 11 | `audit-copy/fallow.ts` | Duplicated pluralisation | E17 |
+| 5–11 → 12 | harness seed, captures, counts | OK apart from the Task 12 row | E19 |
+
+| # | Ruling | Cost if wrong |
+|---|---|---|
+| Part 6 E1 | **Task 8's "Post-Task-8 file state" appendix was dropped when the plan was assembled.** It is recovered verbatim from the Phase 1 drafting file (`tasks-07-08.md`, whose Task 7–8 text is byte-identical to the plan's) and goes into the Task 8 and Task 9 briefs. It meets every requirement the scan derived from Task 8's tests and Task 9's anchors: a Map-backed `severityRank`, `filterFindings` searching the symbol, the base memo keyed per `EvidenceIndex` (E53), priority-then-report order, and the literal lines Task 9 anchors on. Its `quality.ts` shows the pre-Task-4 dismissal strings, and A6 already rules on that. Before Task 9, the controller re-reads Task 8's committed files and re-anchors (A5). | Low. If a detail of the appendix disagrees with a Task 8 test, the test wins, and the implementer reports the difference. |
+| Part 6 E2 | Task 9 updates Task 8's `tests/unit/file-detail-model.test.ts` title assertion to `FINDING_TITLE_FOR(...)`, and adds the file to its lists. | None. |
+| Part 6 E3 | Task 4's `tests/host/city-view-data-ports.test.ts` spreads `...dataPortDeps()` into its `CityViewDeps` literal, and `tests/host/data-ports.test.ts` builds deps as `({ ...dataPortDeps(), ...ports }) as CityViewDeps`. That follows A2/U31 (one deps helper), and Task 7's claim that it edits no deps literal then holds. | Low. Without it, Task 7 fails typecheck and every data-ports test throws. |
+| Part 6 E4 | Task 7's `city-view-evidence.test.ts` asserts `importRequested === true` synchronously, straight after `openReportImport()`. It then flushes and asserts the route. Task 10's SourcesScreen consumes the request on mount, so an assertion after the flush would break at Task 10. | None. |
+| Part 6 E5 | Copy-before-iterate over a Set is written `Array.from(set)`, not `[...set]` (oxlint `unicorn/no-useless-spread` is an error here). This applies to Tasks 2, 3 and 7. | None. |
+| Part 6 E6 | The Y16 test is **really RED** at HEAD, on its last line (`expected 'wi-1' to be 'wi-13'`), because the rejected reload never advances the old counter. The A9/U29 exemption is moot: the implementer records the real RED and must not weaken the test. | None. |
+| Part 6 E7 | Task 5 Step 0 is committed as `test(fixtures): fallow raw fixtures (controller)`. The owner's instruction overrides the plan's message. The node value check also prints health `col`, `is_type_only`, the `check.summary` keys and values, whether `actions`/`fragment` are present, and 3.21.0's severity/`exceeded` types. It stops on any value the Task 5/6 tests hard-code that differs (U14). | Low. |
+| Part 6 E8 | Task 3's durable `removeDisposition` notifies once even when the fingerprint cannot be stored, so the port contract "every successful write call notifies once" holds. Otherwise the store's `ownWrites` slot would swallow the next foreign notification. | None. |
+| Part 6 E9 | Task 3 puts its own `/** Part 6: durable review state. */` comment above `export * from './audit-copy/storage';`, so Task 1's cancelling comment labels only its own line. | None. |
+| Part 6 E10 | Task 2 exports one `noStorageDiagnostics()` from the port file, and the store imports it, so the `{ skipped: 0, unsupported: false }` factory is defined once. | None. |
+| Part 6 E11 | Spec Y13's "≤ 320 lines" target and "buckets hold bindRepository's steps", and Y12's "store-held ownWrites", are satisfied in substance: the store is 323 lines under the 360 budget test, bind stays in the store over bucket helpers, and `ownWrites` lives per bucket, which is strictly more precise. The 360 budget test governs. | Low. A later reader expecting 320 finds 323. |
+| Part 6 E12 | Task 6's `suggestStripPrefix` is narrower than Y26: no snapshot path may already lie under the prefix, and a tie between two shortest candidates offers nothing. Accepted, because an ambiguous mapping offers nothing rather than guessing. The task's "Y23" cite reads Y26. | Low. A report with two equally short candidate prefixes gets no offer and must be re-rooted. |
+| Part 6 E13 | Task 9's Quality **Export** button uses `aria-disabled` plus a guarded handler, not native `disabled`. Its rows can now empty while it has focus, when another leaf removes or replaces the shared report (E40/E44/E50). The test asserts `aria-disabled`. | Low. |
+| Part 6 E14 | Quality with a report attached and zero findings on screen shows a "no findings reported" note (`QUALITY_NO_FINDINGS_REPORTED`, "No findings reported for this codebase. That is not the same as zero complexity.") in place of "No findings match these filters" and its Reset. A clean fallow run is a plausible report. File detail already distinguishes this case (Y36). | Low. One more string and one branch. |
+| Part 6 E15 | Task 9's `Illustrative` sweep is scoped to `src/ui/screens/quality`, `src/ui/screens/file` and `src/ui/audit-copy/quality.ts`. The four unrelated hits (dependencies, report, and two in inspector-copy) are other sample copy and stay. | None. |
+| Part 6 E16 | Interim states between commits are accepted, because the branch lands whole. Settings › Clear shows the busy reason with no snapshot (Tasks 2→4). `QUALITY_FOOTNOTE` says "session" (Tasks 4→9). The storage copy mentions imported findings before import exists (Tasks 4→10). Real findings read "Sample finding" (Tasks 8→9). | None for users. A mid-branch checkout shows stale copy. |
+| Part 6 E17 | Task 11's `LENS_SUBTITLE` and `LENS_LIST_CELL` reuse Task 10's `nounCount`, so counts format the same way on the lens and the card. | None. |
+| Part 6 E18 | Task 11's toolbar lens `<select>` renders on `useLensView`'s evidence state (≠ `'none'`), the one derivation the legend, heading, list column and renderer use. It no longer renders on the raw store's report. `setLens` keeps its own store-level guard. | Low. |
+| Part 6 E19 | Task 12's `DEMO_FILE_INDEXES` replaces 88 with 86, so every district has a reported file; the counts are unchanged. Step 8's visual checks are reworded as follows. The lens framing may differ by the heading's height, but there is no relayout. The no-report fallow card reads Unknown with "No report attached…". The synthetic footer must hide nothing the checks look at. | None. |
+| Part 6 E20 | Task 10's `fallow-candidate.ts` lives in `src/ui/read-models/`, not in the screen folder, because screens read read models, stores and copy only. The import paths follow. | Low. A mechanical move. |
+| Part 6 E21 | These minors are accepted without change:<br>• A blocked Scan still gets the hover fill; this is the Cancel precedent.<br>• RED-message wording nits in Tasks 2, 5 and 8.<br>• plan-head's "twelve members" means thirteen.<br>• The codec's `listOf` repeats `asUnknownArray`. Importing it would add a ui → adapters edge.<br>• Task 7's `counting()` test helper appears twice.<br>• Task 9's two-line `importReport()`/badge-state glue.<br>• Task 10's mislabel of `FINDING_KIND_LABEL` as a Task 9 product.<br>• Task 9's mid-line import Edit. The brief says to match it as a substring. | Low. The final review triages them again. |
+| Part 6 E22 | Task 11 adds `setReported: vi.fn()` to every typed `CityRendererPort` double: the 18 at HEAD, plus any that Tasks 4 and 7 add (at least `inertPort` in `city-view-data-ports.test.ts`). Typecheck finds them. A10's "18" means 18 at HEAD. | None. |
