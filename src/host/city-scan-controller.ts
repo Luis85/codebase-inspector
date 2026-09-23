@@ -16,6 +16,7 @@ import type { SourceFileSystemPort } from '../application/ports/source-filesyste
 import type { SnapshotStore } from '../application/ports/snapshot-store';
 import type { Clock } from '../application/ports/clock';
 import type { ReviewRepository } from '../ui/stores/ports/review-repository';
+import type { EvidenceRepository } from '../application/ports/evidence-repository';
 
 /** Task 8: what a CityView needs to run a scan, beyond the plain `Plugin` reference. All
  *  of them are plugin-level singletons (main.ts constructs one of each and passes the same
@@ -29,6 +30,8 @@ export interface CityViewDeps {
   /** Part 6 Y11: the plugin's review repository registry (`registry.for`), one repository
    *  per codebase shared by every leaf. `wireDataPorts` hands it to the review store. */
   reviewRepositoryFor: (repositoryId: string) => ReviewRepository;
+  /** Part 6 Y28: imported fallow evidence, session-only. ONE instance per plugin, shared by every leaf. */
+  evidenceStore: EvidenceRepository;
 }
 
 /** What the controller reads from, and reports to, the CityView that owns it. */

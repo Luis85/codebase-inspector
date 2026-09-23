@@ -37,7 +37,7 @@ import { applyReconciliationTo } from './view-reconciliation';
 import { pickUiState, seedStoreFromState } from './view-state-sync';
 import { CityScanController, provideScanCallbacks, type CityViewDeps } from './city-scan-controller';
 import { createLayoutPublisher, type LayoutPublisher } from './layout-publisher';
-import { unwireDataPorts, wireDataPorts } from './data-ports';
+import { requestReportImport, unwireDataPorts, wireDataPorts } from './data-ports';
 import type { CityRendererPort } from '../visualization/renderer-port';
 import type { ScanLifecycleState } from '../application/run-state';
 import type { CodebaseSnapshot, CityViewState } from '../domain/model';
@@ -119,6 +119,12 @@ export class CityView extends ItemView {
   cancelScan(): void { this.scanController.cancelScan(); }
 
   isScanRunning(): boolean { return this.scanController.isScanRunning(); }
+
+  /** Part 6 Y39: `import-analysis-report` is offered only while this leaf shows a snapshot. */
+  hasSnapshot(): boolean { return (this.cityStore?.snapshot ?? null) !== null; }
+
+  /** Part 6 Y39: Data & scans, plus a request SourcesScreen turns into the S14 dialog. */
+  openReportImport(): void { if (this.pinia) requestReportImport(this.pinia); }
 
   override async onOpen(): Promise<void> {
     this.contentEl.classList.add('codebase-inspector-root');

@@ -258,6 +258,9 @@ listing one that does not exist, reddens that file.
   city view, and does nothing observable when there is none.
 - `cancel-scan` — "Cancel scan" (COPY-09). **Hidden from the palette unless the active
   view actually has a run to cancel** — its `checkCallback` returns false otherwise.
+- `import-analysis-report` — "Import analysis report" (WP-02 Part 6, Y39). **Hidden unless
+  the active city view shows a snapshot.** Opens Data & scans and the fallow import
+  dialog. The report file is picked there; it is the only file read, and nothing runs.
 
 <!-- checkpoint4:commands:end -->
 

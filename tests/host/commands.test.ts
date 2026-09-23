@@ -4,6 +4,7 @@ import { CITY_VIEW_TYPE } from '../../src/host/city-view';
 
 interface AddedCommand {
   id: string;
+  name?: string;
   checkCallback?: (checking: boolean) => boolean;
 }
 
@@ -79,7 +80,7 @@ function findCommand(addCommand: ReturnType<typeof vi.fn>, id: string): AddedCom
   return found[0];
 }
 
-function makeCommandsPluginDouble(activeView: ReturnType<typeof makeViewDouble> | null) {
+function makeCommandsPluginDouble(activeView: object | null) {
   const addCommand = vi.fn();
   const plugin = {
     app: { workspace: { getActiveViewOfType: vi.fn(() => activeView) } },
@@ -129,5 +130,46 @@ describe('registerCommands — cancel-scan (ruling M36)', () => {
     const { addCommand } = makeCommandsPluginDouble(view);
     findCommand(addCommand, 'cancel-scan').checkCallback!(false);
     expect(view.cancelScan).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Part 6 Y39: import-analysis-report is offered only while the active city view shows a
+// snapshot. Its body opens Data & scans and raises the import request; the file picker
+// itself opens later, from a real click inside the S14 dialog (Task 10).
+function makeImportViewDouble(snapshot: boolean): { hasSnapshot: () => boolean; openReportImport: ReturnType<typeof vi.fn> } {
+  return { hasSnapshot: () => snapshot, openReportImport: vi.fn() };
+}
+
+describe('registerCommands — import-analysis-report (Part 6 Y39)', () => {
+  it('is named "Import analysis report"', () => {
+    const { addCommand } = makeCommandsPluginDouble(null);
+    expect(findCommand(addCommand, 'import-analysis-report').name).toBe('Import analysis report');
+  });
+
+  it('checkCallback(true) returns FALSE with no active city view', () => {
+    const { addCommand } = makeCommandsPluginDouble(null);
+    expect(findCommand(addCommand, 'import-analysis-report').checkCallback!(true)).toBe(false);
+  });
+
+  it('checkCallback returns FALSE when the active view shows no snapshot, and opens nothing', () => {
+    const view = makeImportViewDouble(false);
+    const { addCommand } = makeCommandsPluginDouble(view);
+    expect(findCommand(addCommand, 'import-analysis-report').checkCallback!(true)).toBe(false);
+    expect(findCommand(addCommand, 'import-analysis-report').checkCallback!(false)).toBe(false);
+    expect(view.openReportImport).not.toHaveBeenCalled();
+  });
+
+  it('checkCallback(true) returns true when it shows one, and opens nothing while only checking', () => {
+    const view = makeImportViewDouble(true);
+    const { addCommand } = makeCommandsPluginDouble(view);
+    expect(findCommand(addCommand, 'import-analysis-report').checkCallback!(true)).toBe(true);
+    expect(view.openReportImport).not.toHaveBeenCalled();
+  });
+
+  it('invoking it calls openReportImport() once', () => {
+    const view = makeImportViewDouble(true);
+    const { addCommand } = makeCommandsPluginDouble(view);
+    expect(findCommand(addCommand, 'import-analysis-report').checkCallback!(false)).toBe(true);
+    expect(view.openReportImport).toHaveBeenCalledTimes(1);
   });
 });

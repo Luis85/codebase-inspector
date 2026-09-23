@@ -6,6 +6,7 @@ import { PluginDataProfileStore } from './adapters/storage/plugin-data-profile-s
 import { PluginDataBindingStore, getOrCreateMachineId } from './adapters/storage/plugin-data-binding-store';
 import { createNodeSourceFileSystem } from './adapters/filesystem/node-source-filesystem';
 import { InMemorySnapshotStore } from './adapters/storage/in-memory-snapshot-store';
+import { InMemoryEvidenceStore } from './adapters/storage/in-memory-evidence-store';
 import { createReviewRepositoryRegistry } from './adapters/storage/review-repository-registry';
 import type { Clock } from './application/ports/clock';
 import './ui/styles.css';
@@ -36,6 +37,9 @@ export default class CodebaseInspectorPlugin extends Plugin {
     // profile can find what a first leaf already scanned instead of re-authorising a
     // scan just to look at data that already exists.
     const snapshotStore = new InMemorySnapshotStore(SYSTEM_CLOCK);
+    // Part 6 Y28: imported fallow evidence is session-only, and ONE instance serves every
+    // CityView for the same reason as the snapshot store: a second leaf on the codebase sees it.
+    const evidenceStore = new InMemoryEvidenceStore();
     // Part 6 Y11: ONE review repository per codebase for the whole plugin, shared by every
     // leaf (one high-water mark, one cache) and purged with its profile (Y17). It builds
     // and reads nothing until a view binds a codebase.
@@ -44,6 +48,7 @@ export default class CodebaseInspectorPlugin extends Plugin {
     this.registerView(CITY_VIEW_TYPE, (leaf: WorkspaceLeaf) => new CityView(leaf, this, {
       profileStore, getFilesystem: () => createNodeSourceFileSystem(), snapshotStore, clock: SYSTEM_CLOCK,
       reviewRepositoryFor: (repositoryId) => reviewRegistry.for(repositoryId),
+      evidenceStore,
     }));
     this.addRibbonIcon('building-2', 'Open codebase city', () => { void openCity(this); });
     registerCommands(this);

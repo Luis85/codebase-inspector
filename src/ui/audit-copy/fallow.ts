@@ -86,3 +86,6 @@ const NOT_SHOWN_LABEL: Readonly<Record<string, string>> = {
  *  as "constructor" from the file never reaches Object.prototype. */
 export const fallowNotShownLabel = (key: string): string =>
   (Object.prototype.hasOwnProperty.call(NOT_SHOWN_LABEL, key) ? NOT_SHOWN_LABEL[key] : undefined) ?? key;
+
+// Part 6 Y39: the command palette entry.
+export const FALLOW_COMMAND_IMPORT = 'Import analysis report';
