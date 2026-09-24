@@ -18,6 +18,10 @@ import type { EvidenceIndex, EvidenceIndexState } from './evidence-index';
 import { findingFingerprint } from './findings';
 import type { FileSummary } from './file-summaries';
 
+/** N17/N30/JF23: the hop-1 neighbourhood limit shared by the File detail Relations panel
+ *  (Task 10) and the city Relations section and its arcs (Tasks 12, 13). */
+export const RELATION_ARC_LIMIT = 24;
+
 export type RelationSource = 'cycle' | 'boundary';
 export interface FileRef { readonly path: string; readonly id: EntityId | null }
 export interface RelationEdgeView {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import type { EntityId } from '../../domain/entity-id';
 import { useReadModels } from '../read-models/use-read-models';
 import { evidenceBadgeFor } from '../read-models/evidence-index';
 import { reviewFailureText } from '../read-models/review-failure';
@@ -18,6 +19,7 @@ import NoSnapshot from './NoSnapshot.vue';
 import FileHeader from './file/FileHeader.vue';
 import SourceContextPanel from './file/SourceContextPanel.vue';
 import FileFindingsPanel from './file/FileFindingsPanel.vue';
+import FileRelationsPanel from './file/FileRelationsPanel.vue';
 import FileWorkItemsPanel from './file/FileWorkItemsPanel.vue';
 import FindingReviewDialog from './quality/FindingReviewDialog.vue';
 
@@ -45,6 +47,12 @@ const workItems = computed(() => {
 function showInCity(): void {
   store.navigate('city');
   store.openInspector();
+}
+
+/** WP-03 N25: a Relations panel row selects the other file; File detail follows the
+ *  selection (P11) and never moves the camera. */
+function selectRelatedFile(id: EntityId): void {
+  store.select(id);
 }
 
 /** Records intent only, through the review port. Nothing in the source is touched. */
@@ -117,6 +125,10 @@ async function addWorkItem(): Promise<void> {
           @import="importReport"
         />
       </div>
+      <FileRelationsPanel
+        :file-id="fileDetail.file.id"
+        @select="selectRelatedFile"
+      />
       <div class="ci-file-detail__grid">
         <Panel
           :title="FILE_HISTORY_TITLE"

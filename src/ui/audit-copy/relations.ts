@@ -13,6 +13,13 @@ export const RELATION_FAN_NOT_SCORED = 'fallow did not score this file';
 export const FILE_CARD_IMPORTED_BY = 'Imported by';
 export const FILE_CARD_IMPORTED_BY_CAPTION = 'Modules importing this file · fallow';
 
+/** WP-03 Task 10 (N17, N25): the File detail Relations panel. */
+export const RELATIONS_TITLE = 'Relations';
+export const RELATIONS_NONE_FOR_FILE = 'No evidenced imports for this file.';
+export const RELATION_HIDDEN = (n: number): string => `${n} more not shown`;
+export const RELATIONS_CYCLES_TITLE = 'Cycles through this file';
+export const RELATIONS_FAN_OUT = 'Imports (fallow)';
+
 /** WP-03 Task 7 (N18, N20, N23, N26): Architecture cards, rules and the Overview's
  *  Import relations row — all built from the relation model, never sample data. */
 export const ARCH_CARD_EVIDENCED = 'Evidenced imports';

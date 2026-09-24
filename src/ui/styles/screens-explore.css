@@ -107,6 +107,23 @@
 :where(.codebase-inspector-root) .ci-architecture__fallow-missing { color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-edge-list__direction-note { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-architecture__cycle-path { margin: 0; font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-file-relations__list { list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-file-relations__row { border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) button.ci-file-relations__select {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); width: 100%;
+  padding: var(--ci-space-2) 0; border: none; background: transparent; text-align: left; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-file-relations__select:hover { background: var(--ci-hover); }
+:where(.codebase-inspector-root) button.ci-file-relations__select:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-file-relations__direction { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-file-relations__path { font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-file-relations__source { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-file-relations__hidden { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-file-relations__heading { margin: var(--ci-space-3) 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.06em; }
+:where(.codebase-inspector-root) .ci-file-relations__cycles { margin: 0; padding-inline-start: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-file-relations__cycles code { overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-file-relations__fan-out { display: flex; justify-content: space-between; gap: var(--ci-space-2); margin: var(--ci-space-3) 0 0; }
+:where(.codebase-inspector-root) .ci-file-relations__fan-out-label { color: var(--ci-text-muted); }
 
 /* Part 2: Hotspots. */
 :where(.codebase-inspector-root) .ci-hotspots__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }
