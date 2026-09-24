@@ -150,6 +150,7 @@ function reviewFinding(fingerprint: string): void {
               :cycle-modules="highlightedModules"
               :evidence="relationEvidence"
               :not-analysed="architecture.notAnalysed"
+              :not-analysed-note="architecture.notAnalysedNote"
               :omitted-edges="architecture.omittedEdges"
               @select="selectModule"
             />
@@ -161,6 +162,7 @@ function reviewFinding(fingerprint: string): void {
               :violations-only="violationsOnly"
               :selected-edge="selectedEdge"
               :not-analysed="architecture.notAnalysed"
+              :not-analysed-note="architecture.notAnalysedNote"
               @select-edge="selectEdge"
             />
             <CycleList

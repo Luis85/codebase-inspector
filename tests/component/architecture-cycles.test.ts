@@ -14,7 +14,7 @@ import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import {
-  ARCH_EDGES_OMITTED_NOTE, ARCH_NOT_ANALYSED_NOTE, ARCH_TAB_CYCLES, ARCH_TAB_EDGES, ARCH_TAB_MAP, ARCH_TAB_MATRIX,
+  ARCH_EDGES_OMITTED_NOTE, ARCH_NOT_ANALYSED_NO_SECTION, ARCH_NOT_ANALYSED_NOTE, ARCH_TAB_CYCLES, ARCH_TAB_EDGES, ARCH_TAB_MAP, ARCH_TAB_MATRIX,
   ARCH_MATRIX_NO_EDGE, ARCH_NODE_LABEL_NOT_ANALYSED, ARCH_NONE, ARCH_TAB_RULES, CYCLE_KIND_LABEL, FALLOW_NOT_ANALYSED, NO_VALUE,
   RELATION_MEMBER_UNMATCHED, RELATIONS_SCOPE_SHORT,
 } from '../../src/ui/inspector-copy';
@@ -138,6 +138,7 @@ describe('Architecture: tabs and Cycles (WP-03 N21)', () => {
     setup(RELATIONS_PATHS, 'none');
     const w = mountArch();
     expect(w.find('.ci-module-map').text()).toContain(ARCH_NOT_ANALYSED_NOTE);
+    expect(useReadModels().architecture.value.cards.find((c) => c.id === 'cycles')!.caption).toBe(ARCH_NOT_ANALYSED_NOTE);
     expect(w.find('.ci-module-map .ci-provenance').text()).toBe('Unknown');
     // N5 for screen readers: no "0 outgoing, 0 incoming", no "No evidenced imports" per cell.
     expect(w.find('.ci-module-map__node').attributes('aria-label')).toBe(ARCH_NODE_LABEL_NOT_ANALYSED('barrel', 3));
@@ -152,6 +153,20 @@ describe('Architecture: tabs and Cycles (WP-03 N21)', () => {
     await openTab(w, ARCH_TAB_CYCLES);
     expect(w.find('[role="tabpanel"]').text()).toContain(FALLOW_NOT_ANALYSED);
     expect(w.findAll('.ci-cycle-list__row')).toHaveLength(0);
+    w.unmount();
+  });
+
+  it('final review #8: a report with no check section says so on the Map, the Matrix and the cycles card, not "no report is attached"', async () => {
+    setup(RELATIONS_PATHS, { json: relationsRecordingJson('health-3.27.0.json') });
+    const w = mountArch();
+    const noSection = 'The attached fallow report has no import cycle or boundary section, so no imports are shown.';
+    expect(ARCH_NOT_ANALYSED_NO_SECTION).toBe(noSection);
+    expect(w.find('.ci-module-map').text()).toContain(noSection);
+    expect(w.find('.ci-module-map').text()).not.toContain(ARCH_NOT_ANALYSED_NOTE);
+    expect(useReadModels().architecture.value.cards.find((c) => c.id === 'cycles')!.caption).toBe(noSection);
+    await openTab(w, ARCH_TAB_MATRIX);
+    expect(w.find('.ci-matrix__scroll').text()).toContain(noSection);
+    expect(w.find('.ci-matrix__scroll').text()).not.toContain(ARCH_NOT_ANALYSED_NOTE);
     w.unmount();
   });
 

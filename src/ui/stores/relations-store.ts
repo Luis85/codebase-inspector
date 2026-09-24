@@ -42,10 +42,13 @@ export const useRelationsStore = defineStore('relations', () => {
   };
 
   /** N30, J15: select the anchor first (the selection watcher below clears the highlight,
-   *  so the highlight must come after it), then highlight, then open the city. Selection
-   *  never moves the camera, and neither does this. */
+   *  so the highlight must come after it), then highlight, then open the city. Final review
+   *  #6: the file inspector opens with the selection, as File detail's Show in city does
+   *  (FileDetailScreen.vue), so the highlighted cycle's Relations section is on screen.
+   *  Selection never moves the camera, and neither does opening the inspector or this. */
   const showCycleInCity = (cycleId: string, anchorId: EntityId): void => {
     city.select(anchorId);
+    city.openInspector();
     highlightedCycleId.value = cycleId;
     city.navigate('city');
   };

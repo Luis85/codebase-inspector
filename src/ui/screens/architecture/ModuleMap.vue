@@ -3,18 +3,19 @@ import { computed } from 'vue';
 import type { MetricValue } from '../../evidence';
 import { edgeKey, type ModuleEdge, type ModuleSummary } from '../../read-models/architecture';
 import {
-  ARCH_EDGES_OMITTED_NOTE, ARCH_MAP_EYEBROW, ARCH_NODE_FILES, ARCH_NODE_LABEL, ARCH_NODE_LABEL_NOT_ANALYSED, ARCH_NOT_ANALYSED_NOTE,
+  ARCH_EDGES_OMITTED_NOTE, ARCH_MAP_EYEBROW, ARCH_NODE_FILES, ARCH_NODE_LABEL, ARCH_NODE_LABEL_NOT_ANALYSED,
 } from '../../inspector-copy';
 import { useUniqueId } from '../../unique-id';
 import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
 import { MAP_H, MAP_W, edgePath, nodePositions, toPercent } from './map-layout';
 
 /** `evidence` is the relation value (N20): its state is the Map's badge, never "sample".
- *  `cycleModules` is the selected cycle's modules (N21), or null. */
+ *  `cycleModules` is the selected cycle's modules (N21), or null. `notAnalysedNote` says
+ *  why there are no edges (final review #8: no report, or a report without that section). */
 const props = defineProps<{
   modules: readonly ModuleSummary[]; edges: readonly ModuleEdge[];
   violating: ReadonlySet<string>; violationsOnly: boolean; selected: string | null;
-  cycleModules: ReadonlySet<string> | null; evidence: MetricValue; notAnalysed: boolean; omittedEdges: number;
+  cycleModules: ReadonlySet<string> | null; evidence: MetricValue; notAnalysed: boolean; notAnalysedNote: string; omittedEdges: number;
 }>();
 const emit = defineEmits<{ select: [name: string] }>();
 const markerId = useUniqueId('ci-map-arrow');
@@ -115,7 +116,7 @@ const drawn = computed(() => props.edges.flatMap((e) => {
       v-if="notAnalysed"
       class="ci-architecture__note"
     >
-      {{ ARCH_NOT_ANALYSED_NOTE }}
+      {{ notAnalysedNote }}
     </p>
     <p
       v-else-if="omittedEdges > 0"

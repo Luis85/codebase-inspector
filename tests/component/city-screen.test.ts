@@ -11,7 +11,7 @@ import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
 import { RELATIONS_PATHS, attachRelationsReport } from '../fixtures/relations-report';
-import { FALLOW_NOT_ANALYSED, NO_VALUE } from '../../src/ui/inspector-copy';
+import { CITY_SUMMARY_CYCLES_TITLE, FALLOW_NOT_ANALYSED, NO_VALUE } from '../../src/ui/inspector-copy';
 
 // Hoisted to module scope (oxlint's consistent-function-scoping): captures nothing
 // from the describe block.
@@ -54,6 +54,9 @@ describe('CityScreen', () => {
     const cycles = w.findAll('.ci-city-summary__card')[1]!;
     expect(cycles.find('.ci-city-summary__value').text()).toBe('2');
     expect(cycles.find('.ci-provenance--unknown').exists()).toBe(false);
+    // WP-03 N18 (final review #10): the count is fallow's import cycles, and the title says so.
+    expect(cycles.find('.ci-city-summary__title').text()).toBe('Import cycles');
+    expect(CITY_SUMMARY_CYCLES_TITLE).toBe('Import cycles');
   });
 
   it('a summary card navigates to its screen', async () => {

@@ -15,7 +15,7 @@ import { useCityRelations } from '../../read-models/use-city-relations';
 import { canHighlight, type CityRelationRow } from '../../read-models/city-relations';
 import type { RelationSource } from '../../read-models/relations';
 import {
-  CYCLE_KIND_LABEL, EDGES_NONE, FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE,
+  CYCLE_KIND_LABEL, EDGES_NONE, FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_ROW_LOCATION, RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE,
   RELATIONS_CYCLES_TITLE, RELATIONS_DIRECTION_BOTH, RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_LABEL, RELATIONS_DIRECTION_OUT,
   RELATIONS_HIGHLIGHT_CYCLE, RELATIONS_HIGHLIGHT_CYCLE_LABEL, RELATIONS_HOPS_LABEL, RELATIONS_NONE_FOR_FILE, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
   RELATIONS_STATIC_NOTE, RELATIONS_TITLE,
@@ -128,7 +128,7 @@ const toggleHighlight = (id: string): void => { controls.highlightCycle(highligh
               aria-hidden="true"
             >{{ GLYPH[r.direction] }}</span>
             <span class="visually-hidden">{{ DIRECTION_LABEL[r.direction] }}</span>
-            <code class="ci-city-relations__path">{{ r.otherPath }}:{{ r.line ?? '?' }}</code>
+            <code class="ci-city-relations__path">{{ RELATION_ROW_LOCATION(r.otherPath, r.importerPath, r.line) }}</code>
             <span class="ci-city-relations__source">{{ sourcesText(r) }}</span>
             <span
               v-if="r.hop === 2"
@@ -149,8 +149,8 @@ const toggleHighlight = (id: string): void => { controls.highlightCycle(highligh
         </h5>
         <ul class="ci-city-relations__cycles">
           <li
-            v-for="c in view.cycles"
-            :key="c.findingId"
+            v-for="(c, i) in view.cycles"
+            :key="`${i}:${c.findingId}`"
             class="ci-city-relations__cycle"
           >
             <span class="ci-city-relations__kind">{{ CYCLE_KIND_LABEL[c.kind] }}</span>

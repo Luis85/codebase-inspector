@@ -52,6 +52,10 @@ export interface RelationModel {
   /** Import cycles first, then re-export cycles, each in report order. */
   readonly cycles: readonly CycleView[];
   readonly boundaryViolations: readonly BoundaryView[];
+  /** Final review #9: the DISTINCT findings among `boundaryViolations`. A report can name
+   *  one violation twice (same from/to/specifier, another line): one finding, as Quality
+   *  counts it (N12), however many rows list it. */
+  readonly boundaryFindings: number;
   readonly unresolved: readonly UnresolvedView[];
   readonly unmatchedEdges: number;
   fanIn(id: EntityId): MetricValue;
@@ -201,6 +205,7 @@ function build(files: readonly FileSummary[], evidence: EvidenceIndex): Relation
     edge: (from, to) => edgesByFrom.get(from)?.get(to),
     cycles: [...importCycles.views, ...reExportCycles],
     boundaryViolations: boundaries.views,
+    boundaryFindings: new Set(boundaries.views.map((v) => v.findingId)).size,
     unresolved,
     unmatchedEdges: importCycles.unmatched + boundaries.unmatched,
     fanIn: (id) => fan(id, (v) => v.fanIn),

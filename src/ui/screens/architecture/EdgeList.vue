@@ -153,8 +153,8 @@ const hidden = computed(() => Math.max(0, rows.value.length - EDGE_LIST_LIMIT));
         </h4>
         <ul class="ci-edge-list__unresolved-list">
           <li
-            v-for="u in relations.unresolved"
-            :key="u.findingId"
+            v-for="(u, i) in relations.unresolved"
+            :key="`${i}:${u.findingId}`"
           >
             <code>{{ u.file.path }}:{{ u.line }} → {{ u.specifier }}</code><span
               v-if="u.file.id === null"

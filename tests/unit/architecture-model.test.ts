@@ -75,7 +75,7 @@ function stubRelationModel(edges: readonly { from: string; to: string }[]): Rela
     state: 'current', analysed: true, boundaries: 'configured', index,
     edges: index.edges.map((e) => ({ ...e, fromPath: e.from, toPath: e.to, sources: ['cycle'], line: null })),
     edge: () => undefined,
-    cycles: [], boundaryViolations: [], unresolved: [], unmatchedEdges: 0,
+    cycles: [], boundaryViolations: [], boundaryFindings: 0, unresolved: [], unmatchedEdges: 0,
     fanIn: () => unknown('stub'), fanOut: () => unknown('stub'),
   };
 }

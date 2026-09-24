@@ -27,7 +27,8 @@ import {
   LENS_LIST_NONE, LENS_LIST_TEXT, LENS_OPTION_CATEGORY, LENS_OPTION_FINDINGS, LENS_SUBTITLE, LENS_TITLE,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
-import { SYNTHETIC_VERSION, attachSyntheticReport, snapshotWithOnlyFiles } from '../fixtures/evidence-report';
+import { SYNTHETIC_VERSION, attachSyntheticReport, snapshotWithOnlyFiles, snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS, attachRelationsReport } from '../fixtures/relations-report';
 import type { CameraBookmark, CodebaseSnapshot, CodeEntity } from '../../src/domain/model';
 import type { EvidenceReport } from '../../src/application/evidence/model';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
@@ -280,6 +281,28 @@ describe('the list-mode Reported column (Y40)', () => {
     expect(cell(5).get('[aria-hidden="true"]').text()).toBe(LENS_LIST_NONE);
     expect(cell(4).get('.visually-hidden').text()).toBe(LENS_LIST_CELL(3));
     expect(cell(5).get('.visually-hidden').text()).toBe(LENS_LIST_CELL(0));
+  });
+
+  it('WP-03 N12: counts what the lens paints, so a non-anchor cycle member and a violation\'s target read 1, not a dash', async () => {
+    const relSnap = snapshotWithPaths(RELATIONS_PATHS, 'repo-lens-relations');
+    useCityStore().setCity(relSnap, computeLayout(relSnap));
+    attachRelationsReport(relSnap);
+    useLensStore().setLens('findings');
+    useCityStore().setViewMode('list');
+    const w = keep(mount(CodebaseFileList));
+    await nextTick();
+    const cell = (path: string) => {
+      const row = w.findAll('.ci-file-list__row').find((r) => r.text().startsWith(path));
+      if (!row) throw new Error(`no row for ${path}`);
+      return row.get('.ci-file-list__reported [aria-hidden="true"]').text();
+    };
+    // core/b.ts and core/c.ts are members of the core cycle anchored on core/a.ts;
+    // data/db.ts is the target of the ui/view.ts boundary violation. None anchors a finding.
+    expect(cell('core/b.ts')).toBe('1');
+    expect(cell('core/c.ts')).toBe('1');
+    expect(cell('data/db.ts')).toBe('1');
+    expect(cell('core/a.ts')).toBe('1');
+    expect(cell('data/types.ts')).toBe(LENS_LIST_NONE);
   });
 
   it('has no column once the lens is off', async () => {

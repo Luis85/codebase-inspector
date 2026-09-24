@@ -5,7 +5,7 @@ import { aggregateEdges, stronglyConnected } from '../../domain/relations/querie
 import { collected, sumEvidence, unknown, type MetricValue } from '../evidence';
 import type { BoundaryRule } from '../stores/ports/review-repository';
 import {
-  ARCH_CARD_EVIDENCED, ARCH_CARD_MODULES, ARCH_CARD_VIOLATIONS, ARCH_MODULES_OMITTED_CAPTION, ARCH_NOT_ANALYSED_NOTE,
+  ARCH_CARD_EVIDENCED, ARCH_CARD_MODULES, ARCH_CARD_VIOLATIONS, ARCH_MODULES_OMITTED_CAPTION, ARCH_NOT_ANALYSED_NO_SECTION, ARCH_NOT_ANALYSED_NOTE,
   ARCH_VIOLATIONS_CAPTION, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_SHORT,
   RELATION_CARD_CYCLES, RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL, RULE_NOT_EVALUATED_REASON,
 } from '../inspector-copy';
@@ -40,6 +40,9 @@ export interface ArchitectureModel extends ArchitectureGraph {
   /** True without a report, or when the report's check section never covered cycles
    *  (`relations.analysed` is false) — the Map/Matrix/caption "not analysed" state. */
   notAnalysed: boolean;
+  /** Final review #8: why, when `notAnalysed` — ARCH_NOT_ANALYSED_NOTE without a report,
+   *  ARCH_NOT_ANALYSED_NO_SECTION with one that has no check section. */
+  notAnalysedNote: string;
 }
 
 export const edgeKey = (from: string, to: string): string => `${from}->${to}`;
@@ -158,7 +161,8 @@ export function moduleNeighbours(graph: ArchitectureGraph, name: string): { inco
  *  nothing, positive or negative). It is unknown only when both sources have nothing to
  *  add: boundaries not configured (or not analysed) AND no rule of yours is violated. */
 function violationsValue(relations: RelationModel, evaluations: readonly RuleEvaluation[]): MetricValue {
-  const fallow = relations.boundaries === 'not-configured' ? null : relationBoundaryValue(relations, relations.boundaryViolations.length);
+  // Final review #9: distinct findings, as Quality counts them — never two for one violation reported twice.
+  const fallow = relations.boundaries === 'not-configured' ? null : relationBoundaryValue(relations, relations.boundaryFindings);
   const violatingRules = evaluations.filter((e) => e.status === 'violation');
   const own = violatingRules.length === 0 ? null : sumEvidence(violatingRules.map((e) => e.violatingImports));
   const parts = [fallow, own].filter((v): v is MetricValue => v !== null);
@@ -173,6 +177,7 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
     from: row.name, to: col.name, edge: byKey.get(edgeKey(row.name, col.name)) ?? null,
   })));
   const notAnalysed = graph.relations.state === 'none' || !graph.relations.analysed;
+  const notAnalysedNote = graph.relations.state === 'none' ? ARCH_NOT_ANALYSED_NOTE : ARCH_NOT_ANALYSED_NO_SECTION;
   const { files, groups, reExports } = cycleNumbers(graph.relations);
   const cards: ArchitectureCard[] = [
     { id: 'modules', label: ARCH_CARD_MODULES, icon: 'boxes', tone: 'accent',
@@ -184,16 +189,16 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
       value: cyclesValue(graph.relations),
       // Fix round 1 #2: absent evidence is never rendered as 0 — a caption built from
       // counts that could not be measured reads the not-analysed note instead.
-      caption: notAnalysed ? ARCH_NOT_ANALYSED_NOTE : RELATION_CYCLES_CAPTION(files, groups, reExports) },
+      caption: notAnalysed ? notAnalysedNote : RELATION_CYCLES_CAPTION(files, groups, reExports) },
     { id: 'violations', label: ARCH_CARD_VIOLATIONS, icon: 'alert-triangle', tone: 'warning',
       value: violationsValue(graph.relations, evaluations),
       // E11: the caption states how many of your rules are violated only once a report
       // was analysed enough for that count to mean something; 0 is real only then.
-      caption: notAnalysed ? ARCH_NOT_ANALYSED_NOTE : ARCH_VIOLATIONS_CAPTION(violating.length) },
+      caption: notAnalysed ? notAnalysedNote : ARCH_VIOLATIONS_CAPTION(violating.length) },
   ];
   return {
     ...graph, matrix, rules: evaluations,
     violatingEdgeKeys: new Set(violating.map((e) => edgeKey(e.rule.from, e.rule.to))),
-    cards, notAnalysed,
+    cards, notAnalysed, notAnalysedNote,
   };
 }

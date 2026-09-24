@@ -64,7 +64,7 @@ describe('FileDetailScreen: Relations panel (WP-03 N17, N25)', () => {
     const w = mountFile();
     const rows = w.findAll('.ci-file-relations__row').map((r) => r.text());
     expect(rows).toEqual([
-      `${RELATIONS_DIRECTION_OUT}core/b.ts:1${RELATION_SOURCE_CYCLE}`,
+      `${RELATIONS_DIRECTION_OUT}core/b.ts · line 1 in core/a.ts${RELATION_SOURCE_CYCLE}`,
       `${RELATIONS_DIRECTION_IN}core/c.ts:1${RELATION_SOURCE_CYCLE}`,
     ]);
     expect(w.find('.ci-file-relations__cycles').text()).toBe('core/a.ts:1 → core/b.ts:1 → core/c.ts:1 → core/a.ts');
@@ -73,6 +73,34 @@ describe('FileDetailScreen: Relations panel (WP-03 N17, N25)', () => {
     expect(fanOut.text()).toBe(`${RELATIONS_FAN_OUT}1`);
     expect(fanOut.find('.ci-provenance').exists()).toBe(false);
     w.unmount();
+  });
+
+  it('final review #2: each row\'s line is shown against the file that imports (outgoing: this file; incoming: the other)', () => {
+    const raw = JSON.parse(relationsRecordingJson()) as { check: { circular_dependencies: { files: string[]; edges: { line: number }[] }[] } };
+    const core = raw.check.circular_dependencies.find((c) => c.files[0] === 'src/core/a.ts')!;
+    [35, 7, 15].forEach((line, i) => { core.edges[i]!.line = line; });   // a→b on a's 35, b→c on b's 7, c→a on c's 15
+    const snap = setup(RELATIONS_PATHS, 'none');
+    attachRelationsReport(snap, { json: JSON.stringify(raw) });
+    selectFile(snap, 'core/a.ts');
+    const w = mountFile();
+    expect(w.findAll('.ci-file-relations__path').map((p) => p.text())).toEqual(['core/b.ts · line 35 in core/a.ts', 'core/c.ts:15']);
+    w.unmount();
+  });
+
+  it('final review #11: a stale report marks the whole Relations section stale, not only its fan-out', () => {
+    const snap = setup(RELATIONS_PATHS, 'none');
+    attachRelationsReport(snap, { snapshotId: 'an-older-snapshot' });
+    selectFile(snap, 'core/a.ts');
+    const w = mountFile();
+    expect(relationsPanel(w).find('.ci-panel__header .ci-provenance--stale').exists()).toBe(true);
+    expect(w.findAll('.ci-file-relations__row')).toHaveLength(2);   // rows still listed
+    w.unmount();
+    setActivePinia(createPinia());
+    const current = setup();
+    selectFile(current, 'core/a.ts');
+    const w2 = mountFile();
+    expect(relationsPanel(w2).find('.ci-panel__header .ci-provenance').exists()).toBe(false);
+    w2.unmount();
   });
 
   it('a stale report\'s fan-out is marked stale', () => {

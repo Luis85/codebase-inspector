@@ -21,12 +21,16 @@ const props = defineProps<{ relations: RelationModel }>();
 const emit = defineEmits<{ review: [fingerprint: string] }>();
 
 const isMatched = (v: BoundaryView): boolean => v.from.id !== null && v.to.id !== null;
-const rows = computed(() => props.relations.boundaryViolations.filter(isMatched));
+/** Final review #9: a violation reported twice (same from/to/specifier, another line)
+ *  shares its findingId, so each row is keyed by its report position too. */
+type KeyedView = BoundaryView & { readonly key: string };
+const rows = computed<KeyedView[]>(() => props.relations.boundaryViolations
+  .map((v, i) => ({ ...v, key: `${i}:${v.findingId}` })).filter(isMatched));
 const unmatched = computed(() => props.relations.boundaryViolations.filter((v) => !isMatched(v)));
 function review(v: BoundaryView): void {
   if (v.fingerprint !== null) emit('review', v.fingerprint);
 }
-const columns: readonly TableColumn<BoundaryView>[] = [
+const columns: readonly TableColumn<KeyedView>[] = [
   { key: 'from', label: EDGE_COL_FROM, sortValue: (v) => v.from.path },
   { key: 'to', label: EDGE_COL_TO, sortValue: (v) => v.to.path },
   { key: 'zones', label: ARCH_FALLOW_ZONES_COL, sortValue: (v) => `${v.fromZone}->${v.toZone}` },
@@ -60,7 +64,7 @@ const columns: readonly TableColumn<BoundaryView>[] = [
         v-if="relations.boundaries === 'configured' && rows.length > 0"
         :columns="columns"
         :rows="rows"
-        :row-key="(v) => v.findingId"
+        :row-key="(v) => v.key"
         :caption="ARCH_FALLOW_ZONES_TITLE"
         :interactive="false"
       >
@@ -97,8 +101,8 @@ const columns: readonly TableColumn<BoundaryView>[] = [
         </p>
         <ul class="ci-architecture__fallow-unmatched-list">
           <li
-            v-for="v in unmatched"
-            :key="v.findingId"
+            v-for="(v, i) in unmatched"
+            :key="`${i}:${v.findingId}`"
           >
             <code>{{ v.from.path }}:{{ v.line }} → {{ v.to.path }}</code>
             ({{ v.fromZone }} → {{ v.toZone }})<span

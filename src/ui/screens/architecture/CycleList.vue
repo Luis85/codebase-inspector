@@ -43,8 +43,8 @@ function showInCity(cycle: CycleView): void {
     class="ci-cycle-list"
   >
     <li
-      v-for="c in cycles"
-      :key="c.findingId"
+      v-for="(c, i) in cycles"
+      :key="`${i}:${c.findingId}`"
       class="ci-cycle-list__row"
       :class="{ 'ci-cycle-list__row--selected': c.findingId === selectedId }"
     >

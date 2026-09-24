@@ -11,7 +11,7 @@ import { formatMetric } from '../../evidence';
 import { useReadModels } from '../../read-models/use-read-models';
 import { RELATION_ARC_LIMIT, type RelationSource } from '../../read-models/relations';
 import {
-  FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE, RELATIONS_CYCLES_TITLE,
+  FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_ROW_LOCATION, RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE, RELATIONS_CYCLES_TITLE,
   RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_OUT, RELATIONS_FAN_OUT, RELATIONS_NONE_FOR_FILE, RELATIONS_SCOPE_NOTE,
   RELATIONS_TITLE,
 } from '../../inspector-copy';
@@ -25,7 +25,7 @@ const emit = defineEmits<{ select: [id: EntityId] }>();
 const { relations } = useReadModels();
 const SOURCE_LABEL: Readonly<Record<RelationSource, string>> = { cycle: RELATION_SOURCE_CYCLE, boundary: RELATION_SOURCE_BOUNDARY };
 
-interface RelationRow { key: string; id: EntityId; path: string; line: number | null; directionLabel: string; sourceLabel: string }
+interface RelationRow { key: string; id: EntityId; location: string; directionLabel: string; sourceLabel: string }
 
 /** Matches the Architecture screen's own "not analysed" reading (relations.analysed). */
 const notAnalysed = computed(() => !relations.value.analysed);
@@ -38,8 +38,9 @@ const rows = computed<RelationRow[]>(() => neighbours.value.edges.map((e) => {
   const view = relations.value.edge(e.from, e.to);
   const otherId = e.direction === 'out' ? e.to : e.from;
   const otherPath = e.direction === 'out' ? (view?.toPath ?? e.to) : (view?.fromPath ?? e.from);
+  // Final review #2: the line is in the importing file (the edge's `from`), as in the city.
   return {
-    key: `${e.from}->${e.to}`, id: otherId, path: otherPath, line: view?.line ?? null,
+    key: `${e.from}->${e.to}`, id: otherId, location: RELATION_ROW_LOCATION(otherPath, view?.fromPath ?? e.from, view?.line ?? null),
     directionLabel: e.direction === 'out' ? RELATIONS_DIRECTION_OUT : RELATIONS_DIRECTION_IN,
     sourceLabel: view ? view.sources.map((s) => SOURCE_LABEL[s]).join(', ') : '',
   };
@@ -56,6 +57,13 @@ const fanOut = computed(() => relations.value.fanOut(props.fileId));
     :title="RELATIONS_TITLE"
     :footnote="RELATIONS_SCOPE_NOTE"
   >
+    <!-- Final review #11: stale evidence is marked for the whole section, as in the city. -->
+    <template
+      v-if="relations.state === 'stale'"
+      #actions
+    >
+      <ProvenanceBadge state="stale" />
+    </template>
     <p
       v-if="notAnalysed"
       class="ci-note"
@@ -84,7 +92,7 @@ const fanOut = computed(() => relations.value.fanOut(props.fileId));
             @click="emit('select', r.id)"
           >
             <span class="ci-file-relations__direction">{{ r.directionLabel }}</span>
-            <code class="ci-file-relations__path">{{ r.path }}:{{ r.line ?? '?' }}</code>
+            <code class="ci-file-relations__path">{{ r.location }}</code>
             <span class="ci-file-relations__source">{{ r.sourceLabel }}</span>
           </button>
         </li>
@@ -101,8 +109,8 @@ const fanOut = computed(() => relations.value.fanOut(props.fileId));
         </h4>
         <ul class="ci-file-relations__cycles">
           <li
-            v-for="c in cyclesThroughFile"
-            :key="c.findingId"
+            v-for="(c, i) in cyclesThroughFile"
+            :key="`${i}:${c.findingId}`"
           >
             <code v-if="c.pathText !== ''">{{ c.pathText }}</code>
             <CycleMembers

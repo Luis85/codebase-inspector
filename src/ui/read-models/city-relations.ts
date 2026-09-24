@@ -15,6 +15,8 @@ import { RELATION_ARC_LIMIT, type CycleView, type RelationModel, type RelationSo
 export interface CityRelationRow {
   readonly otherId: EntityId; readonly otherPath: string; readonly direction: 'in' | 'out';
   readonly hop: 1 | 2; readonly line: number | null; readonly sources: readonly RelationSource[];
+  /** The file `line` is in: the edge's `from`, which imports (final review #2). */
+  readonly importerPath: string;
 }
 export interface CityRelationsView {
   readonly state: EvidenceIndexState; readonly rows: readonly CityRelationRow[]; readonly hidden: number;
@@ -32,7 +34,7 @@ function rowFor(model: RelationModel, e: NeighbourEdge): CityRelationRow {
   const otherId = out ? e.to : e.from;
   return {
     otherId, otherPath: (out ? view?.toPath : view?.fromPath) ?? otherId, direction: e.direction, hop: e.hop,
-    line: view?.line ?? null, sources: view?.sources ?? [],
+    line: view?.line ?? null, sources: view?.sources ?? [], importerPath: view?.fromPath ?? e.from,
   };
 }
 

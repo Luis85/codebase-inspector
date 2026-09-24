@@ -100,7 +100,10 @@ const rowStates = computed<ReadonlyMap<EntityId, RowState>>(() => {
       dimmed: matchingIds.value !== null && !matchingIds.value.has(entity.id),
       tabIndex: entity.id === focusTarget.value ? 0 : -1,
       selected: entity.id === store.selectedEntityId,
-      reported: reportedColumn.value ? (evidence.value.byFile.get(entity.id)?.length ?? 0) : null,
+      // WP-03 N12: `touching`, the same map the lens paints (use-lens-view.ts), so a
+      // cycle's other members and a violation's other end read their finding here too.
+      // Each finding is listed once per file it touches; totals still count it once.
+      reported: reportedColumn.value ? (evidence.value.touching.get(entity.id)?.length ?? 0) : null,
     });
   }
   return map;

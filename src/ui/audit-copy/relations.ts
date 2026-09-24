@@ -19,6 +19,11 @@ export const RELATIONS_NONE_FOR_FILE = 'No evidenced imports for this file.';
 export const RELATION_HIDDEN = (n: number): string => `${n} more not shown`;
 export const RELATIONS_CYCLES_TITLE = 'Cycles through this file';
 export const RELATIONS_FAN_OUT = 'Imports (fallow)';
+/** Final review #2: a Relations row's file and line. fallow's line is in the IMPORTING file
+ *  (the edge's `from`): when that is the row's own file (incoming) it reads `c.ts:15`;
+ *  otherwise (outgoing, and hop 2) it names the importer: `b.ts · line 35 in a.ts`. */
+export const RELATION_ROW_LOCATION = (otherPath: string, importerPath: string, line: number | null): string =>
+  (otherPath === importerPath ? `${otherPath}:${line ?? '?'}` : `${otherPath} · line ${line ?? '?'} in ${importerPath}`);
 
 /** WP-03 Task 7 (N18, N20, N23, N26): Architecture cards, rules and the Overview's
  *  Import relations row — all built from the relation model, never sample data. */
@@ -27,11 +32,16 @@ export const RELATION_CARD_CYCLES = 'Import cycles reported by fallow';
 export const RELATION_CYCLES_CAPTION = (files: number, groups: number, reExports: number): string =>
   `${files} files · ${groups} groups · ${reExports} re-export cycles`;
 export const ARCH_NOT_ANALYSED_NOTE = 'No fallow report is attached, so no imports are shown. Attach or run one in Data & scans.';
+/** Final review #8: a report IS attached, but it has no check section (a health-only or
+ *  dupes-only run), so no import relation was reported. */
+export const ARCH_NOT_ANALYSED_NO_SECTION = 'The attached fallow report has no import cycle or boundary section, so no imports are shown.';
 export const ARCH_EDGES_OMITTED_NOTE = (n: number): string => `${n} evidenced imports go to modules not shown`;
 export const RULE_NOT_EVALUATED_PARTIAL = 'No complete import graph: fallow reports only cycle and boundary imports';
 /** The Overview Architecture-exceptions caption's own alternative to a formatted count. */
 export const ARCH_VIOLATIONS_NOT_CONFIGURED = 'boundaries not configured';
 export const OVERVIEW_IMPORTS_ROW = 'Import relations';
+/** N18 (final review #10): the city summary's cycles card counts fallow's import cycles. */
+export const CITY_SUMMARY_CYCLES_TITLE = 'Import cycles';
 
 /** WP-03 Task 9 (N21, N24): the Architecture Cycles and Edges tabs and "Configured in
  *  fallow". The source and direction words are spec §2's shared Relations strings (the

@@ -48,8 +48,8 @@ describe('cityRelationsFor: the neighbourhood rows and arcs (N17, N30)', () => {
     const view = cityRelationsFor(model, A, DEFAULTS);
     expect(view.state).toBe('current');
     expect(view.rows).toEqual([
-      { otherId: B, otherPath: 'src/core/b.ts', direction: 'out', hop: 1, line: 1, sources: ['cycle'] },
-      { otherId: C, otherPath: 'src/core/c.ts', direction: 'in', hop: 1, line: 1, sources: ['cycle'] },
+      { otherId: B, otherPath: 'src/core/b.ts', direction: 'out', hop: 1, line: 1, sources: ['cycle'], importerPath: 'src/core/a.ts' },
+      { otherId: C, otherPath: 'src/core/c.ts', direction: 'in', hop: 1, line: 1, sources: ['cycle'], importerPath: 'src/core/c.ts' },
     ]);
     expect(view.hidden).toBe(0);
     expect(view.arcs).toEqual([{ from: A, to: B, role: 'outgoing' }, { from: C, to: A, role: 'incoming' }]);

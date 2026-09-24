@@ -1,6 +1,6 @@
 import type { RouteId } from '../../domain/route-ids';
 import { countEvidence, unknown, type MetricValue } from '../evidence';
-import { FALLOW_NOT_ANALYSED, NO_FILES_REASON } from '../inspector-copy';
+import { CITY_SUMMARY_CYCLES_TITLE, FALLOW_NOT_ANALYSED, NO_FILES_REASON } from '../inspector-copy';
 import { evidenceIndexFor, type EvidenceIndex } from './evidence-index';
 import type { FileSummary } from './file-summaries';
 import { HOTSPOT_THRESHOLD } from './overview';
@@ -15,7 +15,7 @@ export function buildCitySummary(
   return [
     { id: 'hotspots', title: 'Change hotspots', caption: 'Complexity × change × coverage gap', route: 'hotspots',
       value: countEvidence(files.map((f) => f.priority), (v) => v >= HOTSPOT_THRESHOLD, NO_FILES_REASON) },
-    { id: 'cycles', title: 'Architectural cycles', caption: 'Inspect module boundaries', route: 'architecture', value: cycles },
+    { id: 'cycles', title: CITY_SUMMARY_CYCLES_TITLE, caption: 'Inspect module boundaries', route: 'architecture', value: cycles },
     { id: 'unused', title: 'Potentially unused exports', caption: 'Verify entry points before deletion', route: 'quality',
       value: evidence.totals.unused },
   ];

@@ -120,7 +120,8 @@ export function buildOverviewModel(
   // "boundaries not configured" phrase — any other unknown (no report, or the check
   // section never covered boundaries) falls through to formatMetric's own "—", never a
   // fabricated 0. #4: pluralised, so a single violation reads "1 boundary violation".
-  const violations = evidence.count(relations.boundaryViolations.length, 'boundary');
+  // Final review #9: distinct findings (RelationModel.boundaryFindings), as Quality counts them.
+  const violations = evidence.count(relations.boundaryFindings, 'boundary');
   const violationsText = violations.reason === FALLOW_BOUNDARIES_NOT_CONFIGURED
     ? ARCH_VIOLATIONS_NOT_CONFIGURED
     : `${formatMetric(violations)}${hasValue(violations) ? ` boundary violation${violations.value === 1 ? '' : 's'}` : ''}`;

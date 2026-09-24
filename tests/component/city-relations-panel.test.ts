@@ -18,7 +18,7 @@ import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import {
   CYCLE_KIND_LABEL, FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_MEMBER_UNMATCHED, RELATION_SOURCE_CYCLE, RELATIONS_DIRECTION_BOTH,
   RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_LABEL, RELATIONS_DIRECTION_OUT, RELATIONS_HIGHLIGHT_CYCLE, RELATIONS_HIGHLIGHT_CYCLE_LABEL,
-  RELATIONS_HOPS_LABEL, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
+  RELATION_ROW_LOCATION, RELATIONS_HOPS_LABEL, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
   RELATIONS_STATIC_NOTE, RELATIONS_TITLE,
 } from '../../src/ui/inspector-copy';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
@@ -33,6 +33,20 @@ function longCycleJson(): string {
   raw.check.circular_dependencies.push({ files, length: files.length, line: 1, col: 0, edges: files.map((path) => ({ path, line: 1, col: 0 })) });
   return JSON.stringify(raw);
 }
+/** The recording with the core cycle's three imports on distinct lines: a.ts imports b.ts on
+ *  line 35, b.ts imports c.ts on line 7, c.ts imports a.ts on line 15 (fallow's edge line is
+ *  in the IMPORTING file). */
+function distinctLinesJson(): string {
+  const raw = JSON.parse(relationsRecordingJson()) as { check: { circular_dependencies: { files: string[]; edges: { line: number }[] }[] } };
+  const core = raw.check.circular_dependencies.find((c) => c.files[0] === 'src/core/a.ts')!;
+  [35, 7, 15].forEach((line, i) => { core.edges[i]!.line = line; });
+  return JSON.stringify(raw);
+}
+/** The recording's rows (every core edge on line 1) as final review #2 prints them: the line
+ *  is in the importing file, so an outgoing row names it. */
+const A_TO_B = 'core/b.ts · line 1 in core/a.ts';
+const B_TO_C = 'core/c.ts · line 1 in core/b.ts';
+const C_TO_A = 'core/c.ts:1';
 const idOf = (snap: CodebaseSnapshot, path: string): string => snap.entities.find((e) => e.kind === 'file' && e.path === path)!.id;
 
 /** A city with the relations recording attached, core/a.ts selected and the inspector open. */
@@ -106,7 +120,7 @@ describe('the city Relations section (N30)', () => {
     expect(arcs.text()).toBe(RELATIONS_SHOW_ARCS);
     expect((arcs.get('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(true);
 
-    expect(paths(w)).toEqual(['core/b.ts:1', 'core/c.ts:1']);
+    expect(paths(w)).toEqual([A_TO_B, C_TO_A]);
     const rows = w.findAll('.ci-city-relations__row');
     expect(rows[0]!.get('.ci-city-relations__glyph--out').text()).toBe('→');
     expect(rows[0]!.text()).toContain(RELATIONS_DIRECTION_OUT);
@@ -139,14 +153,26 @@ describe('the city Relations section (N30)', () => {
     const { w } = mountInspector();
     await press(w, RELATIONS_DIRECTION_LABEL, RELATIONS_DIRECTION_OUT);
     expect(pressed(w, RELATIONS_DIRECTION_LABEL)).toEqual([RELATIONS_DIRECTION_OUT]);
-    expect(paths(w)).toEqual(['core/b.ts:1']);
+    expect(paths(w)).toEqual([A_TO_B]);
     await press(w, RELATIONS_HOPS_LABEL, '2');
-    expect(paths(w)).toEqual(['core/b.ts:1', 'core/c.ts:1']);
+    expect(paths(w)).toEqual([A_TO_B, B_TO_C]);
     expect(w.findAll('.ci-city-relations__row')[1]!.text()).toContain(`${RELATIONS_HOPS_LABEL} 2`);
     await section(w).get('.ci-city-relations__arcs input').setValue(false);
     const store = useRelationsStore();
     expect([store.direction, store.hops, store.showArcs]).toEqual(['out', 2, false]);
-    expect(paths(w)).toEqual(['core/b.ts:1', 'core/c.ts:1']);
+    expect(paths(w)).toEqual([A_TO_B, B_TO_C]);
+  });
+
+  it('final review #2: each row\'s line is shown against the file that imports, in both directions and at hop 2', async () => {
+    setup('recording', { json: distinctLinesJson() });
+    const { w } = mountInspector();
+    // Outgoing: core/a.ts (selected) imports core/b.ts on ITS line 35. Incoming: core/c.ts imports on its own line 15.
+    expect(paths(w)).toEqual(['core/b.ts · line 35 in core/a.ts', 'core/c.ts:15']);
+    await press(w, RELATIONS_DIRECTION_LABEL, RELATIONS_DIRECTION_OUT);
+    await press(w, RELATIONS_HOPS_LABEL, '2');
+    // Hop 2 outwards: core/b.ts imports core/c.ts on core/b.ts's line 7, not the selected file's.
+    expect(paths(w)).toEqual(['core/b.ts · line 35 in core/a.ts', 'core/c.ts · line 7 in core/b.ts']);
+    expect(paths(w)).toEqual([RELATION_ROW_LOCATION('core/b.ts', 'core/a.ts', 35), RELATION_ROW_LOCATION('core/c.ts', 'core/b.ts', 7)]);
   });
 
   it('a row button selects that file and never moves the camera', async () => {
@@ -158,7 +184,7 @@ describe('the city Relations section (N30)', () => {
     expect(renderer.focus).not.toHaveBeenCalled();
     expect(renderer.setCamera).not.toHaveBeenCalled();
     expect(city.camera).toEqual(BOOKMARK);
-    expect(paths(w)).toEqual(['core/c.ts:1', 'core/a.ts:1']);
+    expect(paths(w)).toEqual([B_TO_C, 'core/a.ts:1']);   // b.ts selected: it imports c.ts; a.ts imports it
   });
 
   it('selecting another file clears the highlight', async () => {
@@ -176,7 +202,7 @@ describe('the city Relations section (N30)', () => {
     setup('stale');
     const { w } = mountInspector();
     expect(section(w).get('.ci-provenance--stale').text()).toBe('Stale');
-    expect(paths(w)).toEqual(['core/b.ts:1', 'core/c.ts:1']);
+    expect(paths(w)).toEqual([A_TO_B, C_TO_A]);
   });
 
   it('without a report it says not analysed, with no rows and no controls', () => {
@@ -266,6 +292,7 @@ describe('the relations store, one per leaf (N31)', () => {
     const city = useCityStore();
     const store = useRelationsStore();
     city.navigate('architecture');
+    city.closeInspector();   // final review #6: Show in city must open it, as File detail's does
     let highlightAtNavigate: string | null | undefined;
     const stop = watch(() => city.route, () => { highlightAtNavigate = store.highlightedCycleId; }, { flush: 'sync' });
     store.showCycleInCity('CY-00000002', idOf(snap, 'core/b.ts'));
@@ -274,6 +301,7 @@ describe('the relations store, one per leaf (N31)', () => {
     expect(store.highlightedCycleId).toBe('CY-00000002');
     expect(highlightAtNavigate).toBe('CY-00000002');
     expect(city.route).toBe('city');
+    expect(city.inspectorOpen).toBe(true);
     expect(city.camera).toEqual(BOOKMARK);
   });
 });
