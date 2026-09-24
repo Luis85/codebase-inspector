@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
-import { edgeKey, moduleNeighbours } from '../read-models/architecture';
-import { moduleOf } from '../read-models/file-summaries';
+import { relationValue } from '../read-models/relations';
 import { reviewFailureText } from '../read-models/review-failure';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
+import { useEvidenceStore } from '../stores/evidence-store';
+import { useRelationsStore } from '../stores/relations-store';
 import { useReviewStore } from '../stores/review-store';
 import {
-  ARCH_ADD_RULE, ARCH_EYEBROW, ARCH_MAP_FOOTNOTE, ARCH_OMITTED_NOTE, ARCH_SUBTITLE, ARCH_TAB_MAP, ARCH_TAB_MATRIX,
-  ARCH_TAB_RULES, ARCH_TITLE, ARCH_VIEWS_LABEL, ARCH_VIOLATIONS_ONLY, RULE_REMOVE_FAILED,
+  ARCH_ADD_RULE, ARCH_CYCLE_INSPECTOR_TITLE, ARCH_EYEBROW, ARCH_MAP_FOOTNOTE, ARCH_OMITTED_NOTE, ARCH_SUBTITLE,
+  ARCH_TAB_CYCLES, ARCH_TAB_EDGES, ARCH_TAB_MAP, ARCH_TAB_MATRIX, ARCH_TAB_RULES, ARCH_TITLE, ARCH_VIEWS_LABEL,
+  ARCH_VIOLATIONS_ONLY, CYCLE_KIND_IMPORT, CYCLE_KIND_RE_EXPORT, RELATION_MEMBER_UNMATCHED, RULE_REMOVE_FAILED,
 } from '../inspector-copy';
 import type { TabItem } from '../kit/tab-types';
 import PageHeader from '../kit/PageHeader.vue';
@@ -20,77 +22,41 @@ import Icon from '../kit/Icon.vue';
 import NoSnapshot from './NoSnapshot.vue';
 import ModuleMap from './architecture/ModuleMap.vue';
 import DependencyMatrix from './architecture/DependencyMatrix.vue';
+import CycleList from './architecture/CycleList.vue';
+import EdgeList from './architecture/EdgeList.vue';
 import ModuleInspector from './architecture/ModuleInspector.vue';
 import BoundaryRuleTable from './architecture/BoundaryRuleTable.vue';
+import FallowBoundaryTable from './architecture/FallowBoundaryTable.vue';
 import BoundaryInspector from './architecture/BoundaryInspector.vue';
 import RuleEditor from './architecture/RuleEditor.vue';
+import { useArchitectureSelection } from './architecture/use-architecture-selection';
 
+/** N21: Map, Matrix, Cycles, Edges, Rules, in that order. */
 const TABS: readonly TabItem[] = [
   { id: 'map', label: ARCH_TAB_MAP },
   { id: 'matrix', label: ARCH_TAB_MATRIX },
+  { id: 'cycles', label: ARCH_TAB_CYCLES },
+  { id: 'edges', label: ARCH_TAB_EDGES },
   { id: 'rules', label: ARCH_TAB_RULES },
 ];
 
 const store = useCityStore();
 const review = useReviewStore();
+const evidence = useEvidenceStore();
+const relationsStore = useRelationsStore();
 const { architecture, files } = useReadModels();
 const tab = ref('map');
 const root = ref<HTMLElement | null>(null);
 const violationsOnly = ref(false);
-
-/** P12: open on the selected file's module when it is in the graph. Derived once from the
- *  shared selection, so there is no new cross-screen state. */
-function initialModule(): string | null {
-  const names = architecture.value.modules.map((m) => m.name);
-  const file = files.value.find((f) => f.id === store.selectedEntityId);
-  const own = file ? moduleOf(file.path) : null;
-  return own !== null && names.includes(own) ? own : names[0] ?? null;
-}
-
-const selectedModule = ref<string | null>(initialModule());
-const selectedEdge = ref<{ from: string; to: string } | null>(null);
-const moduleSummary = computed(() => architecture.value.modules.find((m) => m.name === selectedModule.value) ?? null);
-const neighbours = computed(() => (selectedModule.value
-  ? moduleNeighbours(architecture.value, selectedModule.value) : { incoming: [], outgoing: [] }));
-
-const selectedRuleId = ref<string | null>(null);
 const editorOpen = ref(false);
 const liveMessage = ref('');
-const selectedRule = computed(() => architecture.value.rules.find((r) => r.rule.id === selectedRuleId.value) ?? null);
-const selectedEdgeModel = computed(() => {
-  const s = selectedEdge.value;
-  return s ? architecture.value.edges.find((e) => e.from === s.from && e.to === s.to) ?? null : null;
-});
-const edgeViolates = computed(() => {
-  const e = selectedEdgeModel.value;
-  return e ? architecture.value.violatingEdgeKeys.has(edgeKey(e.from, e.to)) : false;
-});
-watch(() => architecture.value.rules, (rules) => {
-  if (selectedRuleId.value && !rules.some((r) => r.rule.id === selectedRuleId.value)) selectedRuleId.value = null;
-});
-/** F3: a rescan or snapshot switch can drop the selected module; re-derive it so the
- *  inspector and the rule editor never hold a module the graph no longer has. */
-watch(() => architecture.value.modules, (modules) => {
-  if (!modules.some((m) => m.name === selectedModule.value)) selectedModule.value = initialModule();
-});
+const {
+  selectedModule, selectedEdge, selectedCycleId, moduleSummary, neighbours, selectedRule, selectedEdgeModel, edgeViolates,
+  selectedCycle, highlightedModules, selectModule, selectEdge, selectRule, selectCycle,
+} = useArchitectureSelection(architecture, files);
+/** N20: the relation evidence state — the Map's and the module inspector's badge. */
+const relationEvidence = computed(() => relationValue(architecture.value.relations, architecture.value.relations.edges.length));
 
-function selectModule(name: string): void {
-  selectedModule.value = name;
-  selectedEdge.value = null;
-  selectedRuleId.value = null;
-}
-
-function selectEdge(edge: { from: string; to: string }): void {
-  selectedEdge.value = edge;
-  selectedRuleId.value = null;
-  selectedModule.value = edge.from;
-}
-function selectRule(id: string): void {
-  selectedRuleId.value = id;
-  selectedEdge.value = null;
-  const from = architecture.value.rules.find((r) => r.rule.id === id)?.rule.from;
-  if (from !== undefined && architecture.value.modules.some((m) => m.name === from)) selectedModule.value = from;
-}
 function onSaved(id: string): void {
   editorOpen.value = false;
   tab.value = 'rules';
@@ -114,6 +80,11 @@ async function removeRule(id: string): Promise<void> {
 function openFile(id: EntityId): void {
   store.select(id);
   store.navigate('file');
+}
+/** N15: Quality opens its review dialog on this finding when it mounts. */
+function reviewFinding(fingerprint: string): void {
+  evidence.requestFindingReview(fingerprint);
+  store.navigate('quality');
 }
 </script>
 
@@ -175,6 +146,10 @@ function openFile(id: EntityId): void {
               :violating="architecture.violatingEdgeKeys"
               :violations-only="violationsOnly"
               :selected="selectedModule"
+              :cycle-modules="highlightedModules"
+              :evidence="relationEvidence"
+              :not-analysed="architecture.notAnalysed"
+              :omitted-edges="architecture.omittedEdges"
               @select="selectModule"
             />
             <DependencyMatrix
@@ -184,15 +159,39 @@ function openFile(id: EntityId): void {
               :violating="architecture.violatingEdgeKeys"
               :violations-only="violationsOnly"
               :selected-edge="selectedEdge"
+              :not-analysed="architecture.notAnalysed"
               @select-edge="selectEdge"
             />
-            <BoundaryRuleTable
-              v-else
-              :rules="architecture.rules"
-              @select="selectRule"
-              @remove="removeRule"
-              @add="editorOpen = true"
+            <CycleList
+              v-else-if="tab === 'cycles'"
+              :cycles="architecture.relations.cycles"
+              :not-analysed="architecture.notAnalysed"
+              :selected-id="selectedCycleId"
+              @select="selectCycle"
+              @review="reviewFinding"
+              @show-in-city="relationsStore.showCycleInCity"
             />
+            <EdgeList
+              v-else-if="tab === 'edges'"
+              :relations="architecture.relations"
+              :not-analysed="architecture.notAnalysed"
+              :selected-module="selectedModule"
+              :violating="architecture.violatingEdgeKeys"
+              :violations-only="violationsOnly"
+              @open-file="openFile"
+            />
+            <template v-else>
+              <BoundaryRuleTable
+                :rules="architecture.rules"
+                @select="selectRule"
+                @remove="removeRule"
+                @add="editorOpen = true"
+              />
+              <FallowBoundaryTable
+                :relations="architecture.relations"
+                @review="reviewFinding"
+              />
+            </template>
           </Tabs>
           <p
             v-if="architecture.omittedModules > 0"
@@ -202,6 +201,29 @@ function openFile(id: EntityId): void {
           </p>
         </Panel>
         <aside class="ci-architecture__inspectors">
+          <Panel
+            v-if="selectedCycle"
+            :title="ARCH_CYCLE_INSPECTOR_TITLE"
+            :subtitle="selectedCycle.kind === 'import' ? CYCLE_KIND_IMPORT : CYCLE_KIND_RE_EXPORT"
+          >
+            <p
+              v-if="selectedCycle.pathText !== ''"
+              class="ci-architecture__cycle-path"
+            >
+              <code>{{ selectedCycle.pathText }}</code>
+            </p>
+            <ul
+              v-else
+              class="ci-architecture__cycle-members"
+            >
+              <li
+                v-for="m in selectedCycle.members"
+                :key="m.path"
+              >
+                <code>{{ m.path }}</code><span v-if="m.id === null"> ({{ RELATION_MEMBER_UNMATCHED }})</span>
+              </li>
+            </ul>
+          </Panel>
           <BoundaryInspector
             :evaluation="selectedRule"
             :edge="selectedEdgeModel"
@@ -211,6 +233,7 @@ function openFile(id: EntityId): void {
             :module="moduleSummary"
             :incoming="neighbours.incoming"
             :outgoing="neighbours.outgoing"
+            :evidence="relationEvidence"
             @open-file="openFile"
           />
         </aside>

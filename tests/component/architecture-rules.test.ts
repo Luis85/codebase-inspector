@@ -32,7 +32,7 @@ function setup() {
   return { edge, free };
 }
 const mountArch = () => mount(ArchitectureScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn() } } });
-const openRulesTab = async (w: ReturnType<typeof mountArch>) => { await w.findAll('[role="tab"]')[2]!.trigger('click'); };
+const openRulesTab = async (w: ReturnType<typeof mountArch>) => { await w.findAll('[role="tab"]')[4]!.trigger('click'); };
 
 describe('boundary rules', () => {
   beforeEach(() => { setActivePinia(createPinia()); });

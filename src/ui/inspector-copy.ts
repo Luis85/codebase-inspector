@@ -139,7 +139,9 @@ export const ARCH_FACT_FILES = 'Files';
 export const ARCH_FACT_LINES = 'Lines';
 export const ARCH_FACT_IMPORTS = 'Imports';
 export const ARCH_FACT_IMPORTED_BY = 'Imported by';
-export const ARCH_NONE = 'None';
+/** WP-03 N5: the module inspector's neighbour lists hold only EVIDENCED imports, so an empty
+ *  list is "none evidenced", never "no imports". */
+export const ARCH_NONE = 'None evidenced';
 export const ARCH_TOP_FILES = 'Highest review priority';
 
 /** Part 2 §2.1: boundary rules (P5). */

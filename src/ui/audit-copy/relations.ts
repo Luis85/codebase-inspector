@@ -25,3 +25,36 @@ export const RULE_NOT_EVALUATED_PARTIAL = 'No complete import graph: fallow repo
 /** The Overview Architecture-exceptions caption's own alternative to a formatted count. */
 export const ARCH_VIOLATIONS_NOT_CONFIGURED = 'boundaries not configured';
 export const OVERVIEW_IMPORTS_ROW = 'Import relations';
+
+/** WP-03 Task 9 (N21, N24): the Architecture Cycles and Edges tabs and "Configured in
+ *  fallow". The source and direction words are spec §2's shared Relations strings (the
+ *  city Relations section, Tasks 10 and 12, reuses them). */
+export const ARCH_TAB_CYCLES = 'Cycles';
+export const ARCH_TAB_EDGES = 'Edges';
+export const RELATION_SOURCE_CYCLE = 'Cycle';
+export const RELATION_SOURCE_BOUNDARY = 'Boundary';
+export const RELATIONS_DIRECTION_OUT = 'Outgoing';
+export const RELATIONS_DIRECTION_IN = 'Incoming';
+export const CYCLE_KIND_IMPORT = 'Import cycle';
+export const CYCLE_KIND_RE_EXPORT = 'Re-export cycle';
+export const CYCLE_REVIEW = 'Review finding';
+export const CYCLE_SHOW_IN_CITY = 'Show in city';
+export const CYCLE_REVIEW_LABEL = (findingId: string): string => `Review finding ${findingId}`;
+export const CYCLE_SHOW_IN_CITY_LABEL = (findingId: string): string => `Show cycle ${findingId} in the city`;
+export const CYCLES_NONE = 'fallow reported no cycles.';
+export const ARCH_CYCLE_INSPECTOR_TITLE = 'Selected cycle';
+export const EDGE_LIST_HIDDEN = (n: number): string => `${n} more imports not shown`;
+export const EDGE_TABLE_CAPTION = 'Evidenced file imports';
+export const EDGE_COL_FROM = 'From';
+export const EDGE_COL_TO = 'To';
+export const EDGE_COL_SOURCE = 'Source';
+export const EDGE_COL_LINE = 'Line';
+export const EDGE_COL_TYPE = 'Type';
+export const EDGE_FILTER_DIRECTION = 'Direction';
+export const EDGE_FILTER_SOURCE = 'Source';
+export const EDGE_FILTER_ALL = 'All';
+export const EDGES_NONE = 'No evidenced imports to show.';
+export const UNRESOLVED_TITLE = 'Unresolved imports';
+export const ARCH_FALLOW_ZONES_TITLE = 'Configured in fallow';
+export const ARCH_FALLOW_ZONES_COL = 'Zones';
+export const ARCH_FALLOW_ZONES_NONE = 'fallow reported no boundary violations.';

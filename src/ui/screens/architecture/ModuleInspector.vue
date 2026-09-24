@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { EntityId } from '../../../domain/entity-id';
-import { formatMetric } from '../../evidence';
+import { formatMetric, hasValue, type MetricValue } from '../../evidence';
 import type { ModuleSummary } from '../../read-models/architecture';
 import { moduleLabel } from '../../read-models/file-summaries';
 import {
@@ -10,8 +10,16 @@ import {
 import Panel from '../../kit/Panel.vue';
 import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
 
-defineProps<{ module: ModuleSummary | null; incoming: readonly string[]; outgoing: readonly string[] }>();
+/** `incoming`/`outgoing` are the module's EVIDENCED neighbours (N20); `evidence` is the
+ *  relation value, whose state labels both lists — without a report they read "—", never
+ *  an empty "none". */
+const props = defineProps<{ module: ModuleSummary | null; incoming: readonly string[]; outgoing: readonly string[]; evidence: MetricValue }>();
 const emit = defineEmits<{ 'open-file': [id: EntityId] }>();
+
+function neighbourText(names: readonly string[]): string {
+  if (!hasValue(props.evidence)) return formatMetric(props.evidence);
+  return names.map(moduleLabel).join(', ') || ARCH_NONE;
+}
 </script>
 
 <template>
@@ -33,10 +41,20 @@ const emit = defineEmits<{ 'open-file': [id: EntityId] }>();
               :detail="module.lines.reason"
             />
           </dd>
-          <dt>{{ ARCH_FACT_IMPORTS }} <ProvenanceBadge state="sample" /></dt>
-          <dd>{{ outgoing.map(moduleLabel).join(', ') || ARCH_NONE }}</dd>
-          <dt>{{ ARCH_FACT_IMPORTED_BY }} <ProvenanceBadge state="sample" /></dt>
-          <dd>{{ incoming.map(moduleLabel).join(', ') || ARCH_NONE }}</dd>
+          <dt>
+            {{ ARCH_FACT_IMPORTS }} <ProvenanceBadge
+              :state="evidence.state"
+              :detail="evidence.reason"
+            />
+          </dt>
+          <dd>{{ neighbourText(outgoing) }}</dd>
+          <dt>
+            {{ ARCH_FACT_IMPORTED_BY }} <ProvenanceBadge
+              :state="evidence.state"
+              :detail="evidence.reason"
+            />
+          </dt>
+          <dd>{{ neighbourText(incoming) }}</dd>
         </dl>
         <p class="ci-module-inspector__heading">
           {{ ARCH_TOP_FILES }}

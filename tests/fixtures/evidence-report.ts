@@ -194,18 +194,24 @@ export const RELATIONS_PATHS = [
  *  `tests/fixtures/fallow-fixture.ts`'s `import.meta.url` helper, which jsdom's fake
  *  `location` resolves to a non-file URL under the component-test project, and this file
  *  is imported from both projects. */
-const RELATIONS_JSON = readFileSync(join(process.cwd(), 'tests/fixtures/fallow/relations-combined-3.27.0.json'), 'utf8');
+export function relationsRecordingJson(name = 'relations-combined-3.27.0.json'): string {
+  return readFileSync(join(process.cwd(), 'tests/fixtures/fallow', name), 'utf8');
+}
+const RELATIONS_JSON = relationsRecordingJson();
 
 export interface RelationsReportOptions {
   /** Defaults to the snapshot's own id (current evidence). Any other id makes it stale. */
   snapshotId?: string;
+  /** WP-03 Task 9: another recording's text (`relationsRecordingJson('relations-no-boundaries-3.27.0.json')`)
+   *  or a synthesised copy of this one, read through the same parser, normaliser and strip prefix. */
+  json?: string;
 }
 
 /** Binds the active leaf's evidence store to `snapshot`'s codebase and attaches the real
  *  relations recording, stripped of its `src/` prefix (JF14), the way `attachSyntheticReport`
  *  attaches a synthetic one. */
 export function attachRelationsReport(snapshot: CodebaseSnapshot, options: RelationsReportOptions = {}): EvidenceReport {
-  const parsed = parseFallowReportText(RELATIONS_JSON);
+  const parsed = parseFallowReportText(options.json ?? RELATIONS_JSON);
   if (!parsed.ok) throw new Error(`test setup: the relations fixture was refused (${parsed.code} ${parsed.detail})`);
   const report = buildEvidenceReport({
     raw: parsed.report, fileName: 'relations.json', importedAt: IMPORTED_AT,

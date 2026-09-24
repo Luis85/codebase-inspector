@@ -3,12 +3,14 @@ import { computed } from 'vue';
 import { formatMetric, hasValue } from '../../evidence';
 import { edgeKey, type MatrixCell, type ModuleSummary } from '../../read-models/architecture';
 import {
-  ARCH_MATRIX_CAPTION, ARCH_MATRIX_CELL_LABEL, ARCH_MATRIX_CORNER, ARCH_MATRIX_NO_EDGE, ARCH_MATRIX_SELF,
+  ARCH_MATRIX_CAPTION, ARCH_MATRIX_CELL_LABEL, ARCH_MATRIX_CORNER, ARCH_MATRIX_NO_EDGE, ARCH_MATRIX_SELF, ARCH_NOT_ANALYSED_NOTE,
 } from '../../inspector-copy';
 
+/** `notAnalysed` (N20): every cell is empty because nothing was analysed, and the note says so. */
 const props = defineProps<{
   modules: readonly ModuleSummary[]; matrix: readonly (readonly MatrixCell[])[];
   violating: ReadonlySet<string>; violationsOnly: boolean; selectedEdge: { from: string; to: string } | null;
+  notAnalysed: boolean;
 }>();
 const emit = defineEmits<{ 'select-edge': [edge: { from: string; to: string }] }>();
 
@@ -85,5 +87,11 @@ const isSelected = (c: MatrixCell): boolean => props.selectedEdge?.from === c.fr
         </tr>
       </tbody>
     </table>
+    <p
+      v-if="notAnalysed"
+      class="ci-architecture__note"
+    >
+      {{ ARCH_NOT_ANALYSED_NOTE }}
+    </p>
   </div>
 </template>

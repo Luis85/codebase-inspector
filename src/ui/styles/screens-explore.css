@@ -67,6 +67,44 @@
 :where(.codebase-inspector-root) .ci-rule-editor__hint { margin: 0 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-rule-editor__error { margin: 0; color: var(--ci-error); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-rule-editor__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); margin-top: var(--ci-space-3); }
+/* WP-03 N21/N24: the selected cycle on the Map (the violating-edge style, reused), the Cycles
+   and Edges tabs, the cycle inspector and "Configured in fallow". */
+:where(.codebase-inspector-root) .ci-module-map__edge--cycle { stroke: var(--ci-tone-danger); stroke-dasharray: 5 4; opacity: 1; }
+:where(.codebase-inspector-root) button.ci-module-map__node--cycle { border-left-color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-cycle-list { list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-cycle-list__row { display: flex; flex-direction: column; gap: var(--ci-space-2); padding: var(--ci-space-3) 0; border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-cycle-list__row--selected { background: var(--ci-raised); }
+:where(.codebase-inspector-root) button.ci-cycle-list__select {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); width: 100%; height: auto; padding: var(--ci-space-2);
+  border: none; border-radius: var(--ci-radius-small); box-shadow: none; background: transparent; color: var(--ci-text);
+  text-align: left; white-space: normal; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-cycle-list__select:hover { background: var(--ci-hover); }
+:where(.codebase-inspector-root) button.ci-cycle-list__select:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-cycle-list__kind { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-cycle-list__count { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-cycle-list__path { flex-basis: 100%; font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-cycle-list__members { margin: 0; padding-inline-start: var(--ci-space-4); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-cycle-list__member code { overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-cycle-list__unmatched { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-cycle-list__actions { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); padding-inline-start: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-edge-list { display: flex; flex-direction: column; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-edge-list__filters { display: flex; flex-wrap: wrap; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-edge-list__filter { display: inline-flex; align-items: center; gap: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) button.ci-edge-list__from {
+  height: auto; padding: 0; border: none; box-shadow: none; background: transparent; color: var(--ci-action);
+  font-family: var(--ci-font-mono); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-edge-list__from:hover { text-decoration: underline; }
+:where(.codebase-inspector-root) button.ci-edge-list__from:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-edge-list__hidden { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-edge-list__heading { margin: 0 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.06em; }
+:where(.codebase-inspector-root) .ci-edge-list__unresolved-list { margin: 0; padding-inline-start: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-edge-list__unresolved-list code { overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-edge-list__unmatched { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-architecture__fallow { margin-top: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-architecture__cycle-path { margin: 0; font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-architecture__cycle-members { margin: 0; padding-inline-start: var(--ci-space-4); }
 
 /* Part 2: Hotspots. */
 :where(.codebase-inspector-root) .ci-hotspots__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }
