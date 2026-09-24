@@ -99,6 +99,27 @@ describe('normalize-relations: boundaries state (N4, JF2)', () => {
     const doc = fallowDoc('relations-combined-3.27.0', (d) => { delete d.check!.boundary_violations; });
     expect(normalized(doc).relations.boundaries).toBe('not-reported');
   });
+
+  it('is configured with an emptied boundary_violations, on schema 12 alone (isolates the schemaVersion >= 12 branch)', () => {
+    // relations-combined-3.27.0 is schema 12; with no violation left and no
+    // boundaries-not-configured diagnostic, only the schema check can still say configured.
+    const doc = fallowDoc('relations-combined-3.27.0', (d) => { d.check!.boundary_violations = []; });
+    expect(normalized(doc).relations.boundaries).toBe('configured');
+  });
+
+  it('is not-reported with an emptied boundary_violations, on schema 11 (isolates the final fallback)', () => {
+    // relations-combined-3.21.0 is schema 11 (< 12); with no violation and no diagnostic,
+    // neither disjunct of the configured check holds, so it falls through to not-reported.
+    const doc = fallowDoc('relations-combined-3.21.0', (d) => { d.check!.boundary_violations = []; });
+    expect(normalized(doc).relations.boundaries).toBe('not-reported');
+  });
+
+  it('is not-reported for the general combined-3.21.0 fixture, directly (not only via categories.boundary)', () => {
+    // combined-3.21.0 (the general fixture, not a relations recording) has boundary_violations: []
+    // and no workspace_diagnostics key at all, so it is not-reported, not not-configured —
+    // a distinction categories.boundary alone (not-analysed either way) cannot prove.
+    expect(normalized('combined-3.21.0').relations.boundaries).toBe('not-reported');
+  });
 });
 
 describe('normalize-relations: categories (N11)', () => {
@@ -162,13 +183,24 @@ describe('normalize-relations: findings (N9, N10)', () => {
     expect('related' in unresolved).toBe(false);
   });
 
-  it('every relation\'s findingId equals its finding\'s id', () => {
+  it('every relation carries its own finding\'s exact id, not merely membership in the set of ids', () => {
+    // Membership alone (`ids.has(c.findingId)`) would not catch the two import cycles'
+    // findingIds being swapped with each other; pin each one to its expected id instead.
     const result = normalized('relations-combined-3.27.0');
-    const ids = new Set(result.findings.map((f) => f.id));
-    for (const c of result.relations.importCycles) expect(ids.has(c.findingId)).toBe(true);
-    for (const c of result.relations.reExportCycles) expect(ids.has(c.findingId)).toBe(true);
-    for (const v of result.relations.boundaryViolations) expect(ids.has(v.findingId)).toBe(true);
-    for (const u of result.relations.unresolvedImports) expect(ids.has(u.findingId)).toBe(true);
+    expect(result.relations.importCycles).toHaveLength(2);
+    const core = result.relations.importCycles.find((c) => c.files.includes(CORE_A))!;
+    const barrel = result.relations.importCycles.find((c) => c.files.includes(BARREL_INDEX))!;
+    expect(core.findingId).toBe(cyId('import', [CORE_A, CORE_B, CORE_C]));
+    expect(barrel.findingId).toBe(cyId('import', [BARREL_INDEX, BARREL_X]));
+
+    expect(result.relations.reExportCycles).toHaveLength(1);
+    expect(result.relations.reExportCycles[0]!.findingId).toBe(cyId('re-export', [BARREL_INDEX, BARREL_X]));
+
+    expect(result.relations.boundaryViolations).toHaveLength(1);
+    expect(result.relations.boundaryViolations[0]!.findingId).toBe(bvId(VIEW, DB, DB));
+
+    expect(result.relations.unresolvedImports).toHaveLength(1);
+    expect(result.relations.unresolvedImports[0]!.findingId).toBe(urId(ENTRY, './does-not-exist'));
   });
 
   it('keeps every CY-/BV-/UR- id when every line in the recording changes', () => {
@@ -188,17 +220,47 @@ describe('normalize-relations: findings (N9, N10)', () => {
     const after = normalized(doc).findings.filter((f) => /^(CY|BV|UR)-/.test(f.id)).map((f) => f.id).sort();
     expect(after).toEqual(before);
   });
+
+  it('keeps a BV and UR finding distinct even when their bare keys coincide across categories (Minor 5)', () => {
+    // BV key is `${from}|${to}|${specifier}`; UR key is `${path}|${specifier}`. Chosen so
+    // the two bare strings are identical: 'src/index.ts|src/orphan.ts|src/data/db.ts'.
+    const doc = fallowDoc('relations-combined-3.27.0', (d) => {
+      const bv = (d.check! as unknown as { boundary_violations: { from_path: string; to_path: string; import_specifier: string }[] }).boundary_violations;
+      bv[0]!.from_path = 'src/index.ts';
+      bv[0]!.to_path = 'src/orphan.ts';
+      bv[0]!.import_specifier = 'src/data/db.ts';
+      const ui = (d.check! as unknown as { unresolved_imports: { path: string; specifier: string }[] }).unresolved_imports;
+      ui[0]!.path = 'src/index.ts';
+      ui[0]!.specifier = 'src/orphan.ts|src/data/db.ts';
+    });
+    const result = normalized(doc);
+    expect(result.relations.boundaryViolations).toHaveLength(1);
+    expect(result.relations.unresolvedImports).toHaveLength(1);
+    const bvFindingId = result.relations.boundaryViolations[0]!.findingId;
+    const urFindingId = result.relations.unresolvedImports[0]!.findingId;
+    expect(bvFindingId).toMatch(/^BV-/);
+    expect(urFindingId).toMatch(/^UR-/);
+    expect(bvFindingId).not.toBe(urFindingId);
+    expect(result.findings.filter((f) => f.id === bvFindingId || f.id === urFindingId)).toHaveLength(2);
+  });
 });
 
 describe('normalize-relations: misaligned edges (Review Focus 1)', () => {
-  it('gives hop 0 a null line when edges[0].path is not files[0]; the other hops keep theirs', () => {
-    const doc = fallowDoc('relations-combined-3.27.0', (d) => { coreCycle(d).edges![0]!.path = CORE_C; });
+  it('gives hop 0 a null line when edges[0].path is not files[0]; the other hops keep their own, distinct lines', () => {
+    // Every recorded edge line is 1, so a line landing on the wrong hop would be
+    // undetectable; edges[1]/[2] are given distinct lines here so a misassigned line fails.
+    const doc = fallowDoc('relations-combined-3.27.0', (d) => {
+      const cycle = coreCycle(d);
+      cycle.edges![0]!.path = CORE_C;
+      cycle.edges![1]!.line = 7;
+      cycle.edges![2]!.line = 9;
+    });
     const relations = normalized(doc).relations;
     const core = relations.importCycles.find((c) => c.files.includes(CORE_A))!;
     expect(core.hops).toEqual([
       { from: CORE_A, to: CORE_B, line: null },
-      { from: CORE_B, to: CORE_C, line: 1 },
-      { from: CORE_C, to: CORE_A, line: 1 },
+      { from: CORE_B, to: CORE_C, line: 7 },
+      { from: CORE_C, to: CORE_A, line: 9 },
     ]);
   });
 
@@ -207,6 +269,7 @@ describe('normalize-relations: misaligned edges (Review Focus 1)', () => {
     expect(() => normalized(doc)).not.toThrow();
     const relations = normalized(doc).relations;
     const core = relations.importCycles.find((c) => c.files.includes(CORE_A))!;
+    expect(core.hops).toHaveLength(3);
     for (const hop of core.hops) expect(hop.line).toBeNull();
   });
 });
@@ -226,6 +289,28 @@ describe('normalize-relations: refused paths', () => {
     const result = normalized(doc);
     expect(result.relations.boundaryViolations).toEqual([]);
     expect(result.rejectedPaths).toContain('C:/x.ts');
+  });
+
+  it('records both refused paths when a boundary violation has both ends outside the analysed folder (Minor 2)', () => {
+    const doc = fallowDoc('relations-combined-3.27.0', (d) => {
+      const bv = (d.check! as unknown as { boundary_violations: { from_path: string; to_path: string }[] }).boundary_violations;
+      bv[0]!.from_path = '../outside-from.ts';
+      bv[0]!.to_path = '../outside-to.ts';
+    });
+    const result = normalized(doc);
+    expect(result.relations.boundaryViolations).toEqual([]);
+    expect(result.rejectedPaths).toEqual(expect.arrayContaining(['../outside-from.ts', '../outside-to.ts']));
+  });
+
+  it('records both refused paths when a cycle has two members outside the analysed folder (Minor 2)', () => {
+    const doc = fallowDoc('relations-combined-3.27.0', (d) => {
+      const cycle = coreCycle(d);
+      cycle.files[0] = '../outside-a.ts';
+      cycle.files[1] = '../outside-b.ts';
+    });
+    const result = normalized(doc);
+    expect(result.relations.importCycles.some((c) => c.files.includes(CORE_C))).toBe(false);
+    expect(result.rejectedPaths).toEqual(expect.arrayContaining(['../outside-a.ts', '../outside-b.ts']));
   });
 });
 

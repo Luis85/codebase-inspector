@@ -11,7 +11,7 @@ import type {
 import type {
   RawCheckSection, RawCloneInstance, RawDupesSection, RawFallowReport, RawHealthFinding, RawHealthSection, RawUnusedEntry,
 } from './raw-fallow';
-import type { DraftFinding, PathMapper } from './draft-finding';
+import { draftIdKey, type DraftFinding, type PathMapper } from './draft-finding';
 import { relationDrafts } from './normalize-relations';
 
 /** check.summary keys Part 6 shows (as findings) or that are a total, not a section.
@@ -188,19 +188,23 @@ function notShownOf(s: Sections): NotShownCount[] {
  *  between two different keys never drops a finding either (Fix round 1, Minor→E33): the
  *  later key is rehashed with a `#n` suffix until its id is free, so both survive with
  *  distinct, still-pattern-matching ids. WP-03 N3: also returns `idByKey`, so a relation
- *  and its finding (built apart, in normalize-relations.ts) can share one id. */
+ *  and its finding (built apart, in normalize-relations.ts) can share one id. Fix round 1:
+ *  dedup and lookup key on `draftIdKey(prefix, key)`, never the bare key, so a BV key and
+ *  a UR key that happen to coincide as plain strings never merge into one finding; the
+ *  hash input for the id itself stays the bare `key`, so every id is unchanged. */
 function assignIds(drafts: readonly DraftFinding[]): { findings: EvidenceFinding[]; idByKey: Map<string, string> } {
   const seenKeys = new Set<string>();
   const usedIds = new Set<string>();
   const idByKey = new Map<string, string>();
   const out: EvidenceFinding[] = [];
   for (const draft of drafts) {
-    if (seenKeys.has(draft.key)) continue;
-    seenKeys.add(draft.key);
+    const dedupeKey = draftIdKey(draft.prefix, draft.key);
+    if (seenKeys.has(dedupeKey)) continue;
+    seenKeys.add(dedupeKey);
     let id = `${draft.prefix}-${fnv1a32Hex(draft.key)}`;
     for (let n = 1; usedIds.has(id); n += 1) id = `${draft.prefix}-${fnv1a32Hex(`${draft.key}#${n}`)}`;
     usedIds.add(id);
-    idByKey.set(draft.key, id);
+    idByKey.set(dedupeKey, id);
     out.push({ ...draft.finding, id });
   }
   return { findings: out, idByKey };

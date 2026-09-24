@@ -4,7 +4,7 @@ import type {
   RawBoundaryViolation, RawCheckSection, RawCircularDependency, RawHealthSection, RawReExportCycle,
   RawUnresolvedImport, RawWorkspaceDiagnostic,
 } from './raw-fallow';
-import type { DraftFinding, PathMapper } from './draft-finding';
+import { draftIdKey, type DraftFinding, type PathMapper } from './draft-finding';
 import type {
   BoundariesState, RelationEvidence, RelationHop, ReportedBoundaryViolation, ReportedCycle, ReportedFan,
   ReportedReExportCycle, ReportedUnresolvedImport,
@@ -190,13 +190,15 @@ export function relationDrafts(
 
   return {
     drafts: [...cycles.drafts, ...reExports.drafts, ...boundaries.drafts, ...unresolved.drafts],
+    // Fix round 1: looked up by the same composite key assignIds dedupes on
+    // (draftIdKey(prefix, key)), never the bare key (see draft-finding.ts).
     assemble: (idByKey: ReadonlyMap<string, string>): RelationEvidence => ({
-      importCycles: cycles.pending.map((p): ReportedCycle => ({ findingId: idByKey.get(p.key)!, files: p.files, hops: p.hops })),
-      reExportCycles: reExports.pending.map((p): ReportedReExportCycle => ({ findingId: idByKey.get(p.key)!, files: p.files, kind: p.kind })),
+      importCycles: cycles.pending.map((p): ReportedCycle => ({ findingId: idByKey.get(draftIdKey('CY', p.key))!, files: p.files, hops: p.hops })),
+      reExportCycles: reExports.pending.map((p): ReportedReExportCycle => ({ findingId: idByKey.get(draftIdKey('CY', p.key))!, files: p.files, kind: p.kind })),
       boundaryViolations: boundaries.pending.map((p): ReportedBoundaryViolation => ({
-        findingId: idByKey.get(p.key)!, from: p.from, to: p.to, fromZone: p.fromZone, toZone: p.toZone, specifier: p.specifier, line: p.line,
+        findingId: idByKey.get(draftIdKey('BV', p.key))!, from: p.from, to: p.to, fromZone: p.fromZone, toZone: p.toZone, specifier: p.specifier, line: p.line,
       })),
-      unresolvedImports: unresolved.pending.map((p): ReportedUnresolvedImport => ({ findingId: idByKey.get(p.key)!, path: p.path, specifier: p.specifier, line: p.line })),
+      unresolvedImports: unresolved.pending.map((p): ReportedUnresolvedImport => ({ findingId: idByKey.get(draftIdKey('UR', p.key))!, path: p.path, specifier: p.specifier, line: p.line })),
       fan,
       boundaries: boundariesState,
       cyclesReported,

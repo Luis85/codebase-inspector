@@ -107,9 +107,11 @@ describe('the fallow card (Part 6 Y37)', () => {
     attachSyntheticReport(withSnapshot(), { kind: 'dead-code' });
     const w = mountS();
     const lines = w.findAll('.ci-fallow-card .ci-fallow-facts__categories li').map((li) => li.text());
-    // WP-03 N11: the dead-code fixture's schema (9) carries no boundaries key value >= 12
-    // and reports no violation, so `boundary` reads not-analysed (JF2); the two cycle
-    // arrays and unresolved_imports are present (JF1), so those three read analysed.
+    // WP-03 N11 (JF2): the dead-code fixture's schema is 9 (below the 12 that alone would
+    // read `configured`) and its boundary_violations array is empty, so boundariesOf falls
+    // through to not-reported and `boundary` reads not-analysed. circular_dependencies,
+    // re_export_cycles and unresolved_imports are all present (JF1), so `cycle` and
+    // `unresolved-import` read analysed regardless.
     expect(lines).toEqual([
       FALLOW_CATEGORY_LINE(FINDING_KIND_LABEL.complexity, 'not-analysed'),
       FALLOW_CATEGORY_LINE(FINDING_KIND_LABEL.duplication, 'not-analysed'),

@@ -34,9 +34,12 @@ export function emptyEvidenceReport(snapshotId: string, fileName = 'fallow.json'
     importedAt: IMPORTED_AT, snapshotId, stripPrefix: null,
     normalized: {
       findings: [], categories: { ...ALL_ANALYSED }, notShown: [], rejectedPaths: [], warnings: [],
+      // Fix round 1: relations agree with ALL_ANALYSED's cycle/boundary/unresolved-import
+      // 'analysed' (schema 12, both cycle arrays present, no boundaries-not-configured
+      // diagnostic — the same state syntheticFallowJson's combined shape normalises to).
       relations: {
         importCycles: [], reExportCycles: [], boundaryViolations: [], unresolvedImports: [], fan: null,
-        boundaries: 'not-reported', cyclesReported: false,
+        boundaries: 'configured', cyclesReported: true,
       },
       notConfigured: [],
     },
@@ -72,7 +75,11 @@ export function syntheticFallowJson(snapshot: CodebaseSnapshot, options: Synthet
   const unusedExports = [...rows.filter((r) => !r.is_type_only), ...orphans];
   const unusedTypes = rows.filter((r) => r.is_type_only);
   // WP-03 JF1: every relation array is present and empty, with no boundaries-not-configured
-  // diagnostic, so every synthetic report (combined and dead-code) is fully analysed (Task 14 fills them).
+  // diagnostic (Task 14 fills them). The combined shape's schema (12) satisfies JF2's
+  // schemaVersion >= 12 branch, so `boundary` there reads analysed too; the dead-code
+  // shape's schema is 9 (< 12) and it also reports no violation, so `boundary` reads
+  // not-analysed for a dead-code synthetic report (`cycle` and `unresolved-import` still
+  // read analysed there, since both cycle arrays and unresolved_imports are present).
   const check = {
     summary: { total_issues: unusedExports.length + unusedTypes.length, unused_files: 0, unused_exports: unusedExports.length, unused_types: unusedTypes.length },
     unused_exports: unusedExports,
