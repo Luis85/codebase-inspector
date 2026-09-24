@@ -8,7 +8,7 @@ import type { FileFinding } from '../../read-models/file-detail';
 import { severityTone, type FindingStatus, type QualityFinding } from '../../read-models/findings';
 import {
   FILE_FINDINGS_CAVEAT, FILE_FINDINGS_CAVEAT_TITLE, FILE_FINDINGS_SUBTITLE, FILE_FINDINGS_TITLE, FILE_NO_FINDINGS_REPORTED,
-  FINDING_META, FINDING_STATUS_LABEL, SEVERITY_TEXT,
+  FINDING_META, FINDING_STATUS_LABEL, FINDING_VIA_RELATED, SEVERITY_TEXT,
 } from '../../inspector-copy';
 import Panel from '../../kit/Panel.vue';
 import Callout from '../../kit/Callout.vue';
@@ -72,6 +72,12 @@ const statusOf = (fingerprint: string): FindingStatus => props.statuses.get(fing
           <span class="ci-file-finding__meta">
             {{ FINDING_META(f.line, f.endLine, f.rule) }}
           </span>
+          <!-- WP-03 N12/J14: shown through a related file (a cycle's other members, a
+               boundary violation's other end), points back at the finding's own anchor. -->
+          <span
+            v-if="!f.anchored"
+            class="ci-file-finding__via"
+          >{{ FINDING_VIA_RELATED(f.anchorPath) }}</span>
         </button>
       </li>
     </ul>

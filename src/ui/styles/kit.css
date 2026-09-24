@@ -281,3 +281,9 @@
 /* Part 6 Y35: NotAnalysed, the kit's empty state with its one action. */
 :where(.codebase-inspector-root) .ci-not-analysed { padding: var(--ci-space-4) 0; }
 :where(.codebase-inspector-root) .ci-not-analysed .ci-note { margin: 0; }
+/* WP-03 N14: FindingRelatedRow's "Also involves" row, shared by the finding dialog on
+   both Code quality and File detail. */
+:where(.codebase-inspector-root) .ci-finding-dialog__related { display: grid; gap: var(--ci-space-2); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-finding-dialog__related-label { margin: 0; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-finding-dialog__related ul { margin: 0; padding-left: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-finding-dialog__cycle-path { overflow-wrap: anywhere; color: var(--ci-text-muted); }

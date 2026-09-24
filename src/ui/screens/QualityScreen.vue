@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
 import { formatAbsoluteTime } from '../copy';
 import { useCsvExport } from '../export/use-csv-export';
@@ -9,6 +9,7 @@ import {
 import { useReadModels } from '../read-models/use-read-models';
 import { evidenceBadgeFor, staleCauseOf } from '../read-models/evidence-index';
 import { useCityStore } from '../stores/city-store';
+import { useEvidenceStore } from '../stores/evidence-store';
 import { useImportReport } from './use-import-report';
 import {
   FALLOW_STALE_NOTICE, QUALITY_CSV_FILENAME, QUALITY_EXPORT, QUALITY_EYEBROW, QUALITY_FOOTNOTE, QUALITY_SUBTITLE,
@@ -27,6 +28,7 @@ import FindingsTable from './quality/FindingsTable.vue';
 import FindingReviewDialog from './quality/FindingReviewDialog.vue';
 
 const store = useCityStore();
+const evidenceStore = useEvidenceStore();
 /** Y35/Y39 (Polish E9): the S14 dialog lives on Data & scans. Go there and ask for it, exactly as
  *  the "Import analysis report" command does; the file picker then opens from a real click in it. */
 const importReport = useImportReport();
@@ -92,6 +94,14 @@ function open(finding: QualityFinding): void {
   openedIndex.value = at < 0 ? 0 : at;
   reviewing.value = finding.fingerprint;
 }
+
+/** WP-03 N15: Architecture's cycle/violation rows go here through requestFindingReview;
+ *  consumed exactly once, whether or not the finding is still listed. */
+onMounted(() => {
+  const fingerprint = evidenceStore.consumeFindingReviewRequest();
+  const finding = fingerprint ? quality.value.byFingerprint.get(fingerprint) : undefined;
+  if (finding) open(finding);
+});
 
 /** The row that opened the dialog may have left the filtered list (an Open finding that
  *  was just acknowledged). CiDialog restores focus to it when it is still there;

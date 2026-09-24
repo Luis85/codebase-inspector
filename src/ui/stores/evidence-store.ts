@@ -21,6 +21,9 @@ export const useEvidenceStore = defineStore('evidence', () => {
   const report = shallowRef<EvidenceReport | null>(null);
   /** Y39: raised by the `import-analysis-report` command; SourcesScreen consumes it (Task 10). */
   const importRequested = ref(false);
+  /** WP-03 N15: a fingerprint Architecture asked Quality to open (the `requestImport`
+   *  pattern); QualityScreen consumes it on mount. */
+  const findingReviewRequest = ref<string | null>(null);
   let repository: EvidenceRepository | null = null;
   let unsubscribe: (() => void) | null = null;
 
@@ -47,6 +50,7 @@ export const useEvidenceStore = defineStore('evidence', () => {
     if (id === repositoryId.value) return;
     repositoryId.value = id;
     importRequested.value = false;
+    findingReviewRequest.value = null;
     listen();
     refresh();
   }
@@ -73,9 +77,25 @@ export const useEvidenceStore = defineStore('evidence', () => {
     importRequested.value = false;
     return true;
   }
+  /** WP-03 N15: Architecture's cycle and violation rows call this, then navigate to
+   *  Quality, which opens the review dialog on that fingerprint (or nothing, if the
+   *  finding is no longer listed). PF14: arrow-function members. */
+  const requestFindingReview = (fingerprint: string): void => {
+    findingReviewRequest.value = fingerprint;
+  };
+  /** The pending fingerprint, or null. Cleared whether or not it is still listed: it is
+   *  consumed exactly once either way, like consumeImportRequest. */
+  const consumeFindingReviewRequest = (): string | null => {
+    const fingerprint = findingReviewRequest.value;
+    findingReviewRequest.value = null;
+    return fingerprint;
+  };
   onScopeDispose(() => {
     unsubscribe?.();
     unsubscribe = null;
   });
-  return { repositoryId, report, importRequested, setRepository, bindRepository, attach, remove, requestImport, consumeImportRequest };
+  return {
+    repositoryId, report, importRequested, setRepository, bindRepository, attach, remove, requestImport, consumeImportRequest,
+    requestFindingReview, consumeFindingReviewRequest,
+  };
 });

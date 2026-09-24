@@ -126,6 +126,8 @@
 :where(.codebase-inspector-root) .ci-file-finding__head { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; }
 :where(.codebase-inspector-root) .ci-file-finding__title { margin: var(--ci-space-2) 0 var(--ci-space-1); font-weight: var(--font-semibold); }
 :where(.codebase-inspector-root) .ci-file-finding__meta { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+/* WP-03 N12/J14: FINDING_VIA_RELATED, under a finding shown through a related file. */
+:where(.codebase-inspector-root) .ci-file-finding__via { display: block; margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
 :where(.codebase-inspector-root) button.ci-file-finding__review {
   display: block; width: 100%; height: auto; padding: 0; border: none; border-radius: 0; box-shadow: none;
   background: transparent; color: var(--ci-text); font: inherit; text-align: left; white-space: normal; cursor: pointer;

@@ -73,6 +73,12 @@ export const QUALITY_NO_MATCH = 'Try another type, severity, module or status.';
 /** Part 6 E14: a report is attached, but no finding of it resolved to a file on screen. */
 export const QUALITY_NO_FINDINGS_REPORTED = 'No findings reported for this codebase. That is not the same as zero complexity.';
 export const QUALITY_FOOTNOTE = 'Findings come from fallow, imported as a report or collected by a run you started, and are kept for this session only. Decisions are saved with this codebase’s review state in the plugin’s own data; the repository is never changed.';
+/** WP-03 N14/spec §2: the review dialog's "Also involves" row, listing a finding's other
+ *  paths (a cycle's other members, a boundary violation's other end). */
+export const FINDING_RELATED_LABEL = 'Also involves';
+/** WP-03 N12/J14: File detail's line under a finding shown through a related file
+ *  (`anchored: false`), pointing back at the finding's own anchor file. */
+export const FINDING_VIA_RELATED = (anchorPath: string): string => `Reported on ${anchorPath}`;
 export const FINDING_DIALOG_TITLE = 'Review finding';
 export const FINDING_DIALOG_PROVIDER = 'Provider';
 export const FINDING_DIALOG_PROVIDER_VALUE = (version: string, date: string, origin: 'imported' | 'collected' = 'imported'): string =>

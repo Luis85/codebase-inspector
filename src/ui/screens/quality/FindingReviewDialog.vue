@@ -6,6 +6,7 @@ import { useReadModels } from '../../read-models/use-read-models';
 import { evidenceBadgeFor } from '../../read-models/evidence-index';
 import { originOf } from '../../read-models/fallow-candidate';
 import { severityTone } from '../../read-models/findings';
+import { cyclePathText } from '../../read-models/relations';
 import { reviewFailureText } from '../../read-models/review-failure';
 import { useReviewStore } from '../../stores/review-store';
 import { DISMISS_REASON_MAX } from '../../stores/ports/review-repository';
@@ -20,10 +21,11 @@ import {
 } from '../../inspector-copy';
 import CiDialog from '../../kit/Dialog.vue';
 import EvidenceBadge from '../../kit/EvidenceBadge.vue';
+import FindingRelatedRow from './FindingRelatedRow.vue';
 
 const props = defineProps<{ fingerprint: string }>();
 const emit = defineEmits<{ close: []; openFile: [id: EntityId] }>();
-const { quality } = useReadModels();
+const { quality, files } = useReadModels();
 /** Part 6 Y35: who reported the finding, and when. The badge says the source match is unverified. */
 const provider = computed(() => {
   const r = quality.value.evidence.report;
@@ -33,6 +35,18 @@ const review = useReviewStore();
 const base = useUniqueId('ci-finding-dialog');
 /** Looked up live, so the status chip follows every decision while the dialog is open. */
 const finding = computed(() => quality.value.byFingerprint.get(props.fingerprint) ?? null);
+/** WP-03 N14: "Also involves" lists every related path, marking one RELATION_MEMBER_UNMATCHED
+ *  when it is not one of this snapshot's own files. */
+const unmatchedRelated = computed(() => {
+  const known = new Set(files.value.map((f) => f.path));
+  return new Set((finding.value?.related ?? []).filter((path) => !known.has(path)));
+});
+/** N14/N20: the hop path text, shown only for an import cycle — a re-export cycle has no
+ *  hop order (cyclePathText([]) === ''). */
+const cyclePath = computed(() => {
+  const f = finding.value;
+  return f && f.detail.kind === 'cycle' && f.detail.cycleKind === 'import' ? cyclePathText(f.detail.hops) : '';
+});
 const dismissing = ref(false);
 const reason = ref('');
 const error = ref('');
@@ -158,6 +172,11 @@ async function addWorkItem(): Promise<void> {
           <dd>{{ finding.reason }}</dd>
         </template>
       </dl>
+      <FindingRelatedRow
+        :related="finding.related"
+        :unmatched="unmatchedRelated"
+        :path-text="cyclePath"
+      />
       <div class="ci-finding-dialog__links">
         <button
           type="button"
