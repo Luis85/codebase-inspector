@@ -17,7 +17,7 @@ import type { RelationSource } from '../../read-models/relations';
 import {
   CYCLE_KIND_LABEL, EDGES_NONE, FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE,
   RELATIONS_CYCLES_TITLE, RELATIONS_DIRECTION_BOTH, RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_LABEL, RELATIONS_DIRECTION_OUT,
-  RELATIONS_HIGHLIGHT_CYCLE, RELATIONS_HOPS_LABEL, RELATIONS_NONE_FOR_FILE, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
+  RELATIONS_HIGHLIGHT_CYCLE, RELATIONS_HIGHLIGHT_CYCLE_LABEL, RELATIONS_HOPS_LABEL, RELATIONS_NONE_FOR_FILE, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
   RELATIONS_STATIC_NOTE, RELATIONS_TITLE,
 } from '../../inspector-copy';
 import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
@@ -163,6 +163,7 @@ const toggleHighlight = (id: string): void => { controls.highlightCycle(highligh
               v-if="canHighlight(c)"
               type="button"
               class="ci-city-relations__highlight"
+              :aria-label="RELATIONS_HIGHLIGHT_CYCLE_LABEL(c.findingId)"
               :aria-pressed="highlightedId === c.findingId"
               @click="toggleHighlight(c.findingId)"
             >

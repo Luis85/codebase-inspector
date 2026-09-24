@@ -16,23 +16,34 @@ import { CITY_RENDERER_KEY } from '../../src/ui/renderer-handle';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import {
-  FALLOW_NOT_ANALYSED, RELATION_SOURCE_CYCLE, RELATIONS_DIRECTION_BOTH, RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_LABEL,
-  RELATIONS_DIRECTION_OUT, RELATIONS_HIGHLIGHT_CYCLE, RELATIONS_HOPS_LABEL, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
+  CYCLE_KIND_LABEL, FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_MEMBER_UNMATCHED, RELATION_SOURCE_CYCLE, RELATIONS_DIRECTION_BOTH,
+  RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_LABEL, RELATIONS_DIRECTION_OUT, RELATIONS_HIGHLIGHT_CYCLE, RELATIONS_HIGHLIGHT_CYCLE_LABEL,
+  RELATIONS_HOPS_LABEL, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
   RELATIONS_STATIC_NOTE, RELATIONS_TITLE,
 } from '../../src/ui/inspector-copy';
-import { RELATIONS_PATHS, attachRelationsReport, snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson, snapshotWithPaths } from '../fixtures/evidence-report';
 
 const BOOKMARK: CameraBookmark = { projection: 'orthographic', mode: '3d', position: [4, 5, 6], target: [1, 2, 3], up: [0, 1, 0], zoom: 2 };
+const LONG = Array.from({ length: 30 }, (_, i) => `long/f${String(i).padStart(2, '0')}.ts`);
+/** The recording plus a 30-file import cycle long/f00 → … → long/f29 → long/f00 (paths under `src/`, stripped). */
+function longCycleJson(): string {
+  const raw = JSON.parse(relationsRecordingJson()) as { check: { circular_dependencies: unknown[] } };
+  const files = LONG.map((p) => `src/${p}`);
+  raw.check.circular_dependencies.push({ files, length: files.length, line: 1, col: 0, edges: files.map((path) => ({ path, line: 1, col: 0 })) });
+  return JSON.stringify(raw);
+}
 const idOf = (snap: CodebaseSnapshot, path: string): string => snap.entities.find((e) => e.kind === 'file' && e.path === path)!.id;
 
 /** A city with the relations recording attached, core/a.ts selected and the inspector open. */
-function setup(report: 'recording' | 'none' | 'stale' = 'recording'): CodebaseSnapshot {
-  const snap = snapshotWithPaths(RELATIONS_PATHS, `repo-city-relations-${Math.random()}`);
+interface SetupOptions { paths?: readonly string[]; json?: string; select?: string }
+function setup(report: 'recording' | 'none' | 'stale' = 'recording', options: SetupOptions = {}): CodebaseSnapshot {
+  const snap = snapshotWithPaths(options.paths ?? RELATIONS_PATHS, `repo-city-relations-${Math.random()}`);
   const city = useCityStore();
   city.setCity(snap, computeLayout(snap));
-  if (report === 'recording') attachRelationsReport(snap);
-  if (report === 'stale') attachRelationsReport(snap, { snapshotId: 'an-older-snapshot' });
-  city.select(idOf(snap, 'core/a.ts'));
+  const json = options.json === undefined ? {} : { json: options.json };
+  if (report === 'recording') attachRelationsReport(snap, json);
+  if (report === 'stale') attachRelationsReport(snap, { ...json, snapshotId: 'an-older-snapshot' });
+  city.select(idOf(snap, options.select ?? 'core/a.ts'));
   city.openInspector();
   city.setCamera(BOOKMARK);
   return snap;
@@ -107,10 +118,11 @@ describe('the city Relations section (N30)', () => {
     expect(cycles[0]!.get('code').text()).toBe('core/a.ts:1 → core/b.ts:1 → core/c.ts:1 → core/a.ts');
     const toggle = cycles[0]!.get('button.ci-city-relations__highlight');
     expect(toggle.text()).toBe(RELATIONS_HIGHLIGHT_CYCLE);
+    const core = useReadModels().relations.value.cycles.find((c) => c.pathText.startsWith('core/a.ts'))!;
+    expect(toggle.attributes('aria-label')).toBe(RELATIONS_HIGHLIGHT_CYCLE_LABEL(core.findingId));
     expect(toggle.attributes('aria-pressed')).toBe('false');
     await toggle.trigger('click');
     expect(toggle.attributes('aria-pressed')).toBe('true');
-    const core = useReadModels().relations.value.cycles.find((c) => c.pathText.startsWith('core/a.ts'))!;
     expect(useRelationsStore().highlightedCycleId).toBe(core.findingId);
     await toggle.trigger('click');
     expect(toggle.attributes('aria-pressed')).toBe('false');
@@ -174,6 +186,38 @@ describe('the city Relations section (N30)', () => {
     expect(w.findAll('.ci-city-relations__row')).toHaveLength(0);
     expect(section(w).find('[role="group"]').exists()).toBe(false);
   });
+
+  it('a re-export cycle is listed without a Highlight toggle; the file\'s import cycle keeps its own', () => {
+    setup('recording', { select: 'barrel/index.ts' });
+    const { w } = mountInspector();
+    const cycles = w.findAll('.ci-city-relations__cycle');
+    expect(cycles.map((c) => c.get('.ci-city-relations__kind').text())).toEqual([CYCLE_KIND_LABEL.import, CYCLE_KIND_LABEL['re-export']]);
+    expect(cycles[0]!.find('.ci-city-relations__highlight').exists()).toBe(true);
+    expect(cycles[1]!.text()).toContain('barrel/x.ts');
+    expect(cycles[1]!.find('.ci-city-relations__highlight').exists()).toBe(false);
+    const labels = w.findAll('.ci-city-relations__highlight').map((b) => b.attributes('aria-label'));
+    expect(labels).toHaveLength(1);
+  });
+
+  it('a partly unmatched cycle is listed with its missing member, without a Highlight toggle', () => {
+    setup('recording', { paths: RELATIONS_PATHS.filter((p) => p !== 'core/c.ts') });
+    const { w } = mountInspector();
+    const cycles = w.findAll('.ci-city-relations__cycle');
+    expect(cycles).toHaveLength(1);
+    expect(cycles[0]!.text()).toContain(RELATION_MEMBER_UNMATCHED);
+    expect(cycles[0]!.find('.ci-city-relations__highlight').exists()).toBe(false);
+  });
+
+  it('a highlighted cycle longer than 24 hops says how many arcs are not shown', async () => {
+    setup('recording', { paths: [...RELATIONS_PATHS, ...LONG], json: longCycleJson(), select: LONG[0]! });
+    const { w } = mountInspector();
+    const cycle = w.findAll('.ci-city-relations__cycle').find((c) => c.get('code').text().startsWith(`${LONG[0]}:1`))!;
+    expect(cycle.find('.ci-city-relations__hidden').exists()).toBe(false);
+    await cycle.get('button.ci-city-relations__highlight').trigger('click');
+    expect(cycle.get('.ci-city-relations__hidden').text()).toBe(RELATION_HIDDEN(6));
+    await section(w).get('.ci-city-relations__arcs input').setValue(false);
+    expect(cycle.find('.ci-city-relations__hidden').exists()).toBe(false);   // no arcs drawn, nothing hidden
+  });
 });
 
 describe('the relations store, one per leaf (N31)', () => {
@@ -208,11 +252,12 @@ describe('the relations store, one per leaf (N31)', () => {
     expect([store.direction, store.hops, store.showArcs, store.highlightedCycleId]).toEqual(DEFAULTS);
   });
 
-  it('ignores an unknown direction or hop count', () => {
+  it('ignores an unknown direction, hop count or Show arcs value', () => {
     const store = useRelationsStore();
     store.setDirection('sideways' as unknown as RelationControlDirection);
     store.setHops(3 as unknown as 1);
-    expect([store.direction, store.hops]).toEqual(['both', 1]);
+    store.setShowArcs('no' as unknown as boolean);
+    expect([store.direction, store.hops, store.showArcs]).toEqual(['both', 1, true]);
   });
 
   it('J15: showCycleInCity selects, then highlights, then navigates — the highlight survives the selection', () => {

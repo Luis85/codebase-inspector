@@ -59,8 +59,10 @@ export const useRelationsStore = defineStore('relations', () => {
   );
   watch(() => city.selectedEntityId, () => { highlightedCycleId.value = null; }, { flush: 'sync' });
 
+  // WP-03 E19: `reset` stays private — only the watcher above calls it, and a returned
+  // member nothing reads is a new `npm run analyze` finding (N40's baseline wins).
   return {
     direction, hops, showArcs, highlightedCycleId,
-    setDirection, setHops, setShowArcs, highlightCycle, showCycleInCity, reset,
+    setDirection, setHops, setShowArcs, highlightCycle, showCycleInCity,
   };
 });

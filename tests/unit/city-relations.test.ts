@@ -7,7 +7,7 @@ import { buildEvidenceReport } from '../../src/application/evidence/normalize-fa
 import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
 import { fileSummariesFor, type FileSummary } from '../../src/ui/read-models/file-summaries';
 import { RELATION_ARC_LIMIT, relationModelFor, type RelationModel } from '../../src/ui/read-models/relations';
-import { cityRelationsFor } from '../../src/ui/read-models/city-relations';
+import { canHighlight, cityRelationsFor } from '../../src/ui/read-models/city-relations';
 import type { RelationControlDirection } from '../../src/ui/stores/relations-store';
 import { fallowDoc, rawReport } from '../fixtures/fallow-fixture';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
@@ -135,9 +135,28 @@ describe('cityRelationsFor: a highlighted cycle (N30, Review Focus 4)', () => {
   it('a re-export cycle is listed but never highlighted: it has no hops to draw (N3, N6)', () => {
     const reExport = model.cycles.find((c) => c.kind === 're-export')!;
     const member = reExport.members[0]!.id!;
+    expect(reExport.members[0]!.path).toBe('src/barrel/index.ts');
     const view = cityRelationsFor(model, member, { ...DEFAULTS, highlightedCycleId: reExport.findingId });
     expect(view.cycles.map((c) => c.findingId)).toContain(reExport.findingId);
     expect(view.highlighted).toBeNull();
+    const X = id('src/barrel/x.ts');
+    expect(view.arcs).toEqual([{ from: member, to: X, role: 'outgoing' }, { from: X, to: member, role: 'incoming' }]);
+    expect(canHighlight(reExport)).toBe(false);
+  });
+
+  it('a partly unmatched import cycle is listed but never highlighted: none of its hops is drawn (N7)', () => {
+    const partialFiles = files.filter((f) => f.path !== 'src/core/c.ts');
+    const partial = relationModelFor(partialFiles, evidenceIndexFor(partialFiles, buildEvidenceReport({
+      raw: rawReport(doc), fileName: 'relations.json', importedAt: '2026-09-24T10:00:00.000Z', snapshotId: snapshot.snapshotId, stripPrefix: null,
+    }), snapshot.snapshotId));
+    const core = partial.cycles.find((c) => c.members.some((m) => m.path === 'src/core/a.ts'))!;
+    expect(core.kind).toBe('import');
+    expect(core.matched).toBe(false);
+    expect(canHighlight(core)).toBe(false);
+    const view = cityRelationsFor(partial, A, { ...DEFAULTS, highlightedCycleId: core.findingId });
+    expect(view.cycles.map((c) => c.findingId)).toEqual([core.findingId]);
+    expect(view.highlighted).toBeNull();
+    expect(view.arcs).toEqual([]);
   });
 });
 

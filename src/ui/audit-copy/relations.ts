@@ -48,6 +48,8 @@ export const RELATIONS_DIRECTION_BOTH = 'Both';
 export const RELATIONS_HOPS_LABEL = 'Hops';
 export const RELATIONS_SHOW_ARCS = 'Show arcs in the city';
 export const RELATIONS_HIGHLIGHT_CYCLE = 'Highlight cycle';
+/** Each Highlight cycle toggle's own accessible name. */
+export const RELATIONS_HIGHLIGHT_CYCLE_LABEL = (findingId: string): string => `Highlight cycle ${findingId}`;
 /** Spec §2's CYCLE_KIND_IMPORT / CYCLE_KIND_RE_EXPORT, keyed by CycleView.kind. */
 export const CYCLE_KIND_LABEL: Readonly<Record<'import' | 're-export', string>> = { import: 'Import cycle', 're-export': 'Re-export cycle' };
 export const CYCLE_REVIEW = 'Review finding';
