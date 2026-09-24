@@ -1,6 +1,7 @@
 // Part 2 §2.1/§3: the Architecture screen's read model. Modules come from the real
 // inventory. Edges are SAMPLE (P3) and state what they mean (P4). Cycles (Tarjan) and rule
 // verdicts are real algorithms run over those sample edges, so they are sample too.
+import { stronglyConnected } from '../../domain/relations/queries';
 import { collected, formatMetric, isSampleBacked, sample, sumEvidence, unknown, type MetricValue } from '../evidence';
 import { sampleModuleEdges } from '../fixtures/sample-module-edges';
 import type { BoundaryRule } from '../stores/ports/review-repository';
@@ -56,40 +57,6 @@ export function buildModules(files: readonly FileSummary[]): ModuleSummary[] {
     .sort((a, b) => b.fileCount - a.fileCount || a.name.localeCompare(b.name));
 }
 
-/** Tarjan's strongly connected components, keeping only those with MORE than one module.
- *  Members and components are in name order. */
-export function cyclicComponents(nodes: readonly string[], edges: readonly { from: string; to: string }[]): string[][] {
-  const adjacency = new Map(nodes.map((n) => [n, [] as string[]]));
-  for (const e of edges) adjacency.get(e.from)?.push(e.to);
-  let counter = 0;
-  const index = new Map<string, number>();
-  const low = new Map<string, number>();
-  const stack: string[] = [];
-  const onStack = new Set<string>();
-  const out: string[][] = [];
-  const visit = (v: string): void => {
-    index.set(v, counter); low.set(v, counter); counter += 1;
-    stack.push(v); onStack.add(v);
-    for (const w of adjacency.get(v) ?? []) {
-      if (!adjacency.has(w)) continue;
-      if (!index.has(w)) { visit(w); low.set(v, Math.min(low.get(v)!, low.get(w)!)); }
-      else if (onStack.has(w)) low.set(v, Math.min(low.get(v)!, index.get(w)!));
-    }
-    if (low.get(v) !== index.get(v)) return;
-    const component: string[] = [];
-    for (;;) {
-      const w = stack.pop();
-      if (w === undefined) break;
-      onStack.delete(w);
-      component.push(w);
-      if (w === v) break;
-    }
-    if (component.length > 1) out.push(component.sort());
-  };
-  for (const n of nodes) if (!index.has(n)) visit(n);
-  return out.sort((a, b) => (a[0] ?? '').localeCompare(b[0] ?? ''));
-}
-
 export function buildArchitectureGraph(files: readonly FileSummary[]): ArchitectureGraph {
   const allModules = buildModules(files);
   const modules = allModules.slice(0, MAX_GRAPH_MODULES);
@@ -97,7 +64,7 @@ export function buildArchitectureGraph(files: readonly FileSummary[]): Architect
   const edges: ModuleEdge[] = sampleModuleEdges(names).map((e) => ({
     from: e.from, to: e.to, meaning: 'source-import', imports: sample(e.imports, EDGE_DETAIL),
   }));
-  return { allModules, modules, omittedModules: allModules.length - modules.length, edges, cycles: cyclicComponents(names, edges) };
+  return { allModules, modules, omittedModules: allModules.length - modules.length, edges, cycles: stronglyConnected(names, edges) };
 }
 
 const graphCache = new WeakMap<readonly FileSummary[], ArchitectureGraph>();

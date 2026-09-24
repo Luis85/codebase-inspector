@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { stronglyConnected } from '../../src/domain/relations/queries';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { sampleModuleEdges } from '../../src/ui/fixtures/sample-module-edges';
 import {
   MAX_GRAPH_MODULES, architectureGraphFor, buildArchitectureGraph, buildArchitectureModel, buildModules,
-  cyclesValue, cyclicComponents, evaluateRules, moduleNeighbours,
+  cyclesValue, evaluateRules, moduleNeighbours,
 } from '../../src/ui/read-models/architecture';
 import type { BoundaryRule } from '../../src/ui/stores/ports/review-repository';
 
@@ -37,9 +38,9 @@ describe('sample module edges (P3)', () => {
 
 describe('cyclic components (P6)', () => {
   it('finds two- and three-module cycles and ignores acyclic parts', () => {
-    expect(cyclicComponents(['a', 'b', 'c'], [edgeOf('a', 'b'), edgeOf('b', 'a'), edgeOf('b', 'c')])).toEqual([['a', 'b']]);
-    expect(cyclicComponents(['a', 'b', 'c'], [edgeOf('a', 'b'), edgeOf('b', 'c'), edgeOf('c', 'a')])).toEqual([['a', 'b', 'c']]);
-    expect(cyclicComponents(['a', 'b', 'c'], [edgeOf('a', 'b'), edgeOf('b', 'c')])).toEqual([]);
+    expect(stronglyConnected(['a', 'b', 'c'], [edgeOf('a', 'b'), edgeOf('b', 'a'), edgeOf('b', 'c')])).toEqual([['a', 'b']]);
+    expect(stronglyConnected(['a', 'b', 'c'], [edgeOf('a', 'b'), edgeOf('b', 'c'), edgeOf('c', 'a')])).toEqual([['a', 'b', 'c']]);
+    expect(stronglyConnected(['a', 'b', 'c'], [edgeOf('a', 'b'), edgeOf('b', 'c')])).toEqual([]);
   });
 });
 
