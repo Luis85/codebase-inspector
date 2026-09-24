@@ -9,6 +9,8 @@ import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { journalEntryFor } from '../../src/ui/read-models/snapshot-comparison';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { RELATIONS_PATHS, attachRelationsReport, snapshotWithPaths } from '../fixtures/evidence-report';
+import { FALLOW_NOT_ANALYSED, NO_VALUE } from '../../src/ui/inspector-copy';
 
 // Hoisted to module scope (oxlint's consistent-function-scoping): captures nothing
 // from the describe block.
@@ -33,12 +35,24 @@ describe('CityScreen', () => {
     expect(w.find('.ci-app').exists()).toBe(true);
   });
 
-  it('shows three summary cards; cycles is labelled sample, never a bare 0', () => {
+  it('shows three summary cards; cycles reads unknown, with the reason, never a bare 0', () => {
     const w = mountCity();
     const cards = w.findAll('.ci-city-summary__card');
     expect(cards).toHaveLength(3);
-    expect(cards[1]!.find('.ci-city-summary__value').text()).toMatch(/^\d+$/);
-    expect(cards[1]!.find('.ci-provenance--sample').exists()).toBe(true);
+    const cycles = cards[1]!;
+    expect(cycles.find('.ci-city-summary__value').text()).toBe(NO_VALUE);
+    expect(cycles.find('.ci-provenance--unknown').exists()).toBe(true);
+    expect(cycles.find('.ci-city-summary__caption').text()).toBe(FALLOW_NOT_ANALYSED);
+  });
+
+  it('with a relations report attached, the cycles card reads the recorded import-cycle count', () => {
+    const snap = snapshotWithPaths(RELATIONS_PATHS, 'repo-city-summary-cycles');
+    useCityStore().setCity(snap, computeLayout(snap));
+    attachRelationsReport(snap);
+    const w = mountCity();
+    const cycles = w.findAll('.ci-city-summary__card')[1]!;
+    expect(cycles.find('.ci-city-summary__value').text()).toBe('2');
+    expect(cycles.find('.ci-provenance--unknown').exists()).toBe(false);
   });
 
   it('a summary card navigates to its screen', async () => {

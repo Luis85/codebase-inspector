@@ -87,10 +87,16 @@ export function architectureGraphFor(files: readonly FileSummary[], relations: R
   return hit;
 }
 
+const cyclesCache = new WeakMap<RelationModel, MetricValue>();
+
 /** N18: fallow's import-cycle count (re-export cycles are never merged in), in the
- *  relation model's own evidence state. */
+ *  relation model's own evidence state. N27: memoised per RelationModel, so two callers
+ *  reading the same relation model get the same MetricValue object — `use-read-models.ts`'s
+ *  Overview memo keys on this value by identity. */
 export function cyclesValue(relations: RelationModel): MetricValue {
-  return relationValue(relations, relations.cycles.filter((c) => c.kind === 'import').length);
+  let hit = cyclesCache.get(relations);
+  if (!hit) { hit = relationValue(relations, relations.cycles.filter((c) => c.kind === 'import').length); cyclesCache.set(relations, hit); }
+  return hit;
 }
 
 /** N20: `moduleOf` each of the cycle's MATCHED members (an unresolved member has no path

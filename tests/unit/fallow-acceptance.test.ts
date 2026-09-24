@@ -77,7 +77,10 @@ describe('acceptance (6): with no report every structural screen works and nothi
       m.citySummary.value.find((c) => c.id === 'unused')!.value,
       m.fileDetail.value!.findingsCount,
     ];
-    expect(values).toHaveLength(7);
+    // N13: Quality gained a fifth card, "Import structure" (id 'structure'), so 5 quality
+    // cards + Overview's findings card + the city summary's unused card + File detail's
+    // findingsCount = 8.
+    expect(values).toHaveLength(8);
     for (const v of values) {
       expect(v).toMatchObject({ state: 'unknown', reason: FALLOW_NOT_ANALYSED });
       expect(v.value).toBeUndefined();
