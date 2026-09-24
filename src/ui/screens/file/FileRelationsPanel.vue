@@ -16,6 +16,7 @@ import {
   RELATIONS_TITLE,
 } from '../../inspector-copy';
 import Panel from '../../kit/Panel.vue';
+import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
 import CycleMembers from '../architecture/CycleMembers.vue';
 
 const props = defineProps<{ fileId: EntityId }>();
@@ -51,6 +52,7 @@ const fanOut = computed(() => relations.value.fanOut(props.fileId));
 
 <template>
   <Panel
+    class="ci-file-relations"
     :title="RELATIONS_TITLE"
     :footnote="RELATIONS_SCOPE_NOTE"
   >
@@ -112,7 +114,14 @@ const fanOut = computed(() => relations.value.fanOut(props.fileId));
       </template>
       <p class="ci-file-relations__fan-out">
         <span class="ci-file-relations__fan-out-label">{{ RELATIONS_FAN_OUT }}</span>
-        <span>{{ formatMetric(fanOut) }}</span>
+        <span>
+          {{ formatMetric(fanOut) }}
+          <ProvenanceBadge
+            v-if="fanOut.state !== 'collected'"
+            :state="fanOut.state"
+            :detail="fanOut.reason"
+          />
+        </span>
       </p>
     </template>
   </Panel>
