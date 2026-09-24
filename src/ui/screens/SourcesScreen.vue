@@ -28,7 +28,7 @@ import { useFallowRun } from './sources/use-fallow-run';
 const store = useCityStore();
 const runStore = useRunStore();
 const evidenceStore = useEvidenceStore();
-const { evidence } = useReadModels();
+const { evidence, relations } = useReadModels();
 // W2: the host callbacks the UI already injects (NoSnapshot, NavColumn, AppToolbar); the
 // host's own modals and consent chain do the work. Part 5 V6: onCancelScan calls the SAME
 // CityView.cancelScan the 'cancel-scan' command calls.
@@ -51,7 +51,7 @@ const analysisStore = useAnalysisStore();
 const model = computed(() => buildSourcesModel(store.snapshot, runStore.run, {
   state: evidence.value.state, version: evidence.value.report?.providerVersion ?? null,
   origin: evidence.value.report?.collected === undefined ? 'imported' : 'collected',
-}));
+}, relations.value));
 const inFlight = computed(() => runStore.run.status === 'running' || runStore.run.status === 'cancelling');
 
 /** Y39: the "Import analysis report" command and Not analysed's Import both land here with

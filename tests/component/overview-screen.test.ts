@@ -47,13 +47,13 @@ describe('OverviewScreen', () => {
     expect(store.route).toBe('city');
   });
 
-  it('renders the four signal cards, with architecture labelled sample', () => {
+  it('renders the four signal cards, with architecture exceptions unknown without a report', () => {
     withSnapshot();
     const w = mountOverview();
     const cards = w.findAll('.ci-metric-card');
     expect(cards).toHaveLength(4);
-    expect(cards[2]!.find('.ci-metric-card__value').text()).toMatch(/^\d+$/);
-    expect(cards[2]!.find('.ci-provenance--sample').exists()).toBe(true);
+    expect(cards[2]!.find('.ci-metric-card__value').text()).toBe('—');
+    expect(cards[2]!.find('.ci-provenance--unknown').exists()).toBe(true);
   });
 
   it('labels sample data at page level', () => {
@@ -97,7 +97,7 @@ describe('OverviewScreen', () => {
   it('lists evidence coverage including unknown sources', () => {
     withSnapshot();
     const text = mountOverview().find('.ci-evidence-coverage').text();
-    expect(text).toContain('Import graph');
+    expect(text).toContain('Import relations');
     expect(text).toContain('Unknown');
   });
 

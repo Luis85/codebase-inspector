@@ -61,14 +61,6 @@ const selectedEdgeModel = computed(() => {
   const s = selectedEdge.value;
   return s ? architecture.value.edges.find((e) => e.from === s.from && e.to === s.to) ?? null : null;
 });
-/** The from-module's highest-priority files, shown only when there ARE imports to
- *  illustrate: a violating rule, or a selected edge. Labelled sample. */
-const illustrative = computed(() => {
-  const from = selectedRule.value?.rule.from ?? selectedEdgeModel.value?.from ?? null;
-  const shows = selectedRule.value ? selectedRule.value.status === 'violation' : selectedEdgeModel.value !== null;
-  if (!shows || from === null) return [];
-  return architecture.value.modules.find((m) => m.name === from)?.topFiles.slice(0, 3) ?? [];
-});
 const edgeViolates = computed(() => {
   const e = selectedEdgeModel.value;
   return e ? architecture.value.violatingEdgeKeys.has(edgeKey(e.from, e.to)) : false;
@@ -214,8 +206,6 @@ function openFile(id: EntityId): void {
             :evaluation="selectedRule"
             :edge="selectedEdgeModel"
             :violating="edgeViolates"
-            :illustrative="illustrative"
-            @open-file="openFile"
           />
           <ModuleInspector
             :module="moduleSummary"

@@ -1,6 +1,6 @@
 import type { RouteId } from '../../domain/route-ids';
 import { countEvidence, unknown, type MetricValue } from '../evidence';
-import { IMPORT_GRAPH_UNKNOWN_REASON, NO_FILES_REASON } from '../inspector-copy';
+import { FALLOW_NOT_ANALYSED, NO_FILES_REASON } from '../inspector-copy';
 import { evidenceIndexFor, type EvidenceIndex } from './evidence-index';
 import type { FileSummary } from './file-summaries';
 import { HOTSPOT_THRESHOLD } from './overview';
@@ -9,7 +9,7 @@ export interface CitySummaryCard { id: 'hotspots' | 'cycles' | 'unused'; title: 
 
 /** Part 6 Y34: the unused card counts imported unused exports and types, or reads Not analysed. */
 export function buildCitySummary(
-  files: readonly FileSummary[], cycles: MetricValue = unknown(IMPORT_GRAPH_UNKNOWN_REASON),
+  files: readonly FileSummary[], cycles: MetricValue = unknown(FALLOW_NOT_ANALYSED, 'fallow'),
   evidence: EvidenceIndex = evidenceIndexFor(files, null, ''),
 ): readonly CitySummaryCard[] {
   return [

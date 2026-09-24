@@ -9,7 +9,7 @@ import { useCityStore } from '../stores/city-store';
 export function useRouteProvenance(): ComputedRef<boolean> {
   const store = useCityStore();
   const {
-    overview, citySummary, architecture, fileDetail, testConfidence, dependencies, security, filesUseSample,
+    overview, citySummary, fileDetail, testConfidence, dependencies, security, filesUseSample,
     ownership,
   } = useReadModels();
   return computed(() => {
@@ -17,7 +17,8 @@ export function useRouteProvenance(): ComputedRef<boolean> {
     switch (store.route) {
       case 'overview': return overview.value?.usesSample ?? false;
       case 'city': return citySummary.value.some((c) => isSampleBacked(c.value));
-      case 'architecture': return architecture.value.usesSample;
+      // WP-03 JF5: Architecture is built from fallow's evidenced imports, never sample.
+      case 'architecture': return false;
       case 'hotspots': return filesUseSample.value;
       case 'file': return fileDetail.value?.usesSample ?? false;
       // Part 6 Y33: findings are imported fallow evidence or Not analysed, never sample.

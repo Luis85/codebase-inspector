@@ -5,6 +5,8 @@ import { makeEntityId } from '../../src/domain/entity-id';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { buildOverviewModel } from '../../src/ui/read-models/overview';
 import { architectureGraphFor, buildArchitectureModel } from '../../src/ui/read-models/architecture';
+import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
+import { relationModelFor } from '../../src/ui/read-models/relations';
 import { buildSecurityModel } from '../../src/ui/read-models/security';
 import { buildReportModel, includedSections, reportMarkdown } from '../../src/ui/read-models/report';
 import { buildWorkbenchModel, planMarkdown, targetMarkdown } from '../../src/ui/read-models/work-items';
@@ -14,7 +16,8 @@ import { NO_CHECKS } from '../../src/ui/stores/ports/review-repository';
 function model() {
   const snapshot = buildSnapshotFixture({ files: 40, directories: 3 });
   const files = fileSummariesFor(snapshot);
-  const graph = architectureGraphFor(files);
+  const relations = relationModelFor(files, evidenceIndexFor(files, null, snapshot.snapshotId));
+  const graph = architectureGraphFor(files, relations);
   const plan = buildWorkbenchModel([{
     id: 'wi-1', target: { kind: 'package', name: '@sample/a|b' }, intent: 'review', title: 'Review a',
     status: 'planned', priority: 'high', notes: '', checks: NO_CHECKS, createdAt: '2026-09-22T10:00:00.000Z',
@@ -83,7 +86,8 @@ describe('report model and Markdown (Part 4 W6/W7)', () => {
   it('fix round 1 #5: marks a plan item whose file target left the snapshot, in Markdown too', () => {
     const snapshot = buildSnapshotFixture({ files: 40, directories: 3 });
     const files = fileSummariesFor(snapshot);
-    const graph = architectureGraphFor(files);
+    const relations = relationModelFor(files, evidenceIndexFor(files, null, snapshot.snapshotId));
+    const graph = architectureGraphFor(files, relations);
     const missingId = makeEntityId(snapshot.repositoryId, 'file', 'ghost.ts');
     const plan = buildWorkbenchModel([{
       id: 'wi-2', target: { kind: 'file', entityId: missingId }, intent: 'refactor', title: 'Ghost file',

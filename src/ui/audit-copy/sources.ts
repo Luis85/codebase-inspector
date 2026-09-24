@@ -36,7 +36,7 @@ export const SOURCES_SOURCE_FICTIONAL = 'Fictional packages';
 export const SOURCES_PROVIDER: Readonly<Record<string, { title: string; description: string }>> = {
   inventory: { title: 'File inventory', description: 'Paths, sizes and line counts inside the approved scope, read-only.' },
   fallow: { title: 'fallow findings', description: 'Complexity, duplication and unused exports from a fallow JSON report you import, or from a run of an installed fallow you review and start. Nothing is installed; findings are kept for this session only.' },
-  imports: { title: 'Module import graph', description: 'Module dependencies, cycles and boundary checks. Sample edges, not observed imports.' },
+  imports: { title: 'Module import graph', description: 'Import cycles and boundary violations fallow reports. Not the full import graph.' },
   history: { title: 'Change history', description: 'Commit activity, change coupling and team-level stewardship. Sample data.' },
   coverage: { title: 'Coverage and test runs', description: 'Instrumented branches and test-run summaries. Sample data.' },
   packages: { title: 'Packages and advisories', description: 'A fixed set of fictional packages and demo advisories. No registry is consulted.' },
@@ -47,3 +47,7 @@ export const SOURCES_PROVIDER: Readonly<Record<string, { title: string; descript
  *  each button's name contains its visible screen title (WCAG 2.5.3). */
 export const SOURCES_USED_BY_GROUP = (provider: string): string => `${provider} is used by`;
 export const SOURCES_OPEN_ROUTE = (title: string): string => `Open ${title}`;
+
+/** WP-03 N26 (JF18): the Data & scans "imports" provider row's source once a report has
+ *  been read, replacing the old always-sample text. */
+export const EVIDENCE_SOURCE_FALLOW_PARTIAL = 'fallow · cycles and boundary violations only';

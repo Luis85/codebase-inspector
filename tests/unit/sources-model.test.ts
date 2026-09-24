@@ -41,7 +41,8 @@ describe('sources model (Part 4 W2/W3/W15)', () => {
     const others = m.providers.filter((p) => p.id !== 'inventory');
     expect(others.length).toBe(7);
     expect(others.every((p) => p.state === 'sample' || p.state === 'unknown')).toBe(true);
-    expect(m.providers.filter((p) => p.state === 'unknown').map((p) => p.id)).toEqual(['fallow', 'secrets', 'runtime']);
+    // WP-03 N26: 'imports' is now unknown without a relation model (never sample), like fallow.
+    expect(m.providers.filter((p) => p.state === 'unknown').map((p) => p.id)).toEqual(['fallow', 'imports', 'secrets', 'runtime']);
     expect(others.every((p) => p.routes.length > 0)).toBe(true);
   });
   it('Part 6 Y37: the fallow card is Unknown without a report, Collected when imported, Stale when older than the snapshot', () => {

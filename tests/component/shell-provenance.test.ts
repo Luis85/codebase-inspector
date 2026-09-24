@@ -24,13 +24,17 @@ describe('shell provenance badge (A11)', () => {
     store.setCity(snap, computeLayout(snap));
     store.select(snap.entities.find((e) => e.kind === 'file')!.id);
     const w = mountShell();
-    for (const route of ['overview', 'city', 'architecture', 'hotspots', 'file', 'tests', 'dependencies', 'security', 'evolution', 'ownership', 'report'] as const) {
+    for (const route of ['overview', 'city', 'hotspots', 'file', 'tests', 'dependencies', 'security', 'evolution', 'ownership', 'report'] as const) {
       store.navigate(route);
       await nextTick();
       expect(w.find('.ci-topbar__sample').text(), route).toBe('Includes sample data');
     }
     // Part 6 Y33: findings are imported evidence or Not analysed, never sample.
     store.navigate('quality');
+    await nextTick();
+    expect(w.find('.ci-topbar__sample').exists()).toBe(false);
+    // WP-03 JF5: Architecture is built from fallow's evidenced imports, never sample.
+    store.navigate('architecture');
     await nextTick();
     expect(w.find('.ci-topbar__sample').exists()).toBe(false);
     store.navigate('settings');

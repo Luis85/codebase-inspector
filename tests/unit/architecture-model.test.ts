@@ -1,48 +1,18 @@
+// WP-03 Task 7: module grouping and capping, independent of any relation evidence — the
+// relation-driven cards, rules and cycle numbers move to architecture-relations.test.ts,
+// which uses the real fallow relations recordings instead of the deleted sample edges.
 import { describe, expect, it } from 'vitest';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
-import { stronglyConnected } from '../../src/domain/relations/queries';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
-import { sampleModuleEdges } from '../../src/ui/fixtures/sample-module-edges';
-import {
-  MAX_GRAPH_MODULES, architectureGraphFor, buildArchitectureGraph, buildArchitectureModel, buildModules,
-  cyclesValue, evaluateRules, moduleNeighbours,
-} from '../../src/ui/read-models/architecture';
-import type { BoundaryRule } from '../../src/ui/stores/ports/review-repository';
+import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
+import { relationModelFor } from '../../src/ui/read-models/relations';
+import { MAX_GRAPH_MODULES, architectureGraphFor, buildArchitectureGraph, buildModules } from '../../src/ui/read-models/architecture';
 
-const rule = (from: string, to: string, id = 'AR-001'): BoundaryRule => ({ id, from, to, rationale: 'r', createdAt: '2026-09-21T00:00:00.000Z' });
-const graphOf = (files: number, directories: number) => buildArchitectureGraph(fileSummariesFor(buildSnapshotFixture({ files, directories })));
-const edgeOf = (from: string, to: string) => ({ from, to });
-// Non-mutating reversal that never calls `Array#reverse()` (oxlint's unicorn/no-array-reverse
-// fires on `.reverse()` regardless of receiver), matching tests/unit/layout-determinism.test.ts.
-const toReversedArray = <T,>(arr: readonly T[]): T[] => arr.map((_, i) => arr[arr.length - 1 - i]!);
-
-describe('sample module edges (P3)', () => {
-  const names = ['app', 'domain', 'storage', 'ui', 'shared'];
-  it('is deterministic and never has self-edges or foreign modules', () => {
-    const edges = sampleModuleEdges(names);
-    expect(sampleModuleEdges(toReversedArray(names))).toEqual(edges);
-    expect(edges.length).toBeGreaterThan(0);
-    for (const e of edges) {
-      expect(e.from).not.toBe(e.to);
-      expect(names).toContain(e.from);
-      expect(names).toContain(e.to);
-      expect(e.imports).toBeGreaterThanOrEqual(1);
-    }
-  });
-  it('keeps an existing pair\'s edge when another module is added', () => {
-    const before = sampleModuleEdges(names);
-    const after = sampleModuleEdges([...names, 'zeta']);
-    for (const e of before) expect(after).toContainEqual(e);
-  });
-});
-
-describe('cyclic components (P6)', () => {
-  it('finds two- and three-module cycles and ignores acyclic parts', () => {
-    expect(stronglyConnected(['a', 'b', 'c'], [edgeOf('a', 'b'), edgeOf('b', 'a'), edgeOf('b', 'c')])).toEqual([['a', 'b']]);
-    expect(stronglyConnected(['a', 'b', 'c'], [edgeOf('a', 'b'), edgeOf('b', 'c'), edgeOf('c', 'a')])).toEqual([['a', 'b', 'c']]);
-    expect(stronglyConnected(['a', 'b', 'c'], [edgeOf('a', 'b'), edgeOf('b', 'c')])).toEqual([]);
-  });
-});
+function graphOf(files: number, directories: number) {
+  const snap = buildSnapshotFixture({ files, directories });
+  const fs = fileSummariesFor(snap);
+  return buildArchitectureGraph(fs, relationModelFor(fs, evidenceIndexFor(fs, null, snap.snapshotId)));
+}
 
 describe('modules', () => {
   it('groups by top-level directory, largest first, and labels the root', () => {
@@ -61,57 +31,16 @@ describe('modules', () => {
     const g = graphOf(45, 15);
     expect(g.modules).toHaveLength(MAX_GRAPH_MODULES);
     expect(g.omittedModules).toBe(3);
-    for (const e of g.edges) expect(g.modules.map((m) => m.name)).toContain(e.to);
   });
-  it('labels every edge as a sample source-import edge (P4)', () => {
-    for (const e of graphOf(40, 6).edges) {
-      expect(e.meaning).toBe('source-import');
-      expect(e.imports.state).toBe('sample');
-    }
+  it('has no edges without any relation evidence, never a fabricated sample graph', () => {
+    const g = graphOf(40, 6);
+    expect(g.edges).toEqual([]);
+    expect(g.omittedEdges).toBe(0);
   });
-  it('memoizes the graph per files array', () => {
-    const files = fileSummariesFor(buildSnapshotFixture({ files: 10, directories: 2 }));
-    expect(architectureGraphFor(files)).toBe(architectureGraphFor(files));
-  });
-});
-
-describe('rules and model', () => {
-  const g = graphOf(60, 6);
-  const edge = g.edges[0]!;
-  const names = g.modules.map((m) => m.name);
-  const free = names.flatMap((a) => names.map((b) => [a, b] as const))
-    .find(([a, b]) => a !== b && !g.edges.some((e) => e.from === a && e.to === b))!;
-
-  it('evaluates violation, passing and not-evaluated', () => {
-    const [v, p, n] = evaluateRules([rule(edge.from, edge.to), rule(free[0], free[1], 'AR-002'), rule('nope', edge.to, 'AR-003')], g);
-    expect(v).toMatchObject({ status: 'violation', violatingImports: { state: 'sample', value: edge.imports.value } });
-    expect(p).toMatchObject({ status: 'passing', violatingImports: { state: 'sample', value: 0 } });
-    expect(n?.status).toBe('not-evaluated');
-    expect(n?.violatingImports.state).toBe('unknown');
-  });
-  it('reports violations as unknown until a rule exists, then as sample', () => {
-    const none = buildArchitectureModel(g, []);
-    expect(none.cards.find((c) => c.id === 'violations')?.value.state).toBe('unknown');
-    const one = buildArchitectureModel(g, [rule(edge.from, edge.to)]);
-    expect(one.cards.find((c) => c.id === 'violations')?.value).toMatchObject({ state: 'sample', value: edge.imports.value });
-    expect(one.violatingEdgeKeys.has(`${edge.from}->${edge.to}`)).toBe(true);
-  });
-  it('has collected modules, sample edges and cycles, and an n×n matrix', () => {
-    const m = buildArchitectureModel(g, []);
-    expect(m.cards.map((c) => [c.id, c.value.state])).toEqual([['modules', 'collected'], ['edges', 'sample'], ['cycles', 'sample'], ['violations', 'unknown']]);
-    expect(m.matrix).toHaveLength(names.length);
-    expect(m.matrix[0]).toHaveLength(names.length);
-    const cell = m.matrix[names.indexOf(edge.from)]?.[names.indexOf(edge.to)];
-    expect(cell?.edge).toEqual(edge);
-    expect(m.usesSample).toBe(true);
-  });
-  it('lists neighbours by direction', () => {
-    const n = moduleNeighbours(g, edge.from);
-    expect(n.outgoing).toContain(edge.to);
-    expect(moduleNeighbours(g, edge.to).incoming).toContain(edge.from);
-  });
-  it('cycles are unknown for an empty scan', () => {
-    expect(cyclesValue(graphOf(0, 0)).state).toBe('unknown');
-    expect(cyclesValue(g).state).toBe('sample');
+  it('memoizes the graph per relation model', () => {
+    const snap = buildSnapshotFixture({ files: 10, directories: 2 });
+    const files = fileSummariesFor(snap);
+    const relations = relationModelFor(files, evidenceIndexFor(files, null, snap.snapshotId));
+    expect(architectureGraphFor(files, relations)).toBe(architectureGraphFor(files, relations));
   });
 });

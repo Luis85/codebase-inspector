@@ -56,9 +56,13 @@ const columns: readonly TableColumn<RuleEvaluation>[] = [
         :class="`ci-rule-status--${row.status}`"
       >{{ RULE_STATUS_LABEL[row.status] }}</span>
       <ProvenanceBadge
-        v-if="row.status !== 'not-evaluated'"
-        state="sample"
+        v-if="row.status === 'violation'"
+        :state="row.violatingImports.state"
       />
+      <span
+        v-else-if="row.reason"
+        class="ci-note"
+      >{{ row.reason }}</span>
     </template>
     <template #cell-imports="{ row }">
       {{ formatMetric(row.violatingImports) }}

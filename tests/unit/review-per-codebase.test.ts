@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { makeEntityId } from '../../src/domain/entity-id';
 import { architectureGraphFor } from '../../src/ui/read-models/architecture';
+import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
+import { relationModelFor } from '../../src/ui/read-models/relations';
 import { architectureModelFor } from '../../src/ui/read-models/use-read-models';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { NO_CHECKS, createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
@@ -135,7 +137,8 @@ describe('review store per codebase (Part 5 V8)', () => {
   });
 
   it('the Architecture memo (keyed by the raw rules array) follows the switch both ways', async () => {
-    const graph = architectureGraphFor(fileSummariesFor(buildSnapshotFixture({ files: 6, directories: 2, repositoryId: 'repo-a' })));
+    const files = fileSummariesFor(buildSnapshotFixture({ files: 6, directories: 2, repositoryId: 'repo-a' }));
+    const graph = architectureGraphFor(files, relationModelFor(files, evidenceIndexFor(files, null, 'repo-a')));
     const store = useReviewStore();
     await store.bindRepository('repo-a');
     await store.addRule('dir-0', 'dir-1', 'Layering', NOW);

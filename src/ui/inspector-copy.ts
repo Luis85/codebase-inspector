@@ -2,6 +2,7 @@
 // screen specification), NOT from the WP-01 microcopy catalogue — which is why they live
 // here and not in copy.ts (bound to that catalogue by tests/contracts/microcopy.test.ts).
 import { CANCEL } from './audit-copy/shared';
+import { RELATIONS_SCOPE_NOTE } from './audit-copy/relations';
 export const SAMPLE_DATA_NOTICE = 'Includes sample data';
 export const SAMPLE_DATA_DETAIL = 'Values marked Sample are illustrative, not measured from this codebase.';
 export const OVERVIEW_EYEBROW = 'Workspace / Overview';
@@ -60,13 +61,14 @@ export const NO_SNAPSHOT_LABEL = 'No snapshot';
 
 /** Part 2 §4 (A13): reasons that used to be inline literals in the read models. */
 export const NO_FILES_REASON = 'No files in this scan.';
-export const IMPORT_GRAPH_UNKNOWN_REASON = 'Import graph not collected yet.';
 export const PRIORITY_UNKNOWN_REASON = 'Priority needs complexity, commits and branch coverage.';
 /** Part 2 P1: files at the root form one module, never shown as "(root)". */
 export const ROOT_FILES_LABEL = 'Root files';
 export const PROTECT_MODULE_TITLE = (label: string, isRoot: boolean): string =>
   (isRoot ? 'Protect the root files' : `Protect the ${label} module`);
-export const OVERVIEW_ARCH_CAPTION = 'Cyclic module groups · sample edges';
+/** WP-03 N26: `violations` is a pre-formatted clause — a count ("1 boundary violations")
+ *  or ARCH_VIOLATIONS_NOT_CONFIGURED — built by overview.ts from the relation model. */
+export const OVERVIEW_ARCH_CAPTION = (violations: string): string => `Cyclic module groups · ${violations}`;
 
 /** Final review F2: the Overview's investigation paths, relocated verbatim from overview.ts. */
 export const INVESTIGATE_HOTSPOT_TITLE = (name: string): string => `Review ${name}`;
@@ -89,20 +91,14 @@ export const RATIO_ZERO_REASON = 'Nothing to divide by.';
 /** The one "no value" mark, and the priority scale suffix shown after a priority value. */
 export const NO_VALUE = '—';
 export const PRIORITY_SCALE_SUFFIX = ' / 100';
-/** Provenance detail on every sample module edge (Part 2 P3/P4). */
-export const SAMPLE_EDGE_DETAIL = 'sample import edges';
 
 /** Part 2 §2.1: Architecture cards and read-model reasons. */
 export const ARCH_CARD_MODULES = 'Modules';
-export const ARCH_CARD_EDGES = 'Sample module edges';
-export const ARCH_CARD_CYCLES = 'Cyclic components';
 export const ARCH_CARD_VIOLATIONS = 'Boundary violations';
 export const ARCH_MODULES_OMITTED_CAPTION = (shown: number): string => `The ${shown} largest are shown in the graph`;
-export const ARCH_EDGES_CAPTION = (imports: string): string => `${imports} import statements · sample edges`;
-export const ARCH_NO_CYCLES_CAPTION = 'No cyclic module groups';
-export const ARCH_NO_RULES_REASON = 'No boundary rules defined.';
-export const ARCH_VIOLATIONS_CAPTION = (failing: number): string => `${failing} failing rule(s) · sample graph`;
-export const RULE_NOT_EVALUATED_REASON = 'A module in this rule is not in the sample graph.';
+export const ARCH_VIOLATIONS_CAPTION = (failing: number): string => `${failing} of your rules violated`;
+/** WP-03 JF11: reworded — the module graph is evidenced imports now, never sample. */
+export const RULE_NOT_EVALUATED_REASON = 'A module in this rule is not in the module graph.';
 
 /** Part 2 §2.3: File detail cards, history and findings. */
 export const NOT_MEASURED_REASON = 'Not measured in this scan.';
@@ -124,17 +120,19 @@ export const ARCH_VIEWS_LABEL = 'Architecture views';
 export const ARCH_TAB_MAP = 'Dependency map';
 export const ARCH_TAB_MATRIX = 'Dependency matrix';
 export const ARCH_VIOLATIONS_ONLY = 'Violations only';
-export const ARCH_MAP_FOOTNOTE = 'Arrows: importer → imported module. Sample edges, not observed imports. City arcs make no dependency claim.';
-export const ARCH_MAP_EYEBROW = 'Sample module graph';
+/** WP-03 JF11: = RELATIONS_SCOPE_NOTE, so the footnote never disagrees with the rest of
+ *  the app about what an edge here means. */
+export const ARCH_MAP_FOOTNOTE = RELATIONS_SCOPE_NOTE;
+export const ARCH_MAP_EYEBROW = 'Module graph · evidenced imports';
 export const ARCH_NODE_LABEL = (label: string, files: number, outgoing: number, incoming: number): string =>
-  `${label}, ${files} files, ${outgoing} outgoing, ${incoming} incoming, sample edges`;
+  `${label}, ${files} files, ${outgoing} outgoing, ${incoming} incoming, evidenced imports`;
 export const ARCH_NODE_FILES = (files: number): string => `${files} files`;
 export const ARCH_OMITTED_NOTE = (n: number): string => `${n} smaller modules are not shown in the graph.`;
-export const ARCH_MATRIX_CAPTION = 'Sample import statements from each row module to each column module';
+export const ARCH_MATRIX_CAPTION = 'Evidenced imports from each row module to each column module';
 export const ARCH_MATRIX_CORNER = 'From ↓ / To →';
 export const ARCH_MATRIX_SELF = 'Same module';
 export const ARCH_MATRIX_NO_EDGE = 'No imports';
-export const ARCH_MATRIX_CELL_LABEL = (from: string, to: string, n: string): string => `${from} imports ${to}: ${n} sample import statements`;
+export const ARCH_MATRIX_CELL_LABEL = (from: string, to: string, n: string): string => `${from} imports ${to}: ${n} evidenced import statements`;
 export const ARCH_MODULE_INSPECTOR_TITLE = 'Selected module';
 export const ARCH_MODULE_NONE = 'Select a module in the map.';
 export const ARCH_FACT_FILES = 'Files';
@@ -148,7 +146,7 @@ export const ARCH_TOP_FILES = 'Highest review priority';
 export const ARCH_TAB_RULES = 'Boundary rules';
 export const ARCH_ADD_RULE = 'Add boundary rule';
 export const RULE_EDITOR_TITLE = 'Add boundary rule';
-export const RULE_EDITOR_HINT = 'Record an intended boundary. It is evaluated against the sample module edges.';
+export const RULE_EDITOR_HINT = 'Record an intended boundary. It is evaluated against the evidenced imports.';
 export const RULE_EDITOR_FROM = 'Module';
 export const RULE_EDITOR_TO = 'must not import';
 export const RULE_EDITOR_RATIONALE = 'Rationale';
@@ -165,8 +163,8 @@ export const RULE_COL_STATUS = 'Status';
 export const RULE_COL_IMPORTS = 'Violating imports';
 export const RULE_COL_ACTIONS = 'Actions';
 export const RULE_SENTENCE = (from: string, to: string): string => `${from} must not import ${to}`;
-export const RULE_STATUS_LABEL: Readonly<Record<'passing' | 'violation' | 'not-evaluated', string>> = {
-  passing: 'Passing', violation: 'Violation', 'not-evaluated': 'Not evaluated',
+export const RULE_STATUS_LABEL: Readonly<Record<'violation' | 'not-evaluated', string>> = {
+  violation: 'Violation', 'not-evaluated': 'Not evaluated',
 };
 export const RULE_REMOVE = 'Remove';
 export const RULE_REMOVE_LABEL = (id: string): string => `Remove rule ${id}`;
@@ -176,11 +174,10 @@ export const RULE_REMOVE_FAILED = 'Could not remove this rule.';
 export const BOUNDARY_INSPECTOR_TITLE = 'Boundary inspector';
 export const BOUNDARY_INSPECTOR_SUBTITLE = 'Intended rule vs. sample evidence.';
 export const BOUNDARY_VIOLATING_IMPORTS = 'Violating imports';
-export const BOUNDARY_EDGE_IMPORTS = (n: string): string => `${n} sample import statements`;
+export const BOUNDARY_EDGE_IMPORTS = (n: string): string => `${n} evidenced import statements`;
 export const BOUNDARY_EDGE_VIOLATES = 'This edge breaks a boundary rule.';
 export const BOUNDARY_EDGE_NO_RULE = 'No boundary rule covers this edge.';
 export const BOUNDARY_NONE = 'Select a rule or a matrix cell to inspect it.';
-export const BOUNDARY_ILLUSTRATIVE = 'Illustrative files';
 
 /** Part 2 §2.2: Hotspots screen. */
 export const HOTSPOTS_EYEBROW = 'Explore / Hotspots';

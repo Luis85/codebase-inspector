@@ -12,3 +12,16 @@ export const RELATION_FAN_NOT_SCORED = 'fallow did not score this file';
 /** N25: the File detail "Imported by" card. */
 export const FILE_CARD_IMPORTED_BY = 'Imported by';
 export const FILE_CARD_IMPORTED_BY_CAPTION = 'Modules importing this file · fallow';
+
+/** WP-03 Task 7 (N18, N20, N23, N26): Architecture cards, rules and the Overview's
+ *  Import relations row — all built from the relation model, never sample data. */
+export const ARCH_CARD_EVIDENCED = 'Evidenced imports';
+export const RELATION_CARD_CYCLES = 'Import cycles reported by fallow';
+export const RELATION_CYCLES_CAPTION = (files: number, groups: number, reExports: number): string =>
+  `${files} files · ${groups} groups · ${reExports} re-export cycles`;
+export const ARCH_NOT_ANALYSED_NOTE = 'No fallow report is attached, so no imports are shown. Attach or run one in Data & scans.';
+export const ARCH_EDGES_OMITTED_NOTE = (n: number): string => `${n} evidenced imports go to modules not shown`;
+export const RULE_NOT_EVALUATED_PARTIAL = 'No complete import graph: fallow reports only cycle and boundary imports';
+/** The Overview Architecture-exceptions caption's own alternative to a formatted count. */
+export const ARCH_VIOLATIONS_NOT_CONFIGURED = 'boundaries not configured';
+export const OVERVIEW_IMPORTS_ROW = 'Import relations';

@@ -28,16 +28,6 @@ import { buildTestConfidenceModel, type TestConfidenceModel } from './test-confi
 /** One stable empty array, so the per-array memo (architectureGraphFor) still hits. */
 const NO_FILES: readonly FileSummary[] = [];
 
-/** Final review F1: every leaf calls useReadModels() more than once (the screen and the
- *  shell's provenance badge), so the per-snapshot models are memoized here rather than
- *  rebuilt by each caller's own computed. Keys are the immutable per-snapshot objects. */
-const cyclesCache = new WeakMap<ArchitectureGraph, MetricValue>();
-function cyclesFor(graph: ArchitectureGraph): MetricValue {
-  let hit = cyclesCache.get(graph);
-  if (!hit) { hit = cyclesValue(graph); cyclesCache.set(graph, hit); }
-  return hit;
-}
-
 /** Part 6: keyed by the evidence index, which is one object per (files, report), then (E48
  *  I1, E53) by the leaf's raw `dispositions` array, as `qualityModelFor` is: the findings
  *  card and its caption (Polish E2) count open findings, read from that leaf's Quality model. */
@@ -45,14 +35,14 @@ type OverviewEntry = { snapshot: CodebaseSnapshot; files: readonly FileSummary[]
 const overviewCache = new WeakMap<EvidenceIndex, WeakMap<object, OverviewEntry>>();
 function overviewModelFor(
   snapshot: CodebaseSnapshot, files: readonly FileSummary[], cycles: MetricValue, evidence: EvidenceIndex,
-  dispositions: readonly FindingDisposition[],
+  dispositions: readonly FindingDisposition[], relations: RelationModel,
 ): OverviewModel {
   let byDispositions = overviewCache.get(evidence);
   if (!byDispositions) { byDispositions = new WeakMap(); overviewCache.set(evidence, byDispositions); }
   const key: object = toRaw(dispositions);
   const hit = byDispositions.get(key);
   if (hit && hit.snapshot === snapshot && hit.files === files && hit.cycles === cycles) return hit.model;
-  const model = buildOverviewModel(snapshot, files, cycles, evidence, qualityModelFor(files, evidence, dispositions));
+  const model = buildOverviewModel(snapshot, files, cycles, evidence, qualityModelFor(files, evidence, dispositions), relations);
   byDispositions.set(key, { snapshot, files, cycles, model });
   return model;
 }
@@ -164,14 +154,14 @@ export function useReadModels() {
     const report = snapshot && evidenceStore.repositoryId === snapshot.repositoryId ? evidenceStore.report : null;
     return evidenceIndexFor(files.value, report ? toRaw(report) : null, snapshot?.snapshotId ?? '');
   });
-  const graph = computed(() => architectureGraphFor(files.value));
-  const cycles = computed(() => cyclesFor(graph.value));
-  const overview = computed(() => (store.snapshot
-    ? overviewModelFor(store.snapshot, files.value, cycles.value, evidence.value, review.dispositions) : null));
-  const citySummary = computed(() => buildCitySummary(files.value, cycles.value, evidence.value));
-  const architecture = computed(() => architectureModelFor(graph.value, review.rules));
   /** WP-03 N7/N8: fallow's dependency evidence, resolved against these files. */
   const relations = computed(() => relationModelFor(files.value, evidence.value));
+  const graph = computed(() => architectureGraphFor(files.value, relations.value));
+  const cycles = computed(() => cyclesValue(relations.value));
+  const overview = computed(() => (store.snapshot
+    ? overviewModelFor(store.snapshot, files.value, cycles.value, evidence.value, review.dispositions, relations.value) : null));
+  const citySummary = computed(() => buildCitySummary(files.value, cycles.value, evidence.value));
+  const architecture = computed(() => architectureModelFor(graph.value, review.rules));
   const fileDetail = computed(() => (store.snapshot
     ? fileDetailFor(store.snapshot, files.value, store.selectedEntityId, evidence.value, relations.value) : null));
   const quality = computed(() => qualityModelFor(files.value, evidence.value, review.dispositions));

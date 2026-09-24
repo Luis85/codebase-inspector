@@ -11,14 +11,16 @@ import {
 } from '../evidence';
 import { sampleTrend } from '../fixtures/sample-signals';
 import {
-  IMPORT_GRAPH_UNKNOWN_REASON, INVESTIGATE_FILE_TITLE, INVESTIGATE_HOTSPOT_DETAIL, INVESTIGATE_HOTSPOT_TITLE,
-  EVIDENCE_SOURCE_NONE, INVESTIGATE_LARGEST_DETAIL, INVESTIGATE_MODULE_DETAIL, INVESTIGATE_NO_LINES, NO_FILES_REASON,
-  OVERVIEW_ARCH_CAPTION, OVERVIEW_FALLOW_ROW, OVERVIEW_FALLOW_SOURCE, OVERVIEW_FINDINGS_CAPTION, PROTECT_MODULE_TITLE,
+  ARCH_VIOLATIONS_NOT_CONFIGURED, EVIDENCE_SOURCE_FALLOW_PARTIAL, FALLOW_NOT_ANALYSED, FALLOW_NOT_ANALYSED_TITLE,
+  INVESTIGATE_FILE_TITLE, INVESTIGATE_HOTSPOT_DETAIL, INVESTIGATE_HOTSPOT_TITLE, EVIDENCE_SOURCE_NONE,
+  INVESTIGATE_LARGEST_DETAIL, INVESTIGATE_MODULE_DETAIL, INVESTIGATE_NO_LINES, NO_FILES_REASON, OVERVIEW_ARCH_CAPTION,
+  OVERVIEW_FALLOW_ROW, OVERVIEW_FALLOW_SOURCE, OVERVIEW_FINDINGS_CAPTION, OVERVIEW_IMPORTS_ROW, PROTECT_MODULE_TITLE,
 } from '../inspector-copy';
 import { evidenceIndexFor, type EvidenceIndex, type EvidenceIndexState } from './evidence-index';
 import { filesByPriority, ROOT_MODULE, type FileSummary } from './file-summaries';
 import { buildQualityModel, openFindingsValue, openHighFindingsValue, type QualityModel } from './findings';
 import { moduleCoverage } from './module-coverage';
+import { relationModelFor, type RelationModel } from './relations';
 
 export const HOTSPOT_THRESHOLD = 65;
 export const HIGH_COMPLEXITY = 30;
@@ -92,9 +94,10 @@ function investigations(files: readonly FileSummary[]): Investigation[] {
  *  decided finding never counts here. The default is that model with no decisions. */
 export function buildOverviewModel(
   snapshot: CodebaseSnapshot, files: readonly FileSummary[],
-  cycles: MetricValue = unknown(IMPORT_GRAPH_UNKNOWN_REASON),
+  cycles: MetricValue = unknown(FALLOW_NOT_ANALYSED, 'fallow'),
   evidence: EvidenceIndex = evidenceIndexFor(files, null, snapshot.snapshotId),
   quality: QualityModel = buildQualityModel(files, evidence, []),
+  relations: RelationModel = relationModelFor(files, evidence),
 ): OverviewModel {
   const covered = sumEvidence(files.map((f) => f.branchesCovered), NO_FILES_REASON);
   const total = sumEvidence(files.map((f) => f.branchesTotal), NO_FILES_REASON);
@@ -112,13 +115,18 @@ export function buildOverviewModel(
     ? sampleTrend(`${snapshot.snapshotId}:complexity`, highComplexity.value, TREND_POINTS, 3, Infinity) : null;
   const toPoints = (values: readonly number[]) => values.map((value, i) => ({ label: labels[i] ?? '', value }));
 
+  // N26: fallow's own boundary-violation count, in evidence.count's state (N11's
+  // not-configured rule); the caption falls back to a fixed phrase for every unknown state.
+  const violations = evidence.count(relations.boundaryViolations.length, 'boundary');
+  const violationsText = violations.state === 'unknown' ? ARCH_VIOLATIONS_NOT_CONFIGURED : `${formatMetric(violations)} boundary violations`;
+
   const cards: OverviewCard[] = [
     { id: 'findings', label: 'Open quality findings', icon: 'code', unit: '', tone: 'warning', trend: null,
       value: findings, caption: OVERVIEW_FINDINGS_CAPTION(formatMetric(high)) },
     { id: 'coverage', label: 'Branch coverage', icon: 'flask-conical', unit: '%', tone: 'success', trend: coverageTrend,
       value: coverage, caption: `${formatMetric(covered)} / ${formatMetric(total)} instrumented branches` },
     { id: 'architecture', label: 'Architecture exceptions', icon: 'network', unit: '', tone: 'danger', trend: null,
-      value: cycles, caption: OVERVIEW_ARCH_CAPTION },
+      value: cycles, caption: OVERVIEW_ARCH_CAPTION(violationsText) },
     { id: 'hotspots', label: 'Change hotspots', icon: 'flame', unit: '', tone: 'accent', trend: null,
       value: hotspots, caption: `Priority ≥ ${HOTSPOT_THRESHOLD} · last 90 days` },
   ];
@@ -128,14 +136,18 @@ export function buildOverviewModel(
     ...(complexityTrend ? [{ id: 'high-complexity' as const, label: 'High-complexity files (count)', tone: 'accent' as const, points: toPoints(complexityTrend) }] : []),
   ];
 
-  const importsSampled = cycles.state !== 'unknown';
+  // JF22: without a report, or when the cycle category was never read, the row is
+  // Unknown / "Not analysed", never "Not collected". A stale report keeps `stale`.
+  const importsState: EvidenceState = relations.state === 'none' || !relations.analysed
+    ? 'unknown' : relations.state === 'stale' ? 'stale' : 'partial';
+  const importsSource = importsState === 'unknown' ? FALLOW_NOT_ANALYSED_TITLE : EVIDENCE_SOURCE_FALLOW_PARTIAL;
   const coverageRows: EvidenceCoverageRow[] = [
     { id: 'inventory', label: 'File inventory', state: snapshot.completeness === 'partial' ? 'partial' : 'collected', source: 'Built-in scan' },
     { id: 'fallow', label: OVERVIEW_FALLOW_ROW, state: fallowRowState(evidence),
       source: evidence.report ? OVERVIEW_FALLOW_SOURCE(evidence.report.providerVersion, originOf(evidence.report)) : EVIDENCE_SOURCE_NONE },
     { id: 'history', label: 'Git history', state: 'sample', source: 'Sample provider' },
     { id: 'coverage', label: 'Test coverage', state: 'sample', source: 'Sample provider' },
-    { id: 'imports', label: 'Import graph', state: importsSampled ? 'sample' : 'unknown', source: importsSampled ? 'Sample provider' : 'Not collected' },
+    { id: 'imports', label: OVERVIEW_IMPORTS_ROW, state: importsState, source: importsSource },
     { id: 'mutation', label: 'Mutation testing', state: 'unknown', source: 'Not collected' },
     { id: 'runtime', label: 'Runtime evidence', state: 'unknown', source: 'Not collected' },
   ];

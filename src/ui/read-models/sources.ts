@@ -8,11 +8,15 @@ import type { EvidenceState } from '../evidence';
 import { formatAbsoluteTime } from '../copy';
 import { countPartialRead } from '../view-surface';
 import {
-  EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, FALLOW_SOURCE, SOURCES_COMPLETE, SOURCES_NONE, SOURCES_PARTIAL, SOURCES_PROVIDER,
-  SOURCES_ROW_CAPTURED, SOURCES_ROW_COMPLETENESS, SOURCES_ROW_EXCLUSIONS, SOURCES_ROW_FOLDER, SOURCES_ROW_LIMIT,
-  SOURCES_ROW_PATH, SOURCES_ROW_SYMLINKS, SOURCES_SOURCE_BUILTIN, SOURCES_SOURCE_FICTIONAL, SOURCES_SYMLINKS_NOT_FOLLOWED,
+  EVIDENCE_SOURCE_FALLOW_PARTIAL, EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, FALLOW_SOURCE, SOURCES_COMPLETE,
+  SOURCES_NONE, SOURCES_PARTIAL, SOURCES_PROVIDER, SOURCES_ROW_CAPTURED, SOURCES_ROW_COMPLETENESS, SOURCES_ROW_EXCLUSIONS,
+  SOURCES_ROW_FOLDER, SOURCES_ROW_LIMIT, SOURCES_ROW_PATH, SOURCES_ROW_SYMLINKS, SOURCES_SOURCE_BUILTIN,
+  SOURCES_SOURCE_FICTIONAL, SOURCES_SYMLINKS_NOT_FOLLOWED,
 } from '../inspector-copy';
 import type { EvidenceIndexState } from './evidence-index';
+import type { FileSummary } from './file-summaries';
+import { relationModelFor, type RelationModel } from './relations';
+import { evidenceIndexFor } from './evidence-index';
 import { rootFolderLabel } from './root-label';
 
 export type RunView =
@@ -77,16 +81,30 @@ const provider = (id: string, icon: string, state: EvidenceState, source: string
 interface FallowCardState { state: EvidenceIndexState; version: string | null; origin?: EvidenceOrigin }
 const NO_FALLOW: FallowCardState = { state: 'none', version: null };
 const FALLOW_EVIDENCE: Readonly<Record<EvidenceIndexState, EvidenceState>> = { none: 'unknown', current: 'collected', stale: 'stale' };
+const NO_FILES: readonly FileSummary[] = [];
+/** The no-report relation model, for a caller (a test, a leaf with no snapshot) that has
+ *  no relation model of its own to thread through. */
+const NO_RELATIONS: RelationModel = relationModelFor(NO_FILES, evidenceIndexFor(NO_FILES, null, ''));
 
-export function buildSourcesModel(snapshot: CodebaseSnapshot | null, run: InventoryRunState, fallow: FallowCardState = NO_FALLOW): SourcesModel {
+/** WP-03 N26 (JF7): the imports row's state follows the relation model, never a fixed
+ *  'sample' — unknown without a report or an unread cycle category, else partial/stale. */
+function importsRow(relations: RelationModel): { state: EvidenceState; source: string } {
+  if (relations.state === 'none' || !relations.analysed) return { state: 'unknown', source: EVIDENCE_SOURCE_NONE };
+  return { state: relations.state === 'stale' ? 'stale' : 'partial', source: EVIDENCE_SOURCE_FALLOW_PARTIAL };
+}
+
+export function buildSourcesModel(
+  snapshot: CodebaseSnapshot | null, run: InventoryRunState, fallow: FallowCardState = NO_FALLOW, relations: RelationModel = NO_RELATIONS,
+): SourcesModel {
   const inventory: EvidenceState = !snapshot ? 'unknown' : snapshot.completeness === 'partial' ? 'partial' : 'collected';
+  const imports = importsRow(relations);
   return {
     scope: snapshot ? scopeRows(snapshot) : null,
     run: runView(run),
     providers: [
       provider('inventory', 'folder-tree', inventory, snapshot ? SOURCES_SOURCE_BUILTIN : EVIDENCE_SOURCE_NONE, ['city', 'overview']),
       provider('fallow', 'code', FALLOW_EVIDENCE[fallow.state], fallow.version === null ? EVIDENCE_SOURCE_NONE : FALLOW_SOURCE(fallow.version, fallow.origin ?? 'imported'), ['quality', 'file']),
-      provider('imports', 'network', 'sample', EVIDENCE_SOURCE_SAMPLE, ['architecture']),
+      provider('imports', 'network', imports.state, imports.source, ['architecture']),
       provider('history', 'git-branch', 'sample', EVIDENCE_SOURCE_SAMPLE, ['hotspots', 'evolution', 'ownership']),
       provider('coverage', 'flask-conical', 'sample', EVIDENCE_SOURCE_SAMPLE, ['tests']),
       provider('packages', 'package', 'sample', SOURCES_SOURCE_FICTIONAL, ['dependencies', 'security']),
