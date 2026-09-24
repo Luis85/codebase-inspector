@@ -19,7 +19,7 @@ import {
 import { normalizeFallow } from '../../src/application/evidence/normalize-fallow';
 import type { ProcessOutcome, ProcessRequest } from '../../src/application/ports/analyzer-process';
 import { createCancellationToken } from '../fixtures/cancellation-token';
-import { FALLOW_FIXTURES, rawReport, type FallowFixture } from '../fixtures/fallow-fixture';
+import { FALLOW_FIXTURES, rawReport } from '../fixtures/fallow-fixture';
 import { killTree, realKill, realSpawn } from '../fixtures/real-spawn';
 import { hashTree } from '../fixtures/temp-tree';
 
@@ -93,7 +93,7 @@ describe.skipIf(BIN === null)(TITLE, () => {
     if (outcome.kind === 'exited') expect([0, 1]).toContain(outcome.exitCode);
     const result = classifyFallowExit(outcome, 60);
     expect(result.kind).toBe('completed');
-    const fixture = probe.ok ? (`combined-${probe.version}` as FallowFixture) : null;
+    const fixture = probe.ok ? (`combined-${probe.version}` as (typeof FALLOW_FIXTURES)[number]) : null;
     if (result.kind !== 'completed' || fixture === null || !FALLOW_FIXTURES.includes(fixture)) return;
     const expected = shape(normalizeFallow(rawReport(fixture), { stripPrefix: null }).findings);
     expect(expected.length).toBeGreaterThan(0);

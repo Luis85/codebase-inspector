@@ -11,7 +11,11 @@ import type { RawFallowReport } from '../../src/application/evidence/raw-fallow'
 const DIR = fileURLToPath(new URL('./fallow/', import.meta.url));
 
 export const FALLOW_FIXTURES = ['combined-3.27.0', 'dead-code-3.27.0', 'health-3.27.0', 'dupes-3.27.0', 'combined-3.21.0'] as const;
-export type FallowFixture = (typeof FALLOW_FIXTURES)[number];
+// WP-03 Part 1 N34: recordings of tests/fixtures/fallow/relations-project/, see its README.
+export const RELATION_FIXTURES = ['relations-combined-3.27.0', 'relations-combined-3.21.0', 'relations-no-boundaries-3.27.0'] as const;
+export type FallowFixture = (typeof FALLOW_FIXTURES)[number] | (typeof RELATION_FIXTURES)[number];
+/** The relations fixture project's absolute directory (Task 13). */
+export const RELATIONS_PROJECT_DIR = fileURLToPath(new URL('./fallow/relations-project/', import.meta.url));
 
 type Row = Record<string, unknown>;
 

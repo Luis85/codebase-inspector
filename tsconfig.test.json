@@ -8,5 +8,6 @@
   },
   "include": ["tests/**/*.ts", "src/**/*.ts", "src/**/*.vue"],
   // Part 6 Y21: the fallow fixture project is analysed by fallow, never compiled.
-  "exclude": ["tests/fixtures/fallow/project/**"]
+  // WP-03 Part 1 N34: the relations fixture project is the same — analysed by fallow only.
+  "exclude": ["tests/fixtures/fallow/project/**", "tests/fixtures/fallow/relations-project/**"]
 }
