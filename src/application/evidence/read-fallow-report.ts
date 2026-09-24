@@ -18,12 +18,14 @@
 // of `firstArrayFailure`.
 import type { z } from 'zod';
 import {
-  CLONE_GROUP_SHELL, CLONE_INSTANCE, FALLOW_REPORT, HEALTH_FINDING, SUMMARY_VALUE, UNUSED_ENTRY, WORKSPACE_DIAGNOSTIC,
+  BOUNDARY_VIOLATION, CLONE_GROUP_SHELL, CLONE_INSTANCE, CYCLE_EDGE, CYCLE_FILE, CYCLE_SHELL, FALLOW_REPORT, FILE_SCORE, HEALTH_FINDING,
+  RE_EXPORT_CYCLE_SHELL, SUMMARY_VALUE, UNRESOLVED_IMPORT, UNUSED_ENTRY, WORKSPACE_DIAGNOSTIC,
   firstArrayFailure, firstRecordFailure,
 } from './fallow-report-schema';
 import {
   FALLOW_REPORT_MAX_BYTES, isSupportedFallow, type FallowImportErrorCode, type FallowReadResult,
-  type RawCheckSection, type RawCloneGroup, type RawDupesSection, type RawFallowReport, type RawHealthSection, type RawWorkspaceDiagnostic,
+  type RawCheckSection, type RawCircularDependency, type RawCloneGroup, type RawDupesSection, type RawFallowReport, type RawHealthSection,
+  type RawReExportCycle, type RawWorkspaceDiagnostic,
 } from './raw-fallow';
 
 const DETAIL_MAX = 120;
@@ -60,9 +62,41 @@ function unsupportedDetail(head: ReportHead): string {
   return `${head.kind.slice(0, KIND_TEXT_MAX)}@${head.schema}`;
 }
 
-type ShellCheck = { summary: Record<string, unknown>; unused_exports: unknown[]; unused_types: unknown[] };
-type ShellHealth = { findings: unknown[]; summary: { max_cyclomatic_threshold: number; max_cognitive_threshold: number } };
+type ShellCheck = {
+  summary: Record<string, unknown>; unused_exports: unknown[]; unused_types: unknown[];
+  circular_dependencies?: unknown[]; re_export_cycles?: unknown[]; boundary_violations?: unknown[]; unresolved_imports?: unknown[];
+};
+type ShellHealth = {
+  findings: unknown[]; summary: { max_cyclomatic_threshold: number; max_cognitive_threshold: number }; file_scores?: unknown[];
+};
 type ShellDupes = { clone_groups: unknown[]; clone_groups_omitted?: number };
+
+/** N2: an absent array stays absent; a present one is walked by hand (E31). */
+function optionalArray<T>(items: unknown[] | undefined, check: Parameters<typeof firstArrayFailure<T>>[1], path: Path): Built<T[] | undefined> {
+  if (items === undefined) return { ok: true, value: undefined };
+  const result = firstArrayFailure(items, check, path);
+  return result.ok ? { ok: true, value: result.values } : result;
+}
+
+/** Two levels, like buildDupes: the cycle shell, then its files, then its edges. */
+function checkCycle(item: unknown): { ok: true; value: RawCircularDependency } | { ok: false; path: PropertyKey[] } {
+  const shell = CYCLE_SHELL.safeParse(item);
+  if (!shell.success) return { ok: false, path: shell.error.issues[0]?.path ?? [] };
+  const files = firstArrayFailure(shell.data.files, CYCLE_FILE, ['files']);
+  if (!files.ok) return files;
+  const edges = shell.data.edges === undefined ? undefined : firstArrayFailure(shell.data.edges, CYCLE_EDGE, ['edges']);
+  if (edges !== undefined && !edges.ok) return edges;
+  return { ok: true, value: { files: files.values, line: shell.data.line, col: shell.data.col, ...(edges === undefined ? {} : { edges: edges.values }) } };
+}
+
+/** Same shape as `checkCycle`: the re-export cycle shell, then its files. */
+function checkReExportCycle(item: unknown): { ok: true; value: RawReExportCycle } | { ok: false; path: PropertyKey[] } {
+  const shell = RE_EXPORT_CYCLE_SHELL.safeParse(item);
+  if (!shell.success) return { ok: false, path: shell.error.issues[0]?.path ?? [] };
+  const files = firstArrayFailure(shell.data.files, CYCLE_FILE, ['files']);
+  if (!files.ok) return files;
+  return { ok: true, value: { files: files.values, kind: shell.data.kind } };
+}
 
 function buildCheck(raw: ShellCheck, prefix: Path): Built<RawCheckSection> {
   const summaryResult = firstRecordFailure(raw.summary, SUMMARY_VALUE, [...prefix, 'summary']);
@@ -71,13 +105,35 @@ function buildCheck(raw: ShellCheck, prefix: Path): Built<RawCheckSection> {
   if (!exportsResult.ok) return exportsResult;
   const typesResult = firstArrayFailure(raw.unused_types, UNUSED_ENTRY, [...prefix, 'unused_types']);
   if (!typesResult.ok) return typesResult;
-  return { ok: true, value: { summary: summaryResult.values, unused_exports: exportsResult.values, unused_types: typesResult.values } };
+  const cyclesResult = optionalArray(raw.circular_dependencies, checkCycle, [...prefix, 'circular_dependencies']);
+  if (!cyclesResult.ok) return cyclesResult;
+  const reExportResult = optionalArray(raw.re_export_cycles, checkReExportCycle, [...prefix, 're_export_cycles']);
+  if (!reExportResult.ok) return reExportResult;
+  const boundaryResult = optionalArray(raw.boundary_violations, BOUNDARY_VIOLATION, [...prefix, 'boundary_violations']);
+  if (!boundaryResult.ok) return boundaryResult;
+  const unresolvedResult = optionalArray(raw.unresolved_imports, UNRESOLVED_IMPORT, [...prefix, 'unresolved_imports']);
+  if (!unresolvedResult.ok) return unresolvedResult;
+  return {
+    ok: true,
+    value: {
+      summary: summaryResult.values, unused_exports: exportsResult.values, unused_types: typesResult.values,
+      ...(cyclesResult.value === undefined ? {} : { circular_dependencies: cyclesResult.value }),
+      ...(reExportResult.value === undefined ? {} : { re_export_cycles: reExportResult.value }),
+      ...(boundaryResult.value === undefined ? {} : { boundary_violations: boundaryResult.value }),
+      ...(unresolvedResult.value === undefined ? {} : { unresolved_imports: unresolvedResult.value }),
+    },
+  };
 }
 
 function buildHealth(raw: ShellHealth, prefix: Path): Built<RawHealthSection> {
   const findingsResult = firstArrayFailure(raw.findings, HEALTH_FINDING, [...prefix, 'findings']);
   if (!findingsResult.ok) return findingsResult;
-  return { ok: true, value: { findings: findingsResult.values, summary: raw.summary } };
+  const scoresResult = optionalArray(raw.file_scores, FILE_SCORE, [...prefix, 'file_scores']);
+  if (!scoresResult.ok) return scoresResult;
+  return {
+    ok: true,
+    value: { findings: findingsResult.values, summary: raw.summary, ...(scoresResult.value === undefined ? {} : { file_scores: scoresResult.value }) },
+  };
 }
 
 /** Two levels of hot array: each clone group is walked before its own `instances`, so

@@ -3,8 +3,10 @@
 // - every field that is read is type-checked;
 // - every other field is tolerated AND dropped: zod 4's `z.object` strips unknown keys,
 //   so `fragment` (source text), `actions`, `suggestions`, `clone_families`,
-//   `vital_signs`, `file_scores`, `hotspots`, `targets`, `health_score`, `next_steps` and
-//   `_meta` never leave the parse (Y23);
+//   `vital_signs`, `hotspots`, `targets`, `health_score`, `next_steps` and `_meta` never
+//   leave the parse (Y23). WP-03 Part 1 N1: `health.file_scores` is now read, but only
+//   for `path`, `fan_in` and `fan_out` — every other field fallow writes on it
+//   (`maintainability_index`, `dead_code_ratio`, etc.) is still dropped;
 // - our own formats stay `.strict()` (review-state-import.ts); this one cannot be,
 //   because every fallow release adds fields.
 //
@@ -33,6 +35,11 @@ import { z } from 'zod';
 
 const COUNT = z.number().int().nonnegative();
 
+/** N1: the bound for the relation sections' tool-controlled strings (paths, specifiers,
+ *  zone names): a long one is refused rather than tolerated. Existing fields (`path`,
+ *  `export_name`, etc. above) are untouched by this bound (J5). */
+const TOOL_TEXT = z.string().max(1024);
+
 /** A `check.summary`/flattened `summary` value: exported so read-fallow-report.ts's
  *  manual walk (`firstRecordFailure`) can validate one value at a time (Fix round 2). */
 export const SUMMARY_VALUE = z.number();
@@ -46,10 +53,41 @@ export const UNUSED_ENTRY = z.object({
   col: COUNT,
 });
 
+/** WP-03 Part 1 N1: the shell for one `circular_dependencies` element. `files` and
+ *  `edges` are each `z.array(z.unknown())` here too: read-fallow-report.ts walks them by
+ *  hand with `CYCLE_FILE`/`CYCLE_EDGE` (E31), the same two-level pattern as `buildDupes`. */
+export const CYCLE_SHELL = z.object({ files: z.array(z.unknown()), line: COUNT, col: COUNT, edges: z.array(z.unknown()).optional() });
+
+/** An element schema for `circular_dependencies[].files`. */
+export const CYCLE_FILE = TOOL_TEXT;
+
+/** An element schema for `circular_dependencies[].edges`. */
+export const CYCLE_EDGE = z.object({ path: TOOL_TEXT, line: COUNT, col: COUNT });
+
+/** WP-03 Part 1 N1: the shell for one `re_export_cycles` element; its `files` is walked
+ *  by hand with `CYCLE_FILE` too. */
+export const RE_EXPORT_CYCLE_SHELL = z.object({ files: z.array(z.unknown()), kind: z.enum(['multi-node', 'self-loop']) });
+
+/** An element schema for `boundary_violations`. */
+export const BOUNDARY_VIOLATION = z.object({
+  from_path: TOOL_TEXT, to_path: TOOL_TEXT, from_zone: TOOL_TEXT, to_zone: TOOL_TEXT, import_specifier: TOOL_TEXT, line: COUNT, col: COUNT,
+});
+
+/** An element schema for `unresolved_imports`. */
+export const UNRESOLVED_IMPORT = z.object({ path: TOOL_TEXT, specifier: TOOL_TEXT, line: COUNT, col: COUNT });
+
+/** An element schema for `health.file_scores` (WP-03 Part 1 N1: only `path`, `fan_in`
+ *  and `fan_out` are read; every other field fallow writes is dropped). */
+export const FILE_SCORE = z.object({ path: TOOL_TEXT, fan_in: COUNT, fan_out: COUNT });
+
 const CHECK_SHELL_FIELDS = {
   summary: z.record(z.string(), z.unknown()),
   unused_exports: z.array(z.unknown()),
   unused_types: z.array(z.unknown()),
+  circular_dependencies: z.array(z.unknown()).optional(),
+  re_export_cycles: z.array(z.unknown()).optional(),
+  boundary_violations: z.array(z.unknown()).optional(),
+  unresolved_imports: z.array(z.unknown()).optional(),
 };
 
 /** An element schema for `clone_groups[].instances`. */
@@ -85,6 +123,7 @@ export const HEALTH_FINDING = z.object({
 const HEALTH_SHELL_FIELDS = {
   findings: z.array(z.unknown()),
   summary: z.object({ max_cyclomatic_threshold: z.number(), max_cognitive_threshold: z.number() }),
+  file_scores: z.array(z.unknown()).optional(),
 };
 
 /** An element schema for `workspace_diagnostics`. */

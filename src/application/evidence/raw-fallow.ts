@@ -3,6 +3,12 @@
 // checks exactly these and strips the rest, so source text (`fragment`), `actions`,
 // `suggestions` and the other sections never reach this type. Plain TypeScript, so the
 // UI can import the supported set and the refusal codes without pulling in zod.
+//
+// WP-03 Part 1 N1, N2: `check` gains four optional relation arrays (`circular_
+// dependencies`, `re_export_cycles`, `boundary_violations`, `unresolved_imports`) and
+// `health` gains an optional `file_scores`. Each is absent unless the report's writer
+// included it (N2); when present, every element is validated (fallow-report-schema.ts,
+// read-fallow-report.ts).
 
 export type FallowReportKind = 'combined' | 'dead-code' | 'health' | 'dupes';
 
@@ -34,11 +40,64 @@ export interface RawUnusedEntry {
   col: number;
 }
 
+/** WP-03 Part 1 N1: one hop of a `circular_dependencies` entry's `edges`. */
+export interface RawCycleEdge {
+  path: string;
+  line: number;
+  col: number;
+}
+
+/** WP-03 Part 1 N1: an import cycle. `edges` is optional (N2: absent unless the report
+ *  writer included it). */
+export interface RawCircularDependency {
+  files: readonly string[];
+  line: number;
+  col: number;
+  edges?: readonly RawCycleEdge[];
+}
+
+/** WP-03 Part 1 N1: a re-export (`export * from`) cycle. */
+export interface RawReExportCycle {
+  files: readonly string[];
+  kind: 'multi-node' | 'self-loop';
+}
+
+/** WP-03 Part 1 N1: one import crossing a `.fallowrc.json` zone boundary it may not. */
+export interface RawBoundaryViolation {
+  from_path: string;
+  to_path: string;
+  from_zone: string;
+  to_zone: string;
+  import_specifier: string;
+  line: number;
+  col: number;
+}
+
+/** WP-03 Part 1 N1: one import fallow could not resolve. */
+export interface RawUnresolvedImport {
+  path: string;
+  specifier: string;
+  line: number;
+  col: number;
+}
+
+/** WP-03 Part 1 N1: one `health.file_scores` entry, read for `path`, `fan_in` and
+ *  `fan_out` only. */
+export interface RawFileScore {
+  path: string;
+  fan_in: number;
+  fan_out: number;
+}
+
 export interface RawCheckSection {
   /** Every count fallow reports; Y25 lists the non-zero ones Part 6 does not show. */
   summary: Readonly<Record<string, number>>;
   unused_exports: readonly RawUnusedEntry[];
   unused_types: readonly RawUnusedEntry[];
+  circular_dependencies?: readonly RawCircularDependency[];
+  re_export_cycles?: readonly RawReExportCycle[];
+  boundary_violations?: readonly RawBoundaryViolation[];
+  unresolved_imports?: readonly RawUnresolvedImport[];
 }
 
 export interface RawCloneInstance {
@@ -75,6 +134,7 @@ export interface RawHealthFinding {
 export interface RawHealthSection {
   findings: readonly RawHealthFinding[];
   summary: { max_cyclomatic_threshold: number; max_cognitive_threshold: number };
+  file_scores?: readonly RawFileScore[];
 }
 
 export interface RawWorkspaceDiagnostic {

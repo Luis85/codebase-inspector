@@ -101,8 +101,12 @@ export function deepStrings(value: unknown): string[] {
   return strings;
 }
 
-/** Y23: fields fallow writes that must never survive the parse. */
+/** Y23: fields fallow writes that must never survive the parse. WP-03 Part 1 J4:
+ *  `file_scores` is no longer here — it is now kept, but only for `path`, `fan_in` and
+ *  `fan_out` (N1); every other field on it (`maintainability_index`, `dead_code_ratio`,
+ *  etc.) is still dropped, proved by fallow-relations-reader.test.ts's "keeps only the
+ *  read fields". */
 export const DROPPED_KEYS = [
-  'fragment', 'actions', 'suggestions', 'clone_families', 'vital_signs', 'file_scores', 'hotspots', 'targets',
+  'fragment', 'actions', 'suggestions', 'clone_families', 'vital_signs', 'hotspots', 'targets',
   'health_score', 'next_steps', '_meta', 'elapsed_ms',
 ] as const;
