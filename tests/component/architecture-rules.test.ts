@@ -15,7 +15,8 @@ import { relationModelFor } from '../../src/ui/read-models/relations';
 import { architectureGraphFor, type RuleEvaluation } from '../../src/ui/read-models/architecture';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { ARCH_TAB_RULES, RULE_SHOW_LABEL } from '../../src/ui/inspector-copy';
-import { RELATIONS_PATHS, attachRelationsReport, snapshotWithPaths } from '../fixtures/evidence-report';
+import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS, attachRelationsReport } from '../fixtures/relations-report';
 
 const NOW = new Date('2026-09-21T10:00:00.000Z');
 

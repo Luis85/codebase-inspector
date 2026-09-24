@@ -14,12 +14,13 @@ import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evid
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
+import { relationModelFor } from '../../src/ui/read-models/relations';
 import { ALL_ANALYSED, SYNTHETIC_VERSION } from '../fixtures/evidence-report';
 import { FALLOW_RUN_ARGS } from '../../src/application/analysis/fallow-invocation';
 import { fallowRunBannerOf } from '../../src/ui/read-models/fallow-run';
 import {
   DEMO_FALLOW_FILE_NAME, DEMO_UNMATCHED_PATH, HARNESS_SYNTHETIC_FOOTER, HARNESS_BINDING,
-  completedAnalysisState, demoCollectedReport, demoEvidenceReport, demoFallowReportText, demoRunReview,
+  completedAnalysisState, demoCollectedReport, demoEvidenceReport, demoFallowReportText, demoRelationsAnchorPath, demoRunReview,
   failedAnalysisState, filePathsOf, openFailureLog, runningAnalysisState,
 } from './seed';
 import { harnessSnapshot } from './fixture';
@@ -41,15 +42,43 @@ describe('the harness fallow report (?report=demo)', () => {
   // - 10 unused findings (types on the 4th and 8th file);
   // - 5 complexity findings (files 0, 2, 4, 6 and 8);
   // - 4 duplication findings (clone groups at 0-1 and 5-6);
+  // - WP-03 N38: 5 relation findings (one import cycle, one re-export cycle, two boundary
+  //   violations, one unresolved import — ten files satisfies syntheticFallowJson's
+  //   six-file floor);
   // - plus one `orphan` export on the unmatched path.
-  it('matches nineteen findings on ten harness files and leaves exactly one path unmatched', () => {
+  it('matches twenty-four findings on ten harness files and leaves exactly one path unmatched', () => {
     const snapshot = harnessSnapshot();
     const report = demoEvidenceReport(snapshot);
     const { matched, unmatchedPaths } = resolveFindings(report.normalized.findings, new Set(filePathsOf(snapshot)));
     expect(unmatchedPaths).toEqual([DEMO_UNMATCHED_PATH]);
-    expect(matched).toHaveLength(19);
+    expect(matched).toHaveLength(24);
     expect(new Set(matched.map((f) => f.path)).size).toBe(10);
     expect(report.normalized.categories).toEqual(ALL_ANALYSED);
+  });
+
+  // WP-03 N38: the harness's own relation evidence, and the edge count Task 14's brief
+  // says the demo report gives (3 cycle hops + 2 boundary violations).
+  it('carries relation evidence: one import cycle, one re-export cycle, two violations, one unresolved import and file scores', () => {
+    const snapshot = harnessSnapshot();
+    const report = demoEvidenceReport(snapshot);
+    const { relations } = report.normalized;
+    expect(relations.importCycles).toHaveLength(1);
+    expect(relations.reExportCycles).toHaveLength(1);
+    expect(relations.boundaryViolations).toHaveLength(2);
+    expect(relations.unresolvedImports).toHaveLength(1);
+    expect(relations.fan).not.toBeNull();
+    const files = fileSummariesFor(snapshot);
+    const index = evidenceIndexFor(files, report, snapshot.snapshotId);
+    expect(relationModelFor(files, index).edges).toHaveLength(5);
+  });
+
+  // WP-03 N38: pins demoRelationsAnchorPath against the literal `select=` value
+  // scripts/harness-shot.mjs hardcodes for the relation captures (it is a plain script,
+  // not compiled TS, so it cannot import this helper) — a change to DEMO_FILE_INDEXES or
+  // the fixture's own file-naming convention fails this test instead of silently
+  // breaking `wp03-city-relations-*`/`wp03-city-cycle-dark`.
+  it('names the file the relation captures select, matching the harness-shot.mjs literal', () => {
+    expect(demoRelationsAnchorPath(harnessSnapshot())).toBe('dir-4/file-4.ts');
   });
 
   it('keeps its provenance, and says it is synthetic', () => {
@@ -74,7 +103,7 @@ describe('attaching it the way mount.ts does', () => {
     expect(evidence.attach(demoEvidenceReport(snapshot))).toBe(true);
     const index = evidenceIndexFor(fileSummariesFor(snapshot), evidence.report, snapshot.snapshotId);
     expect(index.state).toBe('current');
-    expect(index.matchedFindings).toBe(19);
+    expect(index.matchedFindings).toBe(24);
     expect(index.matchedFiles).toBe(10);
     expect(index.totals.findings.state).toBe('collected');
   });

@@ -55,13 +55,17 @@ describe('File detail findings (Part 6 Y36)', () => {
     w.unmount();
   });
 
+  // WP-03 N38: `onFile(0)`'s 10-file snapshot satisfies syntheticFallowJson's six-file
+  // floor, and file 0 is the anchor of its fixed import cycle, the first boundary
+  // violation and its unresolved import — three more findings on this file, on top of
+  // the usual unused-export, complexity and duplication ones (six in all).
   it('lists each reported finding with its title, line or range, rule and the tool\'s severity; stale says so', async () => {
     const snap = onFile(0);
     attachSyntheticReport(snap);
     const w = mountFile();
-    expect(w.text()).toContain(FILE_FINDINGS_SUBTITLE('3'));
+    expect(w.text()).toContain(FILE_FINDINGS_SUBTITLE('6'));
     const items = w.findAll('.ci-file-finding');
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(6);
     const text = items.map((i) => i.text()).join('\n');
     expect(text).toContain('symbol0 · Unused export');
     expect(text).toContain('Line 1 · Unused export');
@@ -71,7 +75,10 @@ describe('File detail findings (Part 6 Y36)', () => {
     expect(text).toContain('Lines 3–6 · Duplication');
     expect(text).not.toContain('Sample finding');
     expect(items.map((i) => i.find('.ci-severity').text()).sort())
-      .toEqual([SEVERITY_LABEL.critical, SEVERITY_LABEL.unrated, SEVERITY_LABEL.unrated].sort());
+      .toEqual([
+        SEVERITY_LABEL.critical, SEVERITY_LABEL.unrated, SEVERITY_LABEL.unrated,
+        SEVERITY_LABEL.unrated, SEVERITY_LABEL.unrated, SEVERITY_LABEL.unrated,
+      ].sort());
     attachSyntheticReport(snap, { snapshotId: 'snapshot-older' });
     await nextTick();
     expect(w.find('.ci-panel__header .ci-evidence-badge').text()).toBe(EVIDENCE_BADGE(SYNTHETIC_VERSION, 'stale'));

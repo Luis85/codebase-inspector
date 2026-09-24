@@ -102,6 +102,54 @@ describe('harness-shot SHOTS', () => {
     }
   });
 
+  // WP-03 N38 (JF21): the city Relations section and its arcs, a highlighted cycle, and
+  // the Architecture screen's Cycles/Edges/Rules tabs, all fed by the synthetic report's
+  // fixed relation section (Task 14).
+  it('captures the WP-03 states: the city Relations section, a highlighted cycle, and the Architecture Cycles/Edges/Rules tabs', () => {
+    for (const theme of ['dark', 'light']) {
+      const q = shotQuery(`wp03-city-relations-${theme}`);
+      expect(q.get('screen'), theme).toBe('s07');
+      expect(q.get('theme'), theme).toBe(theme);
+      expect(q.get('report'), theme).toBe('demo');
+      expect(q.get('select'), theme).not.toBeNull();
+    }
+    const cycleShot = shotQuery('wp03-city-cycle-dark');
+    expect(cycleShot.get('screen')).toBe('s07');
+    expect(cycleShot.get('report')).toBe('demo');
+    expect(cycleShot.get('relations')).toBe('cycle');
+    // Every Relations capture selects the SAME file — the one the demo report's relation
+    // evidence is actually anchored on (Task 14's own execution ruling).
+    const anchor = shotQuery('wp03-city-relations-dark').get('select');
+    for (const id of ['wp03-city-relations-light', 'wp03-city-cycle-dark']) {
+      expect(shotQuery(id).get('select'), id).toBe(anchor);
+    }
+    for (const tab of ['cycles', 'edges', 'rules']) {
+      const q = shotQuery(`wp03-architecture-${tab}-dark`);
+      expect(q.get('route'), tab).toBe('architecture');
+      expect(q.get('report'), tab).toBe('demo');
+      expect(q.get('tab'), tab).toBe(tab);
+    }
+    // Checked directly against the live harness: the Relations section's own "Cycles
+    // through this file" and its Highlight cycle button sit past the 800px fold at the
+    // standard viewport (the button's own bottom edge is ~883px) — a shot at VIEWPORT
+    // would crop them out.
+    for (const id of ['wp03-city-relations-dark', 'wp03-city-relations-light', 'wp03-city-cycle-dark']) {
+      const shot = SHOTS.find((s) => s.id === id);
+      expect(shot?.viewport?.width, id).toBe(1280);
+      expect(shot?.viewport?.height ?? 0, id).toBeGreaterThanOrEqual(1050);
+    }
+  });
+
+  // WP-03 N38 execution ruling: the Architecture screen now builds its graph only from
+  // real relation evidence (an earlier WP-03 task deleted the sample-edges fixture), so
+  // these three no longer show anything without report=demo — re-framed, same ids.
+  it('re-frames the WP-02 Architecture captures with report=demo, now that sample edges are gone', () => {
+    for (const id of ['wp02-architecture-dark', 'wp02-architecture-light', 'wp02-architecture-narrow-dark']) {
+      expect(shotQuery(id).get('report'), id).toBe('demo');
+      expect(shotQuery(id).get('route'), id).toBe('architecture');
+    }
+  });
+
   // Z42 fix round 1: FallowRunPanel and FallowRunBanner render below the fallow card's own
   // actions (FallowCardDetails.vue), which itself sits below the 800px fold at VIEWPORT — a
   // screenshot at the standard height never shows them, defeating the point of a capture that

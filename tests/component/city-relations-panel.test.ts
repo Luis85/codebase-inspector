@@ -21,7 +21,8 @@ import {
   RELATIONS_HOPS_LABEL, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
   RELATIONS_STATIC_NOTE, RELATIONS_TITLE,
 } from '../../src/ui/inspector-copy';
-import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson, snapshotWithPaths } from '../fixtures/evidence-report';
+import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson } from '../fixtures/relations-report';
 
 const BOOKMARK: CameraBookmark = { projection: 'orthographic', mode: '3d', position: [4, 5, 6], target: [1, 2, 3], up: [0, 1, 0], zoom: 2 };
 const LONG = Array.from({ length: 30 }, (_, i) => `long/f${String(i).padStart(2, '0')}.ts`);

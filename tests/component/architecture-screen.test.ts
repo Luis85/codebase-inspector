@@ -7,7 +7,8 @@ import ArchitectureScreen from '../../src/ui/screens/ArchitectureScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
-import { RELATIONS_PATHS, attachRelationsReport, snapshotWithPaths } from '../fixtures/evidence-report';
+import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS, attachRelationsReport } from '../fixtures/relations-report';
 import type { CodebaseSnapshot } from '../../src/domain/model';
 
 function withSnapshot(files = 60, directories = 6) {

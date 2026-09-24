@@ -9,7 +9,8 @@ import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { journalEntryFor } from '../../src/ui/read-models/snapshot-comparison';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
-import { RELATIONS_PATHS, attachRelationsReport, snapshotWithPaths } from '../fixtures/evidence-report';
+import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS, attachRelationsReport } from '../fixtures/relations-report';
 import { FALLOW_NOT_ANALYSED, NO_VALUE } from '../../src/ui/inspector-copy';
 
 // Hoisted to module scope (oxlint's consistent-function-scoping): captures nothing

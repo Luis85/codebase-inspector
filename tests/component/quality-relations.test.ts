@@ -15,9 +15,8 @@ import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { CodebaseSnapshot } from '../../src/domain/model';
 import { FINDING_VIA_RELATED, RELATION_MEMBER_UNMATCHED } from '../../src/ui/inspector-copy';
-import {
-  attachRelationsReport, RELATIONS_PATHS, snapshotWithOnlyFiles, snapshotWithPaths,
-} from '../fixtures/evidence-report';
+import { snapshotWithOnlyFiles, snapshotWithPaths } from '../fixtures/evidence-report';
+import { attachRelationsReport, RELATIONS_PATHS } from '../fixtures/relations-report';
 
 function withRelations(repositoryId = 'repo-relations-quality'): CodebaseSnapshot {
   const snap = snapshotWithPaths([...RELATIONS_PATHS], repositoryId);

@@ -87,18 +87,39 @@ export function filePathsOf(snapshot: CodebaseSnapshot): string[] {
   return snapshot.entities.filter((e) => e.kind === 'file').map((e) => e.path);
 }
 
-/** R5: the shared fixture's real-shaped fallow 3.27.0 JSON, for the ten demo files plus one
- *  path the snapshot does not have. It is the file `?fallow=review` picks. */
-export function demoFallowReportText(snapshot: CodebaseSnapshot): string {
+/** The ten demo files, in DEMO_FILE_INDEXES order — the same reduced file list
+ *  `demoFallowReportText` feeds `syntheticFallowJson`, so its own "file 0", "file 1", …
+ *  (WP-03 N38's fixed relation evidence, tests/fixtures/evidence-report.ts) are these
+ *  paths in this order. */
+function demoPaths(snapshot: CodebaseSnapshot): string[] {
   const paths = filePathsOf(snapshot);
-  const demoPaths = DEMO_FILE_INDEXES.map((i) => {
+  return DEMO_FILE_INDEXES.map((i) => {
     const path = paths[i];
     if (path === undefined) throw new Error(`harness: report=demo needs a file at index ${i}`);
     return path;
   });
-  return syntheticFallowJson(snapshotWithOnlyFiles(snapshot, demoPaths), {
+}
+
+/** R5: the shared fixture's real-shaped fallow 3.27.0 JSON, for the ten demo files plus one
+ *  path the snapshot does not have. It is the file `?fallow=review` picks. */
+export function demoFallowReportText(snapshot: CodebaseSnapshot): string {
+  return syntheticFallowJson(snapshotWithOnlyFiles(snapshot, demoPaths(snapshot)), {
     unmatchedPaths: [DEMO_UNMATCHED_PATH], warning: DEMO_WARNING,
   });
+}
+
+/** WP-03 N38: the reduced report's own "file 0" — the member every one of its fixed
+ *  relation findings (the import cycle, the re-export cycle's neighbour set is files 3-4,
+ *  the unresolved import) is anchored on or touches — so the relation captures
+ *  (`?relations=cycle`, the Relations-section shots) can `select=` a file that actually
+ *  has evidenced relations to show. scripts/harness-shot.mjs hardcodes this same path as
+ *  a query literal (it is a plain script, not compiled TS); harness-evidence.test.ts pins
+ *  the two against each other so a change to DEMO_FILE_INDEXES or the fixture's own path
+ *  naming cannot silently break the captures. */
+export function demoRelationsAnchorPath(snapshot: CodebaseSnapshot): string {
+  const [first] = demoPaths(snapshot);
+  if (first === undefined) throw new Error('harness: report=demo needs at least one file for the relations captures');
+  return first;
 }
 
 /** What the S14 dialog attaches for that file: the real reader, then the real builder. A

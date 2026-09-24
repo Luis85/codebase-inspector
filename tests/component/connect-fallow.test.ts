@@ -131,7 +131,10 @@ describe('Connect fallow (Part 6 Y38, S14)', () => {
     expect(document.activeElement).toBe(w.find('.ci-connect-fallow h3').element);
     expect(w.find('.ci-fallow-facts__file').text()).toBe('fallow-report.json');
     expect(w.find('.ci-connect-fallow .ci-fallow-facts').classes()).toContain('ci-fallow-facts--wide');   // E46
-    expect(w.find('.ci-fallow-facts__matched').text()).toBe(FALLOW_MATCHED(19, 10));
+    // WP-03 N38: 10 files satisfies syntheticFallowJson's six-file floor, so the usual 19
+    // unused/complexity/duplication findings gain 5 relation findings (cycle, re-export
+    // cycle, two boundary violations, unresolved import).
+    expect(w.find('.ci-fallow-facts__matched').text()).toBe(FALLOW_MATCHED(24, 10));
     expect(w.find('.ci-fallow-facts__unmatched summary').text()).toBe(FALLOW_UNMATCHED_SUMMARY(25, 20));
     expect(w.findAll('.ci-fallow-facts__unmatched li').map((li) => li.text())).toEqual(strays.slice(0, 20));
     expect(w.findAll('.ci-fallow-facts__not-shown li').map((li) => li.text())).toEqual([
@@ -167,7 +170,8 @@ describe('Connect fallow (Part 6 Y38, S14)', () => {
     expect(w.find('.ci-connect-fallow__mapping label').text()).toBe(FALLOW_MAPPING_OFFER('app/'));
     expect(w.find('.ci-fallow-facts__matched').text()).toBe(FALLOW_MATCHED(0, 0));
     await box.setValue(true);
-    expect(w.find('.ci-fallow-facts__matched').text()).toBe(FALLOW_MATCHED(19, 10));
+    // WP-03 N38: same six-file-floor gain as above (5 relation findings on top of 19).
+    expect(w.find('.ci-fallow-facts__matched').text()).toBe(FALLOW_MATCHED(24, 10));
     await w.find('.ci-connect-fallow__attach').trigger('click');
     await flushPromises();
     expect(useEvidenceStore().report?.stripPrefix).toBe('app/');
@@ -185,7 +189,8 @@ describe('Connect fallow (Part 6 Y38, S14)', () => {
     expect(useEvidenceStore().report?.fileName).toBe('fallow-report.json');
     // Polish G4 (E42): a successful Attach also returns focus to the card's Import button.
     expect(document.activeElement).toBe(w.find('.ci-fallow-card__import').element);
-    const message = FALLOW_ATTACHED(19, 10);
+    // WP-03 N38: same six-file-floor gain as above (5 relation findings on top of 19).
+    const message = FALLOW_ATTACHED(24, 10);
     expect(w.find('.ci-sources__live').text()).toBe(message);
 
     const first = useEvidenceStore().report!;

@@ -17,7 +17,8 @@ import {
   EDGE_DIRECTION_RELATIVE, EDGE_LIST_HIDDEN, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, RELATION_MEMBER_UNMATCHED,
   RELATIONS_SCOPE_NOTE, RELATIONS_STATIC_NOTE, RELATION_TYPE_UNKNOWN, UNRESOLVED_TITLE,
 } from '../../src/ui/inspector-copy';
-import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson, snapshotWithPaths } from '../fixtures/evidence-report';
+import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson } from '../fixtures/relations-report';
 
 const NOW = new Date('2026-09-24T10:00:00.000Z');
 

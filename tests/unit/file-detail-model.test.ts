@@ -57,9 +57,16 @@ describe('file detail findings (Part 6 Y34)', () => {
     expect(d.findingsCount).toMatchObject({ state: 'collected', value: own.length, provenance: { source: 'fallow' } });
     expect(d.findings[0]).toMatchObject({ fingerprint: `${file.id}#${own[0]!.id}`, title: FINDING_TITLE_FOR(own[0]!.category, own[0]!.rule, own[0]!.symbol, own[0]!.detail) });
   });
+  // WP-03 N38: `snap`'s 12 files satisfy syntheticFallowJson's six-file floor, and file 0
+  // is the anchor of its fixed import cycle, the first boundary violation and its
+  // unresolved import — three more findings on this file, every one severity-less
+  // ("unrated"), same as duplication and unused-exports.
   it('keeps the tool\'s own severity, and reads "unrated" where the tool gives none (Y35)', () => {
     const evidence = evidenceIndexFor(files, syntheticEvidenceReport(snap), snap.snapshotId);
     const d = buildFileDetail(snap, files, files[0]!.id, evidence)!;
-    expect(d.findings.map((f) => [f.kind, f.severity])).toEqual([['complexity', 'critical'], ['duplication', 'unrated'], ['unused-exports', 'unrated']]);
+    expect(d.findings.map((f) => [f.kind, f.severity])).toEqual([
+      ['complexity', 'critical'], ['duplication', 'unrated'], ['unused-exports', 'unrated'],
+      ['cycle', 'unrated'], ['boundary', 'unrated'], ['unresolved-import', 'unrated'],
+    ]);
   });
 });

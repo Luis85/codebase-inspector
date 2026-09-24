@@ -17,16 +17,19 @@ function candidate(source: CodebaseSnapshot, o: SyntheticFallowOptions = {}): Fa
 }
 
 describe('reviewFallowCandidate (Part 6 Y26/Y38)', () => {
+  // WP-03 N38: `snap`'s 10 files satisfy syntheticFallowJson's six-file floor, so its
+  // usual 19 unused/complexity/duplication findings gain 5 relation findings (cycle,
+  // re-export cycle, two boundary violations, unresolved import) — 24 in all.
   it('matches every finding on the snapshot\'s own paths', () => {
     const r = reviewFallowCandidate(candidate(snap), paths, false);
-    expect(r).toMatchObject({ matchedFindings: 19, matchedFiles: 10, unmatchedPaths: [], suggestion: null, mismatch: false });
+    expect(r).toMatchObject({ matchedFindings: 24, matchedFiles: 10, unmatchedPaths: [], suggestion: null, mismatch: false });
     expect(r.report.stripPrefix).toBeNull();
   });
 
   it('lists unmatched paths distinct and sorted, and offers no mapping that would not match', () => {
     const r = reviewFallowCandidate(candidate(snap, { unmatchedPaths: ['ghost/b.ts', 'ghost/a.ts', 'ghost/a.ts'] }), paths, false);
     expect(r.unmatchedPaths).toEqual(['ghost/a.ts', 'ghost/b.ts']);
-    expect(r).toMatchObject({ matchedFindings: 19, suggestion: null, mismatch: false });
+    expect(r).toMatchObject({ matchedFindings: 24, suggestion: null, mismatch: false });
   });
 
   it('offers the leading folder and applies it only when asked (Y26)', () => {
@@ -36,7 +39,7 @@ describe('reviewFallowCandidate (Part 6 Y26/Y38)', () => {
     expect(plain.unmatchedPaths).toHaveLength(10);
     expect(plain.report.stripPrefix).toBeNull();
     const mapped = reviewFallowCandidate(c, paths, true);
-    expect(mapped).toMatchObject({ matchedFindings: 19, matchedFiles: 10, unmatchedPaths: [], suggestion: 'app/' });
+    expect(mapped).toMatchObject({ matchedFindings: 24, matchedFiles: 10, unmatchedPaths: [], suggestion: 'app/' });
     expect(mapped.report.stripPrefix).toBe('app/');
   });
 
@@ -52,7 +55,7 @@ describe('reviewFallowCandidate (Part 6 Y26/Y38)', () => {
   it('lists a refused path (absolute, or with ..) as unmatched, never resolved', () => {
     const r = reviewFallowCandidate(candidate(snap, { unmatchedPaths: ['../outside.ts', '/abs/x.ts'] }), paths, false);
     expect(r.unmatchedPaths).toEqual(expect.arrayContaining(['../outside.ts', '/abs/x.ts']));
-    expect(r.matchedFindings).toBe(19);
+    expect(r.matchedFindings).toBe(24);
     expect(reviewFallowCandidate(candidate(snapshotWithPaths([]), { unmatchedPaths: ['../outside.ts'] }), paths, false).mismatch).toBe(true);
   });
 

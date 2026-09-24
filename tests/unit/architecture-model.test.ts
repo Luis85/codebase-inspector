@@ -17,7 +17,8 @@ import {
 } from '../../src/ui/read-models/architecture';
 import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
 import { rawReport } from '../fixtures/fallow-fixture';
-import { RELATIONS_PATHS, snapshotWithPaths } from '../fixtures/evidence-report';
+import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS } from '../fixtures/relations-report';
 import type { BoundaryRule } from '../../src/ui/stores/ports/review-repository';
 
 function graphOf(files: number, directories: number) {

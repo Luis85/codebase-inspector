@@ -18,7 +18,8 @@ import {
   ARCH_MATRIX_NO_EDGE, ARCH_NODE_LABEL_NOT_ANALYSED, ARCH_NONE, ARCH_TAB_RULES, CYCLE_KIND_LABEL, FALLOW_NOT_ANALYSED, NO_VALUE,
   RELATION_MEMBER_UNMATCHED, RELATIONS_SCOPE_SHORT,
 } from '../../src/ui/inspector-copy';
-import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson, snapshotWithPaths } from '../fixtures/evidence-report';
+import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson } from '../fixtures/relations-report';
 
 const BOOKMARK: CameraBookmark = {
   projection: 'orthographic', mode: '3d', position: [10, 20, 30], target: [0, 0, 0], up: [0, 1, 0], zoom: 1.5,

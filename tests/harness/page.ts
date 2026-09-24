@@ -16,6 +16,8 @@
 //   ?fallow=routes     open the Connect fallow dialog at step 1, both routes (sources)
 //   ?fallow=installed  open the installed-analyzer route at its review (sources)
 //   ?analysis=running|failed|collected  seed the scripted fallow run (sources)
+//   ?relations=cycle   highlight the selected file's first highlightable cycle (city,
+//                      with report=demo and a select= that names a cycle member)
 //
 // `installObsidianDomExtensions` is called FIRST, before any other import runs its own
 // top-level code: the harness page has no Obsidian, and the REAL renderer reads
@@ -72,4 +74,5 @@ void mountHarness(leaf, {
   ...(params.get('fallow') === 'routes' ? { fallow: 'routes' as const } : {}),
   ...(params.get('fallow') === 'installed' ? { fallow: 'installed' as const } : {}),
   ...(['running', 'failed', 'collected'].includes(params.get('analysis') ?? '') ? { analysis: params.get('analysis') as 'running' | 'failed' | 'collected' } : {}),
+  ...(params.get('relations') === 'cycle' ? { relations: 'cycle' as const } : {}),
 });

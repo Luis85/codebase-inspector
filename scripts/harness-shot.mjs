@@ -71,9 +71,17 @@ export const SHOTS = [
   { id: 'wp02-overview-light', query: '?screen=s05&theme=light&route=overview' },
   { id: 'wp02-overview-narrow-dark', query: '?screen=s10&theme=dark&route=overview&width=700', viewport: { width: 760, height: 900 } },
   // WP-02 Part 2: compare against docs/concept/prototype/screenshots/{architecture,hotspots,file}-{dark,light}.png.
-  { id: 'wp02-architecture-dark', query: '?screen=s05&theme=dark&route=architecture' },
-  { id: 'wp02-architecture-light', query: '?screen=s05&theme=light&route=architecture' },
-  { id: 'wp02-architecture-narrow-dark', query: '?screen=s10&theme=dark&route=architecture&width=700', viewport: { width: 760, height: 900 } },
+  // WP-03 N38 execution ruling: re-framed with `&report=demo`. read-models/architecture.ts
+  // now builds its graph ONLY from real relation evidence ("never sample data" — its own
+  // top-of-file comment) since an earlier WP-03 task deleted tests/ui/fixtures/
+  // sample-module-edges.ts; with no report attached these three drew real module nodes
+  // but zero edges, and every evidence card (Evidenced imports, Cycles, Violations) read
+  // "not analysed". Task 14 is the first task where the synthetic report actually carries
+  // cycle and boundary evidence, so this is the first point `report=demo` gives them
+  // something real to show instead of an empty graph.
+  { id: 'wp02-architecture-dark', query: '?screen=s05&theme=dark&route=architecture&report=demo' },
+  { id: 'wp02-architecture-light', query: '?screen=s05&theme=light&route=architecture&report=demo' },
+  { id: 'wp02-architecture-narrow-dark', query: '?screen=s10&theme=dark&route=architecture&report=demo&width=700', viewport: { width: 760, height: 900 } },
   { id: 'wp02-hotspots-dark', query: '?screen=s05&theme=dark&route=hotspots' },
   { id: 'wp02-hotspots-light', query: '?screen=s05&theme=light&route=hotspots' },
   { id: 'wp02-hotspots-narrow-dark', query: '?screen=s10&theme=dark&route=hotspots&width=700', viewport: { width: 760, height: 900 } },
@@ -143,6 +151,11 @@ export const SHOTS = [
   // directly (`main`'s content fits with no internal scrollbar left at that height).
   { id: 'wp02-sources-fallow-dark', query: '?screen=s05&theme=dark&route=sources&report=demo', viewport: { width: 1280, height: 2000 } },
   { id: 'wp02-connect-fallow-review-dark', query: '?screen=s05&theme=dark&route=sources&fallow=review' },
+  // WP-03 N38 execution ruling: re-captured, unchanged query — findings.ts's Structure
+  // card (WP-03 N13, `QUALITY_CARD_STRUCTURE`) counts the cycle/boundary/unresolved-import
+  // categories, which Task 14's fixture change is what first gives it a non-zero count to
+  // show; before this task the synthetic report's relation arrays were always empty
+  // (ruling JF1), so every earlier capture of this screen showed Structure as a real 0.
   { id: 'wp02-quality-fallow-dark', query: '?screen=s05&theme=dark&route=quality&report=demo' },
   { id: 'wp02-city-lens-dark', query: '?screen=s05&theme=dark&route=city&report=demo&lens=findings' },
   { id: 'wp02-city-lens-light', query: '?screen=s05&theme=light&route=city&report=demo&lens=findings' },
@@ -162,6 +175,42 @@ export const SHOTS = [
   { id: 'wp02-sources-fallow-running-dark', query: '?screen=s05&theme=dark&route=sources&analysis=running', viewport: { width: 1280, height: 2000 } },
   { id: 'wp02-sources-fallow-failed-dark', query: '?screen=s05&theme=dark&route=sources&analysis=failed', viewport: { width: 1280, height: 2000 } },
   { id: 'wp02-sources-fallow-collected-dark', query: '?screen=s05&theme=dark&route=sources&analysis=collected', viewport: { width: 1280, height: 2000 } },
+  // WP-03 Task 14 (N38): the city Relations section and its arcs (Tasks 11-13), and the
+  // Architecture screen's Cycles, Edges and Rules tabs with real evidence — all fed by the
+  // synthetic report's own fixed relation section (tests/fixtures/evidence-report.ts):
+  // one 3-file import cycle, one re-export cycle, two boundary violations and one
+  // unresolved import over files 0-5 of the ten harness demo files.
+  // `select=dir-4/file-4.ts` is `demoRelationsAnchorPath`'s own value (tests/harness/
+  // seed.ts) — the reduced report's own "file 0", a member of its import cycle, the
+  // `from` of one of its boundary violations, and where its unresolved import is
+  // reported. Screen s07's own default selection (the FIRST CITY LOT, dir-0/file-0.ts —
+  // checked directly) is not a member of any relation the demo report carries, so without
+  // this the Relations section would show no rows, no cycles and no arcs — this literal
+  // is pinned against `demoRelationsAnchorPath` by a dedicated harness-evidence.test.ts
+  // case, so a change to the fixture's file order fails a test rather than silently
+  // emptying these three captures.
+  // Same below-the-fold gap as wp02-sources-fallow-dark above, checked directly against
+  // this file's own state: the inspector's Relations section (direction/hops controls,
+  // the neighbourhood rows, then "Cycles through this file" and its Highlight cycle
+  // button) runs past the 800px fold — `.ci-city-relations__highlight`'s own bottom edge
+  // sits at ~883px, so `relations=cycle`'s click still lands (a DOM click reaches an
+  // off-screen element) but the button and the cycle path beneath it are cropped out of
+  // the picture at the standard viewport. 1050px clears it with room to spare.
+  {
+    id: 'wp03-city-relations-dark', query: '?screen=s07&theme=dark&report=demo&select=dir-4/file-4.ts',
+    viewport: { width: 1280, height: 1050 },
+  },
+  {
+    id: 'wp03-city-relations-light', query: '?screen=s07&theme=light&report=demo&select=dir-4/file-4.ts',
+    viewport: { width: 1280, height: 1050 },
+  },
+  {
+    id: 'wp03-city-cycle-dark', query: '?screen=s07&theme=dark&report=demo&select=dir-4/file-4.ts&relations=cycle',
+    viewport: { width: 1280, height: 1050 },
+  },
+  { id: 'wp03-architecture-cycles-dark', query: '?screen=s05&theme=dark&route=architecture&report=demo&tab=cycles' },
+  { id: 'wp03-architecture-edges-dark', query: '?screen=s05&theme=dark&route=architecture&report=demo&tab=edges' },
+  { id: 'wp03-architecture-rules-dark', query: '?screen=s05&theme=dark&route=architecture&report=demo&tab=rules' },
 ];
 
 async function main() {

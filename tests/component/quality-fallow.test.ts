@@ -63,7 +63,10 @@ describe('Code quality over a fallow report (Part 6 Y35)', () => {
     const w = mountQ();
     expect(w.find('.ci-quality__evidence .ci-evidence-badge').text()).toBe(EVIDENCE_BADGE(SYNTHETIC_VERSION, 'imported'));
     expect(w.find('.ci-not-analysed').exists()).toBe(false);
-    expect(w.findAll('.ci-table__row')).toHaveLength(19);
+    // WP-03 N38: 10 files satisfies syntheticFallowJson's six-file floor, so the usual 19
+    // complexity/duplication/unused-export rows gain 5 relation rows (cycle, re-export
+    // cycle, two boundary violations, unresolved import — Quality's Structure category).
+    expect(w.findAll('.ci-table__row')).toHaveLength(24);
     const complexity = rowWith(w, 'fn0 · Cognitive complexity 20 (threshold 15)');
     expect(complexity?.find('.ci-severity').text()).toBe(SEVERITY_LABEL.critical);
     expect(complexity?.find('.ci-severity').classes()).toContain('ci-severity--critical');
@@ -106,7 +109,10 @@ describe('Code quality over a fallow report (Part 6 Y35)', () => {
     expect(options[4]!.text()).toBe(SEVERITY_LABEL.unrated);
     await w.find('.ci-finding-filters__severity').setValue('unrated');
     const rows = w.findAll('.ci-table__row');
-    expect(rows).toHaveLength(14);
+    // WP-03 N38: the 14 previously-unrated rows (10 unused-export/type, 4 duplication)
+    // gain 5 more — every relation finding (cycle, re-export cycle, two boundary
+    // violations, unresolved import) carries no severity either.
+    expect(rows).toHaveLength(19);
     expect(rows.every((r) => r.find('.ci-severity').text() === SEVERITY_LABEL.unrated)).toBe(true);
     w.unmount();
 
@@ -146,7 +152,9 @@ describe('Code quality over a fallow report (Part 6 Y35)', () => {
     await w.find('.ci-quality__export').trigger('click');
     expect(vi.mocked(downloadText).mock.calls[0]![2]).toContain('id,path,module,kind,rule,severity,line,line_state,status,reason,provenance');
     const rows = csvRows(0);
-    expect(rows).toHaveLength(19);
+    // WP-03 N38: same six-file-floor gain as the table row count above (5 relation rows
+    // on top of the usual 19).
+    expect(rows).toHaveLength(24);
     expect(rows.every((l) => l.endsWith(`,fallow ${SYNTHETIC_VERSION} imported`))).toBe(true);
     expect(rows.some((l) => l.includes(',unused-exports,unused-export,unrated,1,reported,open,'))).toBe(true);
     attachSyntheticReport(snap, { snapshotId: 'snapshot-older' });

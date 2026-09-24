@@ -96,7 +96,10 @@ describe('the fallow card (Part 6 Y37)', () => {
     expect(card.find('.ci-fallow-facts__file').text()).toBe(report.fileName);
     expect(card.find('.ci-fallow-facts').classes()).not.toContain('ci-fallow-facts--wide');   // E46: stacked at card width
     expect(card.text()).toContain(formatAbsoluteTime(report.importedAt, Intl));
-    expect(card.find('.ci-fallow-facts__matched').text()).toBe(FALLOW_MATCHED(19, 10));
+    // WP-03 N38: 10 files satisfies syntheticFallowJson's six-file floor, so this combined
+    // report's 19 unused/complexity/duplication findings gain 5 relation findings (one
+    // import cycle, one re-export cycle, two boundary violations, one unresolved import).
+    expect(card.find('.ci-fallow-facts__matched').text()).toBe(FALLOW_MATCHED(24, 10));
     expect(card.findAll('.ci-fallow-facts__unmatched li').map((li) => li.text())).toEqual(['ghost/a.ts']);
     expect(card.find('.ci-fallow-facts__warnings').text()).toBe('node_modules is missing');
     expect(card.find('.ci-fallow-card__remove').attributes('aria-disabled')).toBeUndefined();

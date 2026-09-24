@@ -14,7 +14,8 @@ import {
   FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_SOURCE_CYCLE, RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_OUT, RELATIONS_FAN_OUT,
   RELATIONS_NONE_FOR_FILE, RELATIONS_SCOPE_NOTE, RELATIONS_TITLE,
 } from '../../src/ui/inspector-copy';
-import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson, snapshotWithPaths } from '../fixtures/evidence-report';
+import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson } from '../fixtures/relations-report';
 
 const clipboard = { writeText: vi.fn(() => Promise.resolve()) };
 const mountFile = () => mount(FileDetailScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn(), clipboard } } });

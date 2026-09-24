@@ -24,7 +24,8 @@ import {
 import type { BoundaryRule } from '../../src/ui/stores/ports/review-repository';
 import { fallowDoc, rawReport } from '../fixtures/fallow-fixture';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
-import { RELATIONS_PATHS, snapshotWithPaths } from '../fixtures/evidence-report';
+import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS } from '../fixtures/relations-report';
 
 const IMPORTED_AT = '2026-09-24T10:00:00.000Z';
 const IDLE = { status: 'idle' as const };

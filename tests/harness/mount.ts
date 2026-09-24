@@ -40,6 +40,9 @@ export interface HarnessOptions {
   lens?: 'findings';
   fallow?: 'review' | 'routes' | 'installed';
   analysis?: 'running' | 'failed' | 'collected';
+  /** WP-03 N38: highlight the selected file's first highlightable cycle (city, with
+   *  report=demo and a selection that is a cycle member). */
+  relations?: 'cycle';
 }
 
 export async function mountHarness(root: HTMLElement, options: HarnessOptions): Promise<void> {
@@ -164,6 +167,18 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
 
   const route = options.route ?? 'city';
   store.navigate(route);
+  if (options.relations === 'cycle') {
+    // WP-03 N38: a headless capture cannot click, so the harness clicks the city
+    // Relations section's own Highlight cycle button (CityRelationsPanel.vue) — the same
+    // real DOM, real store command every `options.tab` click below already takes, not a
+    // shortcut through useRelationsStore directly. Needs report=demo and a selection that
+    // is a member of one of its cycles (screen=s07 plus select=<a cycle member's path>).
+    await nextTick();
+    const button = root.querySelector<HTMLElement>('.ci-city-relations__highlight');
+    if (!button) throw new Error('harness: relations=cycle found no cycle to highlight for the current selection (add report=demo and select a cycle member)');
+    button.click();
+    await nextTick();
+  }
   if (route !== 'city') {
     // Only the city route creates a renderer; every other screen is plain DOM and is
     // drawn once Vue has flushed.

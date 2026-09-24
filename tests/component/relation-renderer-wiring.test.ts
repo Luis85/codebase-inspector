@@ -17,7 +17,8 @@ import { CITY_RENDERER_KEY } from '../../src/ui/renderer-handle';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
-import { RELATIONS_PATHS, attachRelationsReport, snapshotWithPaths } from '../fixtures/evidence-report';
+import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS, attachRelationsReport } from '../fixtures/relations-report';
 
 const CAMERA: CameraBookmark = { projection: 'orthographic', mode: '3d', position: [0, 0, 0], target: [0, 0, 0], up: [0, 1, 0], zoom: 1 };
 
