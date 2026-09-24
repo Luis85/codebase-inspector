@@ -7,16 +7,17 @@ import { sampleTrend } from '../fixtures/sample-signals';
 import type { FindingCategory, FindingDetail } from '../../application/evidence/model';
 import {
   FILE_CARD_COMPLEXITY, FILE_CARD_COMPLEXITY_CAPTION, FILE_CARD_COVERAGE, FILE_CARD_COVERAGE_CAPTION,
-  FILE_CARD_DEPENDENTS, FILE_CARD_DEPENDENTS_CAPTION, FILE_CARD_PRIORITY, FILE_CARD_PRIORITY_CAPTION,
+  FILE_CARD_IMPORTED_BY, FILE_CARD_IMPORTED_BY_CAPTION, FILE_CARD_PRIORITY, FILE_CARD_PRIORITY_CAPTION,
   FILE_HISTORY_COMPLEXITY, FILE_HISTORY_COVERAGE, NOT_MEASURED_REASON, PRIORITY_SCALE_SUFFIX,
 } from '../inspector-copy';
 import { evidenceIndexFor, type EvidenceIndex } from './evidence-index';
 import { touchingFindings } from './findings';
 import { moduleLabel, type FileSummary } from './file-summaries';
 import { TREND_POINTS, trendLabels } from './overview';
+import { relationModelFor, type RelationModel } from './relations';
 
 export interface FileDetailCard {
-  id: 'complexity' | 'coverage' | 'dependents' | 'priority'; label: string; icon: string;
+  id: 'complexity' | 'coverage' | 'imported-by' | 'priority'; label: string; icon: string;
   value: MetricValue; unit: string; caption: string; tone: 'warning' | 'success' | 'accent';
 }
 /** Part 6 Y34/Y35: one imported finding, as File detail and Code quality show it.
@@ -54,6 +55,7 @@ function bytesOf(snapshot: CodebaseSnapshot, id: EntityId): MetricValue {
 export function buildFileDetail(
   snapshot: CodebaseSnapshot, files: readonly FileSummary[], entityId: EntityId | null,
   evidence: EvidenceIndex = evidenceIndexFor(files, null, snapshot.snapshotId),
+  relations: RelationModel = relationModelFor(files, evidence),
 ): FileDetailModel | null {
   if (!entityId) return null;
   const file = files.find((f) => f.id === entityId);
@@ -71,7 +73,7 @@ export function buildFileDetail(
     { id: 'complexity', label: FILE_CARD_COMPLEXITY, icon: 'flame', value: file.complexity, unit: '', caption: FILE_CARD_COMPLEXITY_CAPTION, tone: 'warning' },
     { id: 'coverage', label: FILE_CARD_COVERAGE, icon: 'flask-conical', value: file.branchCoverage, unit: '%',
       caption: FILE_CARD_COVERAGE_CAPTION(formatMetric(file.branchesCovered), formatMetric(file.branchesTotal)), tone: 'success' },
-    { id: 'dependents', label: FILE_CARD_DEPENDENTS, icon: 'link', value: file.directDependents, unit: '', caption: FILE_CARD_DEPENDENTS_CAPTION, tone: 'accent' },
+    { id: 'imported-by', label: FILE_CARD_IMPORTED_BY, icon: 'link', value: relations.fanIn(file.id), unit: '', caption: FILE_CARD_IMPORTED_BY_CAPTION, tone: 'accent' },
     { id: 'priority', label: FILE_CARD_PRIORITY, icon: 'info', value: file.priority, unit: PRIORITY_SCALE_SUFFIX, caption: FILE_CARD_PRIORITY_CAPTION, tone: 'accent' },
   ];
   return {

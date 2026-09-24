@@ -110,8 +110,6 @@ export const FILE_CARD_COMPLEXITY = 'Max. cognitive complexity';
 export const FILE_CARD_COMPLEXITY_CAPTION = 'Highest function-level value, not a file sum';
 export const FILE_CARD_COVERAGE = 'Branch coverage';
 export const FILE_CARD_COVERAGE_CAPTION = (covered: string, total: string): string => `${covered} of ${total} instrumented branches`;
-export const FILE_CARD_DEPENDENTS = 'Direct dependents';
-export const FILE_CARD_DEPENDENTS_CAPTION = 'Illustrative fan-in';
 export const FILE_CARD_PRIORITY = 'Review priority';
 export const FILE_CARD_PRIORITY_CAPTION = 'Heuristic, not a failure probability';
 export const FILE_HISTORY_COMPLEXITY = 'Max. complexity';
@@ -298,3 +296,5 @@ export * from './audit-copy/storage';
 /** Part 6: fallow report import. */
 export * from './audit-copy/fallow';
 export * from './audit-copy/fallow-run';
+/** WP-03 Part 1: dependency evidence (Architecture, File detail and city Relations). */
+export * from './audit-copy/relations';

@@ -18,7 +18,6 @@ export interface FileSummary {
   branchesCovered: MetricValue;
   branchesTotal: MetricValue;
   branchCoverage: MetricValue;   // percent
-  directDependents: MetricValue;
   priority: MetricValue;
 }
 
@@ -89,7 +88,6 @@ function build(snapshot: CodebaseSnapshot): readonly FileSummary[] {
       branchesCovered: sample(s.branchesCovered),
       branchesTotal: sample(s.branchesTotal),
       branchCoverage: sample(Math.round((s.branchesCovered / s.branchesTotal) * 100)),
-      directDependents: sample(s.directDependents),
       priority: priorityEvidence(sample(s.complexity), sample(s.commits90d), sample(s.branchesCovered), sample(s.branchesTotal)),
     };
   });

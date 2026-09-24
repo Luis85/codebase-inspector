@@ -14,6 +14,7 @@ import {
   architectureGraphFor, buildArchitectureModel, cyclesValue, type ArchitectureGraph, type ArchitectureModel,
 } from './architecture';
 import { buildFileDetail, type FileDetailModel } from './file-detail';
+import { relationModelFor, type RelationModel } from './relations';
 import { buildDependenciesModel, type DependenciesModel } from './dependencies';
 import { buildEvolutionModel, type EvolutionModel } from './evolution';
 import type { ChangeWindow } from '../fixtures/sample-evolution';
@@ -80,12 +81,12 @@ export function architectureModelFor(graph: ArchitectureGraph, rules: readonly B
 type DetailEntry = { snapshot: CodebaseSnapshot; files: readonly FileSummary[]; byId: Map<EntityId, FileDetailModel | null> };
 const detailCache = new WeakMap<EvidenceIndex, DetailEntry>();
 function fileDetailFor(
-  snapshot: CodebaseSnapshot, files: readonly FileSummary[], entityId: EntityId | null, evidence: EvidenceIndex,
+  snapshot: CodebaseSnapshot, files: readonly FileSummary[], entityId: EntityId | null, evidence: EvidenceIndex, relations: RelationModel,
 ): FileDetailModel | null {
   if (!entityId) return null;
   let entry = detailCache.get(evidence);
   if (!entry || entry.snapshot !== snapshot || entry.files !== files) { entry = { snapshot, files, byId: new Map() }; detailCache.set(evidence, entry); }
-  if (!entry.byId.has(entityId)) entry.byId.set(entityId, buildFileDetail(snapshot, files, entityId, evidence));
+  if (!entry.byId.has(entityId)) entry.byId.set(entityId, buildFileDetail(snapshot, files, entityId, evidence, relations));
   return entry.byId.get(entityId) ?? null;
 }
 
@@ -169,8 +170,10 @@ export function useReadModels() {
     ? overviewModelFor(store.snapshot, files.value, cycles.value, evidence.value, review.dispositions) : null));
   const citySummary = computed(() => buildCitySummary(files.value, cycles.value, evidence.value));
   const architecture = computed(() => architectureModelFor(graph.value, review.rules));
+  /** WP-03 N7/N8: fallow's dependency evidence, resolved against these files. */
+  const relations = computed(() => relationModelFor(files.value, evidence.value));
   const fileDetail = computed(() => (store.snapshot
-    ? fileDetailFor(store.snapshot, files.value, store.selectedEntityId, evidence.value) : null));
+    ? fileDetailFor(store.snapshot, files.value, store.selectedEntityId, evidence.value, relations.value) : null));
   const quality = computed(() => qualityModelFor(files.value, evidence.value, review.dispositions));
   const testConfidence = computed(() => (store.snapshot ? testConfidenceModelFor(store.snapshot, files.value) : null));
   const dependencies = computed(() => (store.snapshot ? dependenciesModelFor(store.snapshot) : null));
@@ -180,6 +183,6 @@ export function useReadModels() {
   const filesUseSample = computed(() => files.value.some((f) => isSampleBacked(f.priority) || isSampleBacked(f.complexity)));
   return {
     files, evidence, overview, citySummary, architecture, fileDetail, quality, testConfidence, dependencies, security,
-    ownership, filesUseSample,
+    ownership, filesUseSample, relations,
   };
 }

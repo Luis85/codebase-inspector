@@ -9,8 +9,7 @@ const id = (p: string) => makeEntityId('repo', 'file', p);
 const summary = (p: string): FileSummary => {
   const s = sample(1);
   return { id: id(p), name: p.slice(p.lastIndexOf('/') + 1), path: p, module: p.split('/')[0]!, lines: collected(10, 'inventory'),
-    complexity: s, commits90d: s, branchesCovered: s, branchesTotal: s, branchCoverage: s,
-    directDependents: s, priority: s };
+    complexity: s, commits90d: s, branchesCovered: s, branchesTotal: s, branchCoverage: s, priority: s };
 };
 const FILES = [summary('src/parser.ts'), summary('lib/io.ts')];
 const item = (over: Partial<WorkItem>): WorkItem => ({

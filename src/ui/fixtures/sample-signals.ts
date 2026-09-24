@@ -9,7 +9,6 @@ export interface FileSignals {
   commits90d: number;
   branchesTotal: number;
   branchesCovered: number;
-  directDependents: number;
 }
 
 export function sampleFileSignals(entityId: EntityId): FileSignals {
@@ -18,10 +17,10 @@ export function sampleFileSignals(entityId: EntityId): FileSignals {
   const commits90d = 1 + Math.floor(r() ** 1.5 * 43);
   const branchesTotal = 20 + Math.floor(r() * 160);
   const branchesCovered = Math.round(branchesTotal * (0.4 + r() * 0.59));
-  const directDependents = 1 + Math.floor(r() * 18);
-  // Part 6 Y34: no sample findings any more. The draws above keep their order, so every
-  // remaining sample value is unchanged.
-  return { complexity, commits90d, branchesTotal, branchesCovered, directDependents };
+  // Part 6 Y34: no sample findings any more. WP-03 N8/JF16: the sample fan-in field (the
+  // last draw) is gone too — Imported by is now fallow's own real value — so no
+  // placeholder draw replaces it; the draws above keep their order unchanged.
+  return { complexity, commits90d, branchesTotal, branchesCovered };
 }
 
 /** A sample history that ENDS at the real current value, walking backwards by at most

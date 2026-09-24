@@ -17,10 +17,11 @@ describe('file detail model', () => {
     const dir = snap.entities.find((e) => e.kind === 'directory')!;
     expect(buildFileDetail(snap, files, dir.id)).toBeNull();
   });
-  it('has four sample cards, collected bytes and the entity category', () => {
+  it('has four cards — Imported by is fallow\'s, unknown in a no-report world — collected bytes and the entity category', () => {
     const f = files[3]!;
     const d = buildFileDetail(snap, files, f.id)!;
-    expect(d.cards.map((c) => [c.id, c.value.state])).toEqual([['complexity', 'sample'], ['coverage', 'sample'], ['dependents', 'sample'], ['priority', 'sample']]);
+    expect(d.cards.map((c) => [c.id, c.value.state])).toEqual([['complexity', 'sample'], ['coverage', 'sample'], ['imported-by', 'unknown'], ['priority', 'sample']]);
+    expect(d.cards.find((c) => c.id === 'imported-by')).toMatchObject({ label: 'Imported by', value: { reason: FALLOW_NOT_ANALYSED } });
     expect(d.bytes.state).toBe('collected');
     expect(d.category).toBe(snap.entities.find((e) => e.id === f.id)?.category);
     expect(d.moduleLabel).toBe(f.module);
