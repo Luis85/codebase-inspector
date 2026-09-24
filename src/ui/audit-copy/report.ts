@@ -14,7 +14,9 @@ export const REPORT_FACT_EXCLUSIONS = 'Scope exclusions';
 export const REPORT_FACT_EVIDENCE = 'Evidence';
 export const REPORT_FACT_SAFETY = 'Source safety';
 export const REPORT_NO_EXCLUSIONS = 'None';
-export const REPORT_EVIDENCE_TEXT = 'File inventory collected by the built-in read-only scan. Static findings come from fallow evidence (an imported report or a run you started) when one is attached for this session, and read Not analysed otherwise. History, coverage, import edges and packages are sample data. Mutation, runtime and secret scanning were not collected.';
+// WP-03 final review #4: import relations (the imports fallow reports in cycles and boundary
+// violations) are fallow evidence now, never sample data.
+export const REPORT_EVIDENCE_TEXT = 'File inventory collected by the built-in read-only scan. Static findings and import relations (the imports fallow reports in cycles and boundary violations) come from fallow evidence (an imported report or a run you started) when one is attached for this session, and read Not analysed otherwise. History, coverage and packages are sample data. Mutation, runtime and secret scanning were not collected.';
 export const REPORT_SAFETY_TEXT = 'Read-only inventory within the approved scope. No source file was changed and no tool was run.';
 export const REPORT_SECTION_LABEL: Readonly<Record<'summary' | 'architecture' | 'hotspots' | 'security' | 'plan', string>> = {
   summary: 'Executive summary', architecture: 'Architecture review', hotspots: 'Quality hotspots',
@@ -27,7 +29,9 @@ export const REPORT_SUMMARY_NOTE = 'These independent signals are not a composit
 export const REPORT_RULES_TITLE = 'Boundary rules';
 export const REPORT_NO_RULES = 'No boundary rules defined.';
 export const REPORT_RULE_BOUNDARY = (from: string, to: string): string => `${from} must not import ${to}`;
-export const REPORT_RULE_STATUS = (status: string): string => `${status} (sample edges)`;
+/** WP-03 N23 (final review #4): a rule's status reads as the rule table's does — the status,
+ *  with its reason when it has one — never "(sample edges)". */
+export const REPORT_RULE_STATUS = (status: string, reason: string | null): string => (reason === null ? status : `${status} (${reason})`);
 export const REPORT_COL_RULE = 'Rule';
 export const REPORT_COL_BOUNDARY = 'Intended boundary';
 export const REPORT_COL_STATUS = 'Status';
@@ -45,7 +49,7 @@ export const REPORT_PLAN_LINE = (id: string, title: string, status: string, prio
 export const REPORT_NOTE_TITLE = 'Reviewer note';
 export const REPORT_NO_NOTE = 'No reviewer note.';
 export const REPORT_LIMITS_TITLE = 'Scope and limitations';
-export const REPORT_LIMITS = 'Only the file inventory is measured; every other signal here is sample data or unknown. No source content was interpreted, no runtime traffic, credentials or real package advisories were analysed. Import graphs do not prove architectural intent. Coverage does not prove correctness. Missing evidence is unknown, not passing.';
+export const REPORT_LIMITS = 'The file inventory is measured by the scan. Static findings and import relations come from fallow when a report is attached, and import relations are only the imports fallow reports in cycles and boundary violations, not the full import graph. History, coverage and packages are sample data; anything else is unknown. No source content was interpreted, no runtime traffic, credentials or real package advisories were analysed. Import graphs do not prove architectural intent. Coverage does not prove correctness. Missing evidence is unknown, not passing.';
 export const REPORT_CONTENTS_TITLE = 'Report contents';
 export const REPORT_CONTENTS_SUBTITLE = 'Choose what to include.';
 export const REPORT_NOTE_PANEL_TITLE = 'Reviewer note';

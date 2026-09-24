@@ -36,7 +36,9 @@ export const SOURCES_SOURCE_FICTIONAL = 'Fictional packages';
 export const SOURCES_PROVIDER: Readonly<Record<string, { title: string; description: string }>> = {
   inventory: { title: 'File inventory', description: 'Paths, sizes and line counts inside the approved scope, read-only.' },
   fallow: { title: 'fallow findings', description: 'Complexity, duplication and unused exports from a fallow JSON report you import, or from a run of an installed fallow you review and start. Nothing is installed; findings are kept for this session only.' },
-  imports: { title: 'Module import graph', description: 'Import cycles and boundary violations fallow reports. Not the full import graph.' },
+  // WP-03 final review #13: fallow reports only cycle and boundary imports, never a graph;
+  // the title matches the Overview's OVERVIEW_IMPORTS_ROW.
+  imports: { title: 'Import relations', description: 'Import cycles and boundary violations fallow reports. Not the full import graph.' },
   history: { title: 'Change history', description: 'Commit activity, change coupling and team-level stewardship. Sample data.' },
   coverage: { title: 'Coverage and test runs', description: 'Instrumented branches and test-run summaries. Sample data.' },
   packages: { title: 'Packages and advisories', description: 'A fixed set of fictional packages and demo advisories. No registry is consulted.' },

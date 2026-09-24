@@ -6,7 +6,7 @@ import { formatAbsoluteTime } from '../copy';
 import { mdCell, mdCode, mdLine, mdQuote, mdValue } from '../export/markdown';
 import { REPORT_SECTIONS, type ReportSection } from '../stores/report-store';
 import {
-  REPORT_COL_BOUNDARY, REPORT_COL_COMMITS, REPORT_COL_COMPLEXITY, REPORT_COL_COVERAGE, REPORT_COL_FILE, REPORT_COL_PRIORITY,
+  RELATIONS_SCOPE_NOTE, REPORT_COL_BOUNDARY, REPORT_COL_COMMITS, REPORT_COL_COMPLEXITY, REPORT_COL_COVERAGE, REPORT_COL_FILE, REPORT_COL_PRIORITY,
   REPORT_COL_RATIONALE, REPORT_COL_RULE, REPORT_COL_STATUS, REPORT_EVIDENCE_TEXT, REPORT_FACT_EVIDENCE, REPORT_FACT_EXCLUSIONS,
   REPORT_FACT_SAFETY, REPORT_FACT_SNAPSHOT, REPORT_FACT_SOURCE, REPORT_FILES, REPORT_HOTSPOTS_NOTE, REPORT_LIMITS,
   REPORT_LIMITS_TITLE, REPORT_LINES, REPORT_MD_DISCLAIMER, REPORT_NO_EXCLUSIONS, REPORT_NO_NOTE, REPORT_NO_PLAN, REPORT_NO_RULES,
@@ -60,7 +60,7 @@ export function buildReportModel(input: ReportInput): ReportModel {
       id: r.rule.id,
       boundary: REPORT_RULE_BOUNDARY(moduleLabel(r.rule.from), moduleLabel(r.rule.to)),
       rationale: r.rule.rationale,
-      status: REPORT_RULE_STATUS(RULE_STATUS_LABEL[r.status]),
+      status: REPORT_RULE_STATUS(RULE_STATUS_LABEL[r.status], r.reason),
     })),
     hotspots: overview.hotspots,
     security: security.cards.map((c) => ({ label: c.label, value: c.value, unit: '' })),
@@ -78,8 +78,9 @@ const tableRow = (cells: readonly string[]): string => `| ${cells.join(' | ')} |
 function sectionBody(model: ReportModel, section: ReportSection): string[] {
   switch (section) {
     case 'summary': return [...metricLines(model.summary), '', REPORT_SUMMARY_NOTE];
+    // WP-03 N5 (final review #4): the evidenced-import metrics carry the scope note.
     case 'architecture': return [
-      ...metricLines(model.architecture), '', `**${REPORT_RULES_TITLE}**`, '',
+      ...metricLines(model.architecture), '', RELATIONS_SCOPE_NOTE, '', `**${REPORT_RULES_TITLE}**`, '',
       ...(model.rules.length === 0 ? [REPORT_NO_RULES] : [
         tableRow([REPORT_COL_RULE, REPORT_COL_BOUNDARY, REPORT_COL_STATUS, REPORT_COL_RATIONALE]), tableRow(['---', '---', '---', '---']),
         ...model.rules.map((r) => tableRow([mdCell(r.id), mdCell(r.boundary), mdCell(r.status), mdCell(r.rationale)])),

@@ -11,6 +11,7 @@ import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { attachSyntheticReport } from '../fixtures/evidence-report';
+import { RELATIONS_SCOPE_NOTE } from '../../src/ui/inspector-copy';
 
 function withSnapshot() {
   const snap = buildSnapshotFixture({ files: 30, directories: 3 });
@@ -103,6 +104,21 @@ describe('ReportScreen (Part 4)', () => {
     const open = /^- Open quality findings: (\d+)/m.exec(text)?.[1];
     expect(open).toBe(String(report.normalized.findings.length - 1));
     expect(open).toBe(String(quality.value.cards[0]!.value.value));
+    w.unmount();
+  });
+
+  it('WP-03 final review #4 (N5): the paper\'s Architecture review carries RELATIONS_SCOPE_NOTE under its metrics, and only there', async () => {
+    withSnapshot();
+    const w = mountR();
+    const sections = w.findAll('.ci-report-paper__section');
+    const architecture = sections.find((s) => s.find('.ci-report-paper__section-title').text().includes('Architecture review'))!;
+    const note = architecture.findAll('.ci-note').find((p) => p.text() === RELATIONS_SCOPE_NOTE);
+    expect(note).toBeDefined();
+    expect(architecture.find('.ci-report-paper__metrics + .ci-note').text()).toBe(RELATIONS_SCOPE_NOTE);
+    expect(sections.filter((s) => s.text().includes(RELATIONS_SCOPE_NOTE))).toHaveLength(1);
+    expect(w.find('.ci-report-paper').text()).not.toContain('import edges');
+    await w.find('.ci-report-contents input[value="architecture"]').setValue(false);
+    expect(w.find('.ci-report-paper').text()).not.toContain(RELATIONS_SCOPE_NOTE);
     w.unmount();
   });
 

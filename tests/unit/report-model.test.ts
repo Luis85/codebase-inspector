@@ -12,6 +12,9 @@ import { buildReportModel, includedSections, reportMarkdown } from '../../src/ui
 import { buildWorkbenchModel, planMarkdown, targetMarkdown } from '../../src/ui/read-models/work-items';
 import { REPORT_NOTE_MAX, useReportStore } from '../../src/ui/stores/report-store';
 import { NO_CHECKS } from '../../src/ui/stores/ports/review-repository';
+import {
+  FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_NOTE, REPORT_EVIDENCE_TEXT, REPORT_LIMITS, REPORT_RULES_TITLE, RULE_STATUS_LABEL,
+} from '../../src/ui/inspector-copy';
 
 function model() {
   const snapshot = buildSnapshotFixture({ files: 40, directories: 3 });
@@ -82,6 +85,33 @@ describe('report model and Markdown (Part 4 W6/W7)', () => {
     expect(row).toContain('weird\\|file.ts');
     // Five cells means exactly six UNESCAPED '|' separators (leading, four between, trailing).
     expect((row!.match(/(?<!\\)\|/g) ?? []).length).toBe(6);
+  });
+  it('WP-03 final review #4: import relations are fallow evidence, never sample, and the Architecture metrics carry the scope note (N5)', () => {
+    expect(REPORT_EVIDENCE_TEXT).not.toMatch(/import edges/);
+    expect(REPORT_EVIDENCE_TEXT).toContain('import relations');
+    expect(REPORT_EVIDENCE_TEXT).toContain('History, coverage and packages are sample data.');
+    expect(REPORT_LIMITS).not.toMatch(/every other signal here is sample data/i);
+    expect(REPORT_LIMITS).toContain('History, coverage and packages are sample data');
+    const md = reportMarkdown(model(), ALL, '');
+    const architecture = md.slice(md.indexOf('Architecture review'), md.indexOf('Quality hotspots'));
+    expect(architecture).toContain(RELATIONS_SCOPE_NOTE);
+    // After the metric lines, before the rules.
+    expect(architecture.indexOf(RELATIONS_SCOPE_NOTE)).toBeLessThan(architecture.indexOf(REPORT_RULES_TITLE));
+    expect(architecture.lastIndexOf('\n- ', architecture.indexOf(RELATIONS_SCOPE_NOTE))).toBeGreaterThan(-1);
+    expect(reportMarkdown(model(), { ...ALL, architecture: false }, '')).not.toContain(RELATIONS_SCOPE_NOTE);
+  });
+  it('WP-03 final review #4 (N23): a rule\'s status is its own evaluation, never "(sample edges)"', () => {
+    const snapshot = buildSnapshotFixture({ files: 40, directories: 3 });
+    const files = fileSummariesFor(snapshot);
+    const graph = architectureGraphFor(files, relationModelFor(files, evidenceIndexFor(files, null, snapshot.snapshotId)));
+    const [a, b] = graph.modules;
+    const rule = { id: 'R-1', from: a!.name, to: b!.name, rationale: 'kept apart', createdAt: '2026-09-22T10:00:00.000Z' };
+    const m = buildReportModel({
+      snapshot, files, overview: buildOverviewModel(snapshot, files), architecture: buildArchitectureModel(graph, [rule]),
+      security: buildSecurityModel(), plan: [],
+    });
+    expect(m.rules[0]!.status).toBe(`${RULE_STATUS_LABEL['not-evaluated']} (${FALLOW_NOT_ANALYSED})`);
+    expect(reportMarkdown(m, ALL, '')).not.toContain('sample edges');
   });
   it('fix round 1 #5: marks a plan item whose file target left the snapshot, in Markdown too', () => {
     const snapshot = buildSnapshotFixture({ files: 40, directories: 3 });

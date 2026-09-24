@@ -9,6 +9,7 @@ import { initialScanLifecycleState } from '../../src/application/run-state';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { COPY_09 } from '../../src/ui/copy';
+import { OVERVIEW_IMPORTS_ROW } from '../../src/ui/inspector-copy';
 
 function mountS(onSelectCodebase = vi.fn(), onScanRequested = vi.fn(), onCancelScan = vi.fn()) {
   return mount(SourcesScreen, { attachTo: document.body, global: { provide: { onSelectCodebase, onScanRequested, onCancelScan } } });
@@ -112,6 +113,15 @@ describe('SourcesScreen (Part 4)', () => {
     useRunStore().setLifecycle({ ...initialScanLifecycleState(), run: { status: 'failed', runId: 'r', message: 'EACCES: permission denied' } });
     await nextTick();
     expect(w.find('.ci-sources__status').text()).toContain('The last scan failed: EACCES: permission denied');
+    w.unmount();
+  });
+
+  it('WP-03 final review #13: the imports provider is titled "Import relations", as the Overview row is, never an import graph', () => {
+    const w = mountS();
+    const name = w.find('.ci-provider--imports .ci-provider__name').text();
+    expect(name).toBe('Import relations');
+    expect(name).toBe(OVERVIEW_IMPORTS_ROW);
+    expect(name).not.toContain('graph');
     w.unmount();
   });
 

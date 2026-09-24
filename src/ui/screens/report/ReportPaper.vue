@@ -6,7 +6,7 @@ import { includedSections, type ReportMetric, type ReportModel, type ReportRule 
 import type { WorkRow } from '../../read-models/work-items';
 import type { ReportSection } from '../../stores/report-store';
 import {
-  REPORT_COL_BOUNDARY, REPORT_COL_COMMITS, REPORT_COL_COMPLEXITY, REPORT_COL_COVERAGE, REPORT_COL_FILE, REPORT_COL_PRIORITY,
+  RELATIONS_SCOPE_NOTE, REPORT_COL_BOUNDARY, REPORT_COL_COMMITS, REPORT_COL_COMPLEXITY, REPORT_COL_COVERAGE, REPORT_COL_FILE, REPORT_COL_PRIORITY,
   REPORT_COL_RATIONALE, REPORT_COL_RULE, REPORT_COL_STATUS, REPORT_HOTSPOTS_NOTE, REPORT_KICKER, REPORT_LIMITS,
   REPORT_LIMITS_TITLE, REPORT_NO_NOTE, REPORT_NO_PLAN, REPORT_NO_RULES, REPORT_NOTE_TITLE, REPORT_RULES_TITLE,
   REPORT_SAMPLE_BADGE, REPORT_SECTION_HEADING, REPORT_SECTION_LABEL, REPORT_SECURITY_NOTE, REPORT_SUMMARY_NOTE,
@@ -100,6 +100,10 @@ const HOTSPOT_COLUMNS: readonly TableColumn<FileSummary>[] = [
         {{ REPORT_SUMMARY_NOTE }}
       </p>
       <template v-if="section === 'architecture'">
+        <!-- WP-03 N5 (final review #4): the evidenced-import metrics carry the scope note. -->
+        <p class="ci-note">
+          {{ RELATIONS_SCOPE_NOTE }}
+        </p>
         <h5 class="ci-report-paper__subtitle">
           {{ REPORT_RULES_TITLE }}
         </h5>
