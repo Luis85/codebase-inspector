@@ -39,6 +39,15 @@ describe('each element is walked by hand, first failure wins (E31)', () => {
     expect(fallowOutcome(fallowDoc('relations-combined-3.27.0', (d) => { cycles(d)[0]!.files = [1]; })))
       .toBe('invalid check.circular_dependencies.0.files.0');
   });
+  it('an import cycle with no files is refused, never normalised into a finding with no path', () => {
+    expect(fallowOutcome(fallowDoc('relations-combined-3.27.0', (d) => { cycles(d)[0]!.files = []; })))
+      .toBe('invalid check.circular_dependencies.0.files');
+  });
+  it('a re-export cycle with no files is refused too', () => {
+    expect(fallowOutcome(fallowDoc('relations-combined-3.27.0', (d) => {
+      (d.check! as unknown as { re_export_cycles: Record<string, unknown>[] }).re_export_cycles[0]!.files = [];
+    }))).toBe('invalid check.re_export_cycles.0.files');
+  });
   it('a bad cycle edge', () => {
     expect(fallowOutcome(fallowDoc('relations-combined-3.27.0', (d) => { cycles(d)[0]!.edges = [{ path: 'a', line: -1, col: 0 }]; })))
       .toBe('invalid check.circular_dependencies.0.edges.0.line');

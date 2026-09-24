@@ -166,8 +166,13 @@ export const FALLOW_ROW_UNMATCHED = 'Unmatched paths';
 export const FALLOW_ROW_NOT_SHOWN = 'Reported, not shown in this version';
 export const FALLOW_ROW_WARNINGS = 'Warnings';
 export const FALLOW_REPORT_VALUE = (version: string, kind: string, schema: number): string => `fallow ${version} · ${kind} report · schema ${schema}`;
-export const FALLOW_CATEGORY_LINE = (label: string, state: 'analysed' | 'not-analysed'): string =>
-  `${label}: ${state === 'analysed' ? 'Analysed' : 'Not analysed'}`;
+/** WP-03 N11 (final review #3): a category fallow says it did not check because it is not
+ *  configured (boundaries) reads so, never "Not analysed". */
+const CATEGORY_STATE_TEXT: Readonly<Record<'analysed' | 'not-analysed' | 'not-configured', string>> = {
+  analysed: 'Analysed', 'not-analysed': 'Not analysed', 'not-configured': 'Not configured in fallow',
+};
+export const FALLOW_CATEGORY_LINE = (label: string, state: 'analysed' | 'not-analysed' | 'not-configured'): string =>
+  `${label}: ${CATEGORY_STATE_TEXT[state]}`;
 const firstListed = (total: number, shown: number): string => (shown < total ? ` · the first ${shown} are listed` : '');
 export const FALLOW_UNMATCHED_SUMMARY = (total: number, shown: number): string =>
   `${nounCount(total, 'path', 'paths')} not in this snapshot${firstListed(total, shown)}`;

@@ -19,7 +19,11 @@ const props = defineProps<{
 }>();
 const importedAt = computed(() => formatAbsoluteTime(props.report.importedAt, Intl));
 const collected = computed(() => props.report.collected !== undefined);
-const categories = computed(() => FINDING_CATEGORIES.map((c) => FALLOW_CATEGORY_LINE(FINDING_KIND_LABEL[c], props.report.normalized.categories[c])));
+/** WP-03 N11: `notConfigured` (boundaries fallow did not check) wins over the category's
+ *  own not-analysed reading. */
+const categories = computed(() => FINDING_CATEGORIES.map((c) => FALLOW_CATEGORY_LINE(
+  FINDING_KIND_LABEL[c], props.report.normalized.notConfigured.includes(c) ? 'not-configured' : props.report.normalized.categories[c],
+)));
 const listed = computed(() => props.unmatchedPaths.slice(0, UNMATCHED_SHOWN));
 /** Y25 (R4): fallow's own key, labelled here; an unknown key reads verbatim. E48 (I3): like
  *  the unmatched paths, only the first UNMATCHED_SHOWN sections and warnings are listed, and

@@ -55,8 +55,10 @@ export const UNUSED_ENTRY = z.object({
 
 /** WP-03 Part 1 N1: the shell for one `circular_dependencies` element. `files` and
  *  `edges` are each `z.array(z.unknown())` here too: read-fallow-report.ts walks them by
- *  hand with `CYCLE_FILE`/`CYCLE_EDGE` (E31), the same two-level pattern as `buildDupes`. */
-export const CYCLE_SHELL = z.object({ files: z.array(z.unknown()), line: COUNT, col: COUNT, edges: z.array(z.unknown()).optional() });
+ *  hand with `CYCLE_FILE`/`CYCLE_EDGE` (E31), the same two-level pattern as `buildDupes`.
+ *  Final review #5: a cycle names at least one file — an empty `files` is refused as
+ *  `invalid` here, never normalised into a finding with no path. */
+export const CYCLE_SHELL = z.object({ files: z.array(z.unknown()).min(1), line: COUNT, col: COUNT, edges: z.array(z.unknown()).optional() });
 
 /** An element schema for `circular_dependencies[].files`. */
 export const CYCLE_FILE = TOOL_TEXT;
@@ -65,8 +67,8 @@ export const CYCLE_FILE = TOOL_TEXT;
 export const CYCLE_EDGE = z.object({ path: TOOL_TEXT, line: COUNT, col: COUNT });
 
 /** WP-03 Part 1 N1: the shell for one `re_export_cycles` element; its `files` is walked
- *  by hand with `CYCLE_FILE` too. */
-export const RE_EXPORT_CYCLE_SHELL = z.object({ files: z.array(z.unknown()), kind: z.enum(['multi-node', 'self-loop']) });
+ *  by hand with `CYCLE_FILE` too, and like CYCLE_SHELL's it is never empty. */
+export const RE_EXPORT_CYCLE_SHELL = z.object({ files: z.array(z.unknown()).min(1), kind: z.enum(['multi-node', 'self-loop']) });
 
 /** An element schema for `boundary_violations`. */
 export const BOUNDARY_VIOLATION = z.object({
