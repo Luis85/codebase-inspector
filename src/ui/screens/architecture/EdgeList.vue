@@ -8,10 +8,11 @@
 import { computed, ref } from 'vue';
 import type { EntityId } from '../../../domain/entity-id';
 import { edgeKey } from '../../read-models/architecture';
-import { moduleOf } from '../../read-models/file-summaries';
+import { moduleLabel, moduleOf } from '../../read-models/file-summaries';
 import type { RelationEdgeView, RelationModel, RelationSource } from '../../read-models/relations';
 import {
-  EDGE_COL_FROM, EDGE_COL_LINE, EDGE_COL_SOURCE, EDGE_COL_TO, EDGE_COL_TYPE, EDGE_FILTER_ALL, EDGE_FILTER_DIRECTION,
+  EDGE_COL_FROM, EDGE_COL_LINE, EDGE_COL_SOURCE, EDGE_COL_TO, EDGE_COL_TYPE, EDGE_DIRECTION_NO_MODULE,
+  EDGE_DIRECTION_RELATIVE, EDGE_FILTER_ALL, EDGE_FILTER_DIRECTION,
   EDGE_FILTER_SOURCE, EDGE_LIST_HIDDEN, EDGE_TABLE_CAPTION, EDGES_NONE, FALLOW_NOT_ANALYSED, NO_VALUE, RELATION_MEMBER_UNMATCHED,
   RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE, RELATION_TYPE_UNKNOWN, RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_OUT,
   RELATIONS_STATIC_NOTE, UNRESOLVED_TITLE,
@@ -94,6 +95,9 @@ const hidden = computed(() => Math.max(0, rows.value.length - EDGE_LIST_LIMIT));
           </select>
         </label>
       </div>
+      <p class="ci-edge-list__direction-note">
+        {{ selectedModule === null ? EDGE_DIRECTION_NO_MODULE : EDGE_DIRECTION_RELATIVE(moduleLabel(selectedModule)) }}
+      </p>
       <p
         v-if="rows.length === 0"
         class="ci-note"

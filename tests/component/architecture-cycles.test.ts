@@ -15,7 +15,8 @@ import { computeLayout } from '../../src/domain/layout/layout';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import {
   ARCH_EDGES_OMITTED_NOTE, ARCH_NOT_ANALYSED_NOTE, ARCH_TAB_CYCLES, ARCH_TAB_EDGES, ARCH_TAB_MAP, ARCH_TAB_MATRIX,
-  ARCH_TAB_RULES, CYCLE_KIND_IMPORT, CYCLE_KIND_RE_EXPORT, FALLOW_NOT_ANALYSED, RELATION_MEMBER_UNMATCHED,
+  ARCH_MATRIX_NO_EDGE, ARCH_NODE_LABEL_NOT_ANALYSED, ARCH_NONE, ARCH_TAB_RULES, CYCLE_KIND_LABEL, FALLOW_NOT_ANALYSED, NO_VALUE,
+  RELATION_MEMBER_UNMATCHED, RELATIONS_SCOPE_SHORT,
 } from '../../src/ui/inspector-copy';
 import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson, snapshotWithPaths } from '../fixtures/evidence-report';
 
@@ -67,7 +68,7 @@ describe('Architecture: tabs and Cycles (WP-03 N21)', () => {
     await openTab(w, ARCH_TAB_CYCLES);
     const rows = w.findAll('.ci-cycle-list__row');
     expect(rows).toHaveLength(3);
-    expect(rows.map((r) => r.find('.ci-cycle-list__kind').text())).toEqual([CYCLE_KIND_IMPORT, CYCLE_KIND_IMPORT, CYCLE_KIND_RE_EXPORT]);
+    expect(rows.map((r) => r.find('.ci-cycle-list__kind').text())).toEqual([CYCLE_KIND_LABEL.import, CYCLE_KIND_LABEL.import, CYCLE_KIND_LABEL['re-export']]);
     expect(rows.map((r) => r.find('.ci-cycle-list__count').text())).toEqual(['2 files', '3 files', '2 files']);
     expect(rows[0]!.find('.ci-cycle-list__path').text()).toBe('barrel/index.ts:1 → barrel/x.ts:1 → barrel/index.ts');
     expect(rows[1]!.find('.ci-cycle-list__path').text()).toBe('core/a.ts:1 → core/b.ts:1 → core/c.ts:1 → core/a.ts');
@@ -137,8 +138,16 @@ describe('Architecture: tabs and Cycles (WP-03 N21)', () => {
     const w = mountArch();
     expect(w.find('.ci-module-map').text()).toContain(ARCH_NOT_ANALYSED_NOTE);
     expect(w.find('.ci-module-map .ci-provenance').text()).toBe('Unknown');
+    // N5 for screen readers: no "0 outgoing, 0 incoming", no "No evidenced imports" per cell.
+    expect(w.find('.ci-module-map__node').attributes('aria-label')).toBe(ARCH_NODE_LABEL_NOT_ANALYSED('barrel', 3));
+    const facts = w.findAll('.ci-module-inspector dd');
+    expect(facts.slice(2).map((d) => d.text())).toEqual([NO_VALUE, NO_VALUE]);
+    expect(w.find('.ci-module-inspector').text()).not.toContain(RELATIONS_SCOPE_SHORT);
     await openTab(w, ARCH_TAB_MATRIX);
     expect(w.find('.ci-matrix__scroll').text()).toContain(ARCH_NOT_ANALYSED_NOTE);
+    const hidden = w.findAll('.ci-matrix__td .visually-hidden').map((s) => s.text());
+    expect(hidden).toContain(FALLOW_NOT_ANALYSED);
+    expect(hidden).not.toContain(ARCH_MATRIX_NO_EDGE);
     await openTab(w, ARCH_TAB_CYCLES);
     expect(w.find('[role="tabpanel"]').text()).toContain(FALLOW_NOT_ANALYSED);
     expect(w.findAll('.ci-cycle-list__row')).toHaveLength(0);
@@ -154,6 +163,10 @@ describe('Architecture: tabs and Cycles (WP-03 N21)', () => {
     expect(map.find('.ci-provenance').text()).toBe('Collected');
     expect(map.text()).not.toContain(ARCH_NOT_ANALYSED_NOTE);
     expect(map.text()).toContain(ARCH_EDGES_OMITTED_NOTE(1));
+    // m0 (the first module) has no evidenced neighbour: "None evidenced", with the scope stated.
+    const inspector = w.find('.ci-module-inspector');
+    expect(inspector.findAll('dd').slice(2).map((d) => d.text())).toEqual([ARCH_NONE, ARCH_NONE]);
+    expect(inspector.text()).toContain(RELATIONS_SCOPE_SHORT);
     w.unmount();
   });
 });

@@ -69,6 +69,8 @@ describe('cycles (N7)', () => {
 
   it('gives the core cycle a fingerprint of its anchor id and its own finding id', () => {
     expect(coreCycle.fingerprint).toBe(`${at('src/core/a.ts').id}#${coreCycle.findingId}`);
+    expect(coreCycle.anchorId).toBe(at('src/core/a.ts').id);
+    expect(reExportCycle.anchorId).toBe(at('src/barrel/index.ts').id);
   });
 
   it('a re-export cycle has no hop order (N3)', () => {
@@ -97,6 +99,9 @@ describe('unmatched members (N7)', () => {
   it('keeps the cycle with matched: false and the unmatched member\'s id null', () => {
     expect(reducedCore.matched).toBe(false);
     expect(reducedCore.members).toContainEqual({ path: 'src/core/c.ts', id: null });
+    // Task 9 fix round: the anchor still gives the fingerprint, but a partial cycle has no anchorId.
+    expect(reducedCore.fingerprint).not.toBeNull();
+    expect(reducedCore.anchorId).toBeNull();
   });
 
   it('draws none of the cycle\'s hops, and counts the 2 that touch c.ts as unmatched', () => {

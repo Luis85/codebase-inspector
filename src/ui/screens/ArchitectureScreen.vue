@@ -11,7 +11,7 @@ import { useReviewStore } from '../stores/review-store';
 import {
   ARCH_ADD_RULE, ARCH_CYCLE_INSPECTOR_TITLE, ARCH_EYEBROW, ARCH_MAP_FOOTNOTE, ARCH_OMITTED_NOTE, ARCH_SUBTITLE,
   ARCH_TAB_CYCLES, ARCH_TAB_EDGES, ARCH_TAB_MAP, ARCH_TAB_MATRIX, ARCH_TAB_RULES, ARCH_TITLE, ARCH_VIEWS_LABEL,
-  ARCH_VIOLATIONS_ONLY, CYCLE_KIND_IMPORT, CYCLE_KIND_RE_EXPORT, RELATION_MEMBER_UNMATCHED, RULE_REMOVE_FAILED,
+  ARCH_VIOLATIONS_ONLY, CYCLE_KIND_LABEL, RULE_REMOVE_FAILED,
 } from '../inspector-copy';
 import type { TabItem } from '../kit/tab-types';
 import PageHeader from '../kit/PageHeader.vue';
@@ -23,6 +23,7 @@ import NoSnapshot from './NoSnapshot.vue';
 import ModuleMap from './architecture/ModuleMap.vue';
 import DependencyMatrix from './architecture/DependencyMatrix.vue';
 import CycleList from './architecture/CycleList.vue';
+import CycleMembers from './architecture/CycleMembers.vue';
 import EdgeList from './architecture/EdgeList.vue';
 import ModuleInspector from './architecture/ModuleInspector.vue';
 import BoundaryRuleTable from './architecture/BoundaryRuleTable.vue';
@@ -204,7 +205,7 @@ function reviewFinding(fingerprint: string): void {
           <Panel
             v-if="selectedCycle"
             :title="ARCH_CYCLE_INSPECTOR_TITLE"
-            :subtitle="selectedCycle.kind === 'import' ? CYCLE_KIND_IMPORT : CYCLE_KIND_RE_EXPORT"
+            :subtitle="CYCLE_KIND_LABEL[selectedCycle.kind]"
           >
             <p
               v-if="selectedCycle.pathText !== ''"
@@ -212,17 +213,10 @@ function reviewFinding(fingerprint: string): void {
             >
               <code>{{ selectedCycle.pathText }}</code>
             </p>
-            <ul
-              v-else
-              class="ci-architecture__cycle-members"
-            >
-              <li
-                v-for="m in selectedCycle.members"
-                :key="m.path"
-              >
-                <code>{{ m.path }}</code><span v-if="m.id === null"> ({{ RELATION_MEMBER_UNMATCHED }})</span>
-              </li>
-            </ul>
+            <CycleMembers
+              v-if="selectedCycle.pathText === '' || !selectedCycle.matched"
+              :cycle="selectedCycle"
+            />
           </Panel>
           <BoundaryInspector
             :evaluation="selectedRule"

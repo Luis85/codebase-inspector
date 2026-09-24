@@ -35,11 +35,12 @@ export const RELATION_SOURCE_CYCLE = 'Cycle';
 export const RELATION_SOURCE_BOUNDARY = 'Boundary';
 export const RELATIONS_DIRECTION_OUT = 'Outgoing';
 export const RELATIONS_DIRECTION_IN = 'Incoming';
-export const CYCLE_KIND_IMPORT = 'Import cycle';
-export const CYCLE_KIND_RE_EXPORT = 'Re-export cycle';
+/** Spec §2's CYCLE_KIND_IMPORT / CYCLE_KIND_RE_EXPORT, keyed by CycleView.kind. */
+export const CYCLE_KIND_LABEL: Readonly<Record<'import' | 're-export', string>> = { import: 'Import cycle', 're-export': 'Re-export cycle' };
 export const CYCLE_REVIEW = 'Review finding';
 export const CYCLE_SHOW_IN_CITY = 'Show in city';
-export const CYCLE_REVIEW_LABEL = (findingId: string): string => `Review finding ${findingId}`;
+/** The Review finding button's label on a cycle row and on a fallow boundary row. */
+export const FINDING_REVIEW_LABEL = (findingId: string): string => `Review finding ${findingId}`;
 export const CYCLE_SHOW_IN_CITY_LABEL = (findingId: string): string => `Show cycle ${findingId} in the city`;
 export const CYCLES_NONE = 'fallow reported no cycles.';
 export const ARCH_CYCLE_INSPECTOR_TITLE = 'Selected cycle';
@@ -53,8 +54,15 @@ export const EDGE_COL_TYPE = 'Type';
 export const EDGE_FILTER_DIRECTION = 'Direction';
 export const EDGE_FILTER_SOURCE = 'Source';
 export const EDGE_FILTER_ALL = 'All';
+export const EDGE_DIRECTION_RELATIVE = (module: string): string => `Outgoing and Incoming are relative to ${module}.`;
+export const EDGE_DIRECTION_NO_MODULE = 'No module is selected, so Direction does not filter.';
 export const EDGES_NONE = 'No evidenced imports to show.';
 export const UNRESOLVED_TITLE = 'Unresolved imports';
 export const ARCH_FALLOW_ZONES_TITLE = 'Configured in fallow';
 export const ARCH_FALLOW_ZONES_COL = 'Zones';
 export const ARCH_FALLOW_ZONES_NONE = 'fallow reported no boundary violations.';
+export const ARCH_FALLOW_ZONES_UNMATCHED = (n: number): string =>
+  `${n} reported boundary violations involve files not in this snapshot:`;
+/** N5: a Map node's label without a report — no edge counts, which would read as 0. */
+export const ARCH_NODE_LABEL_NOT_ANALYSED = (label: string, files: number): string =>
+  `${label}, ${files} files, imports not analysed`;

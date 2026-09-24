@@ -4,9 +4,11 @@ import { formatMetric, hasValue } from '../../evidence';
 import { edgeKey, type MatrixCell, type ModuleSummary } from '../../read-models/architecture';
 import {
   ARCH_MATRIX_CAPTION, ARCH_MATRIX_CELL_LABEL, ARCH_MATRIX_CORNER, ARCH_MATRIX_NO_EDGE, ARCH_MATRIX_SELF, ARCH_NOT_ANALYSED_NOTE,
+  FALLOW_NOT_ANALYSED,
 } from '../../inspector-copy';
 
-/** `notAnalysed` (N20): every cell is empty because nothing was analysed, and the note says so. */
+/** `notAnalysed` (N20): every cell is empty because nothing was analysed — the note and
+ *  each empty cell's screen-reader text say so, never "no imports" (N5). */
 const props = defineProps<{
   modules: readonly ModuleSummary[]; matrix: readonly (readonly MatrixCell[])[];
   violating: ReadonlySet<string>; violationsOnly: boolean; selectedEdge: { from: string; to: string } | null;
@@ -81,7 +83,7 @@ const isSelected = (c: MatrixCell): boolean => props.selectedEdge?.from === c.fr
               {{ formatMetric(cell.edge.imports) }}
             </button>
             <template v-else>
-              <span aria-hidden="true">·</span><span class="visually-hidden">{{ ARCH_MATRIX_NO_EDGE }}</span>
+              <span aria-hidden="true">·</span><span class="visually-hidden">{{ notAnalysed ? FALLOW_NOT_ANALYSED : ARCH_MATRIX_NO_EDGE }}</span>
             </template>
           </td>
         </tr>

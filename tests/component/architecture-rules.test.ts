@@ -14,7 +14,7 @@ import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
 import { relationModelFor } from '../../src/ui/read-models/relations';
 import { architectureGraphFor, type RuleEvaluation } from '../../src/ui/read-models/architecture';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
-import { RULE_SHOW_LABEL } from '../../src/ui/inspector-copy';
+import { ARCH_TAB_RULES, RULE_SHOW_LABEL } from '../../src/ui/inspector-copy';
 import { RELATIONS_PATHS, attachRelationsReport, snapshotWithPaths } from '../fixtures/evidence-report';
 
 const NOW = new Date('2026-09-21T10:00:00.000Z');
@@ -32,7 +32,9 @@ function setup() {
   return { edge, free };
 }
 const mountArch = () => mount(ArchitectureScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn() } } });
-const openRulesTab = async (w: ReturnType<typeof mountArch>) => { await w.findAll('[role="tab"]')[4]!.trigger('click'); };
+const openRulesTab = async (w: ReturnType<typeof mountArch>) => {
+  await w.findAll('[role="tab"]').find((t) => t.text() === ARCH_TAB_RULES)!.trigger('click');
+};
 
 describe('boundary rules', () => {
   beforeEach(() => { setActivePinia(createPinia()); });

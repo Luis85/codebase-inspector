@@ -27,6 +27,8 @@ export interface RelationEdgeView {
 export interface CycleView {
   readonly findingId: string; readonly kind: 'import' | 're-export'; readonly members: readonly FileRef[];
   readonly hops: readonly RelationHop[]; readonly matched: boolean; readonly fingerprint: string | null; readonly pathText: string;
+  /** The finding's anchor member's id (N10), or null when any member is outside the snapshot. */
+  readonly anchorId: EntityId | null;
 }
 export interface BoundaryView {
   readonly findingId: string; readonly from: FileRef; readonly to: FileRef; readonly fromZone: string;
@@ -82,11 +84,16 @@ function addEdge(
   byTo.set(to, { ...existing, sources, line: existing.line ?? line });
 }
 
-/** A cycle finding's own fingerprint, through findings.ts's canonical builder: null when
- *  the anchor path itself does not resolve. */
-function anchorFingerprint(findingId: string, anchorPath: string | undefined, pathToId: ReadonlyMap<string, EntityId>): string | null {
+/** A cycle finding's own fingerprint, through findings.ts's canonical builder (null when
+ *  the anchor path itself does not resolve), and its anchor's id — the member the
+ *  normaliser anchored the finding on (N10) — only when EVERY member resolves (N7: a
+ *  partial cycle has nothing to show in the city). */
+function cycleAnchor(
+  findingId: string, anchorPath: string | undefined, pathToId: ReadonlyMap<string, EntityId>, matched: boolean,
+): { fingerprint: string | null; anchorId: EntityId | null } {
   const anchorId = anchorPath === undefined ? undefined : pathToId.get(anchorPath);
-  return anchorId === undefined ? null : findingFingerprint(anchorId, findingId);
+  if (anchorId === undefined) return { fingerprint: null, anchorId: null };
+  return { fingerprint: findingFingerprint(anchorId, findingId), anchorId: matched ? anchorId : null };
 }
 
 /** N7: a hop is drawn only when its OWN endpoints resolve, and only when every member of
@@ -109,7 +116,7 @@ function buildImportCycles(
     }
     views.push({
       findingId: c.findingId, kind: 'import', members, hops: c.hops, matched,
-      fingerprint: anchorFingerprint(c.findingId, findingPath.get(c.findingId), pathToId),
+      ...cycleAnchor(c.findingId, findingPath.get(c.findingId), pathToId, matched),
       pathText: cyclePathText(c.hops),
     });
   }
@@ -123,9 +130,10 @@ function buildReExportCycles(
   const views: CycleView[] = [];
   for (const c of cycles) {
     const members = c.files.map((p) => fileRef(pathToId, p));
+    const matched = members.every((m) => m.id !== null);
     views.push({
-      findingId: c.findingId, kind: 're-export', members, hops: [], matched: members.every((m) => m.id !== null),
-      fingerprint: anchorFingerprint(c.findingId, findingPath.get(c.findingId), pathToId),
+      findingId: c.findingId, kind: 're-export', members, hops: [], matched,
+      ...cycleAnchor(c.findingId, findingPath.get(c.findingId), pathToId, matched),
       pathText: '',
     });
   }

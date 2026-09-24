@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import type { MetricValue } from '../../evidence';
 import { edgeKey, type ModuleEdge, type ModuleSummary } from '../../read-models/architecture';
 import {
-  ARCH_EDGES_OMITTED_NOTE, ARCH_MAP_EYEBROW, ARCH_NODE_FILES, ARCH_NODE_LABEL, ARCH_NOT_ANALYSED_NOTE,
+  ARCH_EDGES_OMITTED_NOTE, ARCH_MAP_EYEBROW, ARCH_NODE_FILES, ARCH_NODE_LABEL, ARCH_NODE_LABEL_NOT_ANALYSED, ARCH_NOT_ANALYSED_NOTE,
 } from '../../inspector-copy';
 import { useUniqueId } from '../../unique-id';
 import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
@@ -26,7 +26,9 @@ const nodes = computed(() => props.modules.flatMap((m) => {
   if (!pos) return [];
   const outgoing = props.edges.filter((e) => e.from === m.name).length;
   const incoming = props.edges.filter((e) => e.to === m.name).length;
-  return [{ m, style: toPercent(pos), label: ARCH_NODE_LABEL(m.label, m.fileCount, outgoing, incoming) }];
+  // N5: without a report the counts would read as a measured 0; the label says "not analysed".
+  const label = props.notAnalysed ? ARCH_NODE_LABEL_NOT_ANALYSED(m.label, m.fileCount) : ARCH_NODE_LABEL(m.label, m.fileCount, outgoing, incoming);
+  return [{ m, style: toPercent(pos), label }];
 }));
 
 const drawn = computed(() => props.edges.flatMap((e) => {

@@ -103,8 +103,10 @@
 :where(.codebase-inspector-root) .ci-edge-list__unresolved-list code { overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-edge-list__unmatched { color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-architecture__fallow { margin-top: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-architecture__fallow-unmatched-list { margin: 0; padding-inline-start: var(--ci-space-4); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-architecture__fallow-missing { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-edge-list__direction-note { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-architecture__cycle-path { margin: 0; font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
-:where(.codebase-inspector-root) .ci-architecture__cycle-members { margin: 0; padding-inline-start: var(--ci-space-4); }
 
 /* Part 2: Hotspots. */
 :where(.codebase-inspector-root) .ci-hotspots__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }

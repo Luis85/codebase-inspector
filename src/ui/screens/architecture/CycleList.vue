@@ -4,29 +4,24 @@
 // has no hop order, so its members are listed as text; so are the members of a cycle with
 // one outside the snapshot, each marked (N7). Review finding (N15) needs the finding's
 // fingerprint; Show in city (N30) needs every member in the snapshot and selects the
-// anchor — the lexicographically first member (N10). None of these buttons can become
-// blocked while focused, so none needs E40.
+// finding's anchor (`CycleView.anchorId`, N10). None of these buttons can become blocked
+// while focused, so none needs E40.
 import type { EntityId } from '../../../domain/entity-id';
 import type { CycleView } from '../../read-models/relations';
 import {
-  ARCH_NODE_FILES, CYCLE_KIND_IMPORT, CYCLE_KIND_RE_EXPORT, CYCLE_REVIEW, CYCLE_REVIEW_LABEL, CYCLE_SHOW_IN_CITY,
-  CYCLE_SHOW_IN_CITY_LABEL, CYCLES_NONE, FALLOW_NOT_ANALYSED, RELATION_MEMBER_UNMATCHED,
+  ARCH_NODE_FILES, CYCLE_KIND_LABEL, CYCLE_REVIEW, CYCLE_SHOW_IN_CITY, CYCLE_SHOW_IN_CITY_LABEL, CYCLES_NONE,
+  FALLOW_NOT_ANALYSED, FINDING_REVIEW_LABEL,
 } from '../../inspector-copy';
+import CycleMembers from './CycleMembers.vue';
 
 defineProps<{ cycles: readonly CycleView[]; notAnalysed: boolean; selectedId: string | null }>();
 const emit = defineEmits<{ select: [id: string]; review: [fingerprint: string]; 'show-in-city': [id: string, anchorId: EntityId] }>();
 
-/** N10: a matched cycle's anchor is its lexicographically first member; null when any
- *  member is outside the snapshot (nothing to select, and no hop is drawn, N7). */
-function anchorOf(cycle: CycleView): EntityId | null {
-  if (!cycle.matched) return null;
-  const first = [...cycle.members].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))[0];
-  return first?.id ?? null;
+function review(cycle: CycleView): void {
+  if (cycle.fingerprint !== null) emit('review', cycle.fingerprint);
 }
-
 function showInCity(cycle: CycleView): void {
-  const anchor = anchorOf(cycle);
-  if (anchor !== null) emit('show-in-city', cycle.findingId, anchor);
+  if (cycle.anchorId !== null) emit('show-in-city', cycle.findingId, cycle.anchorId);
 }
 </script>
 
@@ -59,40 +54,29 @@ function showInCity(cycle: CycleView): void {
         :aria-pressed="c.findingId === selectedId"
         @click="emit('select', c.findingId)"
       >
-        <span class="ci-cycle-list__kind">{{ c.kind === 'import' ? CYCLE_KIND_IMPORT : CYCLE_KIND_RE_EXPORT }}</span>
+        <span class="ci-cycle-list__kind">{{ CYCLE_KIND_LABEL[c.kind] }}</span>
         <span class="ci-cycle-list__count">{{ ARCH_NODE_FILES(c.members.length) }}</span>
         <code
           v-if="c.pathText !== ''"
           class="ci-cycle-list__path"
         >{{ c.pathText }}</code>
       </button>
-      <ul
+      <CycleMembers
         v-if="c.pathText === '' || !c.matched"
-        class="ci-cycle-list__members"
-      >
-        <li
-          v-for="m in c.members"
-          :key="m.path"
-          class="ci-cycle-list__member"
-        >
-          <code>{{ m.path }}</code><span
-            v-if="m.id === null"
-            class="ci-cycle-list__unmatched"
-          > ({{ RELATION_MEMBER_UNMATCHED }})</span>
-        </li>
-      </ul>
+        :cycle="c"
+      />
       <div class="ci-cycle-list__actions">
         <button
           v-if="c.fingerprint !== null"
           type="button"
           class="ci-cycle-list__review"
-          :aria-label="CYCLE_REVIEW_LABEL(c.findingId)"
-          @click="emit('review', c.fingerprint)"
+          :aria-label="FINDING_REVIEW_LABEL(c.findingId)"
+          @click="review(c)"
         >
           {{ CYCLE_REVIEW }}
         </button>
         <button
-          v-if="anchorOf(c) !== null"
+          v-if="c.anchorId !== null"
           type="button"
           class="ci-cycle-list__city"
           :aria-label="CYCLE_SHOW_IN_CITY_LABEL(c.findingId)"

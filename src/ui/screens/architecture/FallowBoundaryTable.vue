@@ -3,12 +3,15 @@
 // MATCHED boundary violation fallow reported (From, To, from_zone → to_zone, Line, Review
 // finding). Read-only: nothing here writes a fallow config. Not configured shows
 // FALLOW_BOUNDARIES_NOT_CONFIGURED and no table; no report (or no boundary section),
-// FALLOW_NOT_ANALYSED. Report values are text only.
+// FALLOW_NOT_ANALYSED. A reported violation with a file outside the snapshot is never
+// dropped silently: it is counted and listed as text, its missing path marked (N7). Report
+// values are text only.
 import { computed } from 'vue';
 import type { BoundaryView, RelationModel } from '../../read-models/relations';
 import {
-  ARCH_FALLOW_ZONES_COL, ARCH_FALLOW_ZONES_NONE, ARCH_FALLOW_ZONES_TITLE, CYCLE_REVIEW, CYCLE_REVIEW_LABEL, EDGE_COL_FROM,
-  EDGE_COL_LINE, EDGE_COL_TO, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, RULE_COL_ACTIONS,
+  ARCH_FALLOW_ZONES_COL, ARCH_FALLOW_ZONES_NONE, ARCH_FALLOW_ZONES_TITLE, ARCH_FALLOW_ZONES_UNMATCHED, CYCLE_REVIEW,
+  EDGE_COL_FROM, EDGE_COL_LINE, EDGE_COL_TO, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, FINDING_REVIEW_LABEL,
+  RELATION_MEMBER_UNMATCHED, RULE_COL_ACTIONS,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
@@ -17,7 +20,12 @@ import Panel from '../../kit/Panel.vue';
 const props = defineProps<{ relations: RelationModel }>();
 const emit = defineEmits<{ review: [fingerprint: string] }>();
 
-const rows = computed(() => props.relations.boundaryViolations.filter((v) => v.from.id !== null && v.to.id !== null));
+const isMatched = (v: BoundaryView): boolean => v.from.id !== null && v.to.id !== null;
+const rows = computed(() => props.relations.boundaryViolations.filter(isMatched));
+const unmatched = computed(() => props.relations.boundaryViolations.filter((v) => !isMatched(v)));
+function review(v: BoundaryView): void {
+  if (v.fingerprint !== null) emit('review', v.fingerprint);
+}
 const columns: readonly TableColumn<BoundaryView>[] = [
   { key: 'from', label: EDGE_COL_FROM, sortValue: (v) => v.from.path },
   { key: 'to', label: EDGE_COL_TO, sortValue: (v) => v.to.path },
@@ -43,13 +51,13 @@ const columns: readonly TableColumn<BoundaryView>[] = [
         {{ FALLOW_NOT_ANALYSED }}
       </p>
       <p
-        v-else-if="rows.length === 0"
+        v-else-if="relations.boundaryViolations.length === 0"
         class="ci-note"
       >
         {{ ARCH_FALLOW_ZONES_NONE }}
       </p>
       <EvidenceTable
-        v-else
+        v-if="relations.boundaries === 'configured' && rows.length > 0"
         :columns="columns"
         :rows="rows"
         :row-key="(v) => v.findingId"
@@ -73,13 +81,34 @@ const columns: readonly TableColumn<BoundaryView>[] = [
             v-if="row.fingerprint !== null"
             type="button"
             class="ci-architecture__review"
-            :aria-label="CYCLE_REVIEW_LABEL(row.findingId)"
-            @click="emit('review', row.fingerprint)"
+            :aria-label="FINDING_REVIEW_LABEL(row.findingId)"
+            @click="review(row)"
           >
             {{ CYCLE_REVIEW }}
           </button>
         </template>
       </EvidenceTable>
+      <div
+        v-if="relations.boundaries === 'configured' && unmatched.length > 0"
+        class="ci-architecture__fallow-unmatched"
+      >
+        <p class="ci-note">
+          {{ ARCH_FALLOW_ZONES_UNMATCHED(unmatched.length) }}
+        </p>
+        <ul class="ci-architecture__fallow-unmatched-list">
+          <li
+            v-for="v in unmatched"
+            :key="v.findingId"
+          >
+            <code>{{ v.from.path }}:{{ v.line }} → {{ v.to.path }}</code>
+            ({{ v.fromZone }} → {{ v.toZone }})<span
+              v-for="missing in [v.from, v.to].filter((f) => f.id === null)"
+              :key="missing.path"
+              class="ci-architecture__fallow-missing"
+            > · <code>{{ missing.path }}</code> {{ RELATION_MEMBER_UNMATCHED }}</span>
+          </li>
+        </ul>
+      </div>
     </Panel>
   </div>
 </template>

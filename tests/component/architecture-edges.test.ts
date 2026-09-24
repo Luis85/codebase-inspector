@@ -13,8 +13,9 @@ import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { CodebaseSnapshot } from '../../src/domain/model';
 import {
-  ARCH_FALLOW_ZONES_TITLE, ARCH_TAB_EDGES, ARCH_TAB_MAP, ARCH_TAB_RULES, EDGE_LIST_HIDDEN, FALLOW_BOUNDARIES_NOT_CONFIGURED,
-  FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_NOTE, RELATIONS_STATIC_NOTE, RELATION_TYPE_UNKNOWN, UNRESOLVED_TITLE,
+  ARCH_FALLOW_ZONES_NONE, ARCH_FALLOW_ZONES_TITLE, ARCH_FALLOW_ZONES_UNMATCHED, ARCH_TAB_EDGES, ARCH_TAB_MAP, ARCH_TAB_RULES,
+  EDGE_DIRECTION_RELATIVE, EDGE_LIST_HIDDEN, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, RELATION_MEMBER_UNMATCHED,
+  RELATIONS_SCOPE_NOTE, RELATIONS_STATIC_NOTE, RELATION_TYPE_UNKNOWN, UNRESOLVED_TITLE,
 } from '../../src/ui/inspector-copy';
 import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson, snapshotWithPaths } from '../fixtures/evidence-report';
 
@@ -74,6 +75,7 @@ describe('Architecture: Edges (WP-03 N21)', () => {
     const w = mountArch();
     await selectModule(w, 'ui');
     await openTab(w, ARCH_TAB_EDGES);
+    expect(w.find('.ci-edge-list__direction-note').text()).toBe(EDGE_DIRECTION_RELATIVE('ui'));
     const [direction] = w.findAll('.ci-edge-list__filters select');
     await direction!.setValue('out');
     expect(cells(w).map((c) => c[0])).toEqual(['ui/view.ts']);
@@ -163,6 +165,20 @@ describe('Architecture: Configured in fallow (WP-03 N24)', () => {
     await row.find('.ci-architecture__review').trigger('click');
     expect(useEvidenceStore().consumeFindingReviewRequest()).toBe(violation.fingerprint);
     expect(useCityStore().route).toBe('quality');
+    w.unmount();
+  });
+
+  it('a reported violation outside the snapshot is counted and listed, never "no violations"', async () => {
+    setup(RELATIONS_PATHS.filter((p) => p !== 'ui/view.ts'));
+    const w = mountArch();
+    await openTab(w, ARCH_TAB_RULES);
+    const panel = w.find('.ci-architecture__fallow');
+    expect(panel.text()).not.toContain(ARCH_FALLOW_ZONES_NONE);
+    expect(panel.find('table').exists()).toBe(false);
+    expect(panel.text()).toContain(ARCH_FALLOW_ZONES_UNMATCHED(1));
+    const item = panel.find('.ci-architecture__fallow-unmatched-list li');
+    expect(item.text()).toContain('ui/view.ts:3 → data/db.ts');
+    expect(item.text()).toContain(`ui/view.ts ${RELATION_MEMBER_UNMATCHED}`);
     w.unmount();
   });
 

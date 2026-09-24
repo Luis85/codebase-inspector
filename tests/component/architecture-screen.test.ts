@@ -65,7 +65,8 @@ describe('ArchitectureScreen', () => {
     const w = mountArch();
     const nodes = w.findAll('.ci-module-map__node');
     expect(nodes).toHaveLength(6);
-    expect(nodes[0]!.attributes('aria-label')).toMatch(/files, \d+ outgoing, \d+ incoming, evidenced imports$/);
+    // No report: the label never states edge counts that were not measured (N5).
+    expect(nodes[0]!.attributes('aria-label')).toMatch(/files, imports not analysed$/);
     expect(w.find('.ci-module-map svg').attributes('aria-hidden')).toBe('true');
     w.unmount();
   });
@@ -127,6 +128,7 @@ describe('ArchitectureScreen', () => {
     withRelationsSnapshot();
     const w = mountArch();
     expect(w.findAll('.ci-module-map__edge').length).toBeGreaterThan(0);
+    expect(w.find('.ci-module-map__node').attributes('aria-label')).toMatch(/files, \d+ outgoing, \d+ incoming, evidenced imports$/);
     await w.find('.ci-architecture__toggle input').setValue(true);
     expect(w.findAll('.ci-module-map__edge')).toHaveLength(0);
     w.unmount();

@@ -131,7 +131,7 @@ export const ARCH_OMITTED_NOTE = (n: number): string => `${n} smaller modules ar
 export const ARCH_MATRIX_CAPTION = 'Evidenced imports from each row module to each column module';
 export const ARCH_MATRIX_CORNER = 'From ↓ / To →';
 export const ARCH_MATRIX_SELF = 'Same module';
-export const ARCH_MATRIX_NO_EDGE = 'No imports';
+export const ARCH_MATRIX_NO_EDGE = 'No evidenced imports';
 export const ARCH_MATRIX_CELL_LABEL = (from: string, to: string, n: string): string => `${from} imports ${to}: ${n} evidenced import statements`;
 export const ARCH_MODULE_INSPECTOR_TITLE = 'Selected module';
 export const ARCH_MODULE_NONE = 'Select a module in the map.';
