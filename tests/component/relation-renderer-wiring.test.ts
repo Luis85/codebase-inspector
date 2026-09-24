@@ -115,7 +115,7 @@ describe('useRelationRenderer (N30, N31)', () => {
     const { stage, inspector } = mountStage(handle);
     await selectA();
     expect(stage.find('.ci-viewport').exists()).toBe(false);
-    expect(inspector.findAll('.ci-city-relations__row .ci-city-relations__path').map((p) => p.text())).toEqual(['core/b.ts:1', 'core/c.ts:1']);
+    expect(inspector.findAll('.ci-city-relations__row .ci-city-relations__path').map((p) => p.text())).toEqual(['core/b.ts · line 1 in core/a.ts', 'core/c.ts:1']);
     city.setViewMode('3d');
     const renderer = makeRenderer();
     handle.value = renderer;
