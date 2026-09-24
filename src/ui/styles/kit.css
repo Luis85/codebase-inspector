@@ -21,6 +21,12 @@
   --ci-danger-fill: color-mix(in srgb, var(--background-modifier-error) 80%, var(--text-on-accent-inverted, black));
   --ci-danger-fill-hover: color-mix(in srgb, var(--background-modifier-error) 72%, var(--text-on-accent-inverted, black));
   --ci-hover: color-mix(in srgb, var(--ci-text) 10%, var(--ci-panel));
+  /* WP-03 N32: relation-arc colours (host aliases with fallbacks, the T32 rule). The
+     Relations list's direction glyphs and a small swatch use the same tokens as the
+     arcs, so text and arcs agree. */
+  --ci-relation-out: var(--color-cyan, #53b8c4);
+  --ci-relation-in: var(--color-orange, #d99a5b);
+  --ci-relation-cycle: var(--color-red, #d9707a);
 }
 /* E40: press-to-disable buttons stay focusable (aria-disabled + a guarded handler), so one
    shared rule gives every one of them the pending/added look. */

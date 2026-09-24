@@ -333,15 +333,19 @@ export const lifecycleSteps: StepTable<World> = {
     const theme = take<{ tokens: Record<string, string>; reads: string[] }>(world, 'theme');
     expect(call.port.calls.setColors.mock.calls.length).toBeGreaterThan(take<number>(world, 'setColors-before'));
     const palette = call.port.calls.setColors.mock.calls.at(-1)![0] as Record<string, unknown>;
-    // Every field of CityPalette (spec §4.2's seven, no more and no fewer).
+    // Every field of CityPalette (spec §4.2's eight, no more and no fewer — N28 added
+    // `relations`).
     expect(Object.keys(palette).sort()).toEqual([
       'background', 'categories', 'districtBorder', 'districtSurface', 'labelText',
-      'selection', 'unavailable',
+      'relations', 'selection', 'unavailable',
     ]);
     expect(Object.keys(palette.categories as Record<string, string>)).toHaveLength(CATEGORY_IDS.length);
     // …and every token behind them was READ AGAIN by this change, never served from a
-    // cache: the six scene tokens plus one per category.
-    for (const token of ['--ci-surface', '--ci-panel', '--ci-border', '--ci-text', '--ci-action', '--ci-text-muted']) {
+    // cache: the six scene tokens plus one per category plus the three relation tokens.
+    for (const token of [
+      '--ci-surface', '--ci-panel', '--ci-border', '--ci-text', '--ci-action', '--ci-text-muted',
+      '--ci-relation-out', '--ci-relation-in', '--ci-relation-cycle',
+    ]) {
       expect(theme.reads, token).toContain(token);
     }
     for (const id of CATEGORY_IDS) expect(theme.reads).toContain(`--ci-cat-${id}`);

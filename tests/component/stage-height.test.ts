@@ -101,7 +101,7 @@ function setContentBox(el: HTMLElement, width: number, height: number): void {
 function makeRendererDouble() {
   return {
     setLayout: vi.fn(async () => {}), setColors: vi.fn(), setSelection: vi.fn(),
-    setFilter: vi.fn(), setReported: vi.fn(), setLabels: vi.fn(), setCameraMode: vi.fn(), setMotion: vi.fn(),
+    setFilter: vi.fn(), setReported: vi.fn(), setRelations: vi.fn(), setLabels: vi.fn(), setCameraMode: vi.fn(), setMotion: vi.fn(),
     getCamera: vi.fn(() => ({
       projection: 'orthographic' as const, mode: '3d' as const,
       position: [0, 0, 0] as [number, number, number], target: [0, 0, 0] as [number, number, number],

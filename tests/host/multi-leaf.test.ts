@@ -39,7 +39,7 @@ interface RendererCall {
 const rendererCalls: RendererCall[] = [];
 function makePort(setCamera: RendererCall['setCamera']): CityRendererPort {
   return {
-    setLayout: vi.fn(async () => {}), setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setReported: vi.fn(),
+    setLayout: vi.fn(async () => {}), setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setReported: vi.fn(), setRelations: vi.fn(),
     setLabels: vi.fn(), setCameraMode: vi.fn(), setMotion: vi.fn(),
     getCamera: vi.fn((): CameraBookmark => DUMMY_CAMERA), setCamera, nudgeCamera: vi.fn(),
     focus: vi.fn(), fit: vi.fn(), resize: vi.fn(), pause: vi.fn(), resume: vi.fn(), dispose: vi.fn(),

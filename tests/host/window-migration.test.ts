@@ -60,7 +60,7 @@ interface RendererCall {
 let rendererCalls: RendererCall[] = [];
 function makePort(spies: Pick<RendererCall, 'dispose' | 'setLayout' | 'setCamera' | 'setColors'>): CityRendererPort {
   return {
-    setLayout: spies.setLayout, setColors: spies.setColors, setSelection: vi.fn(), setFilter: vi.fn(), setReported: vi.fn(),
+    setLayout: spies.setLayout, setColors: spies.setColors, setSelection: vi.fn(), setFilter: vi.fn(), setReported: vi.fn(), setRelations: vi.fn(),
     setLabels: vi.fn(), setCameraMode: vi.fn(), setMotion: vi.fn(),
     getCamera: vi.fn((): CameraBookmark => CAMERA_A), setCamera: spies.setCamera, nudgeCamera: vi.fn(),
     focus: vi.fn(), fit: vi.fn(), resize: vi.fn(), pause: vi.fn(), resume: vi.fn(), dispose: spies.dispose,

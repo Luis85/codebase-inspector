@@ -39,7 +39,7 @@ const CAMERA: CameraBookmark = {
 function makeRenderer() {
   return {
     setLayout: vi.fn(async () => {}), setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(),
-    setReported: vi.fn<CityRendererPort['setReported']>(), setLabels: vi.fn(), setCameraMode: vi.fn(),
+    setReported: vi.fn<CityRendererPort['setReported']>(), setRelations: vi.fn(), setLabels: vi.fn(), setCameraMode: vi.fn(),
     setMotion: vi.fn(), getCamera: vi.fn((): CameraBookmark => CAMERA), setCamera: vi.fn(), nudgeCamera: vi.fn(),
     focus: vi.fn(), fit: vi.fn(), resize: vi.fn(), pause: vi.fn(), resume: vi.fn(), dispose: vi.fn(),
     getDiagnostics: vi.fn(() => ({

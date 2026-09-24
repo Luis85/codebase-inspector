@@ -24,7 +24,7 @@ import type { Object3D } from 'three';
 import type { CameraBookmark } from '../domain/model';
 import type { LayoutResult } from '../domain/layout/types';
 import type {
-  CityPalette, CityRendererPort, CreateCityRenderer, EntityId, RendererDiagnostics,
+  CityPalette, CityRendererPort, CreateCityRenderer, EntityId, RelationArc, RendererDiagnostics,
 } from './renderer-port';
 import { createScheduler } from './render-scheduler';
 import { createCameraRig, ORBIT_RADIANS_PER_CSS_PX } from './camera-rig';
@@ -33,6 +33,8 @@ import { createPicking, type CanvasPoint } from './picking';
 import { createLabelOverlay } from './label-overlay';
 import { disposeObject3D, disposeRenderer } from './disposal';
 import { createSceneLights } from './scene-lighting';
+import { makeInertPort } from './inert-port';
+import { createRelationArcs } from './relation-arcs';
 
 // LIGHTING constants/setup live in scene-lighting.ts (task 6 fix round 1 — this file
 // was at the 400-line cap and the district-focus fix needed room). Re-exported so
@@ -42,32 +44,6 @@ export { AMBIENT_BASE, DIRECTIONAL_BASE, SUN_DIRECTION } from './scene-lighting'
 
 const MAX_PIXEL_RATIO = 2;
 const FOCUS_CONTEXT = 3;                // how much room a focused lot keeps around it
-
-const DEFAULT_CAMERA: CameraBookmark = {
-  projection: 'orthographic', mode: '3d',
-  position: [20, 20, 20], target: [0, 0, 0], up: [0, 1, 0], zoom: 1,
-};
-
-/** Returned whenever no WebGL surface could be obtained, so the view always has a
- *  port to hold and never has to branch on null (spec 4.2). Every method is a no-op;
- *  getCamera/setCamera still round-trip so a persisted bookmark survives. */
-function makeInertPort(): CityRendererPort {
-  let camera = DEFAULT_CAMERA;
-  return {
-    setLayout: async () => {},
-    setColors: () => {}, setSelection: () => {}, setFilter: () => {}, setReported: () => {}, setLabels: () => {},
-    setCameraMode: () => {}, setMotion: () => {},
-    getCamera: () => camera,
-    setCamera: (next) => { camera = next; },
-    nudgeCamera: () => {}, focus: () => {}, fit: () => {}, resize: () => {},
-    pause: () => {}, resume: () => {}, dispose: () => {},
-    getDiagnostics: () => ({
-      geometries: 0, textures: 0, programs: 0, drawCalls: 0, instanceCount: 0,
-      lastFrameMs: 0, contextLost: false,
-    }),
-    debugLoseContext: () => {},
-  };
-}
 
 export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) => {
   let canvas: HTMLCanvasElement;
@@ -104,6 +80,11 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
   const scene = new Scene();
   const { ambient, sun } = createSceneLights();
   scene.add(ambient, sun);
+
+  // WP-03 N28/N29: an overlay only, so it is created once, added to the scene once,
+  // and never touched by picking (spec 4.2's `pickTargets` stays FILE LOTS ONLY).
+  const arcs = createRelationArcs();
+  scene.add(arcs.root);
 
   let city: CityMeshes | null = null;
   let layout: LayoutResult | null = null;
@@ -215,6 +196,7 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
     scene.remove(...scene.children.filter((child) => child.name === 'city-root'));
     city = next;
     layout = source;
+    arcs.setLots(next ? source.lots : null);
     if (!next) return;
     next.root.name = 'city-root';
     scene.add(next.root);
@@ -255,6 +237,7 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
       threeRenderer.setClearColor(new Color(next.background));
       city?.setColors(next);
       overlay.setColors(next);
+      arcs.setColors(next);
       scheduler.invalidate();
     },
 
@@ -281,6 +264,14 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
     setLabels(visible: boolean): void {
       labelsVisible = visible;
       overlay.setVisible(visible);
+      scheduler.invalidate();
+    },
+
+    // WP-03 N28: an overlay only. arcs.ts itself keeps the arcs across setLots/setColors
+    // and drops one whose end is not a lot of the current layout, so there is nothing
+    // else to cache here.
+    setRelations(list: readonly RelationArc[] | null): void {
+      arcs.setArcs(list);
       scheduler.invalidate();
     },
 
@@ -333,6 +324,7 @@ export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) =>
       scheduler.dispose();
       picking.dispose();
       overlay.dispose();
+      arcs.dispose();
       city?.dispose();
       city = null;
       disposeObject3D(scene);        // the lights, and anything else left in the graph

@@ -22,7 +22,7 @@ const DUMMY_CAMERA: CameraBookmark = {
   projection: 'orthographic', mode: '3d', position: [0, 0, 0], target: [0, 0, 0], up: [0, 1, 0], zoom: 1,
 };
 const inertPort: CityRendererPort = {
-  setLayout: vi.fn(() => Promise.resolve()), setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setReported: vi.fn(),
+  setLayout: vi.fn(() => Promise.resolve()), setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setReported: vi.fn(), setRelations: vi.fn(),
   setLabels: vi.fn(), setCameraMode: vi.fn(), setMotion: vi.fn(),
   getCamera: vi.fn((): CameraBookmark => DUMMY_CAMERA), setCamera: vi.fn(), nudgeCamera: vi.fn(),
   focus: vi.fn(), fit: vi.fn(), resize: vi.fn(), pause: vi.fn(), resume: vi.fn(), dispose: vi.fn(),

@@ -86,7 +86,7 @@ function paletteFixture(): CityPalette {
   const categories = Object.fromEntries(CATEGORY_IDS.map((id) => [id, '#4c8bf5'])) as CityPalette['categories'];
   return {
     background: '#1e1e1e', districtSurface: '#2a2a2a', districtBorder: '#3a3a3a',
-    labelText: '#dddddd', selection: '#ffb020', unavailable: '#808080', categories,
+    labelText: '#dddddd', selection: '#ffb020', unavailable: '#808080', categories, relations: { outgoing: '#53b8c4', incoming: '#d99a5b', cycle: '#d9707a' },
   };
 }
 

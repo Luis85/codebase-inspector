@@ -41,7 +41,7 @@ function makeRendererDouble(emit: (e: CityRendererEvent) => void) {
     }),
     setColors: vi.fn(),
     setSelection: vi.fn((_entityId: string | null) => {}),
-    setFilter: vi.fn(), setReported: vi.fn(), setLabels: vi.fn(),
+    setFilter: vi.fn(), setReported: vi.fn(), setRelations: vi.fn(), setLabels: vi.fn(),
     setCameraMode: vi.fn(), setMotion: vi.fn(),
     getCamera: vi.fn(() => ({
       projection: 'orthographic' as const, mode: '3d' as const,

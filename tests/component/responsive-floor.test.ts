@@ -251,7 +251,7 @@ function makeRendererDouble(emit: (e: CityRendererEvent) => void) {
       hasFitted = true;
       emit({ type: 'camera-changed', camera: AUTO_FIT_CAMERA });
     }),
-    setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setReported: vi.fn(), setLabels: vi.fn(),
+    setColors: vi.fn(), setSelection: vi.fn(), setFilter: vi.fn(), setReported: vi.fn(), setRelations: vi.fn(), setLabels: vi.fn(),
     setCameraMode: vi.fn(), setMotion: vi.fn(),
     getCamera: vi.fn(() => ({
       projection: 'orthographic' as const, mode: '3d' as const,

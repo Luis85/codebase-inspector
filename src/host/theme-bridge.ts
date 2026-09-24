@@ -37,5 +37,12 @@ export function readPalette(containerEl: HTMLElement): CityPalette {
     selection: hex('--ci-action'),
     unavailable: hex('--ci-text-muted'),
     categories,
+    // WP-03 N32: the Relations list's direction glyphs and swatch read the same three
+    // tokens, so text and arcs always agree.
+    relations: {
+      outgoing: hex('--ci-relation-out'),
+      incoming: hex('--ci-relation-in'),
+      cycle: hex('--ci-relation-cycle'),
+    },
   };
 }
