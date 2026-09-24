@@ -389,6 +389,13 @@ task 15 (N39).
   with no evidenced crossing is "Not evaluated".
 - **Boundaries depend on the analysed folder's fallow config.** Without one, boundary
   violations are "not configured", and this is not counted as missing evidence.
+- **An older fallow cannot say it checked boundaries and found none (JF2's accepted
+  cost).** fallow 3.21.0 (schema 11) writes no `workspace_diagnostics`, so an empty
+  `boundary_violations` list cannot tell "configured, none violated" from "never checked".
+  A 3.21.0 report with no boundary violation and no diagnostic therefore reads boundaries
+  "not analysed", and the totals that include them read partial, never a measured 0 —
+  even when that project did configure boundaries. A 3.27.0 report (schema 12) reads
+  "configured, 0" or "not configured" as fallow says.
 - **Arcs are depth-tested.** A tall building can hide part of an arc; the Relations list
   is the complete record.
 - **3.21.0 and 3.27.0 only.** The relation fields were recorded on these two versions.

@@ -595,10 +595,15 @@ WP-03 Part 1 (2026-09-24, task 15, L28's rule: the evidence-note counts are upda
 in the final task). The gap the previous paragraph apologised for is closed: every FILE
 and every TEST count below, and the heading's own total, come from runs taken together at
 this commit, immediately after `npm run harness-shot` (above) and immediately before
-`npm run verify`.
+`npm run verify`. The WP-03 Part 1 final-review fix wave then added two component files
+(`connect-fallow-relations.test.ts`, `relation-duplicates.test.ts`) and tests inside
+existing unit and component files; it re-ran `npx vitest run tests/unit` and
+`npx vitest run tests/component` and refreshed those two rows, the totals and the
+heading from those runs and its own `npm run verify`. No other layer's files changed, so
+their rows stand as task 15 took them.
 
-The per-layer total below is **267**, which is not what `npm run test` itself runs: it is
-265 files plus the opt-in `tests/fallow-real` layer's two files, which never run inside it
+The per-layer total below is **269**, which is not what `npm run test` itself runs: it is
+267 files plus the opt-in `tests/fallow-real` layer's two files, which never run inside it
 (see the Real fallow row below, and its own eleven-test run in the WP-03 Part 1 section
 above). The Contract row is the one exception to "read straight off a run": its guard
 derives its Tests cell from its own files rather than a transcription, so it includes
@@ -610,7 +615,7 @@ throwaway vault trees under `os.tmpdir()` and do not depend on this worktree hav
 `.obsidian/` folder of its own, so the environmental failure recorded through Part 6 did
 not reproduce here — the disk/live result is recorded rather than that prediction
 (corrected during execution, Part 7 task 14).
-**267 files, 2924 tests, 2923 passed,
+**269 files, 2943 tests, 2942 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -640,10 +645,10 @@ above whenever tests are added.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 135 | yes | 1719 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard. WP-03 Part 1 adds the relation domain/normaliser/model/architecture-model suites and `relation-copy-claims.test.ts` (spec §5's "no calls/executes/will break" and "no backlink" sweeps) |
+| Unit | `tests/unit/**` | 135 | yes | 1723 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard. WP-03 Part 1 adds the relation domain/normaliser/model/architecture-model suites and `relation-copy-claims.test.ts` (spec §5's "no calls/executes/will break" and "no backlink" sweeps) |
 | Contract | `tests/contracts/**` | 5 | yes | 62 | **one suite, two implementations** (40) — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift — plus this directory's other three pinned files, `height-scale.test.ts` (task 13's four preserved scale.ts properties), `microcopy.test.ts` (task 12's catalogue-completeness sweep) and `fallow-runner.test.ts` (Part 7 K28: the real adapter against a real spawned process, injected `node:child_process`, Z38) |
 | Integration (real temp dirs) | `tests/integration/**` | 9 | yes | 39 | 38 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase, the fallow-analysis no-freeze suite |
-| Component (jsdom) | `tests/component/**` | 90 | yes | 881 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite |
+| Component (jsdom) | `tests/component/**` | 92 | yes | 896 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite |
 | Host (Obsidian doubles) | `tests/host/**` | 20 | yes | 150 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
 | Benchmark | `tests/benchmarks/**` | 2 | yes | 11 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers. WP-03 Part 1 adds `relations-budget.test.ts` (N33, N37 — medians above) |
@@ -841,7 +846,7 @@ check these against the suite and against the matrix itself:
 - The `npm run analyze` **total of 9**. Its internal breakdown is checked, but the figure
   itself needs the tool, which is not part of `npm run verify` and needs network.
 - The **living suite's own totals**, now the same figures as the G8 heading itself since
-  the WP-03 Part 1 refresh closed the two-vintage gap (267 files, 2924 tests, 2923
+  the WP-03 Part 1 refresh closed the two-vintage gap (269 files, 2943 tests, 2942
   passed, 1 skipped). Nothing in the suite can assert its own whole-run tally from
   inside itself, for the same reason the per-layer test counts are transcribed rather
   than derived. Re-take with `npx vitest run --reporter=dot`.
