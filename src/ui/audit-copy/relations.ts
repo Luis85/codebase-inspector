@@ -42,6 +42,12 @@ export const RELATION_SOURCE_CYCLE = 'Cycle';
 export const RELATION_SOURCE_BOUNDARY = 'Boundary';
 export const RELATIONS_DIRECTION_OUT = 'Outgoing';
 export const RELATIONS_DIRECTION_IN = 'Incoming';
+/** WP-03 Task 12 (N30): the city Relations section's controls. */
+export const RELATIONS_DIRECTION_LABEL = 'Direction';
+export const RELATIONS_DIRECTION_BOTH = 'Both';
+export const RELATIONS_HOPS_LABEL = 'Hops';
+export const RELATIONS_SHOW_ARCS = 'Show arcs in the city';
+export const RELATIONS_HIGHLIGHT_CYCLE = 'Highlight cycle';
 /** Spec §2's CYCLE_KIND_IMPORT / CYCLE_KIND_RE_EXPORT, keyed by CycleView.kind. */
 export const CYCLE_KIND_LABEL: Readonly<Record<'import' | 're-export', string>> = { import: 'Import cycle', 're-export': 'Re-export cycle' };
 export const CYCLE_REVIEW = 'Review finding';

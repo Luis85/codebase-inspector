@@ -124,6 +124,37 @@
 :where(.codebase-inspector-root) .ci-file-relations__cycles code { overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-file-relations__fan-out { display: flex; justify-content: space-between; gap: var(--ci-space-2); margin: var(--ci-space-3) 0 0; }
 :where(.codebase-inspector-root) .ci-file-relations__fan-out-label { color: var(--ci-text-muted); }
+/* WP-03 N30/N32: the city inspector's Relations section. Glyphs and the swatch use the arc tokens. */
+:where(.codebase-inspector-root) .ci-city-relations { margin-top: var(--ci-space-4); padding-top: var(--ci-space-3); border-top: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-city-relations__title { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0 0 var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-city-relations__controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-city-relations__segmented { display: inline-flex; padding: 2px; border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); background: var(--ci-panel); }
+:where(.codebase-inspector-root) .ci-city-relations__segmented button { border: 1px solid transparent; background: transparent; box-shadow: none; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-city-relations__segmented button[aria-pressed="true"] { border-color: var(--ci-border); background: var(--ci-raised); color: var(--ci-text); }
+:where(.codebase-inspector-root) .ci-city-relations__arcs { display: inline-flex; align-items: center; gap: var(--ci-space-1); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-city-relations__list { list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-city-relations__row { border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) button.ci-city-relations__select {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); width: 100%; height: auto;
+  padding: var(--ci-space-2) 0; border: none; box-shadow: none; background: transparent; color: var(--ci-text); text-align: left; white-space: normal; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-city-relations__select:hover { background: var(--ci-hover); }
+:where(.codebase-inspector-root) button.ci-city-relations__select:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-city-relations__glyph { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-city-relations__glyph--out { color: var(--ci-relation-out); }
+:where(.codebase-inspector-root) .ci-city-relations__glyph--in { color: var(--ci-relation-in); }
+:where(.codebase-inspector-root) .ci-city-relations__path { font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-city-relations__source,
+:where(.codebase-inspector-root) .ci-city-relations__hop,
+:where(.codebase-inspector-root) .ci-city-relations__kind { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-city-relations__hidden { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-city-relations__heading { margin: var(--ci-space-3) 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.06em; }
+:where(.codebase-inspector-root) .ci-city-relations__cycles { display: grid; gap: var(--ci-space-2); list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-city-relations__cycle { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-city-relations__cycle code { overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-city-relations__highlight { display: inline-flex; align-items: center; gap: var(--ci-space-1); }
+:where(.codebase-inspector-root) .ci-city-relations__highlight[aria-pressed="true"] { border-color: var(--ci-relation-cycle); }
+:where(.codebase-inspector-root) .ci-city-relations__swatch { display: inline-block; inline-size: 10px; block-size: 3px; border-radius: 2px; background: var(--ci-relation-cycle); }
 
 /* Part 2: Hotspots. */
 :where(.codebase-inspector-root) .ci-hotspots__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }

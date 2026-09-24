@@ -1,0 +1,233 @@
+// WP-03 Task 12 (N30, N31): the city file inspector's Relations section — Direction and Hops
+// controls, Show arcs, the neighbourhood rows (each a button that selects the file without
+// moving the camera), the cycles through the file with a Highlight toggle, the notes and the
+// stale label — and the per-leaf relations store behind it (defaults, reset, J15's order).
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { createPinia, setActivePinia, type Pinia } from 'pinia';
+import { nextTick, watch } from 'vue';
+import '../mocks/obsidian';
+import FileInspector from '../../src/ui/components/FileInspector.vue';
+import { useCityStore } from '../../src/ui/stores/city-store';
+import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
+import { useRelationsStore, type RelationControlDirection } from '../../src/ui/stores/relations-store';
+import { useReadModels } from '../../src/ui/read-models/use-read-models';
+import { CITY_RENDERER_KEY } from '../../src/ui/renderer-handle';
+import { computeLayout } from '../../src/domain/layout/layout';
+import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
+import {
+  FALLOW_NOT_ANALYSED, RELATION_SOURCE_CYCLE, RELATIONS_DIRECTION_BOTH, RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_LABEL,
+  RELATIONS_DIRECTION_OUT, RELATIONS_HIGHLIGHT_CYCLE, RELATIONS_HOPS_LABEL, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
+  RELATIONS_STATIC_NOTE, RELATIONS_TITLE,
+} from '../../src/ui/inspector-copy';
+import { RELATIONS_PATHS, attachRelationsReport, snapshotWithPaths } from '../fixtures/evidence-report';
+
+const BOOKMARK: CameraBookmark = { projection: 'orthographic', mode: '3d', position: [4, 5, 6], target: [1, 2, 3], up: [0, 1, 0], zoom: 2 };
+const idOf = (snap: CodebaseSnapshot, path: string): string => snap.entities.find((e) => e.kind === 'file' && e.path === path)!.id;
+
+/** A city with the relations recording attached, core/a.ts selected and the inspector open. */
+function setup(report: 'recording' | 'none' | 'stale' = 'recording'): CodebaseSnapshot {
+  const snap = snapshotWithPaths(RELATIONS_PATHS, `repo-city-relations-${Math.random()}`);
+  const city = useCityStore();
+  city.setCity(snap, computeLayout(snap));
+  if (report === 'recording') attachRelationsReport(snap);
+  if (report === 'stale') attachRelationsReport(snap, { snapshotId: 'an-older-snapshot' });
+  city.select(idOf(snap, 'core/a.ts'));
+  city.openInspector();
+  city.setCamera(BOOKMARK);
+  return snap;
+}
+
+const renderers: { focus: ReturnType<typeof vi.fn>; setCamera: ReturnType<typeof vi.fn>; setRelations: ReturnType<typeof vi.fn> }[] = [];
+const wrappers: { unmount(): void }[] = [];
+function mountInspector(pinia?: Pinia) {
+  const renderer = { focus: vi.fn(), setCamera: vi.fn(), setRelations: vi.fn() };
+  renderers.push(renderer);
+  const w = mount(FileInspector, {
+    attachTo: document.body,
+    global: {
+      ...(pinia ? { plugins: [pinia] } : {}),
+      provide: { clipboard: { writeText: vi.fn(async () => {}) }, [CITY_RENDERER_KEY as symbol]: { value: renderer } },
+    },
+  });
+  wrappers.push(w);
+  return { w, renderer };
+}
+type Wrapper = ReturnType<typeof mountInspector>['w'];
+const section = (w: Wrapper) => w.get('.ci-city-relations');
+const paths = (w: Wrapper) => w.findAll('.ci-city-relations__row .ci-city-relations__path').map((p) => p.text());
+const group = (w: Wrapper, label: string) => section(w).get(`[role="group"][aria-label="${label}"]`);
+const pressed = (w: Wrapper, label: string) => group(w, label).findAll('button').filter((b) => b.attributes('aria-pressed') === 'true').map((b) => b.text());
+async function press(w: Wrapper, label: string, text: string): Promise<void> {
+  await group(w, label).findAll('button').find((b) => b.text() === text)!.trigger('click');
+}
+
+/** Moves every control off its default, and checks it moved. */
+function customise(): ReturnType<typeof useRelationsStore> {
+  const store = useRelationsStore();
+  store.setDirection('out');
+  store.setHops(2);
+  store.setShowArcs(false);
+  store.highlightCycle('CY-00000001');
+  expect([store.direction, store.hops, store.showArcs, store.highlightedCycleId]).toEqual(['out', 2, false, 'CY-00000001']);
+  return store;
+}
+const DEFAULTS = ['both', 1, true, null];
+
+beforeEach(() => { setActivePinia(createPinia()); });
+afterEach(() => {
+  wrappers.splice(0).forEach((w) => { w.unmount(); });
+  renderers.splice(0);
+});
+
+describe('the city Relations section (N30)', () => {
+  it('shows its controls, the two rows with their lines, the cycle with a Highlight toggle, and both notes', async () => {
+    setup();
+    const { w } = mountInspector();
+    expect(section(w).get('.ci-city-relations__title').text()).toBe(RELATIONS_TITLE);
+    expect(group(w, RELATIONS_DIRECTION_LABEL).findAll('button').map((b) => b.text()))
+      .toEqual([RELATIONS_DIRECTION_BOTH, RELATIONS_DIRECTION_OUT, RELATIONS_DIRECTION_IN]);
+    expect(pressed(w, RELATIONS_DIRECTION_LABEL)).toEqual([RELATIONS_DIRECTION_BOTH]);
+    expect(group(w, RELATIONS_HOPS_LABEL).findAll('button').map((b) => b.text())).toEqual(['1', '2']);
+    expect(pressed(w, RELATIONS_HOPS_LABEL)).toEqual(['1']);
+    const arcs = section(w).get('.ci-city-relations__arcs');
+    expect(arcs.text()).toBe(RELATIONS_SHOW_ARCS);
+    expect((arcs.get('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(true);
+
+    expect(paths(w)).toEqual(['core/b.ts:1', 'core/c.ts:1']);
+    const rows = w.findAll('.ci-city-relations__row');
+    expect(rows[0]!.get('.ci-city-relations__glyph--out').text()).toBe('→');
+    expect(rows[0]!.text()).toContain(RELATIONS_DIRECTION_OUT);
+    expect(rows[1]!.get('.ci-city-relations__glyph--in').text()).toBe('←');
+    expect(rows[1]!.text()).toContain(RELATIONS_DIRECTION_IN);
+    expect(rows.every((r) => r.get('.ci-city-relations__source').text() === RELATION_SOURCE_CYCLE)).toBe(true);
+
+    const cycles = w.findAll('.ci-city-relations__cycle');
+    expect(cycles).toHaveLength(1);
+    expect(cycles[0]!.get('code').text()).toBe('core/a.ts:1 → core/b.ts:1 → core/c.ts:1 → core/a.ts');
+    const toggle = cycles[0]!.get('button.ci-city-relations__highlight');
+    expect(toggle.text()).toBe(RELATIONS_HIGHLIGHT_CYCLE);
+    expect(toggle.attributes('aria-pressed')).toBe('false');
+    await toggle.trigger('click');
+    expect(toggle.attributes('aria-pressed')).toBe('true');
+    const core = useReadModels().relations.value.cycles.find((c) => c.pathText.startsWith('core/a.ts'))!;
+    expect(useRelationsStore().highlightedCycleId).toBe(core.findingId);
+    await toggle.trigger('click');
+    expect(toggle.attributes('aria-pressed')).toBe('false');
+    expect(useRelationsStore().highlightedCycleId).toBeNull();
+
+    expect(section(w).text()).toContain(RELATIONS_SCOPE_NOTE);
+    expect(section(w).text()).toContain(RELATIONS_STATIC_NOTE);
+    expect(section(w).find('.ci-provenance').exists()).toBe(false);
+  });
+
+  it('the controls drive the rows and the store: Outgoing, 2 hops, Show arcs off', async () => {
+    setup();
+    const { w } = mountInspector();
+    await press(w, RELATIONS_DIRECTION_LABEL, RELATIONS_DIRECTION_OUT);
+    expect(pressed(w, RELATIONS_DIRECTION_LABEL)).toEqual([RELATIONS_DIRECTION_OUT]);
+    expect(paths(w)).toEqual(['core/b.ts:1']);
+    await press(w, RELATIONS_HOPS_LABEL, '2');
+    expect(paths(w)).toEqual(['core/b.ts:1', 'core/c.ts:1']);
+    expect(w.findAll('.ci-city-relations__row')[1]!.text()).toContain(`${RELATIONS_HOPS_LABEL} 2`);
+    await section(w).get('.ci-city-relations__arcs input').setValue(false);
+    const store = useRelationsStore();
+    expect([store.direction, store.hops, store.showArcs]).toEqual(['out', 2, false]);
+    expect(paths(w)).toEqual(['core/b.ts:1', 'core/c.ts:1']);
+  });
+
+  it('a row button selects that file and never moves the camera', async () => {
+    const snap = setup();
+    const { w, renderer } = mountInspector();
+    await w.findAll('.ci-city-relations__row button')[0]!.trigger('click');
+    const city = useCityStore();
+    expect(city.selectedEntityId).toBe(idOf(snap, 'core/b.ts'));
+    expect(renderer.focus).not.toHaveBeenCalled();
+    expect(renderer.setCamera).not.toHaveBeenCalled();
+    expect(city.camera).toEqual(BOOKMARK);
+    expect(paths(w)).toEqual(['core/c.ts:1', 'core/a.ts:1']);
+  });
+
+  it('selecting another file clears the highlight', async () => {
+    const snap = setup();
+    const { w } = mountInspector();
+    await w.get('button.ci-city-relations__highlight').trigger('click');
+    expect(useRelationsStore().highlightedCycleId).not.toBeNull();
+    useCityStore().select(idOf(snap, 'core/b.ts'));
+    await nextTick();
+    expect(useRelationsStore().highlightedCycleId).toBeNull();
+    expect(w.get('button.ci-city-relations__highlight').attributes('aria-pressed')).toBe('false');
+  });
+
+  it('stale evidence still lists the rows, with the stale label in the section', () => {
+    setup('stale');
+    const { w } = mountInspector();
+    expect(section(w).get('.ci-provenance--stale').text()).toBe('Stale');
+    expect(paths(w)).toEqual(['core/b.ts:1', 'core/c.ts:1']);
+  });
+
+  it('without a report it says not analysed, with no rows and no controls', () => {
+    setup('none');
+    const { w } = mountInspector();
+    expect(section(w).text()).toContain(FALLOW_NOT_ANALYSED);
+    expect(section(w).text()).toContain(RELATIONS_SCOPE_NOTE);
+    expect(w.findAll('.ci-city-relations__row')).toHaveLength(0);
+    expect(section(w).find('[role="group"]').exists()).toBe(false);
+  });
+});
+
+describe('the relations store, one per leaf (N31)', () => {
+  it('changing leaf A\'s direction leaves leaf B\'s store at both, and B\'s camera unchanged', async () => {
+    const leafA = createPinia();
+    const leafB = createPinia();
+    setActivePinia(leafA);
+    setup();
+    setActivePinia(leafB);
+    setup();
+    const a = mountInspector(leafA);
+    const b = mountInspector(leafB);
+    await press(a.w, RELATIONS_DIRECTION_LABEL, RELATIONS_DIRECTION_IN);
+    expect(useRelationsStore(leafA).direction).toBe('in');
+    expect(useRelationsStore(leafB).direction).toBe('both');
+    expect(pressed(b.w, RELATIONS_DIRECTION_LABEL)).toEqual([RELATIONS_DIRECTION_BOTH]);
+    expect(useCityStore(leafB).camera).toEqual(BOOKMARK);
+    expect(b.renderer.setCamera).not.toHaveBeenCalled();
+  });
+
+  it('detaching the report resets it to its defaults', () => {
+    setup();
+    const store = customise();
+    useEvidenceStore().remove();
+    expect([store.direction, store.hops, store.showArcs, store.highlightedCycleId]).toEqual(DEFAULTS);
+  });
+
+  it('binding a different repository resets it to its defaults', () => {
+    setup();
+    const store = customise();
+    useEvidenceStore().bindRepository('another-repository');
+    expect([store.direction, store.hops, store.showArcs, store.highlightedCycleId]).toEqual(DEFAULTS);
+  });
+
+  it('ignores an unknown direction or hop count', () => {
+    const store = useRelationsStore();
+    store.setDirection('sideways' as unknown as RelationControlDirection);
+    store.setHops(3 as unknown as 1);
+    expect([store.direction, store.hops]).toEqual(['both', 1]);
+  });
+
+  it('J15: showCycleInCity selects, then highlights, then navigates — the highlight survives the selection', () => {
+    const snap = setup();
+    const city = useCityStore();
+    const store = useRelationsStore();
+    city.navigate('architecture');
+    let highlightAtNavigate: string | null | undefined;
+    const stop = watch(() => city.route, () => { highlightAtNavigate = store.highlightedCycleId; }, { flush: 'sync' });
+    store.showCycleInCity('CY-00000002', idOf(snap, 'core/b.ts'));
+    stop();
+    expect(city.selectedEntityId).toBe(idOf(snap, 'core/b.ts'));
+    expect(store.highlightedCycleId).toBe('CY-00000002');
+    expect(highlightAtNavigate).toBe('CY-00000002');
+    expect(city.route).toBe('city');
+    expect(city.camera).toEqual(BOOKMARK);
+  });
+});
