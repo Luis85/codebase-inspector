@@ -55,7 +55,7 @@ describe('readPalette: relation colours (WP-03 N32)', () => {
     expect(palette.relations).toEqual({ outgoing: '#53b8c4', incoming: '#d99a5b', cycle: '#d9707a' });
   });
 
-  it('reads every relation token again, never from a cache', () => {
+  it('reads every relation token again on each call, never from a cache', () => {
     const win = fakeWin({ '#000000': [0, 0, 0, 255], '#ffffff': [255, 255, 255, 255] });
     const reads: string[] = [];
     const tokens: Record<string, string> = {
@@ -68,10 +68,13 @@ describe('readPalette: relation colours (WP-03 N32)', () => {
       getCssPropertyValue: (token: string) => { reads.push(token); return tokens[token] ?? ''; },
     } as unknown as HTMLElement;
 
+    // Two calls (as a real css-change subscriber would trigger): a token served from a
+    // cache would be read once and reused, not read again the second time.
+    readPalette(containerEl);
     readPalette(containerEl);
 
     for (const token of ['--ci-relation-out', '--ci-relation-in', '--ci-relation-cycle']) {
-      expect(reads).toContain(token);
+      expect(reads.filter((t) => t === token)).toHaveLength(2);
     }
   });
 });

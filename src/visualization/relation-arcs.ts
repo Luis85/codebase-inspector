@@ -57,13 +57,42 @@ export function createRelationArcs(): RelationArcs {
   let lineGeometry: BufferGeometry | null = null;
   let lineSegments: LineSegments | null = null;
   let coneMesh: InstancedMesh | null = null;
+  let colorAttr: Float32BufferAttribute | null = null;
 
   function clear(): void {
+    // r186 gives InstancedMesh its own dispose() (frees instanceMatrix/instanceColor's
+    // GL buffers) that disposeObject3D never calls — it only disposes geometries and
+    // materials it finds by traversal, then clears the root. Skipping this leaked two
+    // GL buffers on every selection change (N29 "repeated selection never leaks").
+    coneMesh?.dispose();
     disposeObject3D(root);               // disposes both geometries and both materials, then clears root
     lineGeometry = null;
     lineSegments = null;
     coneMesh = null;
+    colorAttr = null;
     drawn = [];
+  }
+
+  /** The one place a role becomes a colour, and the one place that colour reaches both
+   *  the line's vertex-colour attribute and the cone's per-instance colour — used by
+   *  rebuild() right after building geometry, and by setColors() alone when nothing
+   *  else changed. Computes each arc's Color exactly once. */
+  function paintColors(): void {
+    if (!colorAttr || !coneMesh || !palette) return;
+    const attr = colorAttr;
+    const cones = coneMesh;
+    const current = palette;
+    let vertex = 0;
+    drawn.forEach((arc, i) => {
+      const color = new Color(current.relations[arc.role]);
+      for (let s = 0; s < SEGMENTS * 2; s++) {
+        attr.setXYZ(vertex, color.r, color.g, color.b);
+        vertex += 1;
+      }
+      cones.setColorAt(i, color);
+    });
+    attr.needsUpdate = true;
+    if (cones.instanceColor) cones.instanceColor.needsUpdate = true;
   }
 
   /** Rebuilds both meshes from scratch: arcs, lots and palette all change shape (which
@@ -79,37 +108,32 @@ export function createRelationArcs(): RelationArcs {
     if (valid.length === 0) return;
 
     const positions = new Float32Array(valid.length * SEGMENTS * 2 * 3);
-    const colors = new Float32Array(valid.length * SEGMENTS * 2 * 3);
     const conePositions: Vector3[] = [];
     const coneQuats: Quaternion[] = [];
-    const coneColors: Color[] = [];
 
     let vertex = 0;
     for (const arc of valid) {
       const from = topOf(currentLots.get(arc.from)!);
       const to = topOf(currentLots.get(arc.to)!);
       const control = controlPoint(from, to);
-      const color = new Color(palette.relations[arc.role]);
       let prev = from;
       for (let s = 1; s <= SEGMENTS; s++) {
         const { point } = bezier(from, control, to, s / SEGMENTS);
         positions[vertex * 3] = prev.x; positions[vertex * 3 + 1] = prev.y; positions[vertex * 3 + 2] = prev.z;
-        colors[vertex * 3] = color.r; colors[vertex * 3 + 1] = color.g; colors[vertex * 3 + 2] = color.b;
         vertex += 1;
         positions[vertex * 3] = point.x; positions[vertex * 3 + 1] = point.y; positions[vertex * 3 + 2] = point.z;
-        colors[vertex * 3] = color.r; colors[vertex * 3 + 1] = color.g; colors[vertex * 3 + 2] = color.b;
         vertex += 1;
         prev = point;
       }
       const arrow = bezier(from, control, to, ARROW_AT);
       conePositions.push(arrow.point);
       coneQuats.push(new Quaternion().setFromUnitVectors(UP, arrow.tangent));
-      coneColors.push(color);
     }
 
     lineGeometry = new BufferGeometry();
     lineGeometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
-    lineGeometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+    colorAttr = new Float32BufferAttribute(new Float32Array(valid.length * SEGMENTS * 2 * 3), 3);
+    lineGeometry.setAttribute('color', colorAttr);
     // Depth-tested, not always-on-top (N29): a tall building can hide an arc behind it,
     // and the text Relations list is the complete record either way (N30).
     lineSegments = new LineSegments(lineGeometry, new LineBasicMaterial({ vertexColors: true, depthTest: true }));
@@ -123,30 +147,11 @@ export function createRelationArcs(): RelationArcs {
     for (let i = 0; i < valid.length; i++) {
       matrix.compose(conePositions[i]!, coneQuats[i]!, scale);
       coneMesh.setMatrixAt(i, matrix);
-      coneMesh.setColorAt(i, coneColors[i]!);
     }
     coneMesh.instanceMatrix.needsUpdate = true;
-    if (coneMesh.instanceColor) coneMesh.instanceColor.needsUpdate = true;
 
     root.add(lineSegments, coneMesh);
-  }
-
-  /** setColors alone: rewrites the colour attribute and the instance colours only, so
-   *  the position BufferAttribute a caller already holds stays the SAME object. */
-  function repaintColors(): void {
-    if (!lineGeometry || !lineSegments || !coneMesh || !palette) return;
-    const colorAttr = lineGeometry.getAttribute('color') as Float32BufferAttribute;
-    let vertex = 0;
-    for (const arc of drawn) {
-      const color = new Color(palette.relations[arc.role]);
-      for (let s = 0; s < SEGMENTS * 2; s++) {
-        colorAttr.setXYZ(vertex, color.r, color.g, color.b);
-        vertex += 1;
-      }
-    }
-    colorAttr.needsUpdate = true;
-    drawn.forEach((arc, i) => { coneMesh!.setColorAt(i, new Color(palette!.relations[arc.role])); });
-    if (coneMesh.instanceColor) coneMesh.instanceColor.needsUpdate = true;
+    paintColors();
   }
 
   return {
@@ -161,7 +166,7 @@ export function createRelationArcs(): RelationArcs {
     },
     setColors(next: CityPalette): void {
       palette = next;
-      if (lineGeometry) { repaintColors(); return; }
+      if (lineGeometry) { paintColors(); return; }
       rebuild();
     },
     drawnCount: () => drawn.length,

@@ -5,7 +5,7 @@
 import type { CameraBookmark } from '../domain/model';
 import type { CityRendererPort } from './renderer-port';
 
-export const DEFAULT_CAMERA: CameraBookmark = {
+const DEFAULT_CAMERA: CameraBookmark = {
   projection: 'orthographic', mode: '3d',
   position: [20, 20, 20], target: [0, 0, 0], up: [0, 1, 0], zoom: 1,
 };

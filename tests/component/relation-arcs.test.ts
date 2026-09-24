@@ -6,7 +6,9 @@
 // survives setLayout — the renderer-reconstruction half of the contract (JF15).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../mocks/obsidian';
-import { BufferGeometry, Color, InstancedMesh, LineSegments, Vector3 } from 'three';
+import {
+  BufferGeometry, Color, InstancedMesh, LineSegments, Quaternion, Vector3,
+} from 'three';
 import type { BufferAttribute } from 'three';
 import { createRelationArcs, MAX_RELATION_ARCS } from '../../src/visualization/relation-arcs';
 import type { CityPalette, CityRendererPort, RelationArc } from '../../src/visualization/renderer-port';
@@ -105,7 +107,7 @@ describe('relation-arcs: geometry (N29)', () => {
     rig.dispose();
   });
 
-  it('orients the arrowhead nearer the "to" lot\'s top than the "from" lot\'s', () => {
+  it('orients the arrowhead\'s +Y onto the curve tangent at t = 0.92, nearer the "to" lot\'s top than the "from" lot\'s', () => {
     const rig = createRelationArcs();
     const layout = fourLotLayout();
     rig.setLots(layout.lots);
@@ -113,13 +115,30 @@ describe('relation-arcs: geometry (N29)', () => {
     const a = ID('src/f0.ts');
     const b = ID('src/f1.ts');
     rig.setArcs([{ from: a, to: b, role: 'outgoing' }]);
-    const coneMesh = rig.root.children[1] as InstancedMesh;
+    const [lineSegmentsMesh, coneMesh] = rig.root.children as [LineSegments, InstancedMesh];
+
     const matrix = coneMesh.matrixWorld.clone();
     coneMesh.getMatrixAt(0, matrix);
-    const arrow = new Vector3().setFromMatrixPosition(matrix);
+    const position = new Vector3();
+    const quaternion = new Quaternion();
+    const scale = new Vector3();
+    matrix.decompose(position, quaternion, scale);
+
+    // Segment 23 of 24 covers t in [22/24, 23/24] = [0.9167, 0.9583], which straddles
+    // ARROW_AT (0.92): its own two vertices (indices 44, 45 — see relation-arcs.ts's
+    // rebuild()) approximate the curve's own tangent there closely enough, over a 1/24
+    // span of a smooth quadratic Bézier, to check the cone's rotation against it without
+    // reimplementing the curve's own maths in the test.
+    const attr = lineSegmentsMesh.geometry.getAttribute('position');
+    const segmentStart = new Vector3().fromBufferAttribute(attr, 44);
+    const segmentEnd = new Vector3().fromBufferAttribute(attr, 45);
+    const approxTangent = segmentEnd.clone().sub(segmentStart).normalize();
+    const rotatedUp = new Vector3(0, 1, 0).applyQuaternion(quaternion);
+    expect(rotatedUp.dot(approxTangent)).toBeGreaterThan(0.999);
+
     const topA = topOf(layout, a);
     const topB = topOf(layout, b);
-    expect(arrow.distanceTo(topB)).toBeLessThan(arrow.distanceTo(topA));
+    expect(position.distanceTo(topB)).toBeLessThan(position.distanceTo(topA));
     rig.dispose();
   });
 
@@ -203,7 +222,7 @@ describe('relation-arcs: geometry (N29)', () => {
     rig.dispose();
   });
 
-  it('setColors alone rewrites colour without rebuilding the position geometry', () => {
+  it('setColors alone rewrites line AND cone colour without rebuilding the position geometry', () => {
     const rig = createRelationArcs();
     rig.setLots(fourLotLayout().lots);
     rig.setColors(PALETTE);
@@ -211,32 +230,50 @@ describe('relation-arcs: geometry (N29)', () => {
     const b = ID('src/f1.ts');
     rig.setArcs([{ from: a, to: b, role: 'outgoing' }]);
     const lineSegments = rig.root.children[0] as LineSegments;
+    const coneMesh = rig.root.children[1] as InstancedMesh;
     const positionBefore = lineSegments.geometry.getAttribute('position');
+
     const next: CityPalette = { ...PALETTE, relations: { outgoing: '#ff0000', incoming: '#00ff00', cycle: '#0000ff' } };
     rig.setColors(next);
+
+    // The SAME mesh, re-read from the root rather than the captured reference, so a
+    // rebuild that happened to keep the same variable name couldn't slip past this.
+    expect(rig.root.children[0]).toBe(lineSegments);
     expect(lineSegments.geometry.getAttribute('position')).toBe(positionBefore);
+
     const color = lineSegments.geometry.getAttribute('color') as BufferAttribute;
     expect(new Color(color.getX(0), color.getY(0), color.getZ(0)).getHexString())
       .toBe(new Color('#ff0000').getHexString());
+
+    const coneColor = new Color();
+    coneMesh.getColorAt(0, coneColor);
+    expect(coneColor.getHexString()).toBe(new Color('#ff0000').getHexString());
     rig.dispose();
   });
 
-  it('disposes every geometry no longer attached across 50 setArcs calls (no leak)', () => {
+  it('disposes every geometry AND every cone InstancedMesh no longer attached across 50 setArcs calls (no leak)', () => {
     const rig = createRelationArcs();
     const layout = fourLotLayout();
     rig.setLots(layout.lots);
     rig.setColors(PALETTE);
     const [a, b, c, d] = layout.lots.map((l) => l.entityId) as [string, string, string, string];
-    const disposeSpy = vi.spyOn(BufferGeometry.prototype, 'dispose');
+    const geometryDisposeSpy = vi.spyOn(BufferGeometry.prototype, 'dispose');
+    // r186 gives InstancedMesh its own dispose() (frees instanceMatrix/instanceColor's GL
+    // buffers), which disposeObject3D never calls on its own — this is what N29's
+    // "repeated selection never leaks" is actually about, not just the two geometries.
+    const meshDisposeSpy = vi.spyOn(InstancedMesh.prototype, 'dispose');
     const BUILDS = 50;
     for (let i = 0; i < BUILDS; i++) {
       rig.setArcs([{ from: i % 2 === 0 ? a : c, to: i % 2 === 0 ? b : d, role: 'outgoing' }]);
     }
     // Every build after the first replaces (and disposes) the previous one's two
-    // geometries (line + cone); the first has nothing yet attached to dispose.
-    expect(disposeSpy).toHaveBeenCalledTimes((BUILDS - 1) * 2);
+    // geometries (line + cone) and one cone InstancedMesh; the first has nothing yet
+    // attached to dispose.
+    expect(geometryDisposeSpy).toHaveBeenCalledTimes((BUILDS - 1) * 2);
+    expect(meshDisposeSpy).toHaveBeenCalledTimes(BUILDS - 1);
     rig.dispose();
-    expect(disposeSpy).toHaveBeenCalledTimes(BUILDS * 2);
+    expect(geometryDisposeSpy).toHaveBeenCalledTimes(BUILDS * 2);
+    expect(meshDisposeSpy).toHaveBeenCalledTimes(BUILDS);
   });
 
   it('never throws when setArcs precedes setLots/setColors, and draws once both arrive', () => {
