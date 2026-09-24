@@ -9,8 +9,11 @@ import { createRelationIndex, type RelationIndex } from '../../domain/relations/
 import {
   originOf, type BoundariesState, type RelationHop, type ReportedBoundaryViolation, type ReportedCycle, type ReportedReExportCycle,
 } from '../../application/evidence/model';
-import { unknown, type MetricValue, type Provenance } from '../evidence';
-import { FALLOW_NOT_ANALYSED, FALLOW_PROVENANCE_DETAIL, RELATION_FAN_NOT_SCORED } from '../inspector-copy';
+import { unknown, type EvidenceState, type MetricValue, type Provenance } from '../evidence';
+import {
+  EVIDENCE_SOURCE_FALLOW_PARTIAL, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, FALLOW_NOT_ANALYSED_TITLE,
+  FALLOW_PROVENANCE_DETAIL, RELATION_FAN_NOT_SCORED,
+} from '../inspector-copy';
 import type { EvidenceIndex, EvidenceIndexState } from './evidence-index';
 import { findingFingerprint } from './findings';
 import type { FileSummary } from './file-summaries';
@@ -216,4 +219,32 @@ export function relationValue(model: RelationModel, n: number): MetricValue {
   const provenance = model.analysed ? provenanceCache.get(model) : undefined;
   if (!provenance) return unknown(FALLOW_NOT_ANALYSED, 'fallow');
   return { state: model.state === 'stale' ? 'stale' : 'collected', value: n, provenance };
+}
+
+/** Fix round 1 (critical #1): the relation evidence state for a BOUNDARY-VIOLATION count
+ *  specifically. Unlike `relationValue` (which reads the CYCLE category's `analysed`
+ *  flag, N3/N5 — wrong for a boundary count, since a report can read cycles without ever
+ *  reading boundaries, e.g. a pre-schema-12 report with no `boundaries-not-configured`
+ *  diagnostic, JF2), this reads `model.boundaries` (N4/JF2) directly: `not-configured` is
+ *  N11's own "off by your config" unknown, never a measured 0; anything else that is not
+ *  `configured` (`not-reported`, or no report at all) is `unknown(FALLOW_NOT_ANALYSED)`;
+ *  only `configured` returns a real count (collected/stale). */
+export function relationBoundaryValue(model: RelationModel, n: number): MetricValue {
+  if (model.boundaries === 'not-configured') return unknown(FALLOW_BOUNDARIES_NOT_CONFIGURED, 'fallow');
+  const provenance = model.boundaries === 'configured' ? provenanceCache.get(model) : undefined;
+  if (!provenance) return unknown(FALLOW_NOT_ANALYSED, 'fallow');
+  return { state: model.state === 'stale' ? 'stale' : 'collected', value: n, provenance };
+}
+
+export interface RelationRowState { readonly state: EvidenceState; readonly source: string }
+
+/** Fix round 1 (E9, N26): the ONE "imports" coverage-row state, shared by Overview and
+ *  Data & scans so they can never disagree (they used to: one said "Not analysed", the
+ *  other "Not collected", for the identical no-report case). E9: a stale report whose
+ *  relation (cycle) category was never analysed reads unknown, not stale — `analysed` is
+ *  checked before `state`, so a stale-but-unanalysed model never reaches the stale
+ *  branch. */
+export function relationRowState(model: RelationModel): RelationRowState {
+  if (model.state === 'none' || !model.analysed) return { state: 'unknown', source: FALLOW_NOT_ANALYSED_TITLE };
+  return { state: model.state === 'stale' ? 'stale' : 'partial', source: EVIDENCE_SOURCE_FALLOW_PARTIAL };
 }

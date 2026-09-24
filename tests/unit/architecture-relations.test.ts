@@ -17,26 +17,22 @@ import {
 import { buildOverviewModel } from '../../src/ui/read-models/overview';
 import { buildSourcesModel } from '../../src/ui/read-models/sources';
 import {
-  EVIDENCE_SOURCE_FALLOW_PARTIAL, FALLOW_NOT_ANALYSED, OVERVIEW_IMPORTS_ROW, RELATIONS_SCOPE_SHORT,
-  RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL, RULE_NOT_EVALUATED_REASON,
+  ARCH_NOT_ANALYSED_NOTE, ARCH_VIOLATIONS_CAPTION, ARCH_VIOLATIONS_NOT_CONFIGURED, EVIDENCE_SOURCE_FALLOW_PARTIAL,
+  FALLOW_NOT_ANALYSED, OVERVIEW_IMPORTS_ROW, RELATIONS_SCOPE_SHORT, RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL,
+  RULE_NOT_EVALUATED_REASON,
 } from '../../src/ui/inspector-copy';
 import type { BoundaryRule } from '../../src/ui/stores/ports/review-repository';
-import { rawReport } from '../fixtures/fallow-fixture';
-import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { fallowDoc, rawReport } from '../fixtures/fallow-fixture';
+import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { RELATIONS_PATHS, snapshotWithPaths } from '../fixtures/evidence-report';
 
-const RELATIONS_PATHS = [
-  'core/a.ts', 'core/b.ts', 'core/c.ts',
-  'barrel/index.ts', 'barrel/x.ts', 'barrel/y.ts',
-  'ui/view.ts', 'data/db.ts', 'data/types.ts',
-  'index.ts', 'orphan.ts',
-];
 const IMPORTED_AT = '2026-09-24T10:00:00.000Z';
 const IDLE = { status: 'idle' as const };
 const rule = (from: string, to: string, id = 'AR-001'): BoundaryRule => ({ id, from, to, rationale: 'r', createdAt: IMPORTED_AT });
 
-function reportFor(snapshotId: string): EvidenceReport {
+function reportFor(snapshotId: string, fixture: Parameters<typeof rawReport>[0] = 'relations-combined-3.27.0'): EvidenceReport {
   return buildEvidenceReport({
-    raw: rawReport('relations-combined-3.27.0'), fileName: 'relations.json', importedAt: IMPORTED_AT, snapshotId, stripPrefix: 'src/',
+    raw: rawReport(fixture), fileName: 'relations.json', importedAt: IMPORTED_AT, snapshotId, stripPrefix: 'src/',
   });
 }
 
@@ -66,8 +62,9 @@ describe('module edges (N19, N20)', () => {
 });
 
 describe('cards (N18, N20)', () => {
-  it('the cycle card counts import cycles (collected) with the recorded files/groups/re-exports', () => {
+  it('the cycle card counts import cycles (collected) with the recorded files/groups/re-exports, and notAnalysed is false', () => {
     const model = buildArchitectureModel(graph, []);
+    expect(model.notAnalysed).toBe(false);
     const card = model.cards.find((c) => c.id === 'cycles')!;
     expect(card.value).toMatchObject({ state: 'collected', value: 2 });
     expect(card.caption).toBe(RELATION_CYCLES_CAPTION(5, 2, 1));
@@ -89,13 +86,68 @@ describe('cards (N18, N20)', () => {
     expect(withoutRule.cards.find((c) => c.id === 'violations')!.value).toMatchObject({ state: 'collected', value: 1 });
   });
 
-  it('without a report, every relation card is unknown(FALLOW_NOT_ANALYSED), edges is empty, modules stay collected', () => {
+  it('E11: with a rule present but not violated, the card is the fallow part alone — never "Nothing to aggregate"', () => {
+    const model = buildArchitectureModel(graph, [rule('core', 'ui')]);
+    const card = model.cards.find((c) => c.id === 'violations')!;
+    expect(card.value).toMatchObject({ state: 'collected', value: 1 });
+    expect(card.caption).toBe(ARCH_VIOLATIONS_CAPTION(0));
+  });
+
+  it('without a report, every relation card is unknown(FALLOW_NOT_ANALYSED), edges is empty, modules stay collected, notAnalysed is true, and no caption renders a false 0', () => {
     const model = buildArchitectureModel(noReportGraph, []);
+    expect(model.notAnalysed).toBe(true);
     expect(model.edges).toEqual([]);
     for (const id of ['evidenced', 'cycles', 'violations'] as const) {
       expect(model.cards.find((c) => c.id === id)).toMatchObject({ value: { state: 'unknown', reason: FALLOW_NOT_ANALYSED } });
     }
     expect(model.cards.find((c) => c.id === 'modules')).toMatchObject({ value: { state: 'collected' } });
+    expect(model.cards.find((c) => c.id === 'cycles')!.caption).toBe(ARCH_NOT_ANALYSED_NOTE);
+    expect(model.cards.find((c) => c.id === 'violations')!.caption).toBe(ARCH_NOT_ANALYSED_NOTE);
+  });
+
+  it('fix round 1 #9: "files in a cycle" counts matched members of a PARTLY matched cycle too', () => {
+    // core/c.ts dropped: the core cycle's a/b members still resolve, so they still count as
+    // "files in a cycle" even though the whole cycle (and so its hops/groups) stays unmatched.
+    const reducedPaths = RELATIONS_PATHS.filter((p) => p !== 'core/c.ts');
+    const reducedSnapshot = snapshotWithPaths(reducedPaths, 'repo-relations-arch-reduced');
+    const reducedFiles = fileSummariesFor(reducedSnapshot);
+    const reducedReport = reportFor(reducedSnapshot.snapshotId);
+    const reducedRelations = relationModelFor(reducedFiles, evidenceIndexFor(reducedFiles, reducedReport, reducedSnapshot.snapshotId));
+    const reducedGraph = architectureGraphFor(reducedFiles, reducedRelations);
+    const model = buildArchitectureModel(reducedGraph, []);
+    // barrel's group (2) still fully matched and traced; core's a/b resolve but its hops
+    // never draw (the whole cycle is unmatched, N7), so they inflate "files" (2 + 2 = 4)
+    // without inflating "groups" (still 1: only the barrel pair).
+    expect(model.cards.find((c) => c.id === 'cycles')!.caption).toBe(RELATION_CYCLES_CAPTION(4, 1, 1));
+  });
+});
+
+describe('critical fix #1: a boundary count is never a false collected 0', () => {
+  it('relations-combined-3.21.0 with violations emptied reads unknown (JF2\'s schema<12 ambiguity: cycles were reported, boundaries were not)', () => {
+    const doc = fallowDoc('relations-combined-3.21.0', (d) => {
+      (d.check! as unknown as { boundary_violations: unknown[] }).boundary_violations = [];
+    });
+    const emptiedReport = buildEvidenceReport({
+      raw: rawReport(doc), fileName: 'relations.json', importedAt: IMPORTED_AT, snapshotId: snapshot.snapshotId, stripPrefix: 'src/',
+    });
+    const rel = relationModelFor(files, evidenceIndexFor(files, emptiedReport, snapshot.snapshotId));
+    expect(rel.boundaries).toBe('not-reported');
+    expect(rel.analysed).toBe(true);
+    const model = buildArchitectureModel(architectureGraphFor(files, rel), []);
+    expect(model.cards.find((c) => c.id === 'violations')!.value).toMatchObject({ state: 'unknown', reason: FALLOW_NOT_ANALYSED });
+  });
+
+  it('combined-3.21.0 (schema 11, no diagnostics, empty violations) reads unknown, not a measured 0', () => {
+    const generic = buildSnapshotFixture({ files: 5 });
+    const genFiles = fileSummariesFor(generic);
+    const genReport = buildEvidenceReport({
+      raw: rawReport('combined-3.21.0'), fileName: 'combined.json', importedAt: IMPORTED_AT, snapshotId: generic.snapshotId, stripPrefix: null,
+    });
+    const rel = relationModelFor(genFiles, evidenceIndexFor(genFiles, genReport, generic.snapshotId));
+    expect(rel.boundaries).toBe('not-reported');
+    expect(rel.analysed).toBe(true);
+    const model = buildArchitectureModel(architectureGraphFor(genFiles, rel), []);
+    expect(model.cards.find((c) => c.id === 'violations')!.value).toMatchObject({ state: 'unknown', reason: FALLOW_NOT_ANALYSED });
   });
 });
 
@@ -107,15 +159,16 @@ describe('rules (N23)', () => {
   it('an in-graph pair with no matched crossing is not-evaluated, RULE_NOT_EVALUATED_PARTIAL', () => {
     const [evaluation] = evaluateRules([rule('core', 'ui')], graph);
     expect(evaluation).toMatchObject({ status: 'not-evaluated', reason: RULE_NOT_EVALUATED_PARTIAL });
-    expect(evaluation!.violatingImports.state).toBe('unknown');
+    expect(evaluation!.violatingImports).toMatchObject({ state: 'unknown', reason: RULE_NOT_EVALUATED_PARTIAL, provenance: { source: 'fallow' } });
   });
   it('a module outside the shown graph is not-evaluated, RULE_NOT_EVALUATED_REASON', () => {
     const [evaluation] = evaluateRules([rule('nope', 'data')], graph);
     expect(evaluation).toMatchObject({ status: 'not-evaluated', reason: RULE_NOT_EVALUATED_REASON });
   });
-  it('without a report, an in-graph pair is not-evaluated, FALLOW_NOT_ANALYSED', () => {
+  it('without a report, an in-graph pair is not-evaluated, FALLOW_NOT_ANALYSED, sourced from fallow', () => {
     const [evaluation] = evaluateRules([rule('ui', 'data')], noReportGraph);
     expect(evaluation).toMatchObject({ status: 'not-evaluated', reason: FALLOW_NOT_ANALYSED });
+    expect(evaluation!.violatingImports.provenance.source).toBe('fallow');
   });
   it('no rule is ever passing', () => {
     const evaluations = evaluateRules([rule('ui', 'data'), rule('core', 'ui', 'AR-002'), rule('nope', 'data', 'AR-003')], graph);
@@ -125,9 +178,10 @@ describe('rules (N23)', () => {
 });
 
 describe('Overview (N26)', () => {
-  it('the architecture card equals cyclesValue(relations)', () => {
+  it('the architecture card equals cyclesValue(relations), captioned with the pluralised violation count', () => {
     const model = buildOverviewModel(snapshot, files, cyclesValue(relations), evidence, undefined, relations);
     expect(model.cards.find((c) => c.id === 'architecture')!.value).toEqual(cyclesValue(relations));
+    expect(model.cards.find((c) => c.id === 'architecture')!.caption).toBe('Import cycles · 1 boundary violation');
   });
   it('the imports row is partial, sourced from fallow, with a report', () => {
     const model = buildOverviewModel(snapshot, files, cyclesValue(relations), evidence, undefined, relations);
@@ -139,14 +193,41 @@ describe('Overview (N26)', () => {
     expect(row.state).toBe('unknown');
     expect(row.source).toBe('Not analysed');
   });
+  it('fix round 1 #3: the caption reads "—", never a false 0, without a report', () => {
+    const model = buildOverviewModel(snapshot, files, cyclesValue(noReportRelations), noReportEvidence, undefined, noReportRelations);
+    expect(model.cards.find((c) => c.id === 'architecture')!.caption).toBe('Import cycles · —');
+  });
+  it('fix round 1 #3: the caption reads "boundaries not configured" only for that specific reason', () => {
+    const noBoundariesReport = reportFor(snapshot.snapshotId, 'relations-no-boundaries-3.27.0');
+    const ev = evidenceIndexFor(files, noBoundariesReport, snapshot.snapshotId);
+    const rel = relationModelFor(files, ev);
+    const model = buildOverviewModel(snapshot, files, cyclesValue(rel), ev, undefined, rel);
+    expect(model.cards.find((c) => c.id === 'architecture')!.caption).toBe(`Import cycles · ${ARCH_VIOLATIONS_NOT_CONFIGURED}`);
+  });
 });
 
 describe('Data & scans (N26)', () => {
-  it('the imports provider row is partial with a report, unknown without one, never sample', () => {
+  it('the imports provider row is partial with a report, unknown ("Not analysed") without one, never sample', () => {
     const withReport = buildSourcesModel(snapshot, IDLE, undefined, relations);
-    expect(withReport.providers.find((p) => p.id === 'imports')!.state).toBe('partial');
+    expect(withReport.providers.find((p) => p.id === 'imports')).toMatchObject({ state: 'partial', source: EVIDENCE_SOURCE_FALLOW_PARTIAL });
     const withoutReport = buildSourcesModel(snapshot, IDLE, undefined, noReportRelations);
-    expect(withoutReport.providers.find((p) => p.id === 'imports')!.state).toBe('unknown');
+    // E9/N26: the SAME "Not analysed" wording Overview uses, never "Not collected".
+    expect(withoutReport.providers.find((p) => p.id === 'imports')).toMatchObject({ state: 'unknown', source: 'Not analysed' });
+  });
+});
+
+describe('stale evidence, Overview and Data & scans agree (Review Focus 5, E9)', () => {
+  const staleReport = reportFor('other-snapshot');
+  const staleEvidence = evidenceIndexFor(files, staleReport, snapshot.snapshotId);
+  const staleRelations = relationModelFor(files, staleEvidence);
+
+  it('the Overview imports row reads stale', () => {
+    const model = buildOverviewModel(snapshot, files, cyclesValue(staleRelations), staleEvidence, undefined, staleRelations);
+    expect(model.coverage.find((r) => r.id === 'imports')).toMatchObject({ state: 'stale', source: EVIDENCE_SOURCE_FALLOW_PARTIAL });
+  });
+  it('the Data & scans imports row reads stale', () => {
+    const model = buildSourcesModel(snapshot, IDLE, undefined, staleRelations);
+    expect(model.providers.find((p) => p.id === 'imports')!.state).toBe('stale');
   });
 });
 

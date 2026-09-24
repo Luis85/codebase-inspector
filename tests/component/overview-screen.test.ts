@@ -101,6 +101,17 @@ describe('OverviewScreen', () => {
     expect(text).toContain('Unknown');
   });
 
+  it('fix round 1 #12: the Import relations row itself is unknown without a report, not merely "Unknown" somewhere on the page', () => {
+    withSnapshot();
+    const w = mountOverview();
+    const dts = w.findAll('.ci-evidence-coverage dt');
+    const idx = dts.findIndex((dt) => dt.text() === 'Import relations');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    const dd = w.findAll('.ci-evidence-coverage dd')[idx]!;
+    expect(dd.find('.ci-provenance--unknown').exists()).toBe(true);
+    expect(dd.find('.ci-provenance--unknown').attributes('title')).toBe('Not analysed');
+  });
+
   it('counts open findings only: a dismissal drops the card by one, matching Code quality\'s Open card (E48 I1)', async () => {
     withSnapshot();
     attachSyntheticReport(useCityStore().snapshot!);

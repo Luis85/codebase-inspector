@@ -35,8 +35,8 @@ defineProps<{ evaluation: RuleEvaluation | null; edge: ModuleEdge | null; violat
         <p class="ci-boundary__count">
           {{ BOUNDARY_VIOLATING_IMPORTS }}: {{ formatMetric(evaluation.violatingImports) }}
           <ProvenanceBadge
+            v-if="evaluation.violatingImports.state !== 'collected'"
             :state="evaluation.violatingImports.state"
-            :detail="evaluation.violatingImports.reason"
           />
         </p>
         <p

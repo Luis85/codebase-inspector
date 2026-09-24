@@ -8,15 +8,14 @@ import type { EvidenceState } from '../evidence';
 import { formatAbsoluteTime } from '../copy';
 import { countPartialRead } from '../view-surface';
 import {
-  EVIDENCE_SOURCE_FALLOW_PARTIAL, EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, FALLOW_SOURCE, SOURCES_COMPLETE,
-  SOURCES_NONE, SOURCES_PARTIAL, SOURCES_PROVIDER, SOURCES_ROW_CAPTURED, SOURCES_ROW_COMPLETENESS, SOURCES_ROW_EXCLUSIONS,
-  SOURCES_ROW_FOLDER, SOURCES_ROW_LIMIT, SOURCES_ROW_PATH, SOURCES_ROW_SYMLINKS, SOURCES_SOURCE_BUILTIN,
-  SOURCES_SOURCE_FICTIONAL, SOURCES_SYMLINKS_NOT_FOLLOWED,
+  EVIDENCE_SOURCE_NONE, EVIDENCE_SOURCE_SAMPLE, FALLOW_SOURCE, SOURCES_COMPLETE, SOURCES_NONE, SOURCES_PARTIAL,
+  SOURCES_PROVIDER, SOURCES_ROW_CAPTURED, SOURCES_ROW_COMPLETENESS, SOURCES_ROW_EXCLUSIONS, SOURCES_ROW_FOLDER,
+  SOURCES_ROW_LIMIT, SOURCES_ROW_PATH, SOURCES_ROW_SYMLINKS, SOURCES_SOURCE_BUILTIN, SOURCES_SOURCE_FICTIONAL,
+  SOURCES_SYMLINKS_NOT_FOLLOWED,
 } from '../inspector-copy';
-import type { EvidenceIndexState } from './evidence-index';
+import { evidenceIndexFor, type EvidenceIndexState } from './evidence-index';
 import type { FileSummary } from './file-summaries';
-import { relationModelFor, type RelationModel } from './relations';
-import { evidenceIndexFor } from './evidence-index';
+import { relationModelFor, relationRowState, type RelationModel } from './relations';
 import { rootFolderLabel } from './root-label';
 
 export type RunView =
@@ -82,22 +81,20 @@ interface FallowCardState { state: EvidenceIndexState; version: string | null; o
 const NO_FALLOW: FallowCardState = { state: 'none', version: null };
 const FALLOW_EVIDENCE: Readonly<Record<EvidenceIndexState, EvidenceState>> = { none: 'unknown', current: 'collected', stale: 'stale' };
 const NO_FILES: readonly FileSummary[] = [];
-/** The no-report relation model, for a caller (a test, a leaf with no snapshot) that has
- *  no relation model of its own to thread through. */
-const NO_RELATIONS: RelationModel = relationModelFor(NO_FILES, evidenceIndexFor(NO_FILES, null, ''));
-
-/** WP-03 N26 (JF7): the imports row's state follows the relation model, never a fixed
- *  'sample' — unknown without a report or an unread cycle category, else partial/stale. */
-function importsRow(relations: RelationModel): { state: EvidenceState; source: string } {
-  if (relations.state === 'none' || !relations.analysed) return { state: 'unknown', source: EVIDENCE_SOURCE_NONE };
-  return { state: relations.state === 'stale' ? 'stale' : 'partial', source: EVIDENCE_SOURCE_FALLOW_PARTIAL };
+/** Fix round 1 #10: NOT built at module load. Only computed the first time a caller omits
+ *  `relations` (a test, or a leaf with no snapshot); `relationModelFor`/`evidenceIndexFor`
+ *  memoise it after that, so repeat calls are cheap cache hits, not a rebuild. */
+function noRelations(): RelationModel {
+  return relationModelFor(NO_FILES, evidenceIndexFor(NO_FILES, null, ''));
 }
 
 export function buildSourcesModel(
-  snapshot: CodebaseSnapshot | null, run: InventoryRunState, fallow: FallowCardState = NO_FALLOW, relations: RelationModel = NO_RELATIONS,
+  snapshot: CodebaseSnapshot | null, run: InventoryRunState, fallow: FallowCardState = NO_FALLOW, relations: RelationModel = noRelations(),
 ): SourcesModel {
   const inventory: EvidenceState = !snapshot ? 'unknown' : snapshot.completeness === 'partial' ? 'partial' : 'collected';
-  const imports = importsRow(relations);
+  // WP-03 N26 (JF7, fix round 1 E9): shared with Overview (relations.ts's
+  // relationRowState), so the two can never disagree on the no-report wording.
+  const imports = relationRowState(relations);
   return {
     scope: snapshot ? scopeRows(snapshot) : null,
     run: runView(run),

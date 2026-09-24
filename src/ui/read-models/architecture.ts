@@ -5,11 +5,11 @@ import { aggregateEdges, stronglyConnected } from '../../domain/relations/querie
 import { collected, sumEvidence, unknown, type MetricValue } from '../evidence';
 import type { BoundaryRule } from '../stores/ports/review-repository';
 import {
-  ARCH_CARD_EVIDENCED, ARCH_CARD_MODULES, ARCH_CARD_VIOLATIONS, ARCH_MODULES_OMITTED_CAPTION,
+  ARCH_CARD_EVIDENCED, ARCH_CARD_MODULES, ARCH_CARD_VIOLATIONS, ARCH_MODULES_OMITTED_CAPTION, ARCH_NOT_ANALYSED_NOTE,
   ARCH_VIOLATIONS_CAPTION, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_SHORT,
   RELATION_CARD_CYCLES, RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL, RULE_NOT_EVALUATED_REASON,
 } from '../inspector-copy';
-import { relationValue, type CycleView, type RelationModel } from './relations';
+import { relationBoundaryValue, relationValue, type CycleView, type RelationModel } from './relations';
 import { byPriority, moduleLabel, moduleOf, type FileSummary } from './file-summaries';
 
 export const MAX_GRAPH_MODULES = 12;
@@ -37,6 +37,9 @@ export interface ArchitectureModel extends ArchitectureGraph {
   rules: readonly RuleEvaluation[];
   violatingEdgeKeys: ReadonlySet<string>;
   cards: readonly ArchitectureCard[];
+  /** True without a report, or when the report's check section never covered cycles
+   *  (`relations.analysed` is false) — the Map/Matrix/caption "not analysed" state. */
+  notAnalysed: boolean;
 }
 
 export const edgeKey = (from: string, to: string): string => `${from}->${to}`;
@@ -96,11 +99,17 @@ export function cycleModules(cycle: CycleView): ReadonlySet<string> {
   return new Set(cycle.members.filter((m) => m.id !== null).map((m) => moduleOf(m.path)));
 }
 
-/** N18: the three cycle numbers. "Files in a cycle" and "Cycle groups" both read only
- *  MATCHED import cycles — re-export cycles are counted separately and never merged in. */
+/** N18: the three cycle numbers. "Files in a cycle" counts every MATCHED MEMBER of every
+ *  import cycle — including the matched members of a partly-matched cycle (fix round 1
+ *  #9). "Cycle groups" is `stronglyConnected` over only the matched HOP edges, which
+ *  `relations.ts` adds solely from FULLY-matched cycles (an unmatched cycle contributes no
+ *  hop, N7), so a partial cycle's matched members can inflate "files" without changing
+ *  "groups" — that is the point: the files count is honest about what resolved, the
+ *  groups count is honest about what could be traced. Re-export cycles are counted
+ *  separately and never merged in. */
 function cycleNumbers(relations: RelationModel): { files: number; groups: number; reExports: number } {
-  const matchedImports = relations.cycles.filter((c) => c.kind === 'import' && c.matched);
-  const nodeIds = new Set(matchedImports.flatMap((c) => c.members.map((m) => m.id!)));
+  const imports = relations.cycles.filter((c) => c.kind === 'import');
+  const nodeIds = new Set(imports.flatMap((c) => c.members.filter((m) => m.id !== null).map((m) => m.id!)));
   const hopEdges = relations.edges.filter((e) => e.sources.includes('cycle')).map((e) => ({ from: e.from, to: e.to }));
   const groups = stronglyConnected(Array.from(nodeIds), hopEdges).length;
   const reExports = relations.cycles.filter((c) => c.kind === 're-export').length;
@@ -124,7 +133,7 @@ export function evaluateRules(rules: readonly BoundaryRule[], graph: Architectur
     const edge = byKey.get(edgeKey(rule.from, rule.to));
     if (edge) return { rule, status: 'violation', violatingImports: edge.imports, reason: null };
     const reason = relations.state === 'none' || !relations.analysed ? FALLOW_NOT_ANALYSED : RULE_NOT_EVALUATED_PARTIAL;
-    return { rule, status: 'not-evaluated', violatingImports: unknown(reason), reason };
+    return { rule, status: 'not-evaluated', violatingImports: unknown(reason, 'fallow'), reason };
   });
 }
 
@@ -135,13 +144,17 @@ export function moduleNeighbours(graph: ArchitectureGraph, name: string): { inco
   };
 }
 
-/** N20: the Boundary violations card adds fallow's own reported violations (skipped
- *  entirely, not counted as 0, while boundaries are not configured — N11's rule) to the
- *  count of your OWN rules in violation. It is unknown only when both sources have
- *  nothing to add: boundaries not configured AND no rules of your own. */
-function violationsValue(relations: RelationModel, evaluations: readonly RuleEvaluation[], rules: readonly BoundaryRule[]): MetricValue {
-  const fallow = relations.boundaries === 'not-configured' ? null : relationValue(relations, relations.boundaryViolations.length);
-  const own = rules.length === 0 ? null : sumEvidence(evaluations.filter((e) => e.status === 'violation').map((e) => e.violatingImports));
+/** N20: the Boundary violations card adds fallow's own reported violations (through
+ *  `relationBoundaryValue`, fix round 1 #1 — skipped entirely, not counted as 0, while
+ *  boundaries are not configured — N11's rule) to the count of your OWN rules in
+ *  violation (E11: skipped entirely, never a "Nothing to aggregate" 0, unless at least
+ *  one rule is actually violated — rules that exist but evaluate not-evaluated contribute
+ *  nothing, positive or negative). It is unknown only when both sources have nothing to
+ *  add: boundaries not configured (or not analysed) AND no rule of yours is violated. */
+function violationsValue(relations: RelationModel, evaluations: readonly RuleEvaluation[]): MetricValue {
+  const fallow = relations.boundaries === 'not-configured' ? null : relationBoundaryValue(relations, relations.boundaryViolations.length);
+  const violatingRules = evaluations.filter((e) => e.status === 'violation');
+  const own = violatingRules.length === 0 ? null : sumEvidence(violatingRules.map((e) => e.violatingImports));
   const parts = [fallow, own].filter((v): v is MetricValue => v !== null);
   return parts.length === 0 ? unknown(FALLOW_BOUNDARIES_NOT_CONFIGURED, 'fallow') : sumEvidence(parts);
 }
@@ -153,6 +166,7 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
   const matrix = graph.modules.map((row) => graph.modules.map((col): MatrixCell => ({
     from: row.name, to: col.name, edge: byKey.get(edgeKey(row.name, col.name)) ?? null,
   })));
+  const notAnalysed = graph.relations.state === 'none' || !graph.relations.analysed;
   const { files, groups, reExports } = cycleNumbers(graph.relations);
   const cards: ArchitectureCard[] = [
     { id: 'modules', label: ARCH_CARD_MODULES, icon: 'boxes', tone: 'accent',
@@ -161,14 +175,19 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
     { id: 'evidenced', label: ARCH_CARD_EVIDENCED, icon: 'link', tone: 'accent',
       value: relationValue(graph.relations, graph.relations.edges.length), caption: RELATIONS_SCOPE_SHORT },
     { id: 'cycles', label: RELATION_CARD_CYCLES, icon: 'refresh-cw', tone: 'danger',
-      value: cyclesValue(graph.relations), caption: RELATION_CYCLES_CAPTION(files, groups, reExports) },
+      value: cyclesValue(graph.relations),
+      // Fix round 1 #2: absent evidence is never rendered as 0 — a caption built from
+      // counts that could not be measured reads the not-analysed note instead.
+      caption: notAnalysed ? ARCH_NOT_ANALYSED_NOTE : RELATION_CYCLES_CAPTION(files, groups, reExports) },
     { id: 'violations', label: ARCH_CARD_VIOLATIONS, icon: 'alert-triangle', tone: 'warning',
-      value: violationsValue(graph.relations, evaluations, rules),
-      caption: ARCH_VIOLATIONS_CAPTION(violating.length) },
+      value: violationsValue(graph.relations, evaluations),
+      // E11: the caption states how many of your rules are violated only once a report
+      // was analysed enough for that count to mean something; 0 is real only then.
+      caption: notAnalysed ? ARCH_NOT_ANALYSED_NOTE : ARCH_VIOLATIONS_CAPTION(violating.length) },
   ];
   return {
     ...graph, matrix, rules: evaluations,
     violatingEdgeKeys: new Set(violating.map((e) => edgeKey(e.rule.from, e.rule.to))),
-    cards,
+    cards, notAnalysed,
   };
 }

@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
@@ -9,10 +7,6 @@ import BoundaryRuleTable from '../../src/ui/screens/architecture/BoundaryRuleTab
 import RuleEditor from '../../src/ui/screens/architecture/RuleEditor.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
-import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
-import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
-import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { unknown } from '../../src/ui/evidence';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
@@ -21,35 +15,9 @@ import { relationModelFor } from '../../src/ui/read-models/relations';
 import { architectureGraphFor, type RuleEvaluation } from '../../src/ui/read-models/architecture';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { RULE_SHOW_LABEL } from '../../src/ui/inspector-copy';
-import { snapshotWithPaths } from '../fixtures/evidence-report';
-import type { CodebaseSnapshot } from '../../src/domain/model';
+import { RELATIONS_PATHS, attachRelationsReport, snapshotWithPaths } from '../fixtures/evidence-report';
 
 const NOW = new Date('2026-09-21T10:00:00.000Z');
-const IMPORTED_AT = '2026-09-24T10:00:00.000Z';
-// WP-03 JF14: the real relations recording, re-rooted without `src/` (module names become
-// the fixture's own top-level folders — core, barrel, ui, data — instead of collapsing to
-// one `src` module). See tests/fixtures/fallow/README.md, "Relations project". Read by a
-// plain cwd-relative path (not `tests/fixtures/fallow-fixture.ts`'s `import.meta.url`
-// helper, which jsdom's fake location resolves to a non-file URL — E31-style: read once,
-// straight from disk).
-const RELATIONS_PATHS = [
-  'core/a.ts', 'core/b.ts', 'core/c.ts', 'barrel/index.ts', 'barrel/x.ts', 'barrel/y.ts',
-  'ui/view.ts', 'data/db.ts', 'data/types.ts', 'index.ts', 'orphan.ts',
-];
-const RELATIONS_JSON = readFileSync(join(process.cwd(), 'tests/fixtures/fallow/relations-combined-3.27.0.json'), 'utf8');
-
-function attachRelationsReport(snapshot: CodebaseSnapshot): void {
-  const parsed = parseFallowReportText(RELATIONS_JSON);
-  if (!parsed.ok) throw new Error(`test setup: the relations fixture was refused (${parsed.code} ${parsed.detail})`);
-  const report = buildEvidenceReport({
-    raw: parsed.report, fileName: 'relations.json', importedAt: IMPORTED_AT,
-    snapshotId: snapshot.snapshotId, stripPrefix: 'src/',
-  });
-  const store = useEvidenceStore();
-  store.setRepository(new InMemoryEvidenceStore());
-  store.bindRepository(snapshot.repositoryId);
-  if (!store.attach(report)) throw new Error('test setup: the evidence store refused the report');
-}
 
 /** The one real cross-module edge (`ui -> data`) and a module pair fallow never reports. */
 function setup() {
@@ -113,8 +81,10 @@ describe('boundary rules', () => {
     await useReviewStore().addRule(edge.from, edge.to, 'No shortcuts', NOW);
     const w = mountArch();
     const violations = w.findAll('.ci-metric-card')[3]!;
-    // fallow's own reported violation (1) plus this one violated rule (1).
+    // fallow's own reported violation (1) plus this one violated rule (1), collected
+    // (never sample, never unknown) — so no provenance badge at all (kit convention).
     expect(violations.find('.ci-metric-card__value').text()).toBe('2');
+    expect(violations.find('.ci-provenance').exists()).toBe(false);
     await w.find('.ci-architecture__toggle input').setValue(true);
     expect(w.findAll('.ci-module-map__edge--violation')).toHaveLength(1);
     await openRulesTab(w);

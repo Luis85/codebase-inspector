@@ -56,7 +56,7 @@ const columns: readonly TableColumn<RuleEvaluation>[] = [
         :class="`ci-rule-status--${row.status}`"
       >{{ RULE_STATUS_LABEL[row.status] }}</span>
       <ProvenanceBadge
-        v-if="row.status === 'violation'"
+        v-if="row.status === 'violation' && row.violatingImports.state !== 'collected'"
         :state="row.violatingImports.state"
       />
       <span

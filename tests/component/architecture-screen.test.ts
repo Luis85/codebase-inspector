@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
@@ -7,41 +5,15 @@ import { nextTick } from 'vue';
 import '../mocks/obsidian';
 import ArchitectureScreen from '../../src/ui/screens/ArchitectureScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
-import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
-import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
-import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
-import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
-import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS, attachRelationsReport, snapshotWithPaths } from '../fixtures/evidence-report';
 import type { CodebaseSnapshot } from '../../src/domain/model';
 
 function withSnapshot(files = 60, directories = 6) {
   const snap = buildSnapshotFixture({ files, directories });
   useCityStore().setCity(snap, computeLayout(snap));
   return snap;
-}
-
-// WP-03 JF14: the real relations recording, re-rooted without `src/` (see
-// tests/component/architecture-rules.test.ts's header comment for why it is read by a
-// plain cwd-relative path rather than tests/fixtures/fallow-fixture.ts's helper).
-const RELATIONS_PATHS = [
-  'core/a.ts', 'core/b.ts', 'core/c.ts', 'barrel/index.ts', 'barrel/x.ts', 'barrel/y.ts',
-  'ui/view.ts', 'data/db.ts', 'data/types.ts', 'index.ts', 'orphan.ts',
-];
-const RELATIONS_JSON = readFileSync(join(process.cwd(), 'tests/fixtures/fallow/relations-combined-3.27.0.json'), 'utf8');
-
-function attachRelationsReport(snapshot: CodebaseSnapshot): void {
-  const parsed = parseFallowReportText(RELATIONS_JSON);
-  if (!parsed.ok) throw new Error(`test setup: the relations fixture was refused (${parsed.code} ${parsed.detail})`);
-  const report = buildEvidenceReport({
-    raw: parsed.report, fileName: 'relations.json', importedAt: '2026-09-24T10:00:00.000Z',
-    snapshotId: snapshot.snapshotId, stripPrefix: 'src/',
-  });
-  const store = useEvidenceStore();
-  store.setRepository(new InMemoryEvidenceStore());
-  store.bindRepository(snapshot.repositoryId);
-  if (!store.attach(report)) throw new Error('test setup: the evidence store refused the report');
 }
 
 /** The one real matched edge (`ui -> data`), so the Map and Matrix have something to draw. */

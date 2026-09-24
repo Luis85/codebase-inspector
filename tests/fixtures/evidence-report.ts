@@ -6,6 +6,8 @@
 //   (parseFallowReportText, then buildEvidenceReport), so every synthetic report passes
 //   the real schema and gets real finding ids.
 // - `snapshotWithPaths`: a snapshot with chosen paths, for the recorded fixtures.
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { classify } from '../../src/domain/classify';
 import { makeEntityId } from '../../src/domain/entity-id';
 import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
@@ -175,4 +177,43 @@ export function snapshotWithPaths(paths: readonly string[], repositoryId = 'repo
 export function snapshotWithOnlyFiles(snapshot: CodebaseSnapshot, paths: readonly string[]): CodebaseSnapshot {
   const keep = new Set(paths);
   return { ...snapshot, entities: snapshot.entities.filter((e) => e.kind !== 'file' || keep.has(e.path)) };
+}
+
+// WP-03 Task 7 fix round 1 (#6): the real relations recording (not a synthetic one —
+// Task 14 extends attachSyntheticReport with relation sections, JF14), shared by every
+// component test that needs it instead of each copying its own path list and reader.
+/** The recording's own paths, re-rooted without `src/` (tests/fixtures/fallow/README.md,
+ *  "Relations project"); a report built with `{ stripPrefix: 'src/' }` resolves against a
+ *  snapshot built from these. */
+export const RELATIONS_PATHS = [
+  'core/a.ts', 'core/b.ts', 'core/c.ts', 'barrel/index.ts', 'barrel/x.ts', 'barrel/y.ts',
+  'ui/view.ts', 'data/db.ts', 'data/types.ts', 'index.ts', 'orphan.ts',
+] as const;
+
+/** Read once, straight from disk by a plain cwd-relative path — not
+ *  `tests/fixtures/fallow-fixture.ts`'s `import.meta.url` helper, which jsdom's fake
+ *  `location` resolves to a non-file URL under the component-test project, and this file
+ *  is imported from both projects. */
+const RELATIONS_JSON = readFileSync(join(process.cwd(), 'tests/fixtures/fallow/relations-combined-3.27.0.json'), 'utf8');
+
+export interface RelationsReportOptions {
+  /** Defaults to the snapshot's own id (current evidence). Any other id makes it stale. */
+  snapshotId?: string;
+}
+
+/** Binds the active leaf's evidence store to `snapshot`'s codebase and attaches the real
+ *  relations recording, stripped of its `src/` prefix (JF14), the way `attachSyntheticReport`
+ *  attaches a synthetic one. */
+export function attachRelationsReport(snapshot: CodebaseSnapshot, options: RelationsReportOptions = {}): EvidenceReport {
+  const parsed = parseFallowReportText(RELATIONS_JSON);
+  if (!parsed.ok) throw new Error(`test setup: the relations fixture was refused (${parsed.code} ${parsed.detail})`);
+  const report = buildEvidenceReport({
+    raw: parsed.report, fileName: 'relations.json', importedAt: IMPORTED_AT,
+    snapshotId: options.snapshotId ?? snapshot.snapshotId, stripPrefix: 'src/',
+  });
+  const store = useEvidenceStore();
+  store.setRepository(new InMemoryEvidenceStore());
+  store.bindRepository(snapshot.repositoryId);
+  if (!store.attach(report)) throw new Error('test setup: the evidence store refused the report');
+  return report;
 }

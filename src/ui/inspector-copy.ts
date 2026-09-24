@@ -68,7 +68,7 @@ export const PROTECT_MODULE_TITLE = (label: string, isRoot: boolean): string =>
   (isRoot ? 'Protect the root files' : `Protect the ${label} module`);
 /** WP-03 N26: `violations` is a pre-formatted clause — a count ("1 boundary violations")
  *  or ARCH_VIOLATIONS_NOT_CONFIGURED — built by overview.ts from the relation model. */
-export const OVERVIEW_ARCH_CAPTION = (violations: string): string => `Cyclic module groups · ${violations}`;
+export const OVERVIEW_ARCH_CAPTION = (violations: string): string => `Import cycles · ${violations}`;
 
 /** Final review F2: the Overview's investigation paths, relocated verbatim from overview.ts. */
 export const INVESTIGATE_HOTSPOT_TITLE = (name: string): string => `Review ${name}`;
@@ -155,7 +155,7 @@ export const RULE_EDITOR_CANCEL = CANCEL;
 export const RULE_EDITOR_SAME_MODULE = 'Choose two different modules.';
 export const RULE_EDITOR_DUPLICATE = 'A rule for these two modules already exists.';
 export const RULE_EDITOR_FAILED = 'Could not save this rule.';
-export const RULES_EMPTY = 'No boundary rules yet. Add one to compare an intended boundary with the sample edges.';
+export const RULES_EMPTY = 'No boundary rules yet. Add one to compare an intended boundary with fallow\'s evidenced imports.';
 export const RULES_TABLE_CAPTION = 'Boundary rules';
 export const RULE_COL_ID = 'Rule';
 export const RULE_COL_RULE = 'Boundary';
@@ -172,7 +172,7 @@ export const RULE_SHOW = 'Show';
 export const RULE_SHOW_LABEL = (id: string): string => `Show rule ${id}`;
 export const RULE_REMOVE_FAILED = 'Could not remove this rule.';
 export const BOUNDARY_INSPECTOR_TITLE = 'Boundary inspector';
-export const BOUNDARY_INSPECTOR_SUBTITLE = 'Intended rule vs. sample evidence.';
+export const BOUNDARY_INSPECTOR_SUBTITLE = 'Intended rule vs. evidenced imports.';
 export const BOUNDARY_VIOLATING_IMPORTS = 'Violating imports';
 export const BOUNDARY_EDGE_IMPORTS = (n: string): string => `${n} evidenced import statements`;
 export const BOUNDARY_EDGE_VIOLATES = 'This edge breaks a boundary rule.';

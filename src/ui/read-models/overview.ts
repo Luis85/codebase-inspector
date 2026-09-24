@@ -11,16 +11,16 @@ import {
 } from '../evidence';
 import { sampleTrend } from '../fixtures/sample-signals';
 import {
-  ARCH_VIOLATIONS_NOT_CONFIGURED, EVIDENCE_SOURCE_FALLOW_PARTIAL, FALLOW_NOT_ANALYSED, FALLOW_NOT_ANALYSED_TITLE,
-  INVESTIGATE_FILE_TITLE, INVESTIGATE_HOTSPOT_DETAIL, INVESTIGATE_HOTSPOT_TITLE, EVIDENCE_SOURCE_NONE,
-  INVESTIGATE_LARGEST_DETAIL, INVESTIGATE_MODULE_DETAIL, INVESTIGATE_NO_LINES, NO_FILES_REASON, OVERVIEW_ARCH_CAPTION,
-  OVERVIEW_FALLOW_ROW, OVERVIEW_FALLOW_SOURCE, OVERVIEW_FINDINGS_CAPTION, OVERVIEW_IMPORTS_ROW, PROTECT_MODULE_TITLE,
+  ARCH_VIOLATIONS_NOT_CONFIGURED, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, INVESTIGATE_FILE_TITLE,
+  INVESTIGATE_HOTSPOT_DETAIL, INVESTIGATE_HOTSPOT_TITLE, EVIDENCE_SOURCE_NONE, INVESTIGATE_LARGEST_DETAIL,
+  INVESTIGATE_MODULE_DETAIL, INVESTIGATE_NO_LINES, NO_FILES_REASON, OVERVIEW_ARCH_CAPTION, OVERVIEW_FALLOW_ROW,
+  OVERVIEW_FALLOW_SOURCE, OVERVIEW_FINDINGS_CAPTION, OVERVIEW_IMPORTS_ROW, PROTECT_MODULE_TITLE,
 } from '../inspector-copy';
 import { evidenceIndexFor, type EvidenceIndex, type EvidenceIndexState } from './evidence-index';
 import { filesByPriority, ROOT_MODULE, type FileSummary } from './file-summaries';
 import { buildQualityModel, openFindingsValue, openHighFindingsValue, type QualityModel } from './findings';
 import { moduleCoverage } from './module-coverage';
-import { relationModelFor, type RelationModel } from './relations';
+import { relationModelFor, relationRowState, type RelationModel } from './relations';
 
 export const HOTSPOT_THRESHOLD = 65;
 export const HIGH_COMPLEXITY = 30;
@@ -116,9 +116,14 @@ export function buildOverviewModel(
   const toPoints = (values: readonly number[]) => values.map((value, i) => ({ label: labels[i] ?? '', value }));
 
   // N26: fallow's own boundary-violation count, in evidence.count's state (N11's
-  // not-configured rule); the caption falls back to a fixed phrase for every unknown state.
+  // not-configured rule). Fix round 1 #3: only the not-configured reason gets the fixed
+  // "boundaries not configured" phrase — any other unknown (no report, or the check
+  // section never covered boundaries) falls through to formatMetric's own "—", never a
+  // fabricated 0. #4: pluralised, so a single violation reads "1 boundary violation".
   const violations = evidence.count(relations.boundaryViolations.length, 'boundary');
-  const violationsText = violations.state === 'unknown' ? ARCH_VIOLATIONS_NOT_CONFIGURED : `${formatMetric(violations)} boundary violations`;
+  const violationsText = violations.reason === FALLOW_BOUNDARIES_NOT_CONFIGURED
+    ? ARCH_VIOLATIONS_NOT_CONFIGURED
+    : `${formatMetric(violations)}${hasValue(violations) ? ` boundary violation${violations.value === 1 ? '' : 's'}` : ''}`;
 
   const cards: OverviewCard[] = [
     { id: 'findings', label: 'Open quality findings', icon: 'code', unit: '', tone: 'warning', trend: null,
@@ -136,18 +141,16 @@ export function buildOverviewModel(
     ...(complexityTrend ? [{ id: 'high-complexity' as const, label: 'High-complexity files (count)', tone: 'accent' as const, points: toPoints(complexityTrend) }] : []),
   ];
 
-  // JF22: without a report, or when the cycle category was never read, the row is
-  // Unknown / "Not analysed", never "Not collected". A stale report keeps `stale`.
-  const importsState: EvidenceState = relations.state === 'none' || !relations.analysed
-    ? 'unknown' : relations.state === 'stale' ? 'stale' : 'partial';
-  const importsSource = importsState === 'unknown' ? FALLOW_NOT_ANALYSED_TITLE : EVIDENCE_SOURCE_FALLOW_PARTIAL;
+  // JF22/E9: shared with Data & scans (relations.ts's relationRowState), so the two can
+  // never disagree on the no-report wording ("Not analysed", never "Not collected").
+  const imports = relationRowState(relations);
   const coverageRows: EvidenceCoverageRow[] = [
     { id: 'inventory', label: 'File inventory', state: snapshot.completeness === 'partial' ? 'partial' : 'collected', source: 'Built-in scan' },
     { id: 'fallow', label: OVERVIEW_FALLOW_ROW, state: fallowRowState(evidence),
       source: evidence.report ? OVERVIEW_FALLOW_SOURCE(evidence.report.providerVersion, originOf(evidence.report)) : EVIDENCE_SOURCE_NONE },
     { id: 'history', label: 'Git history', state: 'sample', source: 'Sample provider' },
     { id: 'coverage', label: 'Test coverage', state: 'sample', source: 'Sample provider' },
-    { id: 'imports', label: OVERVIEW_IMPORTS_ROW, state: importsState, source: importsSource },
+    { id: 'imports', label: OVERVIEW_IMPORTS_ROW, state: imports.state, source: imports.source },
     { id: 'mutation', label: 'Mutation testing', state: 'unknown', source: 'Not collected' },
     { id: 'runtime', label: 'Runtime evidence', state: 'unknown', source: 'Not collected' },
   ];
