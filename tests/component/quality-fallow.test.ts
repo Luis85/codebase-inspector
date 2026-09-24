@@ -41,9 +41,9 @@ describe('Code quality over a fallow report (Part 6 Y35)', () => {
     expect(w.find('.ci-findings-table').exists()).toBe(false);
     expect(w.find('.ci-evidence-badge').exists()).toBe(false);
     const values = w.findAll('.ci-metric-card__value').map((v) => v.text());
-    expect(values).toHaveLength(4);
+    expect(values).toHaveLength(5);
     expect(values.every((v) => v !== '0')).toBe(true);
-    expect(w.findAll('.ci-metric-card .ci-provenance--unknown')).toHaveLength(4);
+    expect(w.findAll('.ci-metric-card .ci-provenance--unknown')).toHaveLength(5);
     // E13: blocked with aria-disabled (another leaf can drop the report while it has focus), and a press exports nothing.
     const exportButton = w.find('.ci-quality__export');
     expect(exportButton.attributes('aria-disabled')).toBe('true');

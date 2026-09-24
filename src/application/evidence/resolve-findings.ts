@@ -3,6 +3,8 @@
 // snapshot file never paints a lot or appears in a table: it is dropped, and its path is
 // listed. Nothing is ever mapped without the user's choice: `suggestStripPrefix` only
 // proposes.
+// WP-03 N12: a finding's `related` paths are matched too (never the anchor rule itself),
+// so a related path that is not one of the snapshot's files is still listed as unmatched.
 import type { EvidenceFinding } from './model';
 
 export function resolveFindings(
@@ -14,6 +16,9 @@ export function resolveFindings(
   for (const f of findings) {
     if (snapshotPaths.has(f.path)) matched.push(f);
     else unmatched.add(f.path);
+    for (const related of f.related ?? []) {
+      if (!snapshotPaths.has(related)) unmatched.add(related);
+    }
   }
   return { matched, unmatchedPaths: [...unmatched].sort() };
 }

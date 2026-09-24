@@ -86,7 +86,7 @@ describe('code quality model (Part 3 Q1-Q3, Part 6 Y34)', () => {
   it('with no report there are no findings, and every card is unknown with FALLOW_NOT_ANALYSED, never 0', () => {
     const m = buildQualityModel(files, evidenceIndexFor(files, null, snap.snapshotId), []);
     expect(m.findings).toEqual([]);
-    expect(m.cards).toHaveLength(4);
+    expect(m.cards).toHaveLength(5);
     for (const c of m.cards) expect(c.value).toMatchObject({ state: 'unknown', reason: FALLOW_NOT_ANALYSED });
     // Fix round 1 (E37): the Open caption carries no unmeasured count either.
     const caption = m.cards.find((c) => c.id === 'open')!.caption;
@@ -96,7 +96,7 @@ describe('code quality model (Part 3 Q1-Q3, Part 6 Y34)', () => {
 
   it('with no files, every card is unknown with its reason, never 0', () => {
     const m = buildQualityModel([], evidenceIndexFor([], null, ''), []);
-    expect(m.cards).toHaveLength(4);
+    expect(m.cards).toHaveLength(5);
     for (const c of m.cards) expect(c.value).toMatchObject({ state: 'unknown', reason: NO_FILES_REASON });
     expect(m.cards.find((c) => c.id === 'open')!.caption).toBe(NO_FILES_REASON);
   });
@@ -115,7 +115,7 @@ describe('code quality model (Part 3 Q1-Q3, Part 6 Y34)', () => {
     const m = buildQualityModel(files, stale, []);
     expect(m.findings).toHaveLength(report.normalized.findings.length);
     const values = m.cards.map((c) => c.value);
-    expect(values).toHaveLength(4);
+    expect(values).toHaveLength(5);
     expect(values.every((v) => v.state === 'stale')).toBe(true);
     // Fix round 1 (E37): stale evidence is never described as "in this snapshot".
     const caption = m.cards.find((c) => c.id === 'open')!.caption;

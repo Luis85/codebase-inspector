@@ -11,7 +11,7 @@ import {
   FILE_HISTORY_COMPLEXITY, FILE_HISTORY_COVERAGE, NOT_MEASURED_REASON, PRIORITY_SCALE_SUFFIX,
 } from '../inspector-copy';
 import { evidenceIndexFor, type EvidenceIndex } from './evidence-index';
-import { titledFindings } from './findings';
+import { touchingFindings } from './findings';
 import { moduleLabel, type FileSummary } from './file-summaries';
 import { TREND_POINTS, trendLabels } from './overview';
 
@@ -20,10 +20,14 @@ export interface FileDetailCard {
   value: MetricValue; unit: string; caption: string; tone: 'warning' | 'success' | 'accent';
 }
 /** Part 6 Y34/Y35: one imported finding, as File detail and Code quality show it.
- *  `severity` is the tool's own word, or 'unrated' when the tool gives none. */
+ *  `severity` is the tool's own word, or 'unrated' when the tool gives none. WP-03
+ *  N12/J14: `related` is the finding's other paths (empty for a single-file finding),
+ *  `anchored` is whether THIS file is the finding's anchor, and `anchorPath` is the
+ *  anchor file's own path, so a related file can say "Reported on <anchorPath>". */
 export interface FileFinding {
   id: string; kind: FindingCategory; rule: string; severity: string; line: number | null; endLine: number | null;
   symbol: string | null; detail: FindingDetail; title: string; fingerprint: string;
+  related: readonly string[]; anchored: boolean; anchorPath: string;
 }
 export interface FileHistorySeries {
   id: 'complexity' | 'coverage'; label: string; tone: 'accent' | 'success';
@@ -77,7 +81,7 @@ export function buildFileDetail(
     bytes: bytesOf(snapshot, file.id),
     cards,
     findingsCount: evidence.perFile(file.id).findings,
-    findings: titledFindings(file, evidence),
+    findings: touchingFindings(file, evidence),
     history,
     usesSample: cards.some((c) => isSampleBacked(c.value)),
   };

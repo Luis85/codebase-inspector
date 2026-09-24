@@ -39,10 +39,10 @@ describe('QualityScreen', () => {
     w.unmount();
   });
 
-  it('shows four cards and the open findings, 100 at a time', async () => {
+  it('shows five cards and the open findings, 100 at a time', async () => {
     withSnapshot(400, 4);
     const w = mountQ();
-    expect(w.findAll('.ci-metric-card')).toHaveLength(4);
+    expect(w.findAll('.ci-metric-card')).toHaveLength(5);
     expect(w.findAll('.ci-table__row')).toHaveLength(100);
     await w.find('.ci-findings-table__more').trigger('click');
     expect(w.findAll('.ci-table__row')).toHaveLength(200);

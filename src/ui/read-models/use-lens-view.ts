@@ -15,8 +15,10 @@ const reportedCache = new WeakMap<EvidenceIndex, ReadonlySet<EntityId>>();
 function reportedIdsFor(index: EvidenceIndex): ReadonlySet<EntityId> {
   let hit = reportedCache.get(index);
   if (!hit) {
-    // `groupByFile` creates a file's entry with its first finding, so none is empty (Polish E11).
-    hit = new Set(index.byFile.keys());
+    // WP-03 N12: `touching` covers every file a finding involves (a cycle's other
+    // members, a boundary violation's other end), not only `byFile`'s anchor. Every key
+    // has at least one entry (Polish E11), so none paints an empty lot.
+    hit = new Set(index.touching.keys());
     reportedCache.set(index, hit);
   }
   return hit;
