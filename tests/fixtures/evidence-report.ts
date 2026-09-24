@@ -17,7 +17,12 @@ import type { EvidenceFinding, EvidenceReport, FindingCategory } from '../../src
 import { buildSnapshotFixture } from './snapshot-builder';
 
 type Categories = Record<FindingCategory, 'analysed' | 'not-analysed'>;
-export const ALL_ANALYSED: Readonly<Categories> = { complexity: 'analysed', duplication: 'analysed', 'unused-exports': 'analysed' };
+// WP-03 JF1: syntheticFallowJson emits every relation array as [] with no
+// boundaries-not-configured diagnostic, so every synthetic (combined) report is fully analysed.
+export const ALL_ANALYSED: Readonly<Categories> = {
+  complexity: 'analysed', duplication: 'analysed', 'unused-exports': 'analysed',
+  cycle: 'analysed', boundary: 'analysed', 'unresolved-import': 'analysed',
+};
 export const SYNTHETIC_VERSION = '3.27.0';
 const IMPORTED_AT = '2026-09-23T10:00:00.000Z';
 const SEVERITIES = ['critical', 'high', 'moderate'] as const;
@@ -27,7 +32,14 @@ export function emptyEvidenceReport(snapshotId: string, fileName = 'fallow.json'
   return {
     provider: 'fallow', providerVersion: SYNTHETIC_VERSION, reportKind: 'combined', schemaVersion: 12, fileName,
     importedAt: IMPORTED_AT, snapshotId, stripPrefix: null,
-    normalized: { findings: [], categories: { ...ALL_ANALYSED }, notShown: [], rejectedPaths: [], warnings: [] },
+    normalized: {
+      findings: [], categories: { ...ALL_ANALYSED }, notShown: [], rejectedPaths: [], warnings: [],
+      relations: {
+        importCycles: [], reExportCycles: [], boundaryViolations: [], unresolvedImports: [], fan: null,
+        boundaries: 'not-reported', cyclesReported: false,
+      },
+      notConfigured: [],
+    },
   };
 }
 
@@ -59,10 +71,16 @@ export function syntheticFallowJson(snapshot: CodebaseSnapshot, options: Synthet
   const orphans: UnusedRow[] = (options.unmatchedPaths ?? []).map((path) => ({ path, export_name: 'orphan', is_type_only: false, line: 1, col: 7 }));
   const unusedExports = [...rows.filter((r) => !r.is_type_only), ...orphans];
   const unusedTypes = rows.filter((r) => r.is_type_only);
+  // WP-03 JF1: every relation array is present and empty, with no boundaries-not-configured
+  // diagnostic, so every synthetic report (combined and dead-code) is fully analysed (Task 14 fills them).
   const check = {
     summary: { total_issues: unusedExports.length + unusedTypes.length, unused_files: 0, unused_exports: unusedExports.length, unused_types: unusedTypes.length },
     unused_exports: unusedExports,
     unused_types: unusedTypes,
+    circular_dependencies: [] as unknown[],
+    re_export_cycles: [] as unknown[],
+    boundary_violations: [] as unknown[],
+    unresolved_imports: [] as unknown[],
   };
   const common = {
     version: SYNTHETIC_VERSION,

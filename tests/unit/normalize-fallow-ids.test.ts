@@ -53,7 +53,7 @@ describe('finding ids (Part 6 Y24)', () => {
     const all = normalized(name).findings.map((f) => f.id);
     expect(all.length).toBeGreaterThan(0);
     expect(new Set(all).size).toBe(all.length);
-    for (const id of all) expect({ id, ok: FINDING_ID_PATTERN.test(id) && /^(CX|DU|UN)-[0-9a-f]{8}$/.test(id) }).toEqual({ id, ok: true });
+    for (const id of all) expect({ id, ok: FINDING_ID_PATTERN.test(id) && /^(CX|DU|UN|CY|BV|UR)-[0-9a-f]{8}$/.test(id) }).toEqual({ id, ok: true });
   });
 
   it('gives the same ids on a second, separate normalisation', () => {

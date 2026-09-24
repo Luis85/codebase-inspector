@@ -58,21 +58,31 @@ describe('normalizeFallow: mapping (Part 6 Y23)', () => {
   });
 });
 
-describe('normalizeFallow: categories (Part 6 Y25)', () => {
+describe('normalizeFallow: categories (Part 6 Y25, WP-03 N11)', () => {
   const A = 'analysed';
   const N = 'not-analysed';
 
-  it.each<[FallowFixture, string, string, string]>([
-    ['combined-3.27.0', A, A, A],
-    ['combined-3.21.0', A, A, A],
-    ['dead-code-3.27.0', N, N, A],
-    ['health-3.27.0', A, N, N],
-    ['dupes-3.27.0', N, A, N],
-  ])('%s: complexity %s, duplication %s, unused exports %s', (name, complexity, duplication, unused) => {
-    expect(normalized(name).categories).toEqual({ complexity, duplication, 'unused-exports': unused });
-  });
+  // WP-03 N11 (JF2): combined-3.27.0 and dead-code-3.27.0 both carry a
+  // boundaries-not-configured diagnostic (recorded fact), so boundary reads not-analysed
+  // for them; combined-3.21.0 has no workspace_diagnostics key at all (recorded fact) and
+  // its own boundary_violations is empty, and its schema (11) is below 12, so it also
+  // reads not-reported/not-analysed. Every fixture's check section carries both cycle
+  // arrays and unresolved_imports, so cycle and unresolved-import are analysed wherever a
+  // check section exists at all (every fixture but health and dupes).
+  it.each<[FallowFixture, string, string, string, string, string, string]>([
+    ['combined-3.27.0', A, A, A, A, N, A],
+    ['combined-3.21.0', A, A, A, A, N, A],
+    ['dead-code-3.27.0', N, N, A, A, N, A],
+    ['health-3.27.0', A, N, N, N, N, N],
+    ['dupes-3.27.0', N, A, N, N, N, N],
+  ])('%s: complexity %s, duplication %s, unused exports %s, cycle %s, boundary %s, unresolved-import %s',
+    (name, complexity, duplication, unused, cycle, boundary, unresolvedImport) => {
+      expect(normalized(name).categories).toEqual({
+        complexity, duplication, 'unused-exports': unused, cycle, boundary, 'unresolved-import': unresolvedImport,
+      });
+    });
 
-  it('has exactly the three categories', () => {
+  it('has exactly the six categories', () => {
     expect(Object.keys(normalized('combined-3.27.0').categories).sort()).toEqual([...FINDING_CATEGORIES].sort());
   });
 
@@ -84,7 +94,7 @@ describe('normalizeFallow: categories (Part 6 Y25)', () => {
       d.check!.unused_types = [];
     });
     const result = normalized(doc);
-    expect(result.categories).toEqual({ complexity: N, duplication: N, 'unused-exports': A });
+    expect(result.categories).toEqual({ complexity: N, duplication: N, 'unused-exports': A, cycle: A, boundary: N, 'unresolved-import': A });
     expect(result.findings).toEqual([]);
   });
 });
@@ -96,10 +106,12 @@ describe('normalizeFallow: reported, not shown (Part 6 Y25)', () => {
   });
 
   it('lists every non-zero count Part 6 does not show, in the report\'s order, never the shown ones or the total', () => {
+    // WP-03 N26: circular_dependencies now joins SHOWN_SUMMARY_KEYS (it is shown as
+    // findings), so boundary_coverage_violations (still not shown) proves the same point.
     const doc = fallowDoc('combined-3.27.0', (d) => {
-      Object.assign(d.check!.summary, { total_issues: 9, unused_exports: 4, unused_types: 2, circular_dependencies: 2, unused_files: 3 });
+      Object.assign(d.check!.summary, { total_issues: 9, unused_exports: 4, unused_types: 2, boundary_coverage_violations: 2, unused_files: 3 });
     });
-    expect(normalized(doc).notShown).toEqual([{ key: 'unused_files', count: 3 }, { key: 'circular_dependencies', count: 2 }]);
+    expect(normalized(doc).notShown).toEqual([{ key: 'unused_files', count: 3 }, { key: 'boundary_coverage_violations', count: 2 }]);
   });
 
   it('reads a dead-code report\'s top-level summary, including a count this version has no label for', () => {

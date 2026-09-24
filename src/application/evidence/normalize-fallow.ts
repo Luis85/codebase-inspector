@@ -11,9 +11,15 @@ import type {
 import type {
   RawCheckSection, RawCloneInstance, RawDupesSection, RawFallowReport, RawHealthFinding, RawHealthSection, RawUnusedEntry,
 } from './raw-fallow';
+import type { DraftFinding, PathMapper } from './draft-finding';
+import { relationDrafts } from './normalize-relations';
 
-/** check.summary keys Part 6 shows (as findings) or that are a total, not a section. */
-const SHOWN_SUMMARY_KEYS = new Set(['total_issues', 'unused_exports', 'unused_types']);
+/** check.summary keys Part 6 shows (as findings) or that are a total, not a section.
+ *  WP-03 N26: the four relation arrays join it, so they leave "not shown". */
+const SHOWN_SUMMARY_KEYS = new Set([
+  'total_issues', 'unused_exports', 'unused_types',
+  'circular_dependencies', 're_export_cycles', 'boundary_violations', 'unresolved_imports',
+]);
 const REJECTED_TEXT_MAX = 1024;
 const FILE_NAME_MAX = 255;
 const VERSION_MAX = 64;
@@ -45,8 +51,6 @@ function sectionsOf(raw: RawFallowReport): Sections {
   }
 }
 
-type PathMapper = (reportPath: string) => string | null;
-
 /** Y26: every report path goes through the scanner's own `normalizeRelativePath`. A
  *  refused path is recorded and yields null (its finding is dropped). The strip prefix,
  *  when chosen, is removed from every path that starts with it. */
@@ -67,15 +71,6 @@ function pathMapper(stripPrefix: string | null, rejected: Set<string>): PathMapp
 }
 
 const byPosition = (a: RawHealthFinding, b: RawHealthFinding): number => a.line - b.line || a.col - b.col;
-
-/** Y24: one finding awaiting its id. `key` is what Y24 hashes, kept apart from the
- *  finding itself so a hash collision between two DIFFERENT keys (Fix round 1,
- *  Minor→E33) can be resolved without ever dropping a finding. */
-interface DraftFinding {
-  key: string;
-  prefix: 'CX' | 'DU' | 'UN';
-  finding: Omit<EvidenceFinding, 'id'>;
-}
 
 interface MappedHealthFinding { finding: RawHealthFinding; path: string }
 
@@ -192,10 +187,12 @@ function notShownOf(s: Sections): NotShownCount[] {
 /** Y24: the first finding wins when the same key is reported twice. A hash COLLISION
  *  between two different keys never drops a finding either (Fix round 1, Minor→E33): the
  *  later key is rehashed with a `#n` suffix until its id is free, so both survive with
- *  distinct, still-pattern-matching ids. */
-function assignIds(drafts: readonly DraftFinding[]): EvidenceFinding[] {
+ *  distinct, still-pattern-matching ids. WP-03 N3: also returns `idByKey`, so a relation
+ *  and its finding (built apart, in normalize-relations.ts) can share one id. */
+function assignIds(drafts: readonly DraftFinding[]): { findings: EvidenceFinding[]; idByKey: Map<string, string> } {
   const seenKeys = new Set<string>();
   const usedIds = new Set<string>();
+  const idByKey = new Map<string, string>();
   const out: EvidenceFinding[] = [];
   for (const draft of drafts) {
     if (seenKeys.has(draft.key)) continue;
@@ -203,9 +200,10 @@ function assignIds(drafts: readonly DraftFinding[]): EvidenceFinding[] {
     let id = `${draft.prefix}-${fnv1a32Hex(draft.key)}`;
     for (let n = 1; usedIds.has(id); n += 1) id = `${draft.prefix}-${fnv1a32Hex(`${draft.key}#${n}`)}`;
     usedIds.add(id);
+    idByKey.set(draft.key, id);
     out.push({ ...draft.finding, id });
   }
-  return out;
+  return { findings: out, idByKey };
 }
 
 const analysed = (present: boolean): 'analysed' | 'not-analysed' => (present ? 'analysed' : 'not-analysed');
@@ -219,17 +217,23 @@ export function normalizeFallow(raw: RawFallowReport, opts: { stripPrefix: strin
   const s = sectionsOf(raw);
   const rejected = new Set<string>();
   const mapPath = pathMapper(opts.stripPrefix, rejected);
-  const findings = assignIds([
+  const rel = relationDrafts(s.check, s.health, raw.workspace_diagnostics ?? [], mapPath, raw.schema_version);
+  const { findings, idByKey } = assignIds([
     ...(s.health !== null ? complexityFindings(s.health, mapPath) : []),
     ...(s.dupes !== null ? duplicationFindings(s.dupes, mapPath) : []),
     ...(s.check !== null ? unusedFindings(s.check.unused_exports, 'unused-export', mapPath) : []),
     ...(s.check !== null ? unusedFindings(s.check.unused_types, 'unused-type', mapPath) : []),
+    ...rel.drafts,
   ]);
-  // Y25: a category is analysed when the report carries its section, even with no finding.
+  const relations = rel.assemble(idByKey);
+  // Y25/N11: a category is analysed when the report carries its section, even with no finding.
   const categories: Record<FindingCategory, 'analysed' | 'not-analysed'> = {
     complexity: analysed(s.health !== null),
     duplication: analysed(s.dupes !== null),
     'unused-exports': analysed(s.check !== null),
+    cycle: analysed(relations.cyclesReported),
+    boundary: analysed(relations.boundaries === 'configured'),
+    'unresolved-import': analysed(s.check?.unresolved_imports !== undefined),
   };
   return {
     findings,
@@ -237,6 +241,8 @@ export function normalizeFallow(raw: RawFallowReport, opts: { stripPrefix: strin
     notShown: notShownOf(s),
     rejectedPaths: [...rejected].sort(),
     warnings: (raw.workspace_diagnostics ?? []).map((d) => d.message),
+    relations,
+    notConfigured: relations.boundaries === 'not-configured' ? ['boundary'] : [],
   };
 }
 

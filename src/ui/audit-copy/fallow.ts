@@ -95,6 +95,8 @@ export const FALLOW_COMMAND_IMPORT = 'Import analysis report';
 // Part 6 Y30/Y33/Y34 (Task 8): imported evidence in the read models.
 export const FALLOW_NOT_ANALYSED = 'Not analysed. No fallow evidence covers this.';
 export const FALLOW_SOME_NOT_ANALYSED = 'Some finding categories were not analysed in the attached fallow evidence.';
+// WP-03 N11: a not-configured category is off by the user's own fallow configuration, never missing evidence.
+export const FALLOW_BOUNDARIES_NOT_CONFIGURED = 'Boundaries are not configured in fallow, so none were checked.';
 /** MetricValue provenance detail for an imported or collected value (Y33, Part 7 Z27). */
 export const FALLOW_PROVENANCE_DETAIL = (version: string, origin: EvidenceOrigin = 'imported'): string =>
   (origin === 'collected' ? `collected run ${version}` : `imported report ${version}`);

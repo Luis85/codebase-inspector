@@ -10,6 +10,11 @@ export const cxId = (path: string, name: string, occurrence: number): string => 
 export const duId = (fingerprint: string, path: string): string => `DU-${fnv1a32Hex(`${fingerprint}|${path}`)}`;
 export const unId = (path: string, name: string, rule: 'unused-export' | 'unused-type'): string =>
   `UN-${fnv1a32Hex(`${path}|${name}|${rule}`)}`;
+// WP-03 N9: the relation finding ids. `members` is already sorted; `kind` selects the key prefix.
+export const cyId = (kind: 'import' | 're-export', members: readonly string[]): string =>
+  `CY-${fnv1a32Hex(`${kind === 'import' ? 'import' : 're-export'}|${members.join('\n')}`)}`;
+export const bvId = (from: string, to: string, specifier: string): string => `BV-${fnv1a32Hex(`${from}|${to}|${specifier}`)}`;
+export const urId = (path: string, specifier: string): string => `UR-${fnv1a32Hex(`${path}|${specifier}`)}`;
 
 /** fallow's own clone fingerprint ("dup:6f87acd9" in the dry run), read from the
  *  recording rather than restated: it is the one opaque value fallow computes. */

@@ -58,11 +58,12 @@ function slowFile(text: string): { file: File; release: () => void } {
   file.text = async () => { await gate; return read(); };
   return { file, release };
 }
-/** The synthetic report with two reported-but-not-shown sections (Y25). */
+/** The synthetic report with two reported-but-not-shown sections (Y25). WP-03: the four
+ *  relation summary keys now join SHOWN_SUMMARY_KEYS, so this uses a still-not-shown one. */
 function withNotShown(text: string): string {
   const doc = JSON.parse(text) as { check: { summary: Record<string, number> } };
   doc.check.summary.unused_files = 3;
-  doc.check.summary.circular_dependencies = 2;
+  doc.check.summary.boundary_coverage_violations = 2;
   return JSON.stringify(doc);
 }
 
@@ -135,7 +136,7 @@ describe('Connect fallow (Part 6 Y38, S14)', () => {
     expect(w.findAll('.ci-fallow-facts__unmatched li').map((li) => li.text())).toEqual(strays.slice(0, 20));
     expect(w.findAll('.ci-fallow-facts__not-shown li').map((li) => li.text())).toEqual([
       FALLOW_NOT_SHOWN_ITEM(fallowNotShownLabel('unused_files'), 3),
-      FALLOW_NOT_SHOWN_ITEM(fallowNotShownLabel('circular_dependencies'), 2),
+      FALLOW_NOT_SHOWN_ITEM(fallowNotShownLabel('boundary_coverage_violations'), 2),
     ]);
     expect(w.find('.ci-connect-fallow__mapping').exists()).toBe(false);
     expect(w.find('.ci-connect-fallow__replace').exists()).toBe(false);

@@ -28,14 +28,18 @@ export const QUALITY_ALL_KINDS = 'All types';
 export const QUALITY_ALL_SEVERITIES = 'All severities';
 export const QUALITY_ALL_MODULES = 'All modules';
 export const QUALITY_ALL_STATUSES = 'All statuses';
-export const FINDING_KIND_LABEL: Readonly<Record<'complexity' | 'duplication' | 'unused-exports', string>> = {
+export const FINDING_KIND_LABEL: Readonly<Record<FindingCategory, string>> = {
   complexity: 'Complexity', duplication: 'Duplication', 'unused-exports': 'Unused exports',
+  cycle: 'Import cycle', boundary: 'Boundary violation', 'unresolved-import': 'Unresolved import',
 };
 /** Moved from inspector-copy.ts in Part 6 (R6), unchanged: the per-category fallback title. */
-export const FINDING_TITLE: Readonly<Record<'complexity' | 'duplication' | 'unused-exports', string>> = {
+export const FINDING_TITLE: Readonly<Record<FindingCategory, string>> = {
   complexity: 'Complex function needs review',
   duplication: 'Repeated implementation detected',
   'unused-exports': 'Potentially unused export',
+  cycle: 'Import cycle reported',
+  boundary: 'Import crosses a configured boundary',
+  'unresolved-import': 'Import could not be resolved',
 };
 export const FINDING_STATUS_LABEL: Readonly<Record<'open' | 'acknowledged' | 'dismissed', string>> = {
   open: 'Open', acknowledged: 'Acknowledged', dismissed: 'Dismissed',
@@ -94,9 +98,12 @@ export const FINDING_ACKNOWLEDGED = 'Finding acknowledged. No repository suppres
 export const FINDING_REOPENED = 'Finding reopened for review.';
 export const FINDING_DISMISSED = 'Dismissal and reason saved.';
 
-/* Part 6 Y35/Y36: the tool's rule and a title per finding. */
+/* Part 6 Y35/Y36: the tool's rule and a title per finding. WP-03 §2: the four relation
+ *  rules are fallow's own rule ids, shown verbatim. */
 const FINDING_RULE_LABEL: Readonly<Record<FindingRule, string>> = {
   complexity: 'Complexity', duplication: 'Duplication', 'unused-export': 'Unused export', 'unused-type': 'Unused type',
+  'circular-dependencies': 'circular-dependencies', 're-export-cycle': 're-export-cycle',
+  'boundary-violation': 'boundary-violation', 'unresolved-imports': 'unresolved-imports',
 };
 const RULE_LABELS = new Map<string, string>(Object.entries(FINDING_RULE_LABEL));
 /** Like SEVERITY_TEXT: a rule this version does not know reads verbatim, and a Map means no
@@ -117,8 +124,22 @@ export const FINDING_TITLE_FOR = (kind: FindingCategory, rule: string, symbol: s
     case 'duplication':
       what = `Duplicated block · ${detail.lineCount} lines`;
       break;
-    default:
+    case 'unused':
       what = RULE_LABELS.get(rule) ?? FINDING_TITLE[kind];
+      break;
+    case 'cycle':
+      what = `${detail.cycleKind === 'import' ? 'Import cycle' : 'Re-export cycle'} · ${detail.members.length} files`;
+      break;
+    case 'boundary':
+      what = `Boundary violation · ${detail.fromZone} → ${detail.toZone}`;
+      break;
+    case 'unresolved-import':
+      what = `Unresolved import · ${detail.specifier}`;
+      break;
+    default: {
+      const never: never = detail;
+      throw new Error(`unhandled finding detail kind: ${JSON.stringify(never)}`);
+    }
   }
   return symbol === null ? what : `${symbol} · ${what}`;
 };
@@ -142,7 +163,17 @@ export const FINDING_DIALOG_RULE_VALUE = (rule: string, detail: FindingDetail): 
         : `also in ${detail.partnerFiles} other ${detail.partnerFiles === 1 ? 'file' : 'files'}`;
       return `${label}: ${detail.lineCount} lines, ${detail.tokenCount} tokens, ${others}.`;
     }
-    default:
+    case 'unused':
       return `${label}${detail.typeOnly && rule !== 'unused-type' ? ' (type only)' : ''}. No static consumers reported in this analysis scope. Verify dynamic or framework usage before removal.`;
+    case 'cycle':
+      return `${label}: ${detail.members.length} files in the cycle. Reported by fallow; type-only imports are not reported.`;
+    case 'boundary':
+      return `${label}: imports ${detail.toPath} (${detail.fromZone} → ${detail.toZone}), which the analysed folder's fallow boundaries do not allow.`;
+    case 'unresolved-import':
+      return `${label}: ${detail.specifier} could not be resolved in this analysis scope.`;
+    default: {
+      const never: never = detail;
+      throw new Error(`unhandled finding detail kind: ${JSON.stringify(never)}`);
+    }
   }
 };
