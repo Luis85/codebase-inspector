@@ -56,8 +56,10 @@ export function severityTone(severity: string): FindingSeverity {
 }
 
 /** Q2: durable across snapshots (the EntityId is source-relative) and never the line.
- *  Part 6 Y24: the id is stable across re-imports, so a disposition applies again. */
-function findingFingerprint(fileId: EntityId, findingId: string): string {
+ *  Part 6 Y24: the id is stable across re-imports, so a disposition applies again.
+ *  WP-03 Task 6 fix round: also the canonical builder for relations.ts's cycle/boundary
+ *  fingerprints, so File detail and the Relations model can never disagree on the shape. */
+export function findingFingerprint(fileId: EntityId, findingId: string): string {
   return `${fileId}#${findingId}`;
 }
 

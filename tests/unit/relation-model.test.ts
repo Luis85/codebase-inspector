@@ -75,6 +75,15 @@ describe('cycles (N7)', () => {
     expect(reExportCycle.hops).toEqual([]);
     expect(reExportCycle.matched).toBe(true);
   });
+
+  it('pins the exact order: barrel import, core import, then the barrel re-export cycle (fix round)', () => {
+    expect(model.cycles[0]).toMatchObject({ kind: 'import' });
+    expect(model.cycles[0]!.members.map((m) => m.path)).toEqual(['src/barrel/index.ts', 'src/barrel/x.ts']);
+    expect(model.cycles[1]).toMatchObject({ kind: 'import' });
+    expect(model.cycles[1]!.members.map((m) => m.path)).toEqual(['src/core/a.ts', 'src/core/b.ts', 'src/core/c.ts']);
+    expect(model.cycles[2]).toMatchObject({ kind: 're-export' });
+    expect(model.cycles[2]!.members.map((m) => m.path)).toEqual(['src/barrel/index.ts', 'src/barrel/x.ts']);
+  });
 });
 
 describe('unmatched members (N7)', () => {
@@ -96,6 +105,39 @@ describe('unmatched members (N7)', () => {
     expect(reducedModel.edge(a, b)).toBeUndefined();
     expect(reducedModel.edges.some((e) => e.fromPath === 'src/core/a.ts' || e.fromPath === 'src/core/b.ts' || e.fromPath === 'src/core/c.ts')).toBe(false);
     expect(reducedModel.unmatchedEdges).toBe(2);
+  });
+});
+
+describe('unmatched boundary violation (N7, fix round)', () => {
+  const reducedPaths = RELATIONS_PATHS.filter((p) => p !== 'src/data/db.ts');
+  const reducedSnapshot = snapshotWithPaths(reducedPaths, 'repo-relations-no-db');
+  const reducedFiles = fileSummariesFor(reducedSnapshot);
+  const reducedReport = reportFor('relations-combined-3.27.0', reducedSnapshot.snapshotId);
+  const reducedModel = relationModelFor(reducedFiles, evidenceIndexFor(reducedFiles, reducedReport, reducedSnapshot.snapshotId));
+  const violation = reducedModel.boundaryViolations[0]!;
+
+  it('counts the violation as the one unmatched edge, with the barrel and core cycles still matched', () => {
+    expect(reducedModel.cycles.filter((c) => c.kind === 'import').every((c) => c.matched)).toBe(true);
+    expect(reducedModel.unmatchedEdges).toBe(1);
+  });
+
+  it('gives the violation view a null "to" id, and draws no edge for it', () => {
+    expect(violation.to).toEqual({ path: 'src/data/db.ts', id: null });
+    expect(reducedModel.edges.some((e) => e.fromPath === 'src/ui/view.ts')).toBe(false);
+  });
+});
+
+describe('self-loop edges are skipped (fix round)', () => {
+  it('a self-referential boundary violation never becomes an edge, keeping index.edges in step with edges', () => {
+    const doc = fallowDoc('relations-combined-3.27.0', (d) => {
+      const bv = (d.check! as unknown as { boundary_violations: Record<string, unknown>[] }).boundary_violations;
+      bv.push({ from_path: 'src/core/a.ts', to_path: 'src/core/a.ts', from_zone: 'core', to_zone: 'core', import_specifier: './a', line: 20, col: 0 });
+    });
+    const selfLoopModel = relationModelFor(files, evidenceIndexFor(files, reportFor(doc, snapshot.snapshotId), snapshot.snapshotId));
+    const a = at('src/core/a.ts').id;
+    expect(selfLoopModel.edge(a, a)).toBeUndefined();
+    expect(selfLoopModel.edges.some((e) => e.from === a && e.to === a)).toBe(false);
+    expect(selfLoopModel.index.edges.some((e) => e.from === a && e.to === a)).toBe(false);
   });
 });
 
@@ -140,6 +182,9 @@ describe('relationModelFor is memoised per EvidenceIndex', () => {
   it('returns the same object for the same (files, index) pair', () => {
     expect(relationModelFor(files, evidence)).toBe(model);
   });
+  it('rebuilds for a different files array, even over the same index (fix round)', () => {
+    expect(relationModelFor(files.slice(), evidence)).not.toBe(model);
+  });
 });
 
 describe('cyclePathText', () => {
@@ -162,5 +207,11 @@ describe('relationValue (J13, JF23)', () => {
   it('is stale when the model is stale', () => {
     const staleModel = relationModelFor(files, evidenceIndexFor(files, reportFor('relations-combined-3.27.0', 'other-snapshot'), snapshot.snapshotId));
     expect(relationValue(staleModel, 6)).toMatchObject({ state: 'stale', value: 6 });
+  });
+  it('is unknown(FALLOW_NOT_ANALYSED) when the report exists but the cycle category was not analysed (fix round)', () => {
+    const doc = fallowDoc('relations-combined-3.27.0', (d) => { delete d.check!.circular_dependencies; });
+    const notAnalysedModel = relationModelFor(files, evidenceIndexFor(files, reportFor(doc, snapshot.snapshotId), snapshot.snapshotId));
+    expect(notAnalysedModel.analysed).toBe(false);
+    expect(relationValue(notAnalysedModel, 6)).toMatchObject({ state: 'unknown', reason: FALLOW_NOT_ANALYSED });
   });
 });

@@ -12,6 +12,7 @@ import {
 import { unknown, type MetricValue, type Provenance } from '../evidence';
 import { FALLOW_NOT_ANALYSED, FALLOW_PROVENANCE_DETAIL, RELATION_FAN_NOT_SCORED } from '../inspector-copy';
 import type { EvidenceIndex, EvidenceIndexState } from './evidence-index';
+import { findingFingerprint } from './findings';
 import type { FileSummary } from './file-summaries';
 
 export type RelationSource = 'cycle' | 'boundary';
@@ -62,11 +63,14 @@ function fileRef(pathToId: ReadonlyMap<string, EntityId>, path: string): FileRef
 }
 
 /** N7 Review Focus 2: the same pair reported as both a cycle hop and a boundary violation
- *  merges into one edge, sources in the order cycle/boundary, line the first non-null. */
+ *  merges into one edge, sources in the order cycle/boundary, line the first non-null. A
+ *  self-loop is skipped, so `edges` stays in step with `index.edges` (createRelationIndex
+ *  drops self-loops, domain/relations/graph.ts). */
 function addEdge(
   byFrom: Map<EntityId, Map<EntityId, RelationEdgeView>>, from: EntityId, to: EntityId, fromPath: string, toPath: string,
   source: RelationSource, line: number | null,
 ): void {
+  if (from === to) return;
   let byTo = byFrom.get(from);
   if (!byTo) { byTo = new Map(); byFrom.set(from, byTo); }
   const existing = byTo.get(to);
@@ -75,11 +79,11 @@ function addEdge(
   byTo.set(to, { ...existing, sources, line: existing.line ?? line });
 }
 
-/** A cycle/violation finding's own fingerprint, matching FileDetail's `${anchorId}#${id}`
- *  (file-detail.ts): null when the anchor path itself does not resolve. */
+/** A cycle finding's own fingerprint, through findings.ts's canonical builder: null when
+ *  the anchor path itself does not resolve. */
 function anchorFingerprint(findingId: string, anchorPath: string | undefined, pathToId: ReadonlyMap<string, EntityId>): string | null {
   const anchorId = anchorPath === undefined ? undefined : pathToId.get(anchorPath);
-  return anchorId === undefined ? null : `${anchorId}#${findingId}`;
+  return anchorId === undefined ? null : findingFingerprint(anchorId, findingId);
 }
 
 /** N7: a hop is drawn only when its OWN endpoints resolve, and only when every member of
@@ -139,7 +143,7 @@ function buildBoundaries(
     views.push({
       findingId: v.findingId, from: fileRef(pathToId, v.from), to: fileRef(pathToId, v.to),
       fromZone: v.fromZone, toZone: v.toZone, line: v.line,
-      fingerprint: fromId === undefined ? null : `${fromId}#${v.findingId}`,
+      fingerprint: fromId === undefined ? null : findingFingerprint(fromId, v.findingId),
     });
   }
   return { views, unmatched };
@@ -162,10 +166,18 @@ function build(files: readonly FileSummary[], evidence: EvidenceIndex): Relation
   const index = createRelationIndex(edges.map((e) => ({ from: e.from, to: e.to })));
   const provenance: Provenance | null = report === null ? null
     : { source: 'fallow', detail: FALLOW_PROVENANCE_DETAIL(report.providerVersion, originOf(report)) };
+  /** Built once, not per fanIn/fanOut call: a path->id lookup per scored file, not a scan
+   *  of `files`/`relations.fan` per file on screen. */
+  const fanById = new Map<EntityId, { fanIn: number; fanOut: number }>();
+  if (relations !== null && relations.fan !== null) {
+    for (const f of relations.fan) {
+      const id = pathToId.get(f.path);
+      if (id !== undefined) fanById.set(id, f);
+    }
+  }
   const fan = (id: EntityId, pick: (v: { fanIn: number; fanOut: number }) => number): MetricValue => {
     if (relations === null || relations.fan === null || provenance === null) return unknown(FALLOW_NOT_ANALYSED, 'fallow');
-    const path = files.find((f) => f.id === id)?.path;
-    const entry = path === undefined ? undefined : relations.fan.find((f) => f.path === path);
+    const entry = fanById.get(id);
     if (entry === undefined) return unknown(RELATION_FAN_NOT_SCORED, 'fallow');
     return { state: evidence.state === 'stale' ? 'stale' : 'collected', value: pick(entry), provenance };
   };
