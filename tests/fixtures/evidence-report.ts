@@ -91,7 +91,14 @@ export function syntheticFallowJson(snapshot: CodebaseSnapshot, options: Synthet
   // read analysed there, since both cycle arrays and unresolved_imports are present).
   const hasRelations = paths.length >= 6 && options.kind !== 'dead-code';
   const check = {
-    summary: { total_issues: unusedExports.length + unusedTypes.length, unused_files: 0, unused_exports: unusedExports.length, unused_types: unusedTypes.length },
+    // Fix round 1: "the four summary counts follow" (the brief) — the real report's
+    // shape (tests/fixtures/fallow/relations-combined-3.27.0.json) carries a summary
+    // count alongside each relation array; SHOWN_SUMMARY_KEYS (normalize-fallow.ts)
+    // already lists all four, so this changes no `notShown` behaviour either way.
+    summary: {
+      total_issues: unusedExports.length + unusedTypes.length, unused_files: 0, unused_exports: unusedExports.length, unused_types: unusedTypes.length,
+      circular_dependencies: hasRelations ? 1 : 0, re_export_cycles: hasRelations ? 1 : 0, boundary_violations: hasRelations ? 2 : 0, unresolved_imports: hasRelations ? 1 : 0,
+    },
     unused_exports: unusedExports,
     unused_types: unusedTypes,
     circular_dependencies: (hasRelations ? [{

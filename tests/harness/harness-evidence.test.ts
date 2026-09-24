@@ -130,7 +130,21 @@ describe('the harness fallow run (?fallow=installed, ?analysis=…, Part 7 Z42)'
     const snapshot = harnessSnapshot();
     expect(fallowRunBannerOf(runningAnalysisState(snapshot), true, false)?.tone).toBe('info');
     expect(fallowRunBannerOf(failedAnalysisState(), true, true)).toMatchObject({ tone: 'warning', kept: true });
-    expect(fallowRunBannerOf(completedAnalysisState(), true, false)?.icon).toBe('check');
+    expect(fallowRunBannerOf(completedAnalysisState(snapshot), true, false)?.icon).toBe('check');
+  });
+
+  // Fix round 1: completedAnalysisState's matchedFindings/matchedFiles (the "fallow
+  // analysis attached: N findings" live message) must never drift from the evidence
+  // index's own count (the fallow card's "Matched" row) — they used to be two different
+  // sources for the same number (one hand-copied, `19`/`10`, stale after Task 14's own
+  // fixture change to 24), so the card and the announcement disagreed on screen.
+  it('completedAnalysisState agrees with the real evidence index over the attached report', () => {
+    const snapshot = harnessSnapshot();
+    const index = evidenceIndexFor(fileSummariesFor(snapshot), demoCollectedReport(snapshot), snapshot.snapshotId);
+    const state = completedAnalysisState(snapshot);
+    if (state.status !== 'completed') throw new Error('unreachable: completedAnalysisState always returns status "completed"');
+    expect(state.matchedFindings).toBe(index.matchedFindings);
+    expect(state.matchedFiles).toBe(index.matchedFiles);
   });
 
   it('Polish H5: the failed-run shot opens its error output, and refuses to capture without one', () => {

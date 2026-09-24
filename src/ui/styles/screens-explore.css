@@ -128,7 +128,12 @@
 :where(.codebase-inspector-root) .ci-city-relations { margin-top: var(--ci-space-4); padding-top: var(--ci-space-3); border-top: 1px solid var(--ci-border); }
 :where(.codebase-inspector-root) .ci-city-relations__title { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0 0 var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-city-relations__controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-2); }
-:where(.codebase-inspector-root) .ci-city-relations__segmented { display: inline-flex; padding: 2px; border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); background: var(--ci-panel); }
+/* WP-03 E23 fix round 1: the group's own buttons wrap onto a second line within the
+   segmented control itself, never past the inspector's edge — flex-wrap on the parent
+   `.ci-city-relations__controls` (below) lets the WHOLE group drop to its own line, but
+   does nothing for a group (Direction: Both/Outgoing/Incoming) that is itself wider than
+   the inspector at the 1280px capture width. */
+:where(.codebase-inspector-root) .ci-city-relations__segmented { display: inline-flex; flex-wrap: wrap; padding: 2px; border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); background: var(--ci-panel); }
 :where(.codebase-inspector-root) .ci-city-relations__segmented button { border: 1px solid transparent; background: transparent; box-shadow: none; color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-city-relations__segmented button[aria-pressed="true"] { border-color: var(--ci-border); background: var(--ci-raised); color: var(--ci-text); }
 :where(.codebase-inspector-root) .ci-city-relations__arcs { display: inline-flex; align-items: center; gap: var(--ci-space-1); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }

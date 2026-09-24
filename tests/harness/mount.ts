@@ -161,7 +161,7 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
     }
     if (options.analysis === 'collected') {
       if (!evidence.attach(demoCollectedReport(snapshot))) throw new Error('harness: analysis=collected was refused');
-      fallowAnalysis.setState(snapshot.repositoryId, completedAnalysisState());
+      fallowAnalysis.setState(snapshot.repositoryId, completedAnalysisState(snapshot));
     }
   }
 

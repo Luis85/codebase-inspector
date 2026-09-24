@@ -10,6 +10,8 @@ import type { EvidenceReport } from '../../src/application/evidence/model';
 import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
 import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
 import { snapshotWithOnlyFiles, syntheticFallowJson } from '../fixtures/evidence-report';
+import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
+import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { FALLOW_RUN_ARGS } from '../../src/application/analysis/fallow-invocation';
 import type { AnalysisRunState } from '../../src/application/analysis/analysis-state';
 import type { AnalyzerBindingRead } from '../../src/application/analysis/analyzer-record';
@@ -170,8 +172,19 @@ export function failedAnalysisState(): AnalysisRunState {
   };
 }
 
-export function completedAnalysisState(): AnalysisRunState {
-  return { status: 'completed', runId: 'harness-fallow-run', finishedAt: AT.toISOString(), version: '3.27.0', tested: true, matchedFindings: 19, matchedFiles: 10 };
+/** Fix round 1: `matchedFindings`/`matchedFiles` are derived from the report the
+ *  `analysis=collected` branch actually attaches (`demoCollectedReport(snapshot)`, the
+ *  same findings as `demoEvidenceReport`) through the real evidence index, never a
+ *  second, hand-copied pair of numbers that Task 14's fixture change could (and did)
+ *  leave stale — the fallow card's "Matched" row and its live-region "attached" message
+ *  read two different sources for the same count, and a literal here can silently drift
+ *  from the report while both keep compiling. */
+export function completedAnalysisState(snapshot: CodebaseSnapshot): AnalysisRunState {
+  const index = evidenceIndexFor(fileSummariesFor(snapshot), demoCollectedReport(snapshot), snapshot.snapshotId);
+  return {
+    status: 'completed', runId: 'harness-fallow-run', finishedAt: AT.toISOString(), version: '3.27.0', tested: true,
+    matchedFindings: index.matchedFindings, matchedFiles: index.matchedFiles,
+  };
 }
 
 /** Polish H5 (L24): a headless capture cannot click, so the failed-run shot opens the banner's
