@@ -3,10 +3,8 @@
 // the git-ignored .fallow-bin/, or the binary named by FALLOW_BIN — through the real
 // inspector and runner, on a temporary copy of the fixture project. Collected only by
 // vitest.fallow.config.ts; skipped (never failed, never downloaded) when no binary is there.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
-import { cp, mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -20,19 +18,12 @@ import { normalizeFallow } from '../../src/application/evidence/normalize-fallow
 import type { ProcessOutcome, ProcessRequest } from '../../src/application/ports/analyzer-process';
 import { createCancellationToken } from '../fixtures/cancellation-token';
 import { FALLOW_FIXTURES, rawReport } from '../fixtures/fallow-fixture';
+import { createProjectCopier, fallowRealTitle, hashTree, resolveFallowBin } from '../fixtures/fallow-real-harness';
 import { killTree, realKill, realSpawn } from '../fixtures/real-spawn';
-import { hashTree } from '../fixtures/temp-tree';
-
-function resolveFallowBin(): string | null {
-  const fromEnv = process.env.FALLOW_BIN;
-  if (fromEnv !== undefined && fromEnv !== '') return fromEnv;
-  const file = fileURLToPath(new URL('../../.fallow-bin/bin-path.txt', import.meta.url));
-  return existsSync(file) ? readFileSync(file, 'utf8').trim() : null;
-}
 
 const BIN = resolveFallowBin();
 const PROJECT = fileURLToPath(new URL('../fixtures/fallow/project', import.meta.url));
-const TITLE = BIN === null ? 'fallow binary not fetched: run npm run test:fallow' : `the real fallow at ${BIN}`;
+const TITLE = fallowRealTitle(BIN);
 
 // PF2: capture-free helpers live at module scope.
 const alive = (pid: number): boolean => { try { process.kill(pid, 0); return true; } catch { return false; } };
@@ -42,7 +33,7 @@ const shape = (findings: readonly { id: string; path: string; line: number | nul
 describe.skipIf(BIN === null)(TITLE, () => {
   const bin = BIN ?? '';
   const pids: number[] = [];
-  const bases: string[] = [];
+  const copier = createProjectCopier(PROJECT);
   const runner = createFallowRunner({
     spawn: (command, args, options) => {
       const child = realSpawn(command, args, options);
@@ -56,16 +47,10 @@ describe.skipIf(BIN === null)(TITLE, () => {
   afterEach(async () => {
     runner.killAll();
     for (const pid of pids.splice(0)) killTree(pid);
-    for (const base of bases.splice(0)) await rm(base, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    await copier.cleanupAll();
   });
 
-  async function projectCopy(): Promise<string> {
-    const base = await mkdtemp(join(tmpdir(), 'ci-fallow-real-'));
-    bases.push(base);
-    const root = join(base, 'project');
-    await cp(PROJECT, root, { recursive: true });
-    return root;
-  }
+  const projectCopy = (): Promise<string> => copier.copy();
   const request = (root: string, args: readonly string[] = FALLOW_RUN_ARGS(root), overrides: Partial<ProcessRequest> = {}): ProcessRequest => ({
     executablePath: bin, args, cwd: root, timeoutMs: 60_000, maxStdoutBytes: FALLOW_STDOUT_MAX_BYTES, maxStderrBytes: FALLOW_STDERR_TAIL_BYTES, ...overrides,
   });
