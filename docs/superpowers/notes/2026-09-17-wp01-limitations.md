@@ -368,6 +368,45 @@ only in this document.
 
 ---
 
+## WP-03 Part 1 — dependency evidence from fallow
+
+Transcribed from `docs/superpowers/specs/2026-09-24-wp03-part1-dependencies-design.md`
+§6, spec's own limitations for the relation evidence WP-03 Part 1 adds. Recorded by
+task 15 (N39).
+
+- **A partial graph.** Only imports that fallow reports in import cycles or boundary
+  violations are edges. Neighbourhoods, the Map, the Matrix, the Edges tab and the arcs
+  show that subset. A file with no evidenced import may still import or be imported by
+  many files; File detail's **Imported by** (fallow's fan-in) is the complete count where
+  fallow scored the file.
+- **No type-only distinction.** fallow reports no per-edge type-only flag in its
+  documented JSON. Type-only cycles are not reported by fallow at all (observed on
+  3.27.0). The relations fixture's own type-only import (`src/ui/view.ts`, allowed under
+  its `.fallowrc.json`) is simply invisible to the normaliser rather than excluded by it —
+  see the WP-03 Part 1 gate-evidence section's acceptance table.
+- **Re-export cycles have no direction.** They are listed and reviewable, but not drawn.
+- **Your module rules can only be violated, never passed.** Without the full graph, a rule
+  with no evidenced crossing is "Not evaluated".
+- **Boundaries depend on the analysed folder's fallow config.** Without one, boundary
+  violations are "not configured", and this is not counted as missing evidence.
+- **Arcs are depth-tested.** A tall building can hide part of an arc; the Relations list
+  is the complete record.
+- **3.21.0 and 3.27.0 only.** The relation fields were recorded on these two versions.
+
+Also out of scope for Part 1, per spec §7: the whole import graph from any source (a
+native import extractor, per-selection `fallow trace` runs, `viz` DOT or Mermaid parsing,
+or fallow's HTML); co-change and observed-call relations, and the Evolution screen's
+change coupling (stays sample); the external-packages Dependencies screen (stays sample);
+writing or editing fallow config (`.fallowrc.json`) from the plugin; persisting the
+relation controls across a reload (owner choice: session only); showing all arcs at once;
+`boundary_coverage_violations` and `boundary_call_violations` (stay "not shown"); and the
+open owner decisions — M80/F14 renderer retry cap, M95 pointer capture, the spec §7
+root-unavailable producer, Y19 external `data.json` edits, and the Z38 no-freeze budget.
+The manual Part 7 acceptance check (item 3, "a configured trusted binary runs without
+freezing Obsidian") stays the owner's, unchanged from G6 above.
+
+---
+
 ## Numbers in this document
 
 Read this before quoting a figure from here.

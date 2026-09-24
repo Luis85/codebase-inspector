@@ -144,7 +144,7 @@ its own, so the same assertion can be reused unchanged inside a live host.
 **No analyzer, Git command, project script or package installation was executed.** This
 is asserted **structurally**, because "no process was spawned" is not observable after
 the fact while "nothing in the shipped source can spawn one" is: the acceptance step
-reads every `.ts`/`.vue` file under `src/` (305+ files, count asserted so the sweep cannot
+reads every `.ts`/`.vue` file under `src/` (320+ files, count asserted so the sweep cannot
 go vacuous) and fails on any occurrence of `child_process`, `execFile`, `spawnSync`,
 `spawn(`, `execSync` or `npm install`. `src/adapters/filesystem/node-access.ts` is the
 only file in `src/` that reaches Node at all, and `tests/unit/node-access-boundary.test.ts`
@@ -587,31 +587,30 @@ command whenever tests are added.
 
 Counts refreshed 2026-09-23 to the living suite after WP-02 Part 6 (the WP-01 gate
 itself was taken at the counts in git history), refreshed again at WP-02 Part 7
-(task 14), and again after the WP-02 polish pass (2026-09-24, task 9 and its final-review fixes). Only the derivable figures — the per-layer FILE counts and their total, and
-the `src/` file floor below — were refreshed; the per-layer TEST counts stay as
-transcribed at the WP-01 gate per the "TRANSCRIBED" note two sections down.
+(task 14), again after the WP-02 polish pass (2026-09-24, task 9 and its final-review
+fixes) — each of those refreshed only the derivable figures, the per-layer FILE counts
+and their total and the `src/` file floor below, while the per-layer TEST counts stayed
+transcribed at their original WP-01-gate figures — and now refreshed **in full** at
+WP-03 Part 1 (2026-09-24, task 15, L28's rule: the evidence-note counts are updated once,
+in the final task). The gap the previous paragraph apologised for is closed: every FILE
+and every TEST count below, and the heading's own total, come from runs taken together at
+this commit, immediately after `npm run harness-shot` (above) and immediately before
+`npm run verify`.
 
-**The heading directly below states two different vintages as one measurement, and a
-reader should not have to guess which is which.** The FILE counts — the per-layer total
-below, and the `src/` file floor two sections down — are current as of the WP-02 polish pass. The
-per-layer total is 246, which is not what `npm run test` itself runs: it is 245 files
-plus the opt-in `tests/fallow-real` layer's one file, which never runs inside it (see the
-Real fallow row above). The TEST counts in that same heading (1088 tests, 1087 passed,
-1 skipped) and every per-layer Tests cell in the table below are the WP-01-gate
-transcription described above; the Contract row is the exception: its guard derives it
-from its files, so it includes Part 7's runner contract (`tests/contracts/fallow-runner.test.ts`,
-K28); they are **not** the living suite's totals, and the guard below only checks that
-they sum to each other, not that they match a fresh run. The living suite's own
-measurement, taken after the WP-02 polish pass and its final-review fixes (`npm run verify`, 2026-09-24): 245 files,
-2697 tests, 2696 passed, 1 skipped, with no timeout under full-suite load (the Part 7
-measurement, 229 files and 2549 tests, had counted two whole-`src/` scans that timed out
-under load and passed when re-run alone).
+The per-layer total below is **267**, which is not what `npm run test` itself runs: it is
+265 files plus the opt-in `tests/fallow-real` layer's two files, which never run inside it
+(see the Real fallow row below, and its own eleven-test run in the WP-03 Part 1 section
+above). The Contract row is the one exception to "read straight off a run": its guard
+derives its Tests cell from its own files rather than a transcription, so it includes
+Part 7's runner contract (`tests/contracts/fallow-runner.test.ts`, K28). Reproduce any row
+with `npx vitest run <directory>`; reproduce the whole living suite with
+`npx vitest run --reporter=dot`.
 `tests/unit/install-script.test.ts` passes at this commit too: its checks build their own
 throwaway vault trees under `os.tmpdir()` and do not depend on this worktree having a
 `.obsidian/` folder of its own, so the environmental failure recorded through Part 6 did
 not reproduce here — the disk/live result is recorded rather than that prediction
 (corrected during execution, Part 7 task 14).
-**246 files, 1088 tests, 1087 passed,
+**267 files, 2924 tests, 2923 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -641,16 +640,16 @@ above whenever tests are added.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 123 | yes | 504 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard |
+| Unit | `tests/unit/**` | 135 | yes | 1719 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard. WP-03 Part 1 adds the relation domain/normaliser/model/architecture-model suites and `relation-copy-claims.test.ts` (spec §5's "no calls/executes/will break" and "no backlink" sweeps) |
 | Contract | `tests/contracts/**` | 5 | yes | 62 | **one suite, two implementations** (40) — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift — plus this directory's other three pinned files, `height-scale.test.ts` (task 13's four preserved scale.ts properties), `microcopy.test.ts` (task 12's catalogue-completeness sweep) and `fallow-runner.test.ts` (Part 7 K28: the real adapter against a real spawned process, injected `node:child_process`, Z38) |
-| Integration (real temp dirs) | `tests/integration/**` | 9 | yes | 25 | 24 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase |
-| Component (jsdom) | `tests/component/**` | 83 | yes | 340 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header |
-| Host (Obsidian doubles) | `tests/host/**` | 20 | yes | 114 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
+| Integration (real temp dirs) | `tests/integration/**` | 9 | yes | 39 | 38 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase, the fallow-analysis no-freeze suite |
+| Component (jsdom) | `tests/component/**` | 90 | yes | 881 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite |
+| Host (Obsidian doubles) | `tests/host/**` | 20 | yes | 150 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
-| Benchmark | `tests/benchmarks/**` | 1 | yes | 5 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers |
-| Harness | `tests/harness/**` | 2 | yes | 6 | task 0b: keeps the browser dev harness (`npm run harness`) alive under the ordinary suite — pins the three-stylesheet load order, that `/styles.css` is served from `src/ui/styles.css` on disk rather than a build, the fixture's shape and determinism, and that scheme classes land on `<body>` and nothing else. Not a screenshot test: nothing here asserts what gets drawn, and headless-browser drawing is out of jsdom's reach — see the harness task's own report for what step 10 saw with real eyes |
-| Build | `tests/build/**` | 1 | yes | 6 | task 0c: pins `scripts/harness-shot.mjs`'s `SHOTS` coverage (all seven city screens, including S11's two distinct entry paths -- the list-only fallback and a genuine WebGL failure) and `scripts/chromium.mjs`'s own browser-resolution rule (`executablePath()`, asked of playwright-core, never a hand-mirrored per-platform path). Not a screenshot test itself -- see the task's own report for what `npm run harness-shot` produced with real eyes |
-| Real fallow (opt-in) | `tests/fallow-real/**` | 1 | opt-in (`npm run test:fallow`), never in `npm run test` | 0 | Part 7 Z40/Z41: ten tests against the real, pinned fallow 3.27.0 (or `FALLOW_BIN`): native-binary inspection, the version probe, fixture fidelity, the fs-diff side-effect proof with its `.fallow/` control, the bad-root error, `--fail-on-issues` exit 1, the time limit, cancel and the stdout cap. Its ten tests are not part of the living suite this table totals, so its Tests cell is 0; the run is recorded in G6 above |
+| Benchmark | `tests/benchmarks/**` | 2 | yes | 11 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers. WP-03 Part 1 adds `relations-budget.test.ts` (N33, N37 — medians above) |
+| Harness | `tests/harness/**` | 2 | yes | 24 | task 0b: keeps the browser dev harness (`npm run harness`) alive under the ordinary suite — pins the three-stylesheet load order, that `/styles.css` is served from `src/ui/styles.css` on disk rather than a build, the fixture's shape and determinism, and that scheme classes land on `<body>` and nothing else. Not a screenshot test: nothing here asserts what gets drawn, and headless-browser drawing is out of jsdom's reach — see the harness task's own report for what step 10 saw with real eyes. WP-03 Part 1 extends the fixture's synthetic report with relation evidence (N38) |
+| Build | `tests/build/**` | 1 | yes | 12 | task 0c: pins `scripts/harness-shot.mjs`'s `SHOTS` coverage (all seven city screens, including S11's two distinct entry paths -- the list-only fallback and a genuine WebGL failure) and `scripts/chromium.mjs`'s own browser-resolution rule (`executablePath()`, asked of playwright-core, never a hand-mirrored per-platform path). Not a screenshot test itself -- see the task's own report for what `npm run harness-shot` produced with real eyes. WP-03 Part 1 adds the six new `wp03-*` and four re-framed `wp02-*` capture ids to the pinned coverage |
+| Real fallow (opt-in) | `tests/fallow-real/**` | 2 | opt-in (`npm run test:fallow`), never in `npm run test` | 0 | Part 7 Z40/Z41: ten tests against the real, pinned fallow 3.27.0 (or `FALLOW_BIN`): native-binary inspection, the version probe, fixture fidelity, the fs-diff side-effect proof with its `.fallow/` control, the bad-root error, `--fail-on-issues` exit 1, the time limit, cancel and the stdout cap; WP-03 Part 1 (N36) adds a sibling file's eleventh test against the relations fixture project (J16). Its eleven tests are not part of the living suite this table totals, so its Tests cell is 0; the run is recorded in the WP-03 Part 1 section above and in G6 above |
 <!-- g8:table:end -->
 
 | Layer | Ran | Notes |
@@ -841,10 +840,11 @@ check these against the suite and against the matrix itself:
 - The **reference hardware** rows, which describe a machine.
 - The `npm run analyze` **total of 9**. Its internal breakdown is checked, but the figure
   itself needs the tool, which is not part of `npm run verify` and needs network.
-- The **living suite's own totals** named in the G8 vintage note above (245 files, 2697
-  tests, 2696 passed, 1 skipped, after the WP-02 polish pass's final-review fixes). Nothing in the suite can assert its own whole-run tally from
+- The **living suite's own totals**, now the same figures as the G8 heading itself since
+  the WP-03 Part 1 refresh closed the two-vintage gap (267 files, 2924 tests, 2923
+  passed, 1 skipped). Nothing in the suite can assert its own whole-run tally from
   inside itself, for the same reason the per-layer test counts are transcribed rather
-  than derived. Re-take with `npx vitest run`.
+  than derived. Re-take with `npx vitest run --reporter=dot`.
 
 **NEITHER — prose.** Version numbers, spec section numbers, ruling numbers, COPY ids,
 defect numbers, dates and checkpoint numbers are identifiers, not counts. They are not
@@ -911,3 +911,123 @@ three applied to all four, contradicting (b) six lines above it.
 **State these counts in one of the four shapes, with asterisk emphasis, against the
 matrix's own total**, and the guard will tell you when you get one wrong. If you find another way to
 escape it, add it to this list — the list being complete is what makes it useful.
+
+---
+
+## WP-03 Part 1 — dependency evidence from fallow (N39)
+
+Recorded by task 15 at branch `feat/wp-03-part1`, base `2bb64d5`; design in
+`docs/superpowers/specs/2026-09-24-wp03-part1-dependencies-design.md` (N1–N40). Part 1
+delivers `docs/deliverables/Dependencies and Architecture.md` from the relation evidence
+fallow already documents — cycles, re-export cycles, boundary violations, unresolved
+imports and per-file fan-in/fan-out — inside the same combined report every collected run
+or imported report carries. It adds no process, no argv and no trust change: the run
+argv, spawn options and process guards from WP-02 Part 7 are untouched
+(`tests/unit/fallow-argv-policy.test.ts`, below).
+
+### The deliverable's acceptance, item by item (spec §5)
+
+| Acceptance item | Evidence |
+|---|---|
+| Hand-authored directed fixtures verify incoming/outgoing queries | `tests/unit/relation-queries.test.ts`, `describe('neighbourhood (N17)')`: "out, 1 hop", "in, 1 hop", "both orders hop, then out before in, then the other end", "2 hops continues in the same direction and never back through the node", "limit keeps the first n and counts the rest as hidden" |
+| … cycles | `tests/unit/relation-queries.test.ts`, `describe('stronglyConnected (N18)')`: "keeps groups of more than one node; overlapping cycles form one group"; `tests/unit/normalize-relations.test.ts`: "reports the core 3-file cycle, files in fallow's order, hops[i] = files[i] -> files[(i+1)%n] with the recorded line" |
+| … disconnected files | `tests/unit/relation-queries.test.ts`: "a disconnected node has an empty neighbourhood"; `tests/component/file-relations.test.ts`: "a file with no evidenced edge reads RELATIONS_NONE_FOR_FILE, never \"no imports\"" — the relations fixture's own `src/orphan.ts` (`tests/fixtures/fallow/README.md`'s "Relations project", N34) is disconnected, imported by nothing |
+| … type-only edges where available | The relations fixture's `src/ui/view.ts` carries both a type-only import (`import type { Row } from '../data/types'`, allowed under the fixture's `.fallowrc.json` `allowTypeOnly`) and a regular one that violates the boundary; `tests/unit/normalize-relations.test.ts`: "reports the one boundary violation, anchored on the importing file" pins that only the regular import is reported — fallow documents no per-edge type-only flag, so the type-only one is invisible to the normaliser rather than excluded by it (limitation, §6 below) |
+| … boundary rules | `tests/unit/normalize-relations.test.ts`: "gives a BV- finding anchored on the importing file, at the recorded line, with related: [to]"; `tests/component/architecture-edges.test.ts`, `describe('Architecture: Configured in fallow (WP-03 N24)')`: "lists fallow's recorded violation under the rules, with Review finding" |
+| … aggregation | `tests/unit/relation-queries.test.ts`, `describe('aggregateEdges (N19)')`: "counts distinct file edges between different groups"; `tests/component/architecture-relations.test.ts`, `describe('module edges (N19, N20)')`: "is the one cross-module matched edge, ui -> data, collected; core has no self-edge" (the Map); `describe('cards (N18, N20)')` for the Matrix's own edge counts |
+| Edge drill-down resolves to real evidence | `tests/component/architecture-edges.test.ts`: "From opens File detail on the importing file"; `tests/component/quality-relations.test.ts`: "a boundary finding's dialog lists its \"to\" file" |
+| Dense graphs remain navigable with explicit truncation | `tests/benchmarks/relations-budget.test.ts`: "the Edges tab stays navigable: EDGE_LIST_LIMIT rows, EDGE_LIST_HIDDEN(edges - 200)"; "the city Relations section stays navigable: RELATION_ARC_LIMIT rows on the hub, hidden > 0" (N33, N37; medians below) |
+| Static coupling is not presented as proof of runtime execution or inevitable breakage | `RELATIONS_STATIC_NOTE` on the Edges tab and the Relations section; `tests/unit/relation-copy-claims.test.ts`: "no line claims code \"calls\" or \"executes\", or that a change \"will break\", except RELATIONS_STATIC_NOTE's own sentence" — a sweep of `src/ui/audit-copy/relations.ts` |
+| Selection-based edges, not a hairball | `tests/unit/city-relations.test.ts`: "no selection gives no arcs; a file without evidenced edges gives no rows and no arcs to draw"; `tests/component/relation-arcs.test.ts`, `describe('relation-arcs: geometry (N29)')` draws only the arcs it is sent — there is no "show all" |
+| Cap visible edges and state the hidden count | 24 in the city — `tests/unit/city-relations.test.ts`: "long cycle: 30 hops highlighted give the first 24 arcs and highlightHidden 6"; 200 in the Edges tab — `tests/component/architecture-edges.test.ts`: "shows at most 200 rows and says how many more are not shown"; 64 in the renderer — `tests/component/relation-arcs.test.ts`: "caps drawing at MAX_RELATION_ARCS" |
+| Separate highlight for a selected cycle, with its path in text | `tests/component/relation-arcs.test.ts`: "colours each arc by its own role" (the `cycle` role); `tests/unit/relation-model.test.ts`, `describe('cyclePathText')`: "joins each hop's from with its line, \":?\" for a null line, closing back on the first from"; `tests/component/architecture-cycles.test.ts`: "selecting a cycle highlights the Map edges between its modules and shows its path in the inspector column"; `tests/component/city-relations-panel.test.ts`: "shows its controls, the two rows with their lines, the cycle with a Highlight toggle, and both notes" |
+| A 2D/list alternative with keyboard access | `tests/component/architecture-edges.test.ts` (the Edges tab, native buttons); `tests/component/city-relations-panel.test.ts` (the Relations list, native buttons); the canvas stays `aria-hidden` (carried from WP-01 G4) |
+| Selected relations stay in each leaf; sharing does not move another leaf's camera | `tests/component/city-relations-panel.test.ts`, `describe('the relations store, one per leaf (N31)')`: "changing leaf A's direction leaves leaf B's store at both, and B's camera unchanged" |
+| Not called an Obsidian backlink | `tests/unit/relation-copy-claims.test.ts`: "never calls a source-code relationship an Obsidian backlink" — a sweep of `src/ui/audit-copy/relations.ts` |
+| Record unresolved/missing nodes and graph scope instead of silently discarding edges | unresolved imports — `tests/component/architecture-edges.test.ts`: "lists unresolved imports below the table, never as rows, with both notes"; unmatched edges — `tests/unit/architecture-relations.test.ts`, `describe('unmatched members (N7)')`: "keeps the cycle with matched: false and the unmatched member's id null"; `RELATIONS_SCOPE_NOTE` everywhere — `tests/component/file-relations.test.ts`: "always shows the RELATIONS_SCOPE_NOTE, with or without a report" |
+| Do not assume an undocumented `viz --format json`, and do not scrape fallow's HTML | `tests/unit/fallow-argv-policy.test.ts`: "builds exactly two argument lists"; "has no install, fix, init, setup, watch or failing-flag word as a string in the fallow code" — the reader reads only the documented combined-report fields (`fallow-report-schema.ts`), never `fallow viz` |
+
+### Benchmark medians (Task 13, N33/N37)
+
+`npx vitest run tests/benchmarks/relations-budget.test.ts` writes
+`<tmpdir>/codebase-inspector-benchmark/relations.json` on every run, over a deterministic
+fixture of 5,000 files, 2,000 evidenced edges and 200 cycles:
+
+| Stage | Median | Budget |
+|---|---|---|
+| `relationModelFor` (a fresh `EvidenceIndex`, bypassing every memo) | 3.08 ms | under 50 ms |
+| `neighbourhood(both, 2 hops, limit 24)` on the hub file | 0.58 ms | under 2 ms |
+| `aggregateEdges` to 12 modules | 0.59 ms | under 10 ms |
+| `createRelationArcs().setArcs(64 arcs)` on the 5,000-lot layout | 0.54 ms | under 8 ms |
+
+Recorded 2026-09-24, Node v24.15.0, `win32 x64` (the same reference machine as G5). These
+are structural CPU timings under jsdom, not GPU measurements — the same caveat as G5's
+benchmark applies.
+
+### `npm run test:fallow`, extended with the relations fixture (N36)
+
+G6 recorded `npm run test:fallow` against `tests/fallow-real/fallow-real.test.ts` alone.
+Task 6/13 added a sibling file (J16) that runs the same real, pinned fallow 3.27.0 against
+a temporary copy of the relations fixture project
+(`tests/fixtures/fallow/relations-project`, N34) through the production runner and the
+production parse-and-normalise pipeline, and asserts the exact relation facts recorded in
+that fixture's README: two import cycles (the core three files and the barrel pair), the
+barrel pair's re-export cycle, the one boundary violation and the one unresolved import —
+and a whole-tree hash of the copied project taken before and after the run, compared for
+equality, so the fs-diff result is the same kind of proof G6's own no-write table uses.
+
+```
+FALLOW_BIN="$LOCALAPPDATA/npm-cache/_npx/ee3f2ca80543beb5/node_modules/@fallow-cli/win32-x64-msvc/fallow.exe" npm run test:fallow
+
+npm notice run codebase-inspector@0.1.0 test:fallow
+npm notice run node scripts/fetch-fallow.mjs && vitest run --config vitest.fallow.config.ts
+fetch-fallow: FALLOW_BIN=C:\Users\LuisMendez\AppData\Local\npm-cache\_npx\ee3f2ca80543beb5\node_modules\@fallow-cli\win32-x64-msvc\fallow.exe; nothing fetched.
+
+ RUN  v5.0.1 C:/Projects/codebase-inspector/.claude/worktrees/wp-03-part1
+
+[fallow-real] C:\Users\LuisMendez\AppData\Local\npm-cache\_npx\ee3f2ca80543beb5\node_modules\@fallow-cli\win32-x64-msvc\fallow.exe on win32: {"ok":true,"version":"3.27.0","tested":true}
+
+ Test Files  2 passed (2)
+      Tests  11 passed (11)
+   Start at  20:12:03
+   Duration  8.77s (tests 92%, transform 4%, import 4%)
+```
+
+Binary: `C:\Users\LuisMendez\AppData\Local\npm-cache\_npx\ee3f2ca80543beb5\node_modules\@fallow-cli\win32-x64-msvc\fallow.exe`.
+Version: **3.27.0**. Platform: **win32**. All eleven tests pass across the two files: the
+original ten (G6) plus the relations project's one — "reports the recorded cycle,
+re-export cycle, violation and unresolved import, and writes nothing under the root" —
+whose fs-diff is **0 differences**, exactly as the fixture's own hash-before/hash-after
+comparison in G6's no-write table.
+
+### Harness captures (Task 14, N38)
+
+`npm run harness-shot` produces every id `scripts/harness-shot.mjs`'s `SHOTS` names,
+verified by `tests/build/harness-shot.test.ts`. WP-03 Part 1 adds six new captures and
+re-frames four existing WP-02 ones now that the synthetic demo report
+(`tests/fixtures/evidence-report.ts`) carries real relation evidence rather than empty
+relation arrays:
+
+**New (`wp03-*`):**
+- `wp03-city-relations-dark` / `wp03-city-relations-light` — the city inspector's
+  Relations section, at `select=dir-4/file-4.ts` (`demoRelationsAnchorPath`, a member of
+  the demo report's import cycle)
+- `wp03-city-cycle-dark` — the same view with a cycle highlighted (`relations=cycle`)
+- `wp03-architecture-cycles-dark` / `wp03-architecture-edges-dark` /
+  `wp03-architecture-rules-dark` — the Architecture screen's three new tabs
+
+**Re-framed (`wp02-*`, execution ruling, N38):**
+- `wp02-architecture-dark` / `-light` / `-narrow-dark` — captured with `&report=demo`
+  added to the query. `read-models/architecture.ts` now builds its graph only from real
+  relation evidence (`sample-module-edges.ts` is deleted, N20); without a report these
+  three drew real module nodes but zero edges. Task 14 is the first task where the
+  synthetic report carries cycle and boundary evidence for `report=demo` to show
+- `wp02-quality-fallow-dark` — re-captured with the same query. `findings.ts`'s Structure
+  card (`QUALITY_CARD_STRUCTURE`, N13) now has a non-zero cycle/boundary/unresolved-import
+  count to show; every earlier capture of this screen showed Structure as a real 0
+
+All ten (six new, four re-framed) were produced by the `npm run harness-shot` run this
+task recorded, alongside every pre-existing capture — see the G8 counts below for the
+full run.
+
+---
