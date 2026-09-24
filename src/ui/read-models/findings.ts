@@ -21,8 +21,9 @@ export type FindingStatus = 'open' | 'acknowledged' | 'dismissed';
 export interface QualityFinding extends FileFinding { file: FileSummary; moduleLabel: string; status: FindingStatus; reason: string | null }
 export interface QualityFilter { query: string; kind: FindingCategory | null; severity: string | null; module: string | null; status: FindingStatus | 'all' }
 export interface QualityCard { id: 'open' | 'structure' | FindingCategory; label: string; icon: string; value: MetricValue; caption: string; tone: 'accent' | 'warning' }
-/** WP-03 N13: the categories the "Import structure" card counts together. */
-export const STRUCTURE_CATEGORIES: readonly FindingCategory[] = ['cycle', 'boundary', 'unresolved-import'];
+/** WP-03 N13: the categories the "Import structure" card counts together. Module-private
+ *  (WP-03 E5): nothing outside this file needs the list itself, only the card it drives. */
+const STRUCTURE_CATEGORIES: readonly FindingCategory[] = ['cycle', 'boundary', 'unresolved-import'];
 export interface QualityModel {
   findings: readonly QualityFinding[];
   byFingerprint: ReadonlyMap<string, QualityFinding>;
@@ -60,29 +61,27 @@ function findingFingerprint(fileId: EntityId, findingId: string): string {
   return `${fileId}#${findingId}`;
 }
 
-/** The one place a file's imported findings gain their display title and their durable
- *  fingerprint. File detail (one file) and Code quality (every file) share it, so the two
- *  screens can never disagree on either. Anchor-only (Part 6 Y26's `byFile`): Quality
- *  counts a finding once, on its anchor. WP-03 J14/JF23: `anchorPath` is the file's own
- *  path here, since every row is its own anchor. */
-export function titledFindings(file: FileSummary, evidence: EvidenceIndex): FileFinding[] {
-  return (evidence.byFile.get(file.id) ?? []).map((f) => ({
-    id: f.id, kind: f.category, rule: f.rule, severity: f.severity ?? 'unrated', line: f.line, endLine: f.endLine,
-    symbol: f.symbol, detail: f.detail, title: FINDING_TITLE_FOR(f.category, f.rule, f.symbol, f.detail), fingerprint: findingFingerprint(file.id, f.id),
-    related: f.related ?? [], anchored: true, anchorPath: file.path,
-  }));
-}
-
-/** WP-03 N12/J14: a file's findings via `touching`, so a finding shows on every file it
- *  involves (a cycle's other members, a boundary violation's other end), not only its
- *  anchor. `anchorPath` is the finding's own `path`, which is always the anchor's path
- *  (Part 6 Y24/WP-03 N9-N10). File detail reads this for the ONE selected file. */
+/** E34/WP-03 N12/J14: THE one place a file's imported findings gain their row shape —
+ *  title, durable fingerprint, related paths, anchored and anchorPath — via `touching`,
+ *  so a finding shows on every file it involves (a cycle's other members, a boundary
+ *  violation's other end), not only its anchor. File detail reads this directly for the
+ *  ONE selected file; `titledFindings` below is its anchor-only filter for Quality, so
+ *  the two screens build a row through this one function and can never disagree.
+ *  `anchorPath` is the finding's own `path`, which is always the anchor's path (Part 6
+ *  Y24/WP-03 N9-N10). */
 export function touchingFindings(file: FileSummary, evidence: EvidenceIndex): FileFinding[] {
   return (evidence.touching.get(file.id) ?? []).map(({ finding: f, anchorId }) => ({
     id: f.id, kind: f.category, rule: f.rule, severity: f.severity ?? 'unrated', line: f.line, endLine: f.endLine,
     symbol: f.symbol, detail: f.detail, title: FINDING_TITLE_FOR(f.category, f.rule, f.symbol, f.detail),
     fingerprint: findingFingerprint(anchorId, f.id), related: f.related ?? [], anchored: anchorId === file.id, anchorPath: f.path,
   }));
+}
+
+/** Anchor-only view of `touchingFindings` (Part 6 Y26's `byFile` meaning): Quality counts
+ *  a finding once, on its anchor. Not exported — file-detail.ts reads `touchingFindings`
+ *  directly for the one file's full touching view. */
+function titledFindings(file: FileSummary, evidence: EvidenceIndex): FileFinding[] {
+  return touchingFindings(file, evidence).filter((f) => f.anchored);
 }
 
 type BaseFinding = Omit<QualityFinding, 'status' | 'reason'>;
@@ -110,6 +109,9 @@ function presentSeverities(findings: readonly QualityFinding[]): string[] {
   return [...new Set(findings.map((f) => f.severity))].sort((a, b) => severityRank(a) - severityRank(b) || a.localeCompare(b));
 }
 
+/** `Array.isArray`'s own predicate narrows to `any[]`; this one keeps `FindingCategory`. */
+const isCategoryList = (c: FindingCategory | readonly FindingCategory[] | null): c is readonly FindingCategory[] => Array.isArray(c);
+
 export function buildQualityModel(
   files: readonly FileSummary[], evidence: EvidenceIndex, dispositions: readonly FindingDisposition[],
 ): QualityModel {
@@ -119,13 +121,14 @@ export function buildQualityModel(
     return { ...f, status: d?.status ?? 'open', reason: d?.reason ?? null };
   });
   const open = findings.filter((f) => f.status === 'open');
-  const count = (kind: FindingCategory | null): MetricValue => (files.length === 0
-    ? unknown(NO_FILES_REASON)
-    : evidence.count(open.filter((f) => kind === null || f.kind === kind).length, kind));
-  /** WP-03 N13: the Import structure card's own count, over several categories at once. */
-  const countList = (categories: readonly FindingCategory[]): MetricValue => (files.length === 0
-    ? unknown(NO_FILES_REASON)
-    : evidence.count(open.filter((f) => categories.includes(f.kind)).length, categories));
+  /** One count for a single category, a list (the Import structure card, WP-03 N13), or
+   *  every category (`null`, the Open card's total). */
+  const count = (c: FindingCategory | readonly FindingCategory[] | null): MetricValue => {
+    if (files.length === 0) return unknown(NO_FILES_REASON);
+    const categories = c === null ? null : isCategoryList(c) ? c : [c];
+    const n = categories === null ? open.length : open.filter((f) => categories.includes(f.kind)).length;
+    return evidence.count(n, c);
+  };
   const names = [...new Set(files.map((f) => f.module))].sort((a, b) => a.localeCompare(b));
   return {
     findings,
@@ -136,7 +139,7 @@ export function buildQualityModel(
       { id: 'complexity', label: QUALITY_CARD_COMPLEXITY, icon: 'flame', value: count('complexity'), caption: QUALITY_CARD_COMPLEXITY_CAPTION, tone: 'warning' },
       { id: 'unused-exports', label: QUALITY_CARD_UNUSED, icon: 'file-x', value: count('unused-exports'), caption: QUALITY_CARD_UNUSED_CAPTION, tone: 'accent' },
       { id: 'duplication', label: QUALITY_CARD_DUPLICATION, icon: 'copy', value: count('duplication'), caption: QUALITY_CARD_DUPLICATION_CAPTION, tone: 'accent' },
-      { id: 'structure', label: QUALITY_CARD_STRUCTURE, icon: 'git-fork', value: countList(STRUCTURE_CATEGORIES), caption: QUALITY_CARD_STRUCTURE_CAPTION, tone: 'warning' },
+      { id: 'structure', label: QUALITY_CARD_STRUCTURE, icon: 'git-fork', value: count(STRUCTURE_CATEGORIES), caption: QUALITY_CARD_STRUCTURE_CAPTION, tone: 'warning' },
     ],
     severities: presentSeverities(findings),
     evidence,

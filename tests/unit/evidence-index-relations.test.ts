@@ -5,8 +5,9 @@ import { createPinia, setActivePinia } from 'pinia';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
 import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
-import type { EvidenceReport } from '../../src/application/evidence/model';
+import type { EvidenceFinding, EvidenceReport } from '../../src/application/evidence/model';
 import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
+import { groupByFile } from '../../src/ui/read-models/evidence-touching';
 import { fileSummariesFor, type FileSummary } from '../../src/ui/read-models/file-summaries';
 import { useLensView } from '../../src/ui/read-models/use-lens-view';
 import { useCityStore } from '../../src/ui/stores/city-store';
@@ -67,6 +68,20 @@ describe('EvidenceIndex.touching covers every file a finding involves (N12)', ()
     expect(viewTouch).toBeDefined();
     expect(dbTouch!.anchorId).toBe(viewId);
     expect(viewTouch!.anchorId).toBe(viewId);
+  });
+});
+
+describe('groupByFile never lists the same finding twice under one file (Step 4)', () => {
+  it('a related path that repeats, or repeats the anchor itself, still touches each file once', () => {
+    const dedupeFinding: EvidenceFinding = {
+      id: 'CY-deadbeef', category: 'cycle', rule: 'circular-dependencies', severity: null,
+      path: 'src/core/a.ts', line: null, endLine: null, symbol: null,
+      detail: { kind: 'cycle', cycleKind: 'import', members: ['src/core/a.ts', 'src/core/b.ts'], hops: [] },
+      related: ['src/core/b.ts', 'src/core/b.ts', 'src/core/a.ts'],
+    };
+    const { touching } = groupByFile(files, [dedupeFinding]);
+    expect(touching.get(at('src/core/a.ts').id)).toHaveLength(1);
+    expect(touching.get(at('src/core/b.ts').id)).toHaveLength(1);
   });
 });
 

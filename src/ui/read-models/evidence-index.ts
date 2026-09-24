@@ -21,7 +21,6 @@ import type { FileSummary } from './file-summaries';
 import { isHighSeverity } from './severity';
 import { groupByFile, type TouchingFinding } from './evidence-touching';
 
-export type { TouchingFinding };
 export type EvidenceIndexState = 'none' | 'current' | 'stale';
 export interface FileEvidence { findings: MetricValue; high: MetricValue; unused: MetricValue }
 export interface EvidenceIndex {
@@ -38,12 +37,12 @@ export interface EvidenceIndex {
   matchedFiles: number;
   unmatchedPaths: readonly string[];
   category(c: FindingCategory): 'analysed' | 'not-analysed';
-  /** `n` in this index's evidence state (WP-03 N13, JF3). For a list, a not-configured
-   *  member is left out first; the count over what remains is unknown when none of it was
-   *  asked about, collected/stale when all of it is analysed, partial when only some is,
-   *  and unknown(FALLOW_NOT_ANALYSED) when none is. Nothing left after removing
-   *  not-configured members is unknown(FALLOW_BOUNDARIES_NOT_CONFIGURED). `null` means
-   *  every FindingCategory (the total). */
+  /** `n` in this index's evidence state (WP-03 N13, JF3). `c` is a single category, a
+   *  list, or `null` for every FindingCategory (the total). In order: not-configured
+   *  members are dropped from `c` first; nothing left is
+   *  unknown(FALLOW_BOUNDARIES_NOT_CONFIGURED); of what remains, none analysed is
+   *  unknown(FALLOW_NOT_ANALYSED), all analysed is collected/stale, and some analysed is
+   *  partial. */
   count(n: number, c: FindingCategory | readonly FindingCategory[] | null): MetricValue;
 }
 
