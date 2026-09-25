@@ -11,6 +11,7 @@ import type { InvestigationRow } from '../../read-models/investigation';
 import { checklistFor, evidenceFactsFor, noteIdentityFor, type EvidenceBundle } from '../../read-models/investigation-evidence';
 import { useCityStore } from '../../stores/city-store';
 import { useInvestigationStore } from '../../stores/investigation-store';
+import { useEvidenceStore } from '../../stores/evidence-store';
 import { reannounce } from '../../kit/reannounce';
 import {
   FINDING_KIND_LABEL, NOTE_CREATED, NOTE_CREATED_EXCLUDED, NOTE_EXCLUSION_FAILED, NOTE_VOCABULARY,
@@ -43,6 +44,7 @@ function createdMessage(path: string, exclusion: Exclusion, excluded: string | n
 export function useInvestigationNotes(input: NotesInput) {
   const city = useCityStore();
   const investigation = useInvestigationStore();
+  const evidence = useEvidenceStore();   // its repositoryId is the bound codebase (investigation-store.ts)
   /** The screen's root element (its template's `ref="root"`), where the Open buttons live. */
   const root = ref<HTMLElement | null>(null);
   const creating = ref(false);
@@ -103,14 +105,19 @@ export function useInvestigationNotes(input: NotesInput) {
     creating.value = false;
   };
   /** Fix round 1 (review 1): the dialog's `submit`. The write and its outcome live here, not
-   *  in the dialog, so a note written after a selection change closed the dialog is still
-   *  announced (E17: every real outcome). Only when the selection is still the one the
+   *  in the dialog, so a note written after a same-codebase selection change closed the
+   *  dialog is still announced (E17: every real outcome; E22: never in another codebase). Only when the selection is still the one the
    *  create was for does it close the dialog and move focus to the note's Open (IP24;
    *  nothing is opened). A refusal is returned for the dialog's own alert line. */
   const submitCreate: SubmitNote = async (request, excluded) => {
     const fingerprint = investigation.selectedFingerprint;
+    const codebase = evidence.repositoryId;
     const result = await investigation.create(request);
     if (result === null || result.status !== 'created') return result;
+    // Ruling E22: a codebase switch mid-write announces nothing here — the words (an
+    // exclusion "of this codebase") would describe codebase A in codebase B's live region.
+    // The note is listed when the user returns to A.
+    if (evidence.repositoryId !== codebase) return result;
     const same = fingerprint !== null && investigation.selectedFingerprint === fingerprint;
     if (same) creating.value = false;
     focusPending.value = same ? result.path : null;

@@ -11,6 +11,7 @@ import InvestigateScreen from '../../src/ui/screens/InvestigateScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useInvestigationStore } from '../../src/ui/stores/investigation-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
+import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { findingRef } from '../../src/ui/read-models/review-state';
 import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
@@ -358,6 +359,24 @@ describe('outcomes outside the dialog (Task 13 review, fix round 1)', () => {
     expect(fake.paths()).toEqual([`Notes/${name}.md`]);
     expect(liveText(w)).toBe(NOTE_CREATED(`Notes/${name}.md`));
     expect(w.find('.ci-create-note').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('review 2 (E22): a codebase switch mid-write announces nothing in the other codebase; the note is still written', async () => {
+    const { w, fake, gate, name } = await setup();
+    await openDialog(w);
+    gate.hold();
+    await w.find('.ci-create-note__confirm').trigger('click');
+    const other = buildSnapshotFixture({ files: 12, directories: 2, repositoryId: 'repo-other' });
+    useCityStore().setCity(other, computeLayout(other));
+    attachSyntheticReport(other);
+    await flushPromises();
+    expect(useEvidenceStore().repositoryId).toBe('repo-other');
+    expect(w.find('.ci-create-note').exists()).toBe(false);
+    gate.release();
+    await flushPromises();
+    expect(fake.paths()).toEqual([`Notes/${name}.md`]);
+    expect(liveText(w)).toBe('');
     w.unmount();
   });
 
