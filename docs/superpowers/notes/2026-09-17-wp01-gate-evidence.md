@@ -602,6 +602,16 @@ existing unit and component files; it re-ran `npx vitest run tests/unit` and
 heading from those runs and its own `npm run verify`. No other layer's files changed, so
 their rows stand as task 15 took them.
 
+Refreshed once more by the WP-03 Part 1 polish pass (2026-09-25, task 4, following the
+same rule): PO1, PO2 and the two Task 9 deferred minors added tests only inside
+`tests/unit/architecture-relations.test.ts` (unit) and
+`tests/component/architecture-screen.test.ts`, `architecture-rules.test.ts`,
+`architecture-edges.test.ts` and `architecture-cycles.test.ts` (component); E26's kept
+highlight added tests inside `tests/component/city-relations-panel.test.ts` (component).
+No new test file. `npm run test` (267 files, 2959 tests, 2958 passed, 1 skipped) and the
+two layer re-runs below refreshed the Unit and Component rows, the totals and the
+heading; no other layer's files changed, so their rows stand as task 15 took them.
+
 The per-layer total below is **269**, which is not what `npm run test` itself runs: it is
 267 files plus the opt-in `tests/fallow-real` layer's two files, which never run inside it
 (see the Real fallow row below, and its own eleven-test run in the WP-03 Part 1 section
@@ -615,7 +625,7 @@ throwaway vault trees under `os.tmpdir()` and do not depend on this worktree hav
 `.obsidian/` folder of its own, so the environmental failure recorded through Part 6 did
 not reproduce here — the disk/live result is recorded rather than that prediction
 (corrected during execution, Part 7 task 14).
-**269 files, 2943 tests, 2942 passed,
+**269 files, 2959 tests, 2958 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -645,10 +655,10 @@ above whenever tests are added.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 135 | yes | 1723 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard. WP-03 Part 1 adds the relation domain/normaliser/model/architecture-model suites and `relation-copy-claims.test.ts` (spec §5's "no calls/executes/will break" and "no backlink" sweeps) |
+| Unit | `tests/unit/**` | 135 | yes | 1733 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard. WP-03 Part 1 adds the relation domain/normaliser/model/architecture-model suites and `relation-copy-claims.test.ts` (spec §5's "no calls/executes/will break" and "no backlink" sweeps). The WP-03 Part 1 polish pass adds PO1/PO2 and the JP5 gating cases inside `architecture-relations.test.ts`, no new file |
 | Contract | `tests/contracts/**` | 5 | yes | 62 | **one suite, two implementations** (40) — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift — plus this directory's other three pinned files, `height-scale.test.ts` (task 13's four preserved scale.ts properties), `microcopy.test.ts` (task 12's catalogue-completeness sweep) and `fallow-runner.test.ts` (Part 7 K28: the real adapter against a real spawned process, injected `node:child_process`, Z38) |
 | Integration (real temp dirs) | `tests/integration/**` | 9 | yes | 39 | 38 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase, the fallow-analysis no-freeze suite |
-| Component (jsdom) | `tests/component/**` | 92 | yes | 896 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite |
+| Component (jsdom) | `tests/component/**` | 92 | yes | 902 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite. The WP-03 Part 1 polish pass adds cases inside `architecture-screen.test.ts`, `architecture-rules.test.ts`, `architecture-edges.test.ts`, `architecture-cycles.test.ts` and `city-relations-panel.test.ts`, no new file |
 | Host (Obsidian doubles) | `tests/host/**` | 20 | yes | 150 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
 | Benchmark | `tests/benchmarks/**` | 2 | yes | 11 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers. WP-03 Part 1 adds `relations-budget.test.ts` (N33, N37 — medians above) |
@@ -846,7 +856,7 @@ check these against the suite and against the matrix itself:
 - The `npm run analyze` **total of 9**. Its internal breakdown is checked, but the figure
   itself needs the tool, which is not part of `npm run verify` and needs network.
 - The **living suite's own totals**, now the same figures as the G8 heading itself since
-  the WP-03 Part 1 refresh closed the two-vintage gap (269 files, 2943 tests, 2942
+  the WP-03 Part 1 refresh closed the two-vintage gap (269 files, 2959 tests, 2958
   passed, 1 skipped). Nothing in the suite can assert its own whole-run tally from
   inside itself, for the same reason the per-layer test counts are transcribed rather
   than derived. Re-take with `npx vitest run --reporter=dot`.
@@ -1036,3 +1046,128 @@ task recorded, alongside every pre-existing capture — see the G8 counts below 
 full run.
 
 ---
+
+## WP-03 Part 1 polish — PO1, PO2, the gating, the highlight, the arrow
+
+Recorded by task 4 at branch `feat/wp-03-part1-polish`, base `6419392`; rulings in
+`docs/superpowers/notes/2026-09-25-wp03-part1-polish-ledger.md` (PO1, PO2, JP1–JP8). This
+pass amends the WP-03 Part 1 section above at three narrow points and closes the Task 9
+and Task 13 deferred minors it left behind; it adds no process, no argv and no trust
+change.
+
+### What changed
+
+- **PO1 — the violations card is fallow's own count, never added to your rules (amends
+  N20, WP-03 E8/E24).** `violationsValue` (`src/ui/read-models/architecture.ts`) now
+  returns fallow's own reported boundary-violation count alone, captioned "Reported by
+  fallow". A fifth Architecture card, **Your rules violated**, carries the count of your
+  own violated rules independently (`unknown` with no rules or nothing analysed, else the
+  count). The Report and its Markdown export pick up both cards with no code change, since
+  they already iterate the card list generically by label and value (commit `a03f836`).
+- **PO2 — "Violations only" and the marked edges union your rules with fallow's boundary
+  module pairs (amends WP-03 E26's "Violations only" item).** `violatingEdgeKeys` is now
+  the union of your violated rule pairs and `edgeKey(moduleOf(fromPath), moduleOf(toPath))`
+  for every relation edge sourced from a boundary violation, so the Map, the Matrix, the
+  Edges filter and the edge inspector's "This edge breaks a boundary rule." all agree
+  (commit `a03f836`). A same-module fallow violation keys the diagonal harmlessly:
+  `aggregateEdges` already drops same-group pairs before a Map self-edge could be drawn,
+  and the Matrix's diagonal cell takes its own "Same module" branch before consulting
+  `violating` — no component change was needed for that case.
+- **The Task 9 deferred minor — Edges, Map and Matrix gate on any analysed edge category,
+  not on cycles alone.** A new `edgesAnalysed` gate
+  (`relations.state !== 'none' && (relations.analysed || relations.boundaries ===
+  'configured')`) now drives `ArchitectureModel.notAnalysed`, so a report with boundary
+  violations but no cycle arrays still shows those boundary edges on the Edges tab, the
+  Map and the Matrix. A separate `cyclesNotAnalysed` keeps the old cycle-only formula for
+  the Cycles tab and the cycles card, which still read "not analysed" in that case. The
+  evidenced-imports card reads `partial` with `RELATION_CYCLES_NOT_REPORTED` there — never
+  `collected`, never `unknown` (commit `9e22b09`).
+- **The Task 9 deferred minor — the EdgeList direction note is pinned.** "No module is
+  selected, so Direction does not filter." / "Outgoing and Incoming are relative to
+  {module}." was proved by mounting `EdgeList.vue` directly with `selectedModule: null`
+  and `selectedModule: 'ui'`, and by a mutation of the ternary at `EdgeList.vue:99` (fix
+  round 1 of Task 2), since `ArchitectureScreen`'s selection composable auto-selects the
+  first module on mount and the no-module branch is otherwise unreachable through a full
+  mount (commit `9e22b09`).
+- **E26's kept highlight — a re-import that drops the highlighted cycle clears it.** A
+  third watcher in `src/ui/stores/relations-store.ts` clears `highlightedCycleId` when the
+  freshly imported report's normalised cycles no longer carry that finding id (a content
+  hash, JP6), and leaves it alone — same id, same cycle — when a re-import keeps it. The
+  two existing watchers (repository/report-removed reset, selection-clears-highlight) are
+  unchanged (commit `25c0840`).
+- **The arrow wrap.** `.ci-city-relations__path` gained `flex: 1 1 0; min-width: 0;`
+  (`src/ui/styles/screens-explore.css`) so the direction glyph (`→`/`←`) stays on the same
+  line as the path it marks; only the longer continuation and the source label wrap below
+  it. Confirmed by reading `harness-shots/wp03-city-relations-dark.png` (not committed —
+  `harness-shots/` is git-ignored) (commit `25c0840`).
+
+### The Task 13 deferred minor — benchmark mutation runs
+
+`tests/benchmarks/relations-budget.test.ts` pins three truncation caps behaviourally but,
+before this task, none of the three had ever been shown RED: the test imports each
+constant from the same module the production code reads, so a plain mutation of the
+constant's value is self-consistent and cannot fail the assertion that reads it back. Each
+cap was proved live by mutating it in `src`, running
+`npx vitest run tests/benchmarks/relations-budget.test.ts`, capturing the failure, then
+restoring the file exactly with Edit — confirmed each time and at the end by an empty
+`git diff --stat -- src`.
+
+**`EDGE_LIST_LIMIT`** (`src/ui/screens/architecture/use-architecture-selection.ts`, 200).
+A first mutation to 300 (still below `TOTAL_EDGES` = 2,000) **survived** — the test's own
+`expect(rows).toHaveLength(EDGE_LIST_LIMIT)` reads the same live constant it is checking,
+so any value under 2,000 is self-consistently satisfied and the assertion is not, on its
+own, proof that a limit is enforced. Strengthened by mutating past the fixture's edge
+count instead (2,500 > `TOTAL_EDGES`), which exposes the real cap: the DOM cannot render
+more rows than there are filtered edges (2,000), so a limit set above the data no longer
+matches what is actually shown.
+
+```
+FAIL  |jsdom| tests/benchmarks/relations-budget.test.ts > relations budget — 5,000 files, 2,000 evidenced edges, 200 cycles (N33, N37) > the Edges tab stays navigable: EDGE_LIST_LIMIT rows, EDGE_LIST_HIDDEN(edges - 200)
+AssertionError: expected [ DOMWrapper{ …(3) }, …(1999) ] to have a length of 2500 but got 2000
+ ❯ tests/benchmarks/relations-budget.test.ts:219:18
+    217|     });
+    218|     const rows = w.findAll('.ci-edge-list .ci-table__row');
+    219|     expect(rows).toHaveLength(EDGE_LIST_LIMIT);
+Tests  1 failed | 5 passed (6)
+```
+
+**`RELATION_ARC_LIMIT`** (`src/ui/read-models/relations.ts`, 24). Mutated to 5,000 (above
+the hub's evidenced neighbourhood):
+
+```
+FAIL  |jsdom| tests/benchmarks/relations-budget.test.ts > … > neighbourhood(both, 2 hops, limit 24) on the hub file is under 2 ms (median), with hidden > 0
+AssertionError: expected 0 to be greater than 0
+ ❯ tests/benchmarks/relations-budget.test.ts:186:37
+    186|     expect(hubNeighbourhood.hidden).toBeGreaterThan(0);
+
+FAIL  |jsdom| tests/benchmarks/relations-budget.test.ts > … > the city Relations section stays navigable: RELATION_ARC_LIMIT rows on the hub, hidden > 0
+AssertionError: expected [ Array(904) ] to have a length of 5000 but got 904
+ ❯ tests/benchmarks/relations-budget.test.ts:226:23
+    226|     expect(view.rows).toHaveLength(RELATION_ARC_LIMIT);
+Tests  2 failed | 4 passed (6)
+```
+
+**The arc cap, `MAX_RELATION_ARCS`** (`src/visualization/relation-arcs.ts`, 64). Mutated
+to 32:
+
+```
+FAIL  |jsdom| tests/benchmarks/relations-budget.test.ts > … > createRelationArcs().setArcs(64 arcs) on the 5,000-lot layout is under 8 ms (median)
+AssertionError: expected 32 to be 64
+ ❯ tests/benchmarks/relations-budget.test.ts:207:39
+    207|     expect(relationArcs.drawnCount()).toBe(64);
+Tests  1 failed | 5 passed (6)
+```
+
+**Restore, each time.** `git diff --stat -- src` gave no output after each individual
+restore and after all three. GREEN, all six tests, after the final restore:
+
+```
+npx vitest run tests/benchmarks/relations-budget.test.ts
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+```
+
+No test file was edited to strengthen the `EDGE_LIST_LIMIT` case — the existing
+assertion was proved sufficient once mutated past the data size rather than within it; the
+brief's "or strengthen it" path was not needed.
