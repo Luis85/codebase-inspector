@@ -2,6 +2,16 @@
 import { describe, expect, it } from 'vitest';
 import { parseYaml, stringifyYaml, TFile } from '../mocks/obsidian';
 import { createFakeVault } from '../fixtures/fake-vault';
+import type { FakeVault } from '../fixtures/fake-vault';
+
+// Fix round 1 (WP-04 E12): "changed" now fires asynchronously (queueMicrotask inside the
+// fixture, never inline). A test must register this BEFORE the triggering call and await
+// it afterward -- never assume the event already happened right after that call returns.
+function nextChanged(fakeVault: FakeVault): Promise<void> {
+  return new Promise((resolve) => {
+    fakeVault.app.metadataCache.on('changed', () => resolve());
+  });
+}
 
 // IN20: every value the note renderer writes into frontmatter is a string, including
 // values that LOOK like other YAML types (a bare `yes`, `null`, a leading-zero number, a
@@ -114,36 +124,89 @@ describe('createFakeVault: processFrontMatter (IPF18, IPF19)', () => {
     const mapping = await fakeVault.app.vault.create('mapping.md', '---\nstatus: open\n---\nBody\n');
     expect(fakeVault.app.metadataCache.getFileCache(mapping)?.frontmatter).toEqual({ status: 'open' });
   });
+
+  it('a genuinely malformed block (yaml.parse throws) leaves the cache undefined; processFrontMatter starts fresh', async () => {
+    const fakeVault = createFakeVault();
+    // An unterminated flow sequence: yaml.parse throws rather than returning a value.
+    const malformed = '---\nstatus: [open\n---\nBody\n';
+    const file = await fakeVault.app.vault.create('broken.md', malformed);
+
+    expect(fakeVault.app.metadataCache.getFileCache(file)?.frontmatter).toBeUndefined();
+
+    await fakeVault.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      (frontmatter as Record<string, unknown>).status = 'closed';
+    });
+
+    const next = fakeVault.text('broken.md')!;
+    expect(parseYaml(next.slice(4, next.indexOf('---\n', 4)))).toEqual({ status: 'closed' });
+    expect(next.endsWith('---\nBody\n')).toBe(true);
+  });
 });
 
 describe('createFakeVault: vault.process fires "changed" (IPF18)', () => {
-  it('writes the callback\'s return value and fires metadata "changed"', async () => {
+  it('writes the callback\'s return value and fires metadata "changed" once the write settles', async () => {
     const fakeVault = createFakeVault();
     const file = await fakeVault.app.vault.create('note.md', 'before');
-    const seen: unknown[] = [];
-    fakeVault.app.metadataCache.on('changed', (...args) => seen.push(args));
+    const changed = nextChanged(fakeVault);
 
     const result = await fakeVault.app.vault.process(file, (data) => `${data}-after`);
 
     expect(result).toBe('before-after');
     expect(fakeVault.text('note.md')).toBe('before-after');
-    expect(seen).toHaveLength(1);
+    await changed;
+  });
+});
+
+// Fix round 1 (WP-04 E12): the real metadata cache re-parses off the write -- the Task 0
+// native probe had to poll for `changed`. The fake must fire it the same way: never
+// synchronously inside create/process/processFrontMatter, only once queued work runs.
+describe('createFakeVault: "changed" fires asynchronously, never synchronously (WP-04 E12)', () => {
+  it('has not fired "changed" synchronously right after vault.create returns its promise', async () => {
+    const fakeVault = createFakeVault();
+    let firedSync = false;
+    const changed = nextChanged(fakeVault);
+    fakeVault.app.metadataCache.on('changed', () => { firedSync = true; });
+
+    const created = fakeVault.app.vault.create('note.md', 'hello');
+    // Checked synchronously, before any microtask has run.
+    expect(firedSync).toBe(false);
+
+    await created;
+    await changed;
+    expect(firedSync).toBe(true);
   });
 });
 
 describe('createFakeVault: user-driven edits and listeners', () => {
-  it('userRename fires vault "rename" then metadata "changed"', async () => {
+  it('userRename fires vault "rename" synchronously, then metadata "changed" once the write settles', async () => {
     const fakeVault = createFakeVault();
     await fakeVault.app.vault.create('old.md', 'hello');
     const events: string[] = [];
     fakeVault.app.vault.on('rename', () => { events.push('rename'); });
-    fakeVault.app.metadataCache.on('changed', () => { events.push('changed'); });
+    const changed = nextChanged(fakeVault);
 
     fakeVault.userRename('old.md', 'new.md');
+
+    // "rename" is synchronous; "changed" (E12) is not -- checked right here, before any
+    // microtask has run.
+    expect(events).toEqual(['rename']);
+    await changed;
+    events.push('changed');
 
     expect(events).toEqual(['rename', 'changed']);
     expect(fakeVault.text('new.md')).toBe('hello');
     expect(fakeVault.text('old.md')).toBeUndefined();
+  });
+
+  it('userRename throws on a colliding destination instead of silently overwriting it', async () => {
+    const fakeVault = createFakeVault();
+    await fakeVault.app.vault.create('old.md', 'old text');
+    await fakeVault.app.vault.create('new.md', 'already here');
+
+    expect(() => fakeVault.userRename('old.md', 'new.md')).toThrow();
+
+    expect(fakeVault.text('old.md')).toBe('old text');
+    expect(fakeVault.text('new.md')).toBe('already here');
   });
 
   it('userDelete fires vault "delete"', async () => {
@@ -158,16 +221,15 @@ describe('createFakeVault: user-driven edits and listeners', () => {
     expect(fakeVault.text('note.md')).toBeUndefined();
   });
 
-  it('userWrite writes the text and fires metadata "changed"', async () => {
+  it('userWrite writes the text and fires metadata "changed" once the write settles', async () => {
     const fakeVault = createFakeVault();
     await fakeVault.app.vault.create('note.md', 'before');
-    const events: string[] = [];
-    fakeVault.app.metadataCache.on('changed', () => { events.push('changed'); });
+    const changed = nextChanged(fakeVault);
 
     fakeVault.userWrite('note.md', 'after');
 
-    expect(events).toEqual(['changed']);
     expect(fakeVault.text('note.md')).toBe('after');
+    await changed;
   });
 
   it('resolve() fires metadata "resolved"', () => {

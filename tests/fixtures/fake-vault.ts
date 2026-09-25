@@ -5,8 +5,8 @@
 // at a time regardless) -- and faithful where the ledger's Task 0 native probes recorded
 // real behaviour (IPF16, IPF18, IPF19, IPF20).
 //
-// Harness-safe (IP30, IPF11): no `vitest`, no `node:*`. Task 17's browser harness bundles
-// this file directly.
+// Harness-safe (IP30): no `vitest`, no `node:*`. Task 17's browser harness bundles this
+// file directly.
 import {
   CapacitorAdapter, FileSystemAdapter, TFile, TFolder, parseYaml, stringifyYaml,
 } from '../mocks/obsidian';
@@ -174,8 +174,16 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
       || findCaseInsensitiveKey(path, folderObjects.keys()) !== undefined;
   }
 
+  // Fix round 1 (WP-04 E12): the real metadata cache re-parses OFF the write, not
+  // synchronously inside `vault.create`/`process`/`fileManager.processFrontMatter` -- the
+  // Task 0 native probe had to poll for `changed` after each of those calls returned.
+  // Firing synchronously here would let a later task's test pass against the fake while
+  // depending on an event order the real host never gives it. `queueMicrotask` defers the
+  // trigger to (at least) the next microtask tick, always after the write's own return
+  // completes; callers must await the event, not just the write's promise.
   function fireChanged(file: TFile, text: string): void {
-    metaEvents.trigger('changed', file, text, { frontmatter: parseFrontmatterValue(text) });
+    const cache = { frontmatter: parseFrontmatterValue(text) };
+    queueMicrotask(() => { metaEvents.trigger('changed', file, text, cache); });
   }
 
   function rawCreate(path: string, text: string): TFile {
@@ -283,9 +291,16 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
       record.file.stat = { ...record.file.stat, mtime: nextTime(), size: byteLength(text) };
       fireChanged(record.file, text);
     },
+    // Fix round 1: the `user*` helpers model an event that ALREADY happened in the real
+    // vault (someone else's edit), not a request the fake can refuse -- so a colliding
+    // destination here is the test's own mistake, not a race to model; it throws loudly
+    // rather than silently overwriting the file already at that path.
     userRename(oldPath, newPath) {
       const record = files.get(oldPath);
       if (!record) throw new Error(`fake vault: no file at ${oldPath}`);
+      if (newPath !== oldPath && isTaken(newPath)) {
+        throw new Error(`fake vault: userRename destination already exists: ${newPath}`);
+      }
       files.delete(oldPath);
       const { parent, name } = splitPath(newPath);
       const { basename, extension } = splitExtension(name);
