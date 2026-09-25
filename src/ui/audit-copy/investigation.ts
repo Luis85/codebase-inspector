@@ -25,6 +25,11 @@ export const NOTES_FOLDER_PROBLEM: Readonly<Record<NoteFolderProblem, string>> =
  *  (PROFILE_REVIEW_PURGE_FAILED, storage.ts; PROFILE_ANALYZER_PURGE_FAILED, fallow-run.ts). */
 export const PROFILE_INVESTIGATION_PURGE_FAILED = (reason: string): string =>
   `The profile was removed, but its investigation notes folder setting could not be removed: ${reason}`;
+// WP-04 Task 10 (IN18): the inspector Settings screen's read-only row under Privacy & storage.
+export const NOTES_FOLDER_ROW_TITLE = 'Investigation notes folder';
+export const NOTES_FOLDER_ROW_TEXT = 'New investigation notes for this codebase go here. Change it in Obsidian’s settings for this plugin.';
+export const NOTES_FOLDER_ROW_DEFAULT = '(default)';
+export const NOTES_FOLDER_ROW_NO_CODEBASE = 'Open a codebase to see its notes folder.';
 
 export const INVESTIGATE_EYEBROW = 'Act / Investigate';
 export const INVESTIGATE_TITLE = 'From a finding to a recorded decision.';

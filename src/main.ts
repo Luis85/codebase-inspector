@@ -16,6 +16,7 @@ import { AnalysisCoordinator } from './application/analysis/analysis-coordinator
 import { createFallowAnalysisService, type FallowAnalysisService } from './application/analysis/fallow-analysis-service';
 import { createCancellationToken } from './application/scan-coordinator';
 import { watchAnalysisFailures } from './host/analysis-notices';
+import { createInvestigationServices } from './host/investigation-services';
 import type { Clock } from './application/ports/clock';
 import './ui/styles.css';
 import './ui/styles/kit.css';
@@ -74,16 +75,19 @@ export default class CodebaseInspectorPlugin extends Plugin {
     this.analysis = analysis;
     // Part 7 Z34: an operational failure tells the user even off Data & scans.
     this.unwatchAnalysis = watchAnalysisFailures(analysis, (message) => { void new Notice(message, 8000); });
+    const investigationFolders = createPluginDataInvestigationStore(this);
+    // WP-04 IP41/IP12: ONE notes port and ONE source preview per plugin; both read nothing here.
+    const investigation = createInvestigationServices(this, { profileStore, bindingStore, folders: investigationFolders, clock: SYSTEM_CLOCK });
 
     this.registerView(CITY_VIEW_TYPE, (leaf: WorkspaceLeaf) => new CityView(leaf, this, {
       profileStore, getFilesystem: () => createNodeSourceFileSystem(), snapshotStore, clock: SYSTEM_CLOCK,
       reviewRepositoryFor: (repositoryId) => reviewRegistry.for(repositoryId),
       evidenceStore,
       fallowAnalysis: analysis,
+      investigationNotes: investigation.notes, sourcePreview: investigation.preview,
     }));
     this.addRibbonIcon('building-2', 'Open codebase city', () => { void openCity(this); });
     registerCommands(this);
-    const investigationFolders = createPluginDataInvestigationStore(this);
     // Ruling M30/M31: the settings tab's Connect/Reconnect flow (source-modal.ts)
     // stats a directory through this SAME adapter layer task 5 built -- never a
     // second path to Node. A FACTORY, not an already-built port: onload() registers

@@ -4,8 +4,11 @@ import {
   REVIEW_RECORDS_SKIPPED, REVIEW_STORE_READ_FAILED, REVIEW_STORE_RETIRED_NOTE, REVIEW_STORE_UNSUPPORTED_NOTE,
   SETTINGS_CLEAR, SETTINGS_CLEAR_HINT, SETTINGS_CLEAR_OPEN, SETTINGS_CLEAR_TEXT, SETTINGS_EXPORT, SETTINGS_NETWORK,
   SETTINGS_NETWORK_TEXT, SETTINGS_NETWORK_VALUE, SETTINGS_STORAGE, SETTINGS_STORAGE_TEXT,
+  NOTES_FOLDER_ROW_DEFAULT, NOTES_FOLDER_ROW_NO_CODEBASE, NOTES_FOLDER_ROW_TEXT, NOTES_FOLDER_ROW_TITLE,
 } from '../../inspector-copy';
 import { useReviewStore } from '../../stores/review-store';
+import { useEvidenceStore } from '../../stores/evidence-store';
+import { useInvestigationStore } from '../../stores/investigation-store';
 import { useUniqueId } from '../../unique-id';
 import type { ImportCandidate } from './import-candidate';
 import ImportRow from './ImportRow.vue';
@@ -13,6 +16,9 @@ import { useReviewWriteGate } from './review-write-gate';
 
 const emit = defineEmits<{ clear: []; export: []; parsed: [candidate: ImportCandidate] }>();
 const review = useReviewStore();
+/** WP-04 IN18: the bound codebase's notes folder, read-only (it is set in Obsidian's settings tab). */
+const evidence = useEvidenceStore();
+const investigation = useInvestigationStore();
 const clearHintId = useUniqueId('ci-settings-clear-hint');
 const storageNoteId = useUniqueId('ci-settings-storage-note');
 const clearGate = useReviewWriteGate(clearHintId, storageNoteId);
@@ -67,6 +73,23 @@ function requestClear(): void {
     >
       {{ SETTINGS_EXPORT }}
     </button>
+  </div>
+  <div class="ci-setting-row ci-settings__notes-folder">
+    <div>
+      <h3>{{ NOTES_FOLDER_ROW_TITLE }}</h3>
+      <p class="ci-note">
+        {{ evidence.repositoryId === '' ? NOTES_FOLDER_ROW_NO_CODEBASE : NOTES_FOLDER_ROW_TEXT }}
+      </p>
+    </div>
+    <span v-if="evidence.repositoryId !== '' && investigation.destination !== null">
+      <code class="ci-settings__notes-folder-value">{{ investigation.destination.folder }}</code>
+      <span
+        v-if="investigation.destination.isDefault"
+        class="ci-note"
+      >
+        {{ NOTES_FOLDER_ROW_DEFAULT }}
+      </span>
+    </span>
   </div>
   <ImportRow
     :storage-note-id="storageNoteId"

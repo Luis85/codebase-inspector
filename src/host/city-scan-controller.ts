@@ -18,6 +18,8 @@ import type { Clock } from '../application/ports/clock';
 import type { ReviewRepository } from '../ui/stores/ports/review-repository';
 import type { EvidenceRepository } from '../application/ports/evidence-repository';
 import type { FallowAnalysisService } from '../application/analysis/fallow-analysis-service';
+import type { InvestigationNotesPort } from '../application/ports/investigation-notes-port';
+import type { SourcePreview } from '../application/investigation/source-preview';
 
 /** Task 8: what a CityView needs to run a scan, beyond the plain `Plugin` reference. All
  *  of them are plugin-level singletons (main.ts constructs one of each and passes the same
@@ -35,6 +37,10 @@ export interface CityViewDeps {
   evidenceStore: EvidenceRepository;
   /** Part 7 Z28: the plugin's ONE fallow analysis service, shared by every leaf. */
   fallowAnalysis: FallowAnalysisService;
+  /** WP-04 IN33 (IP12): the plugin's ONE notes port; it reads the vault only on first use. */
+  investigationNotes: InvestigationNotesPort;
+  /** WP-04 IN7 (IP14): the plugin's ONE source preview; it reads only from the store's readPreview. */
+  sourcePreview: SourcePreview;
 }
 
 /** What the controller reads from, and reports to, the CityView that owns it. */

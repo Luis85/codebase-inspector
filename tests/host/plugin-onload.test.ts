@@ -28,7 +28,9 @@ function makeApp() {
       on: vi.fn(() => ({})),
       offref: vi.fn(),
     },
-    vault: { adapter: { read: vi.fn(), list: vi.fn() } },
+    // WP-04 IP12: the notes port's events and its first read, which onload must never reach.
+    vault: { adapter: { read: vi.fn(), list: vi.fn() }, on: vi.fn(() => ({})), getMarkdownFiles: vi.fn(() => []) },
+    metadataCache: { on: vi.fn(() => ({})), getFileCache: vi.fn(() => null) },
     loadLocalStorage: vi.fn((key: string) => (localStorage.has(key) ? localStorage.get(key) : null)),
     saveLocalStorage: vi.fn((key: string, data: unknown) => { localStorage.set(key, data); }),
   };
@@ -42,6 +44,7 @@ type PluginDouble = CodebaseInspectorPlugin & {
   addSettingTab: ReturnType<typeof vi.fn>;
   loadData: ReturnType<typeof vi.fn>;
   saveData: ReturnType<typeof vi.fn>;
+  registerEvent: ReturnType<typeof vi.fn>;
 };
 
 function makePluginDouble(): PluginDouble {
@@ -59,6 +62,7 @@ function makePluginDouble(): PluginDouble {
     addSettingTab: vi.fn(),
     loadData: vi.fn(async () => null),
     saveData: vi.fn(async () => {}),
+    registerEvent: vi.fn(),
   }) as unknown as PluginDouble;
 }
 
@@ -99,6 +103,15 @@ describe('onload', () => {
     p.onload();
     expect(p.app.vault.adapter.read).not.toHaveBeenCalled();
     expect(p.app.vault.adapter.list).not.toHaveBeenCalled();
+  });
+
+  it('WP-04 IP12: registers no vault or metadata-cache listener and reads no note during onload', () => {
+    const p = makePluginDouble();
+    p.onload();
+    expect(p.registerEvent).not.toHaveBeenCalled();
+    expect(p.app.vault.on).not.toHaveBeenCalled();
+    expect(p.app.metadataCache.on).not.toHaveBeenCalled();
+    expect(p.app.vault.getMarkdownFiles).not.toHaveBeenCalled();
   });
 
   it('defers startup work to onLayoutReady', () => {
