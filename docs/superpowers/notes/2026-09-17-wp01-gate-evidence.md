@@ -612,6 +612,18 @@ No new test file. `npm run test` (267 files, 2959 tests, 2958 passed, 1 skipped)
 two layer re-runs below refreshed the Unit and Component rows, the totals and the
 heading; no other layer's files changed, so their rows stand as task 15 took them.
 
+Refreshed once more by the final whole-branch review's fix wave (2026-09-25, following
+the same rule): Minor 1 (the cycles card's caption) and Minor 7 (`ARCH_RULES_NONE_REASON`)
+added no test, only changed what existing ones expect; Minor 4 (the Report/Markdown split)
+added ONE test, inside `tests/unit/report-model.test.ts`; Minor 5 replaced a vacuous
+assertion inside an existing `tests/component/city-relations-panel.test.ts` test, adding
+no case; Important 1 extended an existing `tests/component/architecture-cycles.test.ts`
+case. No new test file. `npm run test` (267 files, 2960 tests, 2959 passed, 1 skipped) and
+`npx vitest run tests/unit` (135 files, 1734 tests) refreshed the Unit row and the
+heading; `npx vitest run tests/component` (92 files, 902 tests, unchanged) confirmed the
+Component row needed no change. No other layer's files changed, so their rows stand as
+task 15 took them.
+
 The per-layer total below is **269**, which is not what `npm run test` itself runs: it is
 267 files plus the opt-in `tests/fallow-real` layer's two files, which never run inside it
 (see the Real fallow row below, and its own eleven-test run in the WP-03 Part 1 section
@@ -625,7 +637,7 @@ throwaway vault trees under `os.tmpdir()` and do not depend on this worktree hav
 `.obsidian/` folder of its own, so the environmental failure recorded through Part 6 did
 not reproduce here — the disk/live result is recorded rather than that prediction
 (corrected during execution, Part 7 task 14).
-**269 files, 2959 tests, 2958 passed,
+**269 files, 2960 tests, 2959 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -655,7 +667,7 @@ above whenever tests are added.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 135 | yes | 1733 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard. WP-03 Part 1 adds the relation domain/normaliser/model/architecture-model suites and `relation-copy-claims.test.ts` (spec §5's "no calls/executes/will break" and "no backlink" sweeps). The WP-03 Part 1 polish pass adds PO1/PO2 and the JP5 gating cases inside `architecture-relations.test.ts`, no new file |
+| Unit | `tests/unit/**` | 135 | yes | 1734 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard. WP-03 Part 1 adds the relation domain/normaliser/model/architecture-model suites and `relation-copy-claims.test.ts` (spec §5's "no calls/executes/will break" and "no backlink" sweeps). The WP-03 Part 1 polish pass adds PO1/PO2 and the JP5 gating cases inside `architecture-relations.test.ts`, no new file. The final whole-branch review's fix wave adds Minor 4's Report/Markdown split case inside `report-model.test.ts`, no new file |
 | Contract | `tests/contracts/**` | 5 | yes | 62 | **one suite, two implementations** (40) — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift — plus this directory's other three pinned files, `height-scale.test.ts` (task 13's four preserved scale.ts properties), `microcopy.test.ts` (task 12's catalogue-completeness sweep) and `fallow-runner.test.ts` (Part 7 K28: the real adapter against a real spawned process, injected `node:child_process`, Z38) |
 | Integration (real temp dirs) | `tests/integration/**` | 9 | yes | 39 | 38 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase, the fallow-analysis no-freeze suite |
 | Component (jsdom) | `tests/component/**` | 92 | yes | 902 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite. The WP-03 Part 1 polish pass adds cases inside `architecture-screen.test.ts`, `architecture-rules.test.ts`, `architecture-edges.test.ts`, `architecture-cycles.test.ts` and `city-relations-panel.test.ts`, no new file |
@@ -856,10 +868,11 @@ check these against the suite and against the matrix itself:
 - The `npm run analyze` **total of 9**. Its internal breakdown is checked, but the figure
   itself needs the tool, which is not part of `npm run verify` and needs network.
 - The **living suite's own totals**, now the same figures as the G8 heading itself since
-  the WP-03 Part 1 refresh closed the two-vintage gap (269 files, 2959 tests, 2958
-  passed, 1 skipped). Nothing in the suite can assert its own whole-run tally from
-  inside itself, for the same reason the per-layer test counts are transcribed rather
-  than derived. Re-take with `npx vitest run --reporter=dot`.
+  the WP-03 Part 1 refresh closed the two-vintage gap, refreshed again by the final
+  whole-branch review's fix wave (269 files, 2960 tests, 2959 passed, 1 skipped).
+  Nothing in the suite can assert its own whole-run tally from inside itself, for the
+  same reason the per-layer test counts are transcribed rather than derived. Re-take
+  with `npx vitest run --reporter=dot`.
 
 **NEITHER — prose.** Version numbers, spec section numbers, ruling numbers, COPY ids,
 defect numbers, dates and checkpoint numbers are identifiers, not counts. They are not
@@ -1097,9 +1110,11 @@ change.
   unchanged (commit `25c0840`).
 - **The arrow wrap.** `.ci-city-relations__path` gained `flex: 1 1 0; min-width: 0;`
   (`src/ui/styles/screens-explore.css`) so the direction glyph (`→`/`←`) stays on the same
-  line as the path it marks; only the longer continuation and the source label wrap below
-  it. Confirmed by reading `harness-shots/wp03-city-relations-dark.png` (not committed —
-  `harness-shots/` is git-ignored) (commit `25c0840`).
+  line as the path it marks. Polish final review #6a: the source label sits to the right
+  of the glyph and path on that same first line, not below it — it is the path alone that
+  wraps, inside its own column (`overflow-wrap: anywhere`), when it runs long. Confirmed by
+  reading `harness-shots/wp03-city-relations-dark.png` (not committed — `harness-shots/` is
+  git-ignored) (commit `25c0840`).
 
 ### The Task 13 deferred minor — benchmark mutation runs
 
@@ -1113,13 +1128,18 @@ restoring the file exactly with Edit — confirmed each time and at the end by a
 `git diff --stat -- src`.
 
 **`EDGE_LIST_LIMIT`** (`src/ui/screens/architecture/use-architecture-selection.ts`, 200).
-A first mutation to 300 (still below `TOTAL_EDGES` = 2,000) **survived** — the test's own
-`expect(rows).toHaveLength(EDGE_LIST_LIMIT)` reads the same live constant it is checking,
-so any value under 2,000 is self-consistently satisfied and the assertion is not, on its
-own, proof that a limit is enforced. Strengthened by mutating past the fixture's edge
-count instead (2,500 > `TOTAL_EDGES`), which exposes the real cap: the DOM cannot render
-more rows than there are filtered edges (2,000), so a limit set above the data no longer
-matches what is actually shown.
+A mutation to 300 (still below `TOTAL_EDGES` = 2,000) **survived** against
+`relations-budget.test.ts`'s own assertion — `expect(rows).toHaveLength(EDGE_LIST_LIMIT)`
+reads the same live constant it is checking, so any value under 2,000 is self-consistently
+satisfied and that assertion alone is not proof a limit is enforced. Polish final review
+#6b: that is not the open gap it looks like — `tests/component/architecture-edges.test.ts`'s
+own "shows at most 200 rows and says how many more are not shown" test pins the LITERAL 200
+against a fixed 250-edge fixture (`expect(rows(w)).toHaveLength(200)` plus
+`EDGE_LIST_HIDDEN(50)`, independent of the constant's own value), and that test fails under
+the very same 300 mutation (all 250 rows render, `EDGE_LIST_HIDDEN` never appears) — closing
+JP7's clause without touching `relations-budget.test.ts`. A mutation past
+`relations-budget.test.ts`'s own fixture size (2,500 > `TOTAL_EDGES`) fails ITS assertion too,
+since the DOM cannot render more rows than there are filtered edges (2,000):
 
 ```
 FAIL  |jsdom| tests/benchmarks/relations-budget.test.ts > relations budget — 5,000 files, 2,000 evidenced edges, 200 cycles (N33, N37) > the Edges tab stays navigable: EDGE_LIST_LIMIT rows, EDGE_LIST_HIDDEN(edges - 200)
@@ -1168,6 +1188,7 @@ npx vitest run tests/benchmarks/relations-budget.test.ts
       Tests  6 passed (6)
 ```
 
-No test file was edited to strengthen the `EDGE_LIST_LIMIT` case — the existing
-assertion was proved sufficient once mutated past the data size rather than within it; the
-brief's "or strengthen it" path was not needed.
+No test file was edited to strengthen the `EDGE_LIST_LIMIT` case — the literal-200 pin
+already in `architecture-edges.test.ts` closes JP7's clause under the in-range (300)
+mutation, and `relations-budget.test.ts`'s own assertion closes it independently under the
+past-fixture-size (2,500) mutation; the brief's "or strengthen it" path was not needed.
