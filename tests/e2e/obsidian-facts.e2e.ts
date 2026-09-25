@@ -11,8 +11,11 @@ import type { NativeBrowser } from './session';
 const READING_SELECTORS = ['a.internal-link', '.internal-embed', 'a.tag', 'mark', '.math', 'a.external-link', 'b'];
 /** Live-preview syntax categories, matched as substrings of the class names found under `.cm-content`. */
 const LIVE_PREVIEW_TOKENS: Record<string, string> = {
-  links: 'internal-link', embeds: 'embed', tags: 'hashtag', highlights: 'highlight', math: 'math', comments: 'comment',
+  links: 'internal-link', embeds: 'internal-embed', html: 'html-embed', tags: 'hashtag', highlights: 'highlight',
+  math: 'math', comments: 'comment',
 };
+/** E2: the end-of-paragraph block id both probe literals carry. */
+const PROBE_BLOCK_ID = 'probe-id';
 
 function renderReading(browser: NativeBrowser, markdown: string) {
   return browser.executeObsidian(async ({ app, obsidian }, md, selectors) => {
@@ -24,8 +27,12 @@ function renderReading(browser: NativeBrowser, markdown: string) {
       const counts: Record<string, number> = {};
       for (const selector of selectors) counts[selector] = el.querySelectorAll(selector).length;
       const text = el.textContent ?? '';
-      // "block" contains a c, so the comment's text counts only as a c standing alone or between %% markers.
-      return { counts, text, commentTextVisible: /(?:^|[^a-z])c(?:[^a-z]|$)/iu.test(text), html: el.innerHTML };
+      const html = el.innerHTML;
+      // The unresolved embed's placeholder is Obsidian's own, locale-dependent text: drop it before looking for
+      // the comment's c. "block" contains a c, so only a c standing alone or between %% markers counts.
+      for (const embed of Array.from(el.querySelectorAll('.internal-embed'))) embed.remove();
+      const commentScope = el.textContent ?? '';
+      return { counts, text, commentScope, commentTextVisible: /(?:^|[^a-z])c(?:[^a-z]|$)/iu.test(commentScope), html };
     } finally {
       component.unload();
     }
@@ -40,14 +47,15 @@ async function renderLivePreview(browser: NativeBrowser, path: string, markdown:
   const read = () => browser.executeObsidian(({ app, obsidian }, target) => {
     const view = app.workspace.getLeavesOfType('markdown').map((leaf) => leaf.view)
       .find((candidate) => candidate instanceof obsidian.MarkdownView && candidate.file?.path === target);
-    if (!(view instanceof obsidian.MarkdownView)) return null;
+    if (!(view instanceof obsidian.MarkdownView) || !view.file) return null;
     const content = view.containerEl.querySelector('.cm-content');
-    if (!content || !(content.textContent ?? '').includes('block')) return null;
+    const cache = app.metadataCache.getFileCache(view.file);
+    if (!content || !cache || !(content.textContent ?? '').includes('block')) return null;
     const classes = new Set<string>();
     for (const node of Array.from(content.querySelectorAll('*'))) for (const name of Array.from(node.classList)) classes.add(name);
     return {
       mode: view.getMode(), source: view.getState().source, livePreview: view.containerEl.querySelector('.is-live-preview') !== null,
-      classes: Array.from(classes).sort(), text: content.textContent,
+      classes: Array.from(classes).sort(), text: content.textContent, blockIds: Object.keys(cache.blocks ?? {}),
     };
   }, path);
   await expect.poll(read).not.toBeNull();
@@ -100,6 +108,9 @@ describe('Obsidian facts the investigation notes rely on', () => {
       expect.soft(livePreview.control.tokens[category], `control ${category}`).not.toEqual([]);
       expect.soft(livePreview.escaped.tokens[category], `escaped ${category}`).toEqual([]);
     }
+    // E2: Obsidian registers the control's trailing block id in its metadata cache, and not the escaped one.
+    expect(livePreview.control.blockIds, 'control block id').toContain(PROBE_BLOCK_ID);
+    expect(livePreview.escaped.blockIds, 'escaped block id').not.toContain(PROBE_BLOCK_ID);
   });
 
   test('the metadata cache reports notes changed by process and processFrontMatter', async ({ native: { browser, directory } }) => {

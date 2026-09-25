@@ -40,7 +40,10 @@ export const test = base.extend<{ native: NativeContext }>({
         }
       });
       await abortCleanup;
-      await writeEvidence(directory, 'teardown', { completed: true });
+      // The test's own outcome, so a failed case's evidence never reads as clean (Vitest settles it before fixture teardown).
+      await writeEvidence(directory, 'teardown', {
+        completed: true, testState: task.result?.state ?? 'unknown', errors: (task.result?.errors ?? []).map((error) => error.message),
+      });
     } catch (error) {
       await writeEvidence(directory, 'failure', error);
       throw error;

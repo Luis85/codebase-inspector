@@ -48,6 +48,7 @@ export class SessionLifecycle<T> {
     } catch (error) {
       this.stopped = true;
       try { await this.release(); }
+      // E1 (ratified): no `{ cause }` here, because AggregateError has no ErrorOptions without the ES2022 lib (IP49).
       // oxlint-disable-next-line preserve-caught-error -- both caught errors are kept in AggregateError.errors.
       catch (cleanupError) { throw new AggregateError([error, cleanupError], 'Native startup and cleanup failed.'); }
       throw error;

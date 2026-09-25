@@ -36,7 +36,7 @@ describe('executed native acceptance gate', () => {
     const first = report.testResults[0]?.assertionResults[0];
     if (!first) throw new Error('Missing test fixture.');
     first.status = status;
-    expect((await runGate(report)).status).toBe(1);
+    await expectRejected(report, 'Skipped, pending or failed native cases cannot satisfy acceptance.');
   });
 
   it('rejects a missing scenario even when a different passing case keeps the count unchanged', async () => {
@@ -44,20 +44,31 @@ describe('executed native acceptance gate', () => {
     const first = report.testResults[0]?.assertionResults[0];
     if (!first) throw new Error('Missing test fixture.');
     first.title = 'Unrelated passing test';
-    expect((await runGate(report)).status).toBe(1);
+    await expectRejected(report, `Required native case must run exactly once: ${required[0] ?? ''}`);
   });
 
   it('rejects duplicate required scenario execution', async () => {
     const report = successful();
     report.testResults[0]?.assertionResults.push({ title: required[0] ?? '', status: 'passed' });
-    expect((await runGate(report)).status).toBe(1);
+    await expectRejected(report, `Required native case must run exactly once: ${required[0] ?? ''}`);
   });
 
   it('rejects an overall failure despite all listed assertions passing', async () => {
-    expect((await runGate({ ...successful(), success: false })).status).toBe(1);
+    await expectRejected({ ...successful(), success: false }, 'Native Vitest did not report success.');
   });
 
-  it.each([undefined, {}, { success: true, testResults: [] }])('fails closed on absent or incomplete reports: %j', async report => {
-    expect((await runGate(report)).status).toBe(1);
+  it.each([
+    [undefined, 'No native Vitest report at reports/native/vitest-results.json.'],
+    [{}, 'The native Vitest report has no testResults.'],
+    [{ success: true, testResults: [] }, 'The native Vitest report lists no executed cases.'],
+  ])('fails closed on absent or incomplete reports: %j', async (report, message) => {
+    await expectRejected(report, message);
   });
 });
+
+/** Each rejection names its own guard, so a case cannot pass on another guard's (or a crash's) exit code. */
+async function expectRejected(report: unknown, message: string): Promise<void> {
+  const result = await runGate(report);
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain(message);
+}
