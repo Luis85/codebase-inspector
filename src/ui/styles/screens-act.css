@@ -2,7 +2,7 @@
 
 /* WP-04 Task 11: the Investigate screen — list, filters, evidence and uncertainty panels. */
 :where(.codebase-inspector-root) .ci-investigate__layout { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1fr) minmax(20em, 30em); align-items: start; }
-@container (max-width: 820px) {
+@container (max-width: 819px) {
   :where(.codebase-inspector-root) .ci-investigate__layout { grid-template-columns: minmax(0, 1fr); }
 }
 :where(.codebase-inspector-root) .ci-investigate__detail { display: flex; flex-direction: column; gap: var(--ci-space-4); }

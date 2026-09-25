@@ -10,7 +10,7 @@ import type { InvestigationRow } from '../../read-models/investigation';
 import { FINDINGS_PAGE, severityTone } from '../../read-models/findings';
 import { useRovingIndex } from '../../kit/use-roving-index';
 import { FINDING_KIND_LABEL, FINDING_LINE_TEXT, FINDING_STATUS_LABEL, SEVERITY_TEXT, SHOW_MORE } from '../../inspector-copy';
-import { INVESTIGATE_LIST_LABEL, INVESTIGATE_NOTES_CHIP } from '../../audit-copy/investigation';
+import { INVESTIGATE_LIST_LABEL, INVESTIGATE_NOTES_CHIP, INVESTIGATE_ROW_LOCATION } from '../../audit-copy/investigation';
 
 const props = defineProps<{ rows: readonly InvestigationRow[]; limit: number; selected: string | null }>();
 const emit = defineEmits<{ select: [fingerprint: string]; more: [] }>();
@@ -62,7 +62,7 @@ function onRow(i: number): void {
           >{{ SEVERITY_TEXT(row.severity) }}</span>
           <span class="ci-investigate-row__kind">{{ FINDING_KIND_LABEL[row.kind] }}</span>
           <span class="ci-investigate-row__title">{{ row.title }}</span>
-          <span class="ci-investigate-row__location">{{ row.anchorPath }} · {{ FINDING_LINE_TEXT(row.line, row.endLine) }}</span>
+          <span class="ci-investigate-row__location">{{ INVESTIGATE_ROW_LOCATION(row.anchorPath, FINDING_LINE_TEXT(row.line, row.endLine)) }}</span>
           <span
             class="ci-chip"
             :class="`ci-chip--status-${row.status}`"

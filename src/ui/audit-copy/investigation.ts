@@ -203,3 +203,10 @@ export const INVESTIGATE_ROW_STATE = 'Evidence state';
 export const INVESTIGATE_ROW_DISPOSITION = 'Disposition';
 export const INVESTIGATE_ROW_WORK_ITEMS = 'Work items';
 export const INVESTIGATE_ORIGIN_TEXT: Readonly<Record<EvidenceOrigin, string>> = { imported: 'Imported report', collected: 'Collected run' };
+/** Fix round 1 (review item 6): the Provider row's own text, never a template literal
+ *  composed in the component. */
+export const INVESTIGATE_PROVIDER_TEXT = (provider: string, version: string): string => (version ? `${provider} ${version}` : provider);
+/** Fix round 1 (review item 6): one work item's line under the evidence panel's Work items row. */
+export const INVESTIGATE_WORK_ITEM_LINE = (title: string, statusLabel: string): string => `${title} — ${statusLabel}`;
+/** Fix round 1 (review item 6): a finding row's own path-and-line text. */
+export const INVESTIGATE_ROW_LOCATION = (path: string, line: string): string => `${path} · ${line}`;

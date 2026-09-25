@@ -10,11 +10,13 @@ import { useInvestigationStore } from '../../src/ui/stores/investigation-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { uncertaintiesFor, checklistFor, evidenceBundleFor } from '../../src/ui/read-models/investigation-evidence';
+import { cyclePathText } from '../../src/ui/read-models/relations';
 import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { formatAbsoluteTime } from '../../src/ui/copy';
 import {
-  FINDING_DIALOG_RULE_VALUE, FINDING_OPEN_FILE, FINDING_IN_PLAN, FINDING_ADD_WORK_ITEM, RELATIONS_SCOPE_NOTE, RULE_TEXT, SEVERITY_TEXT,
-  UNCERTAINTY_LINE_NOT_CHECKED, UNCERTAINTY_REPORT_STALE, INVESTIGATE_WORK_TITLE, INVESTIGATE_WORK_NOTES, FINDING_KIND_LABEL,
-  FINDING_LINE_TEXT,
+  FINDING_DIALOG_RULE_VALUE, FINDING_OPEN_FILE, FINDING_IN_PLAN, FINDING_ADD_WORK_ITEM, FINDING_RELATED_LABEL, FINDING_LINE_TEXT,
+  RELATIONS_SCOPE_NOTE, RULE_TEXT, SEVERITY_TEXT, UNCERTAINTY_LINE_NOT_CHECKED, UNCERTAINTY_REPORT_STALE, INVESTIGATE_ORIGIN_TEXT,
+  INVESTIGATE_WORK_TITLE, INVESTIGATE_WORK_NOTES, FINDING_KIND_LABEL, NOTE_EVIDENCE_STATE_TEXT,
 } from '../../src/ui/inspector-copy';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { FindingCategory } from '../../src/application/evidence/model';
@@ -71,10 +73,12 @@ describe('Evidence panel (WP-04 IN14)', () => {
     expect(text).toContain(FINDING_DIALOG_RULE_VALUE(row.rule, row.detail));
     expect(text).toContain(SEVERITY_TEXT(row.severity));
     expect(text).toContain(row.anchorPath);
+    expect(text).toContain(FINDING_LINE_TEXT(row.line, row.endLine));
     expect(text).toContain('fallow 3.27.0');
-    expect(text).toContain('Imported report');
+    expect(text).toContain(INVESTIGATE_ORIGIN_TEXT.imported);
+    expect(text).toContain(formatAbsoluteTime(bundle.analysedAt, Intl));
     expect(text).toContain(bundle.snapshotId);
-    expect(text).toContain('Collected');
+    expect(text).toContain(NOTE_EVIDENCE_STATE_TEXT.current);
     expect(text).toContain('confirmed used dynamically');
     expect(text).toContain('Refactor plan');
     w.unmount();
@@ -82,11 +86,17 @@ describe('Evidence panel (WP-04 IN14)', () => {
 
   it('for a relations finding, shows Also involves, the cycle path and RELATIONS_SCOPE_NOTE', async () => {
     await withReport(12);
-    await select('cycle');
+    const row = await select('cycle');
     const w = mountScreen();
     await nextTick();
     expect(w.text()).toContain(RELATIONS_SCOPE_NOTE);
-    expect(w.find('.ci-finding-dialog__related').exists()).toBe(true);
+    const related = w.find('.ci-finding-dialog__related');
+    expect(related.exists()).toBe(true);
+    expect(related.text()).toContain(FINDING_RELATED_LABEL);
+    for (const path of row.related) expect(related.text()).toContain(path);
+    const cyclePath = row.detail.kind === 'cycle' && row.detail.cycleKind === 'import' ? cyclePathText(row.detail.hops) : '';
+    expect(cyclePath, 'this synthetic cycle finding has hops to assert a path from').not.toBe('');
+    expect(related.find('.ci-finding-dialog__cycle-path').text()).toBe(cyclePath);
     w.unmount();
   });
 

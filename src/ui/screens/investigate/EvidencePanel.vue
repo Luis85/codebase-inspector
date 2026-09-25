@@ -18,8 +18,9 @@ import {
   FINDING_OPEN_FILE, FINDING_STATUS_LABEL, FINDING_DIALOG_TITLE, RELATIONS_SCOPE_NOTE, WORK_ITEM_STATUS_LABEL,
 } from '../../inspector-copy';
 import {
-  INVESTIGATE_EVIDENCE_TITLE, INVESTIGATE_ORIGIN_TEXT, INVESTIGATE_ROW_ANALYSED, INVESTIGATE_ROW_DISPOSITION, INVESTIGATE_ROW_ORIGIN,
-  INVESTIGATE_ROW_SNAPSHOT, INVESTIGATE_ROW_STATE, INVESTIGATE_ROW_WORK_ITEMS, NOTE_EVIDENCE_STATE_TEXT, NOTE_VOCABULARY,
+  INVESTIGATE_EVIDENCE_TITLE, INVESTIGATE_ORIGIN_TEXT, INVESTIGATE_PROVIDER_TEXT, INVESTIGATE_ROW_ANALYSED, INVESTIGATE_ROW_DISPOSITION,
+  INVESTIGATE_ROW_ORIGIN, INVESTIGATE_ROW_SNAPSHOT, INVESTIGATE_ROW_STATE, INVESTIGATE_ROW_WORK_ITEMS, INVESTIGATE_WORK_ITEM_LINE,
+  NOTE_EVIDENCE_STATE_TEXT, NOTE_VOCABULARY,
 } from '../../audit-copy/investigation';
 import Panel from '../../kit/Panel.vue';
 import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
@@ -33,10 +34,7 @@ const { investigation } = useReadModels();
 const review = useReviewStore();
 
 const isStructure = computed(() => STRUCTURE_CATEGORIES.includes(props.row.kind));
-const providerText = computed(() => {
-  const version = investigation.value.evidence.report?.providerVersion ?? '';
-  return version ? `${props.bundle.provider} ${version}` : props.bundle.provider;
-});
+const providerText = computed(() => INVESTIGATE_PROVIDER_TEXT(props.bundle.provider, investigation.value.evidence.report?.providerVersion ?? ''));
 const workItems = computed(() => review.workItemsForFile(props.row.file.id));
 const workBlocked = computed(() => review.hasWorkItemFor(props.row.file.id));
 
@@ -93,7 +91,7 @@ function guardedAddWorkItem(): void {
               v-for="item in workItems"
               :key="item.id"
             >
-              {{ item.title }} — {{ WORK_ITEM_STATUS_LABEL[item.status] }}
+              {{ INVESTIGATE_WORK_ITEM_LINE(item.title, WORK_ITEM_STATUS_LABEL[item.status]) }}
             </li>
           </ul>
         </dd>

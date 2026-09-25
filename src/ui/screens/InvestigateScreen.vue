@@ -74,20 +74,29 @@ watch(() => {
   void reannounce(liveMessage, INVESTIGATE_FINDING_GONE);
 }, { immediate: true });
 
-/** IN4/IP19: an entry point that selects a finding the current filters hide resets the
- *  filter so the row is listed. IPF7: it also pages, so the row's page is shown. */
+/** IN4/IP19/IPF7: an entry point that selects a finding resets the filter when it hides
+ *  the row, and ALWAYS pages so the row's page is shown, whether or not a reset was
+ *  needed — the early return below skips only the filter reset, never the paging.
+ *  `immediate`: a real entry point sets the fingerprint before this screen mounts, so the
+ *  first run must not wait for a later change. `shown` is otherwise only reset by the
+ *  filter UI itself (updateFilter/resetFilters below), never by a bare `watch(filter,
+ *  …)` — that would also fire on THIS watcher's own reset and erase the page it just set,
+ *  in the same flush. */
 watch(() => investigationStore.selectedFingerprint, (fp) => {
-  if (fp === null || rows.value.some((r) => r.fingerprint === fp)) return;
-  if (!model.value.byFingerprint.has(fp)) return;
-  filter.value = { ...DEFAULT_INVESTIGATION_FILTER };
+  if (fp === null || !model.value.byFingerprint.has(fp)) return;
+  if (!rows.value.some((r) => r.fingerprint === fp)) filter.value = { ...DEFAULT_INVESTIGATION_FILTER };
   const i = rows.value.findIndex((r) => r.fingerprint === fp);
   if (i >= 0 && i >= shown.value) shown.value = Math.ceil((i + 1) / FINDINGS_PAGE) * FINDINGS_PAGE;
-});
+}, { immediate: true });
 
-watch(filter, () => { shown.value = FINDINGS_PAGE; });
+function updateFilter(next: InvestigationFilter): void {
+  filter.value = next;
+  shown.value = FINDINGS_PAGE;
+}
 
 function resetFilters(): void {
   filter.value = { ...DEFAULT_INVESTIGATION_FILTER };
+  shown.value = FINDINGS_PAGE;
 }
 
 function select(fingerprint: string): void {
@@ -159,9 +168,10 @@ async function workItemDone(message: string): Promise<void> {
           :subtitle="listCounts"
         >
           <InvestigationFilters
-            v-model:filter="filter"
+            :filter="filter"
             :rules="model.rules"
             :severities="model.severities"
+            @update:filter="updateFilter"
             @reset="resetFilters"
           />
           <InvestigationList

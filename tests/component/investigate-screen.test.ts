@@ -111,14 +111,16 @@ describe('Investigate keyboard model (WP-04 IP18): roving focus, never select-on
     w.unmount();
   });
 
-  it('clicking a row selects it directly', async () => {
+  it('clicking a row selects it directly, without touching the city selection (IP20)', async () => {
     await withReport(5);
     const w = mountScreen();
     await nextTick();
+    const citySelectionBefore = useCityStore().selectedEntityId;
     const target = rowEls(w)[2]!;
     await target.trigger('click');
     expect(useInvestigationStore().selectedFingerprint).toBe(fp(target));
     expect(target.attributes('aria-current')).toBe('true');
+    expect(useCityStore().selectedEntityId, 'IP20: selecting a finding never selects the city entity').toBe(citySelectionBefore);
     w.unmount();
   });
 });
@@ -146,12 +148,14 @@ describe('Investigate filters (WP-04 IN2/IP19)', () => {
     const rule = investigation.value.rules[0]!;
     await w.find('.ci-investigate-filters__rule').setValue(rule);
     await nextTick();
+    expect(rowEls(w).length, 'E27: a non-empty check before .every').toBeGreaterThan(0);
     expect(rowEls(w).every((r) => investigation.value.byFingerprint.get(fp(r))?.rule === rule)).toBe(true);
     await w.find('.ci-investigate-filters__reset').trigger('click');
 
     const severity = investigation.value.severities[0]!;
     await w.find('.ci-investigate-filters__severity').setValue(severity);
     await nextTick();
+    expect(rowEls(w).length, 'E27: a non-empty check before .every').toBeGreaterThan(0);
     expect(rowEls(w).every((r) => investigation.value.byFingerprint.get(fp(r))?.severity === severity)).toBe(true);
     await w.find('.ci-investigate-filters__reset').trigger('click');
 
@@ -201,6 +205,61 @@ describe('Investigate filters (WP-04 IN2/IP19)', () => {
     expect((w.find('.ci-investigate-filters__status').element as HTMLSelectElement).value).toBe('all');
     const targetRow = rowEls(w).find((r) => fp(r) === target.fingerprint);
     expect(targetRow, 'the row is listed').toBeTruthy();
+    expect(targetRow!.attributes('aria-current')).toBe('true');
+    w.unmount();
+  });
+});
+
+describe('IPF7: an entry point also pages, not only resets the filter', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+
+  it('opening a row past FINDINGS_PAGE while mounted shows it, aria-current, past the first page', async () => {
+    await withReport(150);
+    const { investigation } = useReadModels();
+    expect(investigation.value.rows.length, 'a fixture rich enough to reach row 130').toBeGreaterThan(130);
+    const target = investigation.value.rows[130]!;
+    const w = mountScreen();
+    await nextTick();
+    expect(rowEls(w).some((r) => fp(r) === target.fingerprint), 'not on the first page yet').toBe(false);
+
+    useInvestigationStore().open(target.fingerprint);
+    await nextTick();
+    const targetRow = rowEls(w).find((r) => fp(r) === target.fingerprint);
+    expect(targetRow, 'row 130 is now shown').toBeTruthy();
+    expect(targetRow!.attributes('aria-current')).toBe('true');
+    w.unmount();
+  });
+
+  it('a fingerprint opened before the screen mounts is still paged into view (immediate)', async () => {
+    await withReport(150);
+    const { investigation } = useReadModels();
+    const target = investigation.value.rows[130]!;
+    useInvestigationStore().open(target.fingerprint);
+    const w = mountScreen();
+    await nextTick();
+    const targetRow = rowEls(w).find((r) => fp(r) === target.fingerprint);
+    expect(targetRow, 'row 130 is shown on mount, without waiting for a later change').toBeTruthy();
+    expect(targetRow!.attributes('aria-current')).toBe('true');
+    w.unmount();
+  });
+
+  it('an entry to a hidden row past the first page both resets the filter and pages', async () => {
+    await withReport(150);
+    const w = mountScreen();
+    await nextTick();
+    const { investigation } = useReadModels();
+    const target = investigation.value.rows[130]!;
+    await useReviewStore().acknowledge(target.fingerprint, new Date('2026-09-25T00:00:00Z'));
+    await nextTick();
+    await w.find('.ci-investigate-filters__status').setValue('open');
+    await nextTick();
+    expect(rowEls(w).some((r) => fp(r) === target.fingerprint), 'hidden by the open-only filter').toBe(false);
+
+    useInvestigationStore().open(target.fingerprint);
+    await nextTick();
+    expect((w.find('.ci-investigate-filters__status').element as HTMLSelectElement).value, 'the filter reset').toBe('all');
+    const targetRow = rowEls(w).find((r) => fp(r) === target.fingerprint);
+    expect(targetRow, 'and the row is paged into view').toBeTruthy();
     expect(targetRow!.attributes('aria-current')).toBe('true');
     w.unmount();
   });
