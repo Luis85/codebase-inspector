@@ -133,6 +133,15 @@ function applyFrontMatter(text: string, fn: (frontmatter: unknown) => void): str
 
 interface FileRecord { file: TFile; text: string }
 
+// Task 9: the host reads `TFolder.children` for case-only collisions (IP9), so a renamed or
+// deleted file must leave its old folder's child list, as it does in the real vault.
+function detach(file: TFile): void {
+  const siblings = file.parent?.children;
+  if (!siblings) return;
+  const at = siblings.indexOf(file);
+  if (at !== -1) siblings.splice(at, 1);
+}
+
 export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
   const caseInsensitive = options.caseInsensitive ?? true;
   const configDir = options.configDir ?? '.obsidian';
@@ -258,6 +267,9 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
     adapter,
     configDir,
     getAbstractFileByPath: (path: string): TAbstractFile | null => files.get(path)?.file ?? folderObjects.get(path) ?? null,
+    // Task 9: the host walks folders from the root (IP9) and reads notes by exact path.
+    getRoot: (): TFolder => rootFolder,
+    getFileByPath: (path: string): TFile | null => files.get(path)?.file ?? null,
     getMarkdownFiles: (): TFile[] => {
       calls.getMarkdownFiles += 1;
       return Array.from(files.values()).filter((r) => r.file.extension === 'md').map((r) => r.file);
@@ -307,11 +319,13 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
         throw new Error(`fake vault: userRename destination already exists: ${newPath}`);
       }
       files.delete(oldPath);
+      detach(record.file);
       const { parent, name } = splitPath(newPath);
       const { basename, extension } = splitExtension(name);
       record.file.path = newPath; record.file.name = name;
       record.file.basename = basename; record.file.extension = extension;
       record.file.parent = resolveFolder(parent);
+      record.file.parent?.children.push(record.file);
       files.set(newPath, record);
       vaultEvents.trigger('rename', record.file, oldPath);
       fireChanged(record.file, record.text);
@@ -320,6 +334,7 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
       const record = files.get(path);
       if (!record) throw new Error(`fake vault: no file at ${path}`);
       files.delete(path);
+      detach(record.file);
       vaultEvents.trigger('delete', record.file);
     },
     resolve() { metaEvents.trigger('resolved'); },
