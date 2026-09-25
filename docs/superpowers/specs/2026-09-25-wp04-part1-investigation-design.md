@@ -23,6 +23,7 @@ Part 1 delivers the deliverable's whole task table, 04.1–04.7 (O1):
 | 04.5 | Create/open investigation; collision-safe filenames | IN26–IN30 |
 | 04.6 | Human-section-preserving refresh and note-link reconciliation | IN31–IN36 |
 | 04.7 | End-to-end finding → note → evidence tests | IN37–IN40 |
+| Task 0 | Native Obsidian acceptance harness, ported from `Luis85/describe` (O8) | IN42–IN51 |
 
 **Out of Part 1:** clone-group inspection and symbol tracing (the deliverable's optional items, O1), an external-editor action (O5), automatic status sync (O6), and every deliverable non-goal (automatic deletion, "safe to delete" percentages, auto-fix, ticket sync, replacing a backlog plugin). Also out, as the brief says: M80/F14, M95, the spec §7 root-unavailable producer, Y19, Z38, the WP-03 follow-ups, and the owner's manual Part 7 check.
 
@@ -39,6 +40,7 @@ The plan's planning rulings (IP1…, in the ledger) refine these decisions where
 | O5 | **No external-editor action** in Part 1. Source actions are the read-only preview and, for a Markdown file inside the vault, Open in Obsidian. |
 | O6 | **Independent status.** The note's `status` is the user's own; the workbench shows it next to the review disposition and the file's work items, and offers Add work item pre-filled from the finding. Nothing syncs automatically. |
 | O7 | **Notes may be written inside the codebase root**, after an explicit checkbox that also adds the folder to the scan exclusions (IN29). The README and the two storage disclosures are reworded to say so (IN41). |
+| O8 | **Native Obsidian e2e testing, adopted from `github.com/Luis85/describe`** (MIT, same author) as **WP-04 Task 0**, so acceptance can run in a real Obsidian: Vitest drives an installed Obsidian through standalone WebdriverIO and `wdio-obsidian-service` (IN42–IN51). The in-memory path (IN37, IN38) stays; the native layer adds to it and is the owner's fallback if a native session cannot start on this machine (IN50). |
 
 ## 3. Architecture
 
@@ -47,6 +49,7 @@ The plan's planning rulings (IP1…, in the ledger) refine these decisions where
 - **The source preview** is an application service over the existing `SourceFileSystemPort` (`stat`, `readText(abs, maxBytes)`), wired by the host with the Node adapter.
 - **UI**: a new route `investigate`, `src/ui/screens/InvestigateScreen.vue` and `src/ui/screens/investigate/*`, a read model `src/ui/read-models/investigation.ts`, a per-leaf session store `src/ui/stores/investigation-store.ts`, the city panel `src/ui/screens/city/CityFindingsPanel.vue`, and copy in `src/ui/audit-copy/investigation.ts` (re-exported through `inspector-copy.ts`). Ports reach the UI through `src/host/data-ports.ts`, as `fallowAnalysis` does.
 - **Durable state:** one new `data.json` key, `investigations: { [profileId]: { folder: string } }` (IN18), owned by `src/adapters/storage/plugin-data-investigation-store.ts`. `CityViewState` gains nothing but the new `route` value.
+- **Tests** (O8): the fast Node/jsdom suite (`vitest.config.ts`) keeps every existing layer and the in-memory vault (IN37); a separate native layer (`tests/e2e/`, `tests/support/`, `scripts/native-tests.mjs`, `scripts/check-native-results.mjs`) runs the built plugin in a real Obsidian (IN42–IN51).
 - The plugin is `isDesktopOnly` (`manifest.json`). The preview's `unavailable` state for a missing filesystem adapter is kept as a defensive state and is reachable only in tests.
 
 ## 4. Decisions
@@ -116,16 +119,30 @@ The plan's planning rulings (IP1…, in the ledger) refine these decisions where
 
 - **IN41 — Texts that change (O7, IP31, IP32).** `SETTINGS_STORAGE_TEXT` (`audit-copy/settings.ts`) no longer says no vault note is created or changed; it says investigation notes are ordinary vault notes written only when you create or refresh one. `STORAGE_DISCLOSURE_TEXT` (`setting-definitions.ts`) names the notes-folder setting and says removing a codebase never deletes its notes. The README's "never writes … anything in the directory you select" gains the exception: an investigation note you create in a folder inside that directory. `FILE_SOURCE_PREVIEW_LATER` is reworded to point at Investigate (File detail itself still reads no content, P9).
 
+### Native acceptance (Task 0, O8)
+
+- **IN42 — The stack.** Vitest 5.0.1 drives a real installed Obsidian through standalone WebdriverIO: `wdio-obsidian-service` **3.2.1** and `webdriverio` **9.32.0** as exact devDependencies, with the `overrides` entry `"@puppeteer/browsers": "3.2.3"` (describe's fix for the vulnerable `extract-zip` in app and driver downloads). No Mocha, no WDIO test runner, no axe, no mobile emulation (the plugin is `isDesktopOnly`). The session's lifecycle uses the service's exported `launcher` and `ObsidianWorkerService` hooks — describe's version-pinned integration seam — never a deep import or a patch.
+- **IN43 — A separate project, never in `verify`.** A Node-only Vitest config, `tests/e2e/vitest.config.mts`, collects `tests/e2e/**/*.e2e.ts` only, with no `obsidian` alias (the fast suite's `tests/mocks/obsidian.ts` never reaches a native test). A separate tsconfig project, `tests/e2e/tsconfig.json`, types it (`node`, `webdriverio`, `wdio-obsidian-service`). `npm run test:e2e` builds the plugin (`npm run build` → `dist/{main.js,manifest.json,styles.css}`), runs that project, then runs the results gate (IN48). Like `npm run test:fallow`, it is opt-in and **never part of `npm run verify`**; the fast suite never collects `tests/e2e/`. The native files are still typechecked and linted by `verify` (they are code), but never run by it.
+- **IN44 — A fresh session per file.** Each test file gets its own session: the service copies the fixture vault `tests/e2e/vault/` and a fresh Obsidian profile into temporary directories (`copy: true`), and installs the plugin from `dist/`. Nothing is shared between files, and the fixture vault is never mutated in place.
+- **IN45 — Teardown guarantees.** One `SessionLifecycle` (`tests/support/session-lifecycle.ts`, ported verbatim) owns start, cancellation and teardown: a single memoised start; disconnect before directory cleanup; cleanup even when disconnect fails, both errors reported (`AggregateError`); a connection that completes after cancellation is still closed; `withSession()` keeps the body's error over an independent teardown error. Its unit tests, and two real-session cleanup tests (a body that throws; an initialisation that throws), prove the app, the driver and the copied directories are released.
+- **IN46 — Discipline.** Sequential (`maxWorkers: 1`, no file parallelism, no concurrent tests), isolated, **no retries**, and `expect.poll` for every UI or host-state wait, never a sleep. Explicit timeouts: 120 s per test, 180 s per hook, 10 s poll. A failure is reproduced with the recorded versions before any selector or assertion changes.
+- **IN47 — Reaching Obsidian.** Tests import one `test` fixture and use its `native` context (`browser`, `page`, an `inspector` UI helper, the evidence `directory`); there are no globals. Code runs inside Obsidian only through `browser.executeObsidian(({ app, obsidian }, …args) => …)` and commands through `browser.executeObsidianCommand(id)`; everything returned is serialisable.
+- **IN48 — Evidence and a fail-closed gate.** Every run writes `reports/native/` (Vitest JSON and JUnit, and per case `environment.json`, `screenshot.png`, `page.html`, `teardown.json` or `failure.json`, plus each probe's own evidence). The results gate fails unless the report says success, every case passed (no skipped, pending or todo) and every **required scenario** (IN51) ran exactly once; its own unit test proves it fails closed on each of those. `.obsidian-cache/` (the downloaded app and driver) and `reports/` are git-ignored.
+- **IN49 — Versions.** `OBSIDIAN_VERSION` defaults to the **baseline 1.13.4**: the earliest public Obsidian release that satisfies the manifest's `minAppVersion` 1.13.0, which itself was never a public release (`obsidianmd/obsidian-releases` lists 1.13.4, 1.13.6, 1.13.7, 1.13.8 on 2026-09-25). A unit test pins that the baseline is at least `minAppVersion`. `latest` is optional. The environment evidence records the requested and resolved app and installer versions, the platform and the commit. A version that cannot be downloaded fails the run; it is never silently downgraded, and `latest` is never treated as reproducible.
+- **IN50 — Windows first.** This machine is Windows 11, and describe only ever ran native tests on Linux. Task 0's first step therefore proves that a session starts here; if it cannot, Task 0 stops for a ruling, and the owner's fallback is the in-memory path already planned (IN37, IN38), with the native scenarios dropped from the required list. The first run downloads Obsidian and chromedriver into `.obsidian-cache/`.
+- **IN51 — The scenarios.** (a) **Smoke** — the plugin loads without errors, the city view opens on its default route, and (from Task 11) the Investigate route renders; (b) **Obsidian facts** — the §6 pre-flight row (a)–(e) as native tests in `tests/e2e/obsidian-facts.e2e.ts`, whose outcomes are recorded as IPF rulings before Task 1 and which stay as regression tests; (c) **cleanup** — the two real-session teardown tests (IN45); (d) **native spine** (Task 16) — in a real vault, create a note through the real UI, edit its human sections, refresh it, and check byte-identical human sections, value-identical frontmatter and that Obsidian's own metadata cache links the note. IN38's in-memory spine stays.
+
 ## 5. Acceptance (deliverable), item by item
 
-| Acceptance | Decisions | Test |
-|---|---|---|
-| A city finding opens the same evidence in the workbench | IN4, IN5 | component: city row → workbench evidence |
-| One well-formed note in the chosen folder, no source-project edit | IN20–IN29 | e2e spine; fs-diff test (a note inside the root is an explicit, confirmed exception, O7) |
-| Existing notes are not overwritten | IN27 | collision (exact, case-only) and race tests |
-| Filenames and messages cannot inject unsafe markup | IN21, IN24 | injection tests |
-| Human sections survive evidence refresh | IN31, IN32 | e2e refresh test |
-| Stale line → stale evidence, not an exact highlight | IN10 | stale-location unit and component tests |
+| Acceptance | Decisions | Test | Native (IN51) |
+|---|---|---|---|
+| A city finding opens the same evidence in the workbench | IN4, IN5 | component: city row → workbench evidence | — (component only) |
+| One well-formed note in the chosen folder, no source-project edit | IN20–IN29 | e2e spine; fs-diff test (a note inside the root is an explicit, confirmed exception, O7) | native spine: the note in the real vault, the codebase folder unchanged |
+| Existing notes are not overwritten | IN27 | collision (exact, case-only) and race tests | probe (a): `vault.create` rejects an existing path |
+| Filenames and messages cannot inject unsafe markup | IN21, IN24 | injection tests | probe (b): escaped text stays inert in reading and live-preview views |
+| Human sections survive evidence refresh | IN31, IN32 | e2e refresh test | native spine: byte-identical human sections, value-identical frontmatter after a real `vault.process` and `processFrontMatter` |
+| Stale line → stale evidence, not an exact highlight | IN10 | stale-location unit and component tests | — |
+| (the plugin itself) loads cleanly in Obsidian | — | — | smoke |
 
 ## 6. Probe table (external facts)
 
@@ -141,11 +158,11 @@ The plan's planning rulings (IP1…, in the ledger) refine these decisions where
 | `FileSystemAdapter.getBasePath()` is the vault base path | `src/host/modals/source-modal.ts:145–147` | IN12, IN29 |
 | `SourceFileSystemPort.readText(abs, maxBytes)` is bounded, binary-sniffing, fatal UTF-8; its failures carry a free-text reason | `src/adapters/filesystem/node-source-filesystem.ts` | IN7, IN9 |
 | The plugin is `isDesktopOnly`, `minAppVersion` 1.13.0 | `manifest.json` | §3 |
-| **Confirm at pre-flight (in real Obsidian 1.13 or its bundled parser):** (a) `vault.create` rejects when the path exists; (b) backslash escapes suppress wikilinks, embeds, tags, comments, highlights, block ids and math in reading and live-preview views; (c) `metadataCache` fires `changed` after `vault.process` and `processFrontMatter`; (d) how `stringifyYaml` quotes `yes`, `null`, `0012`, `a: b`; (e) whether `createFolder` creates parents | not stated in the typings | IN27, IN24, IN33, IN20, IN28. Each has a fallback in the plan: the pre-check (a), escaping plus code spans (b), the `resolved` rebuild (c), string-typed validation on read (d), segment-by-segment creation (e). |
+| **Confirm at pre-flight — now the native tests in `tests/e2e/obsidian-facts.e2e.ts` (IN51 b), run in Task 0 and kept as regression tests; each outcome is an IPF ruling before Task 1:** (a) `vault.create` rejects when the path exists; (b) backslash escapes suppress wikilinks, embeds, tags, comments, highlights, block ids and math in reading and live-preview views; (c) `metadataCache` fires `changed` after `vault.process` and `processFrontMatter`; (d) how `stringifyYaml` quotes `yes`, `null`, `0012`, `a: b`; (e) whether `createFolder` creates parents | not stated in the typings | IN27, IN24, IN33, IN20, IN28. Each has a fallback in the plan: the pre-check (a), escaping plus code spans (b), the `resolved` rebuild (c), string-typed validation on read (d), segment-by-segment creation (e). |
 
 ## 7. Constraints carried
 
-The WP-01 spec §4 frozen contracts (the only change is the `RouteId` value, an additive vocabulary entry guarded by `isRouteId`; three tests that pin route and nav counts are edited in place); the WP-02 Part 1–7 and WP-03 Part 1 specs; every ledger; the 400/450 line caps; the city-view budget (`city-view.ts`, `CityWorkspace.vue` ≤ 360; `CityViewport.vue` never edited) and layering; E40; copy in audit-copy; CRLF files edited only with Edit/Write; explicit timeouts for slow scans; `npm run analyze` at 9; the literal trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>".
+The WP-01 spec §4 frozen contracts (the only change is the `RouteId` value, an additive vocabulary entry guarded by `isRouteId`; three tests that pin route and nav counts are edited in place); the WP-02 Part 1–7 and WP-03 Part 1 specs; every ledger; the 400/450 line caps; the city-view budget (`city-view.ts`, `CityWorkspace.vue` ≤ 360; `CityViewport.vue` never edited) and layering; E40; copy in audit-copy; CRLF files edited only with Edit/Write; explicit timeouts for slow scans; `npm run analyze` at 9; the literal trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". For the native layer (O8): the 450-line test cap applies to `tests/e2e/**` and `tests/support/**` too; `npm run test:e2e` is never part of `npm run verify`; no retries; explicit native timeouts (IN46); and the fast suite's `obsidian` mock never reaches a native test.
 
 ## 8. Limitations (known at design time)
 
@@ -154,3 +171,4 @@ The WP-01 spec §4 frozen contracts (the only change is the `RouteId` value, an 
 - The note index is per codebase and built from the metadata cache; a note written by another tool without the frontmatter keys is not linked.
 - A note folder equal to the codebase root is scanned (it cannot be excluded without excluding everything).
 - Clone groups, symbol tracing and an external editor are not in this part.
+- Native acceptance runs locally only: the repository has no CI, so `npm run test:e2e` is run by hand, and its evidence is what a run on this machine recorded. It covers desktop Obsidian only (the plugin is `isDesktopOnly`; there is no mobile emulation), one app version per run, and a real display session. It does not certify accessibility, other operating systems or other Obsidian versions.

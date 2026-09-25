@@ -10,10 +10,11 @@
 - The host implements the notes port over Obsidian's `Vault`, `MetadataCache`, `FileManager` and `Workspace` (`src/host/investigation-notes.ts`, `src/host/investigation-note-index.ts`, events registered through `plugin.registerEvent` on first use, never in `onload`), builds the port and the source preview in `src/host/investigation-services.ts` (IP41), and hands them to each leaf through `CityViewDeps` and `wireDataPorts`, as `fallowAnalysis` reaches the UI.
 - The UI gets a route `investigate`, `src/ui/screens/InvestigateScreen.vue` with `src/ui/screens/investigate/*`, read models `src/ui/read-models/investigation.ts` and `investigation-evidence.ts`, a per-leaf session store `src/ui/stores/investigation-store.ts`, and copy in `src/ui/audit-copy/investigation.ts` (re-exported through `inspector-copy.ts`).
 - One new durable key: `data.json` `investigations: { [profileId]: { folder } }`, owned by `src/adapters/storage/plugin-data-investigation-store.ts`. `CityViewState` gains only the `route` value `'investigate'`.
+- **Native acceptance (O8, Task 0):** describe's native Obsidian e2e harness, ported — `tests/e2e/` (a Node-only Vitest project over standalone WebdriverIO and `wdio-obsidian-service`), `tests/support/session-lifecycle.ts`, and `scripts/{native-tests,check-native-results}.mjs` behind `npm run test:e2e` (IN42–IN51). The fast suite and the in-memory vault (IN37) are unchanged.
 
-**Tech Stack:** TypeScript 6.0.3, Vue 3.5.43 (`<script setup>`), Pinia 4.0.3, zod 4.6.5, Obsidian API 1.13.1 typings (`minAppVersion` 1.13.0), Vitest 5.0.1 (`vitest.config.ts` projects `node` and `jsdom`) + @vue/test-utils 2.5.1, `yaml` 2.9.1 (test double for `parseYaml`/`stringifyYaml` only, a new devDependency, IP29), Node 24 (`node:*` in tests and scripts only), fallow 3.21.0 / 3.27.0 (recordings, `npm run test:fallow` and `npm run analyze` only — never a dependency).
+**Tech Stack:** TypeScript 6.0.3, Vue 3.5.43 (`<script setup>`), Pinia 4.0.3, zod 4.6.5, Obsidian API 1.13.1 typings (`minAppVersion` 1.13.0), Vitest 5.0.1 (`vitest.config.ts` projects `node` and `jsdom`) + @vue/test-utils 2.5.1, `yaml` 2.9.1 (test double for `parseYaml`/`stringifyYaml` only, a new devDependency, IP29), Node 24.15 (`node:*` in tests and scripts only), `wdio-obsidian-service` 3.2.1 + `webdriverio` 9.32.0 with the `@puppeteer/browsers` 3.2.3 override (native layer only, IN42), fallow 3.21.0 / 3.27.0 (recordings, `npm run test:fallow` and `npm run analyze` only — never a dependency).
 
-**Spec:** `docs/superpowers/specs/2026-09-25-wp04-part1-investigation-design.md` (IN1–IN41, owner decisions O1–O7; the spec adopts IP2–IP39 by number where it cites them). Binding with it:
+**Spec:** `docs/superpowers/specs/2026-09-25-wp04-part1-investigation-design.md` (IN1–IN51, owner decisions O1–O8; the spec adopts IP2–IP39 by number where it cites them). **19 tasks: Task 0 (native harness), then Tasks 1–18.** Binding with it:
 - the WP-01 spec §4 frozen contracts (the only change is the additive `RouteId` value, guarded by `isRouteId` and `z.enum(ROUTE_IDS)` in `src/domain/validator.ts:235`);
 - the WP-02 Part 1–7 specs and the WP-03 Part 1 spec (N1–N40);
 - every ledger, including `docs/superpowers/notes/2026-09-24-wp03-part1-ledger.md` and `docs/superpowers/notes/2026-09-25-wp03-part1-polish-ledger.md`.
@@ -22,7 +23,9 @@ Planning rulings are **IP1…**, in `docs/superpowers/notes/2026-09-25-wp04-part
 
 **Branch:** `feat/wp-04-part1` in worktree `.claude/worktrees/wp-04-part1`, from `1cba08c`, the WP-03 polish head (polish ledger JP8). `node_modules` is installed. The spec, this plan and the ledger are committed together, before Task 1. Integration (fast-forward onto `feat/wp-01-codebase-city`) happens after the final review.
 
-**Before Task 1:** the controller runs the pre-flight scan. It checks every "Consumes" name against the code, re-measures every line count below at the branch head (Architecture files were being edited when this plan was written), runs the spec §6 "confirm at pre-flight" row in a real Obsidian 1.13 vault — (a) `vault.create` rejects on an existing path, (b) backslash escapes suppress wikilinks, embeds, tags, comments, highlights, block ids and math in reading and live-preview views, (c) `metadataCache` fires `changed` after `vault.process` and `processFrontMatter`, (d) how `stringifyYaml` quotes `yes`, `null`, `0012`, `a: b`, (e) whether `createFolder` creates parents — and records each result as an IPF ruling. Every one has a fallback already in this plan: the pre-check (a, Task 9), escaping plus code spans (b, Task 2), the `resolved` rebuild (c, Task 9), string-typed validation on read (d, Task 5), segment-by-segment creation (e, Task 9). A result that defeats its fallback stops the plan for a spec change. Before each dispatch it re-checks every "Consumes" name against what earlier tasks committed.
+**Before Task 0:** the controller re-measures every line count below at the branch head and checks every Task 0 "Consumes" name.
+
+**Before Task 1:** the controller runs the pre-flight scan. It checks every "Consumes" name against the code, re-measures every line count below at the branch head (Architecture files were being edited when this plan was written), and reads the outcomes of the spec §6 "confirm at pre-flight" row, which now run as Task 0's native tests in `tests/e2e/obsidian-facts.e2e.ts` (IN51 b) against a real Obsidian — (a) `vault.create` rejects on an existing path, (b) backslash escapes suppress wikilinks, embeds, tags, comments, highlights, block ids and math in reading and live-preview views, (c) `metadataCache` fires `changed` after `vault.process` and `processFrontMatter`, (d) how `stringifyYaml` quotes `yes`, `null`, `0012`, `a: b`, (e) whether `createFolder` creates parents — and records each result, from `reports/native/cases/*/probe.json`, as an IPF ruling. If Task 0 stopped under IN50 (no native session on this machine), the controller runs the five probes by hand in a real Obsidian 1.13 vault instead. Every one has a fallback already in this plan: the pre-check (a, Task 9), escaping plus code spans (b, Task 2), the `resolved` rebuild (c, Task 9), string-typed validation on read (d, Task 5), segment-by-segment creation (e, Task 9). A result that defeats its fallback stops the plan for a spec change. Before each dispatch it re-checks every "Consumes" name against what earlier tasks committed.
 
 ## Global Constraints
 
@@ -54,7 +57,9 @@ Planning rulings are **IP1…**, in `docs/superpowers/notes/2026-09-25-wp04-part
   - **fixtures and mocks:** `tests/fixtures/data-port-deps.ts` 26, `tests/mocks/obsidian.ts` 336.
   - **harness:** `tests/harness/mount.ts` 374, `tests/harness/page.ts` 78, `tests/harness/seed.ts` 196, `tests/harness/harness-evidence.test.ts` 163, `tests/build/harness-shot.test.ts` 180, `scripts/harness-shot.mjs` 329.
   - **evidence:** `tests/unit/gate-evidence.test.ts` 336, `tests/unit/evidence-numbers.test.ts` **403**.
-  - **package:** `package.json`, `package-lock.json` (IP29).
+  - **package:** `package.json` 45, `package-lock.json` (IP29; Task 0's native dependencies, IN42).
+  - **tooling (Task 0):** `.gitignore` 6, `eslint.config.mjs` 258, `.oxlintrc.json` 12, `tsconfig.test.json` 13; read, not edited: `vitest.config.ts` 70, `vitest.fallow.config.ts` 12, `tsconfig.json` 16, `manifest.json` 10.
+  - **new test and script files (Task 0):** `tests/support/{session-lifecycle,probe-strings}.ts`; `tests/unit/{session-lifecycle,native-results-gate}.test.ts`; `tests/e2e/{vitest.config.mts,tsconfig.json,required-scenarios.json,session.ts,fixture.ts,diagnostics.ts,inspector.ts,smoke.e2e.ts,obsidian-facts.e2e.ts,lifecycle.e2e.ts}`, `tests/e2e/vault/Welcome.md`; `scripts/{native-tests,check-native-results}.mjs`. Each planned under 200 lines.
 - **At or near the tests cap — never grow them:** `tests/component/renderer-contract.test.ts` **450**, `city-viewport.test.ts` **448**, `welcome-state.test.ts` **446**, `picking.test.ts` **440**, `tests/host/city-view-store-wiring.test.ts` **439**, `tests/component/settings-tab.test.ts` **436**, `tests/contracts/review-repository.contract.ts` **423**, `tests/host/city-view.test.ts` **421**, `tests/component/consent-chain.test.ts` **420**, `responsive-floor.test.ts` **415**, `tests/host/window-migration.test.ts` **409**, `tests/unit/evidence-numbers.test.ts` **403**, `tests/unit/camera-rig.test.ts` **401**. The one exception is `settings-tab.test.ts` (Task 8): its constructor call is edited **on its existing line**, plus one import line (436 → 437, IP28). New tests go in new files, named in each task.
 
 **Layering**
@@ -115,6 +120,14 @@ Planning rulings are **IP1…**, in `docs/superpowers/notes/2026-09-25-wp04-part
 - **Editing files:** only with the Edit/Write tools. Never `sed -i`, heredocs or scripts: files are CRLF on Windows.
 - **Harness-reachable fixtures:** `tests/fixtures/fake-vault.ts` and `tests/fixtures/fake-investigation.ts` are imported by the browser harness (Task 17), so they import neither `vitest` nor any `node:*` module (the WP-03 Task 14 lesson in `tests/fixtures/relations-report.ts:6–17`).
 
+**Native layer** (O8, IN42–IN51; Task 0 builds it)
+- **Separation:** `tests/e2e/**/*.e2e.ts` run only under `tests/e2e/vitest.config.mts` (Node environment, **no `obsidian` alias**: a native test imports the real `obsidian` types only, and nothing under `tests/e2e/` imports `tests/mocks/**` or `tests/fixtures/**`). The fast suite (`vitest.config.ts`) never collects them: its includes name `tests/{unit,contracts,integration,host,build}/**/*.test.ts` and `tests/{component,acceptance,benchmarks,harness}/**`, and `*.e2e.ts` matches none. Host-independent native code (`tests/support/**`) is unit-tested in the fast suite, under `tests/unit/` (IP45).
+- **Commands:** `npm run test:e2e` = `npm run build` + the native project + the results gate. It is **never** part of `npm run verify`, and no per-task gate runs it except where a task names a native step; `verify` still typechecks (`tests/e2e/tsconfig.json`) and lints the native files (IP49, IP50).
+- **Discipline:** sequential, isolated, **`retry: 0`**, `expect.poll` instead of sleeps, explicit timeouts (`testTimeout: 120_000`, `hookTimeout: 180_000`, poll `10_000`/`100`). A native failure is reproduced with the recorded versions before any selector or assertion changes; it is never retried away.
+- **Lint and size:** the 450-line test cap applies to `tests/e2e/**` and `tests/support/**`; `tests/e2e/tsconfig.json` joins `parserOptions.project`; the only lint exceptions are the named `obsidianmd` rules of IP50, scoped to `tests/e2e/**`, each added only when it fires.
+- **Types:** `tests/e2e/tsconfig.json` extends the root, with `lib` ES2022 and `types: ["node", "webdriverio", "wdio-obsidian-service"]`; `tsconfig.test.json` excludes `tests/e2e/**` and adds `ES2021.Promise` (for `AggregateError` in `tests/support/session-lifecycle.ts`). `src` stays ES2020 through `tsconfig.json` (IP49).
+- **Nothing native is committed but code:** `.obsidian-cache/` and `reports/` are git-ignored; the fixture vault holds Markdown only (IP56).
+
 **Gates and commits**
 - **Per-task gate:** `npm run typecheck && npm run lint:fast && npx eslint <touched src and test files> --max-warnings 0 && npx vitest run <the task's test files and every existing test file the task edits>`. Run the gate commands in the foreground.
 - **Evidence-note counts:** the WP-01 evidence-note counts are updated **once, in Task 18** (L28). Until then `tests/unit/gate-evidence.test.ts` and `tests/unit/evidence-numbers.test.ts` may fail on file counts and the `src/` floor. Do not run the full suite per task, and do not "fix" those two tests early.
@@ -133,14 +146,285 @@ Planning rulings are **IP1…**, in `docs/superpowers/notes/2026-09-25-wp04-part
 
 ## Review Focus
 
-Five input classes the spec implies and no happy-path test covers. Each has a named test in its owning task:
+Six input classes the spec implies and no happy-path test covers. Each has a named test in its owning task:
 1. **A note whose markers a person or tool has disturbed:** a duplicated begin marker, an end before a begin, an indented or trailing-space marker, a marker pasted inside a code fence elsewhere, a vanished end marker, CRLF line endings, and an end marker on the last line with no newline. Refresh must refuse (text byte-identical) or splice byte-exactly around the block. Task 3, "marker variants"; Task 16, "vanished marker".
 2. **Report text that is Markdown or Obsidian syntax:** `[[x]]`, `![[x]]`, `<script>`, the literal end marker, `#tag`, `$x$`, `%%`, `==x==`, `^block`, a bare `https://` or `www.` URL, `1)` and `- ` at the start, a line break followed by `# heading` or `---`, and bidi controls, in a symbol, a specifier, a zone name or a path. None may open a link, embed, tag, comment, heading, list, table, math span, highlight or a second evidence block. Task 2, "hostile strings"; Task 16, "injection".
 3. **Names that collide where `getAbstractFileByPath` cannot see it:** a case-only difference on a case-insensitive vault, a Windows reserved name with or without an extension, trailing dots or spaces, 99 names already taken, a file where a folder segment should be, and a create that races another writer. Task 2, "reserved and trailing"; Task 9, "case-only collision", "folder is a file" and "race".
 4. **A source file that changed after the analysis in a way one check alone misses:** the same byte size with a different line count, CRLF versus LF, an unknown mtime or observation, a line past the end, a symlinked parent folder, and a binding reconnected to another folder since the scan. The highlight must go, naming the first failed check. Task 4, "one check at a time", "symlinked ancestor" and "root changed".
 5. **Frontmatter edited by hand or by another tool:** numbers, lists or `null` where strings are expected, a note moved or renamed, two notes for one finding, a note for another codebase, a malformed note, and a note whose finding is no longer reported. Links must follow the note, malformed notes must be counted, and nothing may be dropped silently. Task 5, "hostile frontmatter"; Task 9, "rename and duplicate"; Task 14, "notes for findings not in this report".
+6. **The real host disagreeing with our doubles, or failing mid-session:** Obsidian's own YAML quoting, metadata-cache timing, escape handling and `vault.create`/`createFolder` behaviour differing from `tests/mocks/obsidian.ts` and the fake vault; a native session whose start, body or initialisation throws. The probes must record the real behaviour (and a positive control must show the probe can fail), and every session must release the app, the driver and the copied directories. Task 0, "obsidian facts" and "session cleanup"; Task 16, "native spine".
 
 ---
+### Task 0: The native Obsidian e2e harness (ported from describe)
+
+Ported from `github.com/Luis85/describe` (MIT, same author; O8) at the files named below. Keep describe's code verbatim except for the adaptations this task lists; every other difference is a deviation to report.
+
+**Files:**
+- Create:
+  - `tests/support/session-lifecycle.ts` (describe's, verbatim, 87 lines), `tests/support/probe-strings.ts`
+  - `tests/unit/session-lifecycle.test.ts` (describe's `tests/native/session-lifecycle.test.ts`, import path adapted), `tests/unit/native-results-gate.test.ts` (describe's `tests/native/results-gate.test.ts`, adapted; IP45), `tests/unit/native-baseline.test.ts` (reads `manifest.json` and `tests/e2e/session.ts`'s `NATIVE_BASELINE_VERSION` as text and asserts the baseline is at or above `minAppVersion` by numeric segments; IP47)
+  - `tests/e2e/vitest.config.mts`, `tests/e2e/tsconfig.json`, `tests/e2e/required-scenarios.json`, `tests/e2e/session.ts`, `tests/e2e/fixture.ts`, `tests/e2e/diagnostics.ts` (verbatim), `tests/e2e/inspector.ts`, `tests/e2e/smoke.e2e.ts`, `tests/e2e/obsidian-facts.e2e.ts`, `tests/e2e/lifecycle.e2e.ts` (verbatim), `tests/e2e/vault/Welcome.md`
+  - `scripts/native-tests.mjs`, `scripts/check-native-results.mjs`
+- Modify: `package.json` and `package-lock.json` (devDependencies, `overrides`, the `test:e2e` script, the third `typecheck` project), `.gitignore` (`.obsidian-cache/`, `reports/`), `eslint.config.mjs` (ignores, `parserOptions.project`, the `tests/**` globs, the IP50 block), `.oxlintrc.json` (`ignorePatterns`), `tsconfig.test.json` (exclude `tests/e2e/**`, `lib` + `ES2021.Promise`)
+- Not modified (checked): `vitest.config.ts` (its includes collect `tests/unit/*.test.ts` and never `tests/e2e/**/*.e2e.ts`), `vitest.fallow.config.ts` (`tests/fallow-real/**` only), `tests/unit/gate-evidence.test.ts` (it counts `*.test.ts`/`*.steps.ts` per `tests/` directory, so `tests/e2e/` and `tests/support/` are not layers; the two new unit files join the `unit` layer's count in Task 18, IP53), `tests/host/clean-vault-install.test.ts` (scans `src/` and the release files only)
+- Test: the three unit files (fast suite), and the three `.e2e.ts` files (native)
+
+**Interfaces:**
+- Consumes: `dist/{main.js,manifest.json,styles.css}` from `npm run build`; `manifest.json` `minAppVersion`; the command `codebase-inspector:open-city` (`src/host/commands.ts:38`); the view type `codebase-inspector-city` (`src/host/city-view.ts:50`); the DOM classes `.codebase-inspector-root`, `.ci-screen--<route>`, `.ci-nav__item`, `.ci-topbar__menu`.
+- Produces:
+  ```ts
+  // tests/support/session-lifecycle.ts (verbatim)
+  export interface SessionSteps<T> { prepare(): Promise<void>; connect(): Promise<T>; initialize(session: T): Promise<void>; disconnect(session: T): Promise<unknown>; cleanup(): Promise<void> }
+  export class SessionLifecycle<T> { constructor(steps: SessionSteps<T>); start(): Promise<T>; close(): Promise<void> }
+  export function withSession<T, R>(session: SessionLifecycle<T>, use: (client: T) => Promise<R>): Promise<R>;
+  // tests/e2e/session.ts
+  export type NativeBrowser = Awaited<ReturnType<typeof startWdioSession>>;
+  export const PLUGIN_ID = 'codebase-inspector';
+  export const CITY_VIEW_TYPE = 'codebase-inspector-city';
+  export const requestedVersion: string;   // OBSIDIAN_VERSION ?? manifest.json minAppVersion (IN49, IP47)
+  export function createNativeSession(afterReady?: (browser: NativeBrowser) => Promise<void>): SessionLifecycle<NativeBrowser>;
+  // tests/e2e/fixture.ts
+  export interface NativeContext {
+    browser: NativeBrowser;
+    page: ReturnType<NativeBrowser['getObsidianPage']>;
+    inspector: InspectorPage;
+    directory: string;                     // reports/native/cases/<id>-<name>/
+  }
+  export const test: TestAPI<{ native: NativeContext }>;
+  // tests/e2e/inspector.ts (grows in Tasks 11 and 16)
+  export type InspectorPage = ReturnType<typeof createInspectorPage>;
+  export function createInspectorPage(browser: NativeBrowser): {
+    root(): ChainablePromiseElement;                 // the city leaf's .codebase-inspector-root
+    screen(route: string): ChainablePromiseElement;  // .ci-screen--<route> inside it
+    openCity(): Promise<void>;                       // executeObsidianCommand('codebase-inspector:open-city'), polled
+    navigate(title: string): Promise<void>;          // opens the drawer when the nav is not inline, then clicks the item
+    recordErrors(): Promise<void>;                   // hooks console.error, 'error' and 'unhandledrejection' in the app window
+    errors(): Promise<string[]>;
+  };
+  // tests/e2e/diagnostics.ts (verbatim)
+  export function caseDirectory(id: string, name: string): Promise<string>;
+  export function writeEvidence(directory: string, name: string, value: unknown): Promise<void>;
+  export function captureBrowser(browser: NativeBrowser, directory: string): Promise<void>;
+  // tests/support/probe-strings.ts (IP52)
+  export const PROBE_HOSTILE = '[[x]] ![[x]] #tag $x$ %%c%% ==x== ^block https://x www.x <b>h</b>';
+  export const PROBE_ESCAPED = '\\[\\[x\\]\\] \\!\\[\\[x\\]\\] \\#tag \\$x\\$ \\%\\%c\\%\\% \\=\\=x\\=\\= \\^block https\\://x www\\.x \\<b\\>h\\</b\\>';
+  ```
+  `tests/e2e/required-scenarios.json` (IP46) starts with these eight titles; Task 11 adds one and Task 16 one more:
+  ```json
+  [
+    "loads the plugin without errors and opens the inspector on its default route",
+    "vault.create rejects a path that already exists",
+    "backslash escapes keep Obsidian syntax inert in reading and live-preview views",
+    "the metadata cache reports notes changed by process and processFrontMatter",
+    "stringifyYaml round-trips the frontmatter value shapes as strings",
+    "folders can be created one segment at a time",
+    "releases the app, driver and copied directories after a test body rejects",
+    "releases an acquired real session when final initialization rejects"
+  ]
+  ```
+
+- [ ] **Step 1: Prove a native session starts on this machine (IN50) — first, before anything else is written.**
+  - Add the exact devDependencies `"wdio-obsidian-service": "3.2.1"` and `"webdriverio": "9.32.0"` and `"overrides": { "@puppeteer/browsers": "3.2.3" }` to `package.json`, run `npm install --no-audit --no-fund`, and check `npm ls @puppeteer/browsers` shows only 3.2.3. (Its optional peers `appium` and `appium-uiautomator2-driver` stay uninstalled.)
+  - Add `.obsidian-cache/` and `reports/` to `.gitignore`.
+  - Write `tests/support/session-lifecycle.ts` verbatim, `tests/e2e/tsconfig.json`, `tests/e2e/vitest.config.mts` (Step 3's text), `tests/e2e/vault/Welcome.md` (one line: `A fixture vault for codebase-inspector's native tests.`) and `tests/e2e/session.ts` (Step 3's text).
+  - Write a first-contact `tests/e2e/smoke.e2e.ts` with one test only, named as its final title, that starts a session and checks the plugin is enabled:
+    ```ts
+    import { expect, test } from 'vitest';
+    import { withSession } from '../support/session-lifecycle';
+    import { createNativeSession, PLUGIN_ID } from './session';
+
+    test('loads the plugin without errors and opens the inspector on its default route', async () => {
+      const enabled = await withSession(createNativeSession(), (browser) => browser.executeObsidian(({ app }, id) =>
+        (app as unknown as { plugins: { enabledPlugins: Set<string> } }).plugins.enabledPlugins.has(id), PLUGIN_ID));
+      expect(enabled).toBe(true);
+    });
+    ```
+  - Run `npm run build` then `node node_modules/vitest/vitest.mjs run --config tests/e2e/vitest.config.mts`. The first run downloads Obsidian `requestedVersion` and chromedriver into `.obsidian-cache/` (note the time and the cache size).
+  - **If it passes**, record in the report: the resolved app and installer versions (`browser.getObsidianVersion()`, `getObsidianInstallerVersion()`), `process.platform`, and the wall time; continue.
+  - **If no session starts** (download refused, installer extraction fails on Windows, the app does not launch, the driver cannot connect, or the baseline 1.13.4 is not downloadable — never retry with another version, IN49), **stop Task 0**: commit nothing, and report the command, its full output, the `.obsidian-cache/` listing and what was tried. The controller rules; the owner's fallback is the in-memory path (IN37, IN38) with the native scenarios dropped (IN50, IP58).
+- [ ] **Step 2: Port the lifecycle unit tests** to `tests/unit/session-lifecycle.test.ts` (describe's file, with `from '../support/session-lifecycle'`). They pass on the verbatim code; prove each guarantee with a mutation, run and reverted: delete `await this.starting?.catch(() => undefined);` in `close()` (the late-connection case fails), and move `await this.steps.cleanup()` inside the `if (this.client !== undefined)` block (the "cleans partial startup when prepare rejects" case fails). Paste both runs.
+- [ ] **Step 3: The session, config, fixture and helper.**
+  - `tests/e2e/vitest.config.mts` is describe's 21 lines verbatim (`name: 'native-obsidian'`, `include: ['tests/e2e/**/*.e2e.ts']`, `pool: 'forks'`, `maxWorkers: 1`, `fileParallelism: false`, `sequence: { concurrent: false }`, `isolate: true`, `retry: 0`, `testTimeout: 120_000`, `hookTimeout: 180_000`, `expect.poll` `{ timeout: 10_000, interval: 100 }`, reporters `default`, `json`, `junit` into `reports/native/`, `passWithNoTests: false`). It has **no `resolve.alias`**: the native project never sees `tests/mocks/obsidian.ts`.
+  - `tests/e2e/tsconfig.json`:
+    ```json
+    {
+      "extends": "../../tsconfig.json",
+      "compilerOptions": { "lib": ["ES2022", "DOM", "DOM.Iterable"], "types": ["node", "webdriverio", "wdio-obsidian-service"] },
+      "include": ["./**/*.ts", "./**/*.mts", "../support/**/*.ts"],
+      "exclude": ["./vault/**"]
+    }
+    ```
+  - `tests/e2e/session.ts` is describe's, with three adaptations: the version comes from our manifest; no mobile emulation (`isDesktopOnly`, IP51); and the plugin and view ids are exported for the tests:
+    ```ts
+    import { readFileSync } from 'node:fs';
+    import { resolve } from 'node:path';
+    import { remote } from 'webdriverio';
+    import ObsidianWorkerService, { launcher, type startWdioSession } from 'wdio-obsidian-service';
+    import { SessionLifecycle } from '../support/session-lifecycle';
+
+    export type NativeBrowser = Awaited<ReturnType<typeof startWdioSession>>;
+    type SessionConfig = Parameters<typeof startWdioSession>[0];
+
+    export const PLUGIN_ID = 'codebase-inspector';
+    export const CITY_VIEW_TYPE = 'codebase-inspector-city';
+    /** IN49 (IP47): the earliest public release satisfying manifest.json's minAppVersion (1.13.0 was never
+     *  published); `latest` on request. Never downgraded. tests/unit/native-baseline.test.ts pins
+     *  NATIVE_BASELINE_VERSION >= minAppVersion, so a raised minAppVersion fails fast. */
+    export const NATIVE_BASELINE_VERSION = '1.13.4';
+    export const requestedVersion = process.env.OBSIDIAN_VERSION ?? NATIVE_BASELINE_VERSION;
+
+    export function createNativeSession(afterReady: (browser: NativeBrowser) => Promise<void> = () => Promise.resolve()): SessionLifecycle<NativeBrowser> {
+      const capabilities: WebdriverIO.Capabilities = {
+        browserName: 'obsidian',
+        'wdio:obsidianOptions': {
+          appVersion: requestedVersion, installerVersion: 'latest',
+          plugins: [resolve('dist')], vault: resolve('tests/e2e/vault'), copy: true,
+        },
+      };
+      const config: SessionConfig = {
+        capabilities, cacheDir: resolve('.obsidian-cache'),
+        logLevel: 'warn', waitforTimeout: 10_000, waitforInterval: 100,
+        connectionRetryTimeout: 30_000, connectionRetryCount: 0,
+      };
+      // describe's version-pinned seam (IN42): startWdioSession()'s own sequence, keeping the
+      // worker so afterSession() runs on success AND on partial failure.
+      const preparation = new launcher({}, capabilities, config);
+      const worker = new ObsidianWorkerService({}, capabilities, config);
+      return new SessionLifecycle({
+        async prepare() {
+          await preparation.onPrepare(config, [capabilities]);
+          await worker.beforeSession(config, capabilities);
+        },
+        connect: () => remote(config),
+        async initialize(browser) {
+          await worker.before(capabilities, [], browser);
+          await afterReady(browser);
+        },
+        disconnect: (browser) => browser.deleteSession(),
+        cleanup: () => worker.afterSession(),
+      });
+    }
+    ```
+  - `tests/e2e/fixture.ts` is describe's, with `inspector: createInspectorPage(browser)` in place of `ui`, and the environment evidence without the UI-mode field: `{ requestedVersion, appVersion, installerVersion, platform: process.platform, runner: 'vitest', commit: process.env.SOURCE_COMMIT ?? 'local', vault: page.getVaultPath() }`.
+  - `tests/e2e/inspector.ts` (the project's UI helper, describe's `helpers.ts` pattern):
+    ```ts
+    import { expect } from 'vitest';
+    import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
+
+    type ErrorWindow = Window & { ciErrors?: string[] };
+
+    export function createInspectorPage(browser: NativeBrowser) {
+      const root = () => browser.$(`.workspace-leaf-content[data-type="${CITY_VIEW_TYPE}"] .codebase-inspector-root`);
+      return {
+        root,
+        screen: (route: string) => root().$(`.ci-screen--${route}`),
+        async openCity(): Promise<void> {
+          await browser.executeObsidianCommand('codebase-inspector:open-city');
+          await expect.poll(() => root().isExisting()).toBe(true);
+        },
+        async navigate(title: string): Promise<void> {
+          const item = root().$(`.ci-nav__item*=${title}`);
+          if (!(await item.isDisplayed())) await root().$('.ci-topbar__menu').click();
+          await item.click();
+        },
+        async recordErrors(): Promise<void> {
+          await browser.executeObsidian(() => {
+            const win: ErrorWindow = activeWindow;
+            const errors: string[] = [];
+            win.ciErrors = errors;
+            const original = console.error.bind(console);
+            console.error = (...args: unknown[]) => { errors.push(args.map(String).join(' ')); original(...args); };
+            win.addEventListener('error', (e) => { errors.push(e.message); });
+            win.addEventListener('unhandledrejection', (e) => { errors.push(String(e.reason)); });
+          });
+        },
+        errors: () => browser.executeObsidian((): string[] => (activeWindow as ErrorWindow).ciErrors ?? []),
+      };
+    }
+    ```
+  - `tests/e2e/smoke.e2e.ts`, now through the fixture (IP48):
+    ```ts
+    import { describe, expect } from 'vitest';
+    import { test } from './fixture';
+    import { CITY_VIEW_TYPE, PLUGIN_ID } from './session';
+
+    describe('codebase-inspector in the real Obsidian host', () => {
+      test('loads the plugin without errors and opens the inspector on its default route', async ({ native: { browser, page, inspector } }) => {
+        await page.disablePlugin(PLUGIN_ID);
+        await inspector.recordErrors();
+        await page.enablePlugin(PLUGIN_ID);
+        await inspector.openCity();
+        await expect.poll(() => inspector.screen('overview').isDisplayed()).toBe(true);
+        expect(await browser.executeObsidian(({ app }, type) => app.workspace.getLeavesOfType(type).length, CITY_VIEW_TYPE)).toBe(1);
+        expect(await inspector.errors()).toEqual([]);
+      });
+    });
+    ```
+    If a fresh vault logs an Obsidian error unrelated to the plugin, do **not** filter it: report the exact text; the controller rules on a named exception (IP48).
+  - `tests/e2e/lifecycle.e2e.ts` is describe's verbatim (the two real-session cleanup tests, IN45).
+  - Run `node node_modules/vitest/vitest.mjs run --config tests/e2e/vitest.config.mts tests/e2e/smoke.e2e.ts tests/e2e/lifecycle.e2e.ts`: 3 passed. RED proof for the smoke: change `'overview'` to `'city'` and watch it time out on the poll; revert.
+- [ ] **Step 4: The Obsidian facts (IN51 b, spec §6 row a–e).** `tests/e2e/obsidian-facts.e2e.ts`, one test per fact, each writing its observations with `writeEvidence(directory, 'probe', …)` before asserting:
+  - **(a) "vault.create rejects a path that already exists":** `create('probe-a.md', 'first')`, then `create('probe-a.md', 'second')` must reject and the text stay `'first'`; also record, without asserting, whether `create('PROBE-A.md', …)` rejects (a case-only duplicate on this file system).
+  - **(b) "backslash escapes keep Obsidian syntax inert in reading and live-preview views":** render `PROBE_HOSTILE` (a **positive control**) and `PROBE_ESCAPED` with `obsidian.MarkdownRenderer.render(app, md, el, 'probe.md', component)` inside `executeObsidian`, and count `a.internal-link`, `.internal-embed`, `a.tag`, `mark`, `.math`, `a.external-link` and `b`, plus whether the text `c` survives (`%%` comments hide it). The control must show every one of them (or `c` hidden); the escaped text must show none, with `c` visible. Then open each as a note in live preview (`workspace.getLeaf(true).openFile(file, { state: { mode: 'source', source: false } })`) and count, in `.cm-content`, the live-preview token classes for links, embeds, tags, highlights, math and comments, with the same control/escaped rule. Record the class names found by the control (they are the evidence the escaped case is compared against).
+  - **(c) "the metadata cache reports notes changed by process and processFrontMatter":** inside one `executeObsidian`, create a note with frontmatter, then for `vault.process` and for `processFrontMatter` await either a `metadataCache.on('changed')` for that path or a 5 s `activeWindow.setTimeout`, recording which; then `expect.poll` until `getFileCache(file)?.frontmatter` shows the new value (the plan's `resolved` rebuild is the fallback if an event is missing).
+  - **(d) "stringifyYaml round-trips the frontmatter value shapes as strings":** `obsidian.stringifyYaml` of `{ a: 'yes', b: 'null', c: '0012', d: 'a: b', e: 'true', f: '~', g: '#x', h: '[[x]]', i: 'snapshot:p1:2026-09-25T10:00:00.000Z', j: 'src/a.ts#UN-00000001', k: 'file:src/a.ts' }`, then `obsidian.parseYaml` of it, must deep-equal the input with every value a string; record the raw YAML.
+  - **(e) "folders can be created one segment at a time":** record whether `createFolder('p1/q1')` creates a missing parent (or rejects); then assert that `createFolder('p2')` followed by `createFolder('p2/q2')` gives both folders.
+  - Run the file. Each outcome, and the evidence path, goes into the report; the controller turns them into IPF rulings before Task 1 (a failure of (a), (b) or (d) stops the plan for a spec change; (c) and (e) are recorded either way, IN51).
+- [ ] **Step 5: The results gate (IN48).**
+  - Write the failing unit test first, `tests/unit/native-results-gate.test.ts`: describe's, with `required` read from `tests/e2e/required-scenarios.json` (never a second copy of the list, IP46), the temp directory prefix `codebase-inspector-native-result-`, and the success message expectation `` `${required.length} executed native Vitest cases` ``. Run it RED (the script does not exist).
+  - `scripts/check-native-results.mjs` (describe's, adapted):
+    ```js
+    import assert from 'node:assert/strict';
+    import { readFile } from 'node:fs/promises';
+
+    // IN48: fails closed. The list is shared with its unit test (IP46).
+    const required = JSON.parse(await readFile(new URL('../tests/e2e/required-scenarios.json', import.meta.url), 'utf8'));
+    const report = JSON.parse(await readFile('reports/native/vitest-results.json', 'utf8'));
+    const results = report.testResults.flatMap((file) => file.assertionResults);
+    assert.equal(report.success, true, 'Native Vitest did not report success.');
+    assert.ok(results.length > 0 && results.every((test) => test.status === 'passed'), 'Skipped, pending or failed native cases cannot satisfy acceptance.');
+    for (const title of required) {
+      assert.equal(results.filter((test) => test.title === title).length, 1, `Required native case must run exactly once: ${title}`);
+    }
+    console.log(`Verified ${results.length} executed native Vitest cases, including all ${required.length} required scenarios.`);
+    ```
+  - `scripts/native-tests.mjs` (describe's intent; our build and a Windows-safe spawn, IP54):
+    ```js
+    import { spawnSync } from 'node:child_process';
+    import { mkdir } from 'node:fs/promises';
+    import { fileURLToPath } from 'node:url';
+
+    // IN43: build, run the native project, then ALWAYS run the gate. Never part of `npm run verify`.
+    const windows = process.platform === 'win32';
+    const build = spawnSync(windows ? 'npm.cmd' : 'npm', ['run', 'build'], { stdio: 'inherit', shell: windows });
+    if (build.status !== 0) process.exit(build.status ?? 1);
+    await mkdir('reports/native', { recursive: true });
+    const vitest = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url));
+    const run = spawnSync(process.execPath, [vitest, 'run', '--config', 'tests/e2e/vitest.config.mts'], { stdio: 'inherit' });
+    try {
+      await import('./check-native-results.mjs');
+    } catch (error) {
+      console.error(error);
+      process.exitCode = 1;
+    }
+    if (run.status !== 0) process.exitCode = run.status ?? 1;
+    ```
+  - `package.json` scripts gain `"test:e2e": "node scripts/native-tests.mjs"`.
+  - Run the unit test GREEN.
+- [ ] **Step 6: Wire types and lint (IP49, IP50).**
+  - `tsconfig.test.json`: add `"tests/e2e/**"` to `exclude`, and `"lib": ["ES2020", "ES2021.Promise", "DOM", "DOM.Iterable"]`.
+  - `package.json` `typecheck` gains `&& vue-tsc --noEmit -p tests/e2e/tsconfig.json`.
+  - `eslint.config.mjs`: add `'.obsidian-cache/**'` and `'reports/**'` to `ignores`; add `'./tests/e2e/tsconfig.json'` to `parserOptions.project`; widen the two `tests/**/*.ts` globs (Rule 1's `max-lines` 450 and the `hardcoded-config-path` block) to `tests/**/*.{ts,mts}`; and, only if `npm run lint` reports them on `tests/e2e/**`, one block turning off exactly the firing rules among `obsidianmd/prefer-create-el`, `obsidianmd/no-tfile-tfolder-cast`, `obsidianmd/no-global-this`, `obsidianmd/no-unsupported-api` and `obsidianmd/prefer-active-doc`, with a comment that these files drive the host from a Node test runner. List each rule you added. Fix any other finding in the ported code without changing its behaviour, and list it.
+  - `.oxlintrc.json`: add `".obsidian-cache/**"` and `"reports/**"` to `ignorePatterns`.
+  - Check collection: `npx vitest list --project node` lists `tests/unit/session-lifecycle.test.ts` and `tests/unit/native-results-gate.test.ts`, and neither project lists anything under `tests/e2e/`.
+- [ ] **Step 7: The whole native run.** `npm run test:e2e` builds, runs 8 native cases, and the gate prints `Verified 8 executed native Vitest cases, including all 8 required scenarios.` Paste that line, the resolved versions from any `reports/native/cases/*/environment.json`, and the per-probe outcomes. Then confirm `git status --short` shows neither `.obsidian-cache/` nor `reports/`.
+- [ ] **Step 8: Gate and commit.**
+  ```bash
+  npm run typecheck && npm run lint:fast && npm run lint && npx vitest run tests/unit/session-lifecycle.test.ts tests/unit/native-results-gate.test.ts
+  git add package.json package-lock.json .gitignore eslint.config.mjs .oxlintrc.json tsconfig.test.json tests/support tests/unit/session-lifecycle.test.ts tests/unit/native-results-gate.test.ts tests/e2e scripts/native-tests.mjs scripts/check-native-results.mjs
+  git commit -m "test(e2e): native Obsidian acceptance harness ported from describe, with the Obsidian-facts probes (WP-04 O8, IN42–IN51)" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+  ```
+
 ### Task 1: The Investigate route, its copy module and the selection store
 
 **Files:**
@@ -481,6 +765,7 @@ Five input classes the spec implies and no happy-path test covers. Each has a na
     ```
     `noteBaseName`'s second test gets the id alone because `'UN-1a2b3c4d  [[#]]'` sanitises to `'UN-1a2b3c4d'`; the `''` branch covers a finding id that itself sanitises away (never true for `FINDING_ID_PATTERN` ids, kept for a user-typed name). `validateNoteName` trims, drops one trailing `.md` (case-insensitive), then applies `empty`, `too-long` (over `NOTE_NAME_MAX` code points) and `unsafe-name` (`sanitizeNoteName(v) !== v`), in that order. `freeNoteName` is the loop over `${base}.md`, then `${base} (n).md` for n = 2…99, returning null after 99.
   - Move `mdCode` verbatim, with its comment, into `src/application/markdown-code.ts`, and re-export it from `src/ui/export/markdown.ts` so `report.ts`, `work-items.ts` and `tests/unit/markdown.test.ts` are unchanged.
+- [ ] **Step 3a: Tie the escaping to the native probe (IP52).** Add to `tests/unit/investigation-note-text.test.ts`: `expect(noteText(PROBE_HOSTILE)).toBe(PROBE_ESCAPED)` (from `tests/support/probe-strings.ts`, Task 0), so the text Task 0 proved inert in a real Obsidian is exactly what `noteText` produces.
 - [ ] **Step 4: Run.** `npx vitest run tests/unit/investigation-note-text.test.ts tests/unit/investigation-note-path.test.ts tests/unit/markdown.test.ts` gives PASS.
 - [ ] **Step 5: Gate and commit** (`feat(investigation): note text escaping, note names and folder validation (WP-04 IN19, IN21, IN24)`).
 
@@ -1505,7 +1790,8 @@ Five input classes the spec implies and no happy-path test covers. Each has a na
     Layout: a two-column grid at ≥ 820 px leaf width (list left, detail right) and one column below, using the container query the other screens use (`screens-act.css`). The detail column holds `EvidencePanel` and `UncertaintyPanel`; Tasks 12–14 add three more panels below them.
   - `WorkItemEditor.vue`: `const props = defineProps<{ itemId: string | null; newFile: FileSummary | null; draft?: { title: string; notes: string } | null }>();` then `title` starts from `start?.title ?? props.draft?.title ?? (props.newFile ? WORK_ITEM_TITLE(props.newFile.name) : '')` and `notes` from `start?.notes ?? props.draft?.notes ?? ''` (two lines changed, one added).
 - [ ] **Step 4: Run.** `npx vitest run tests/component/investigate-screen.test.ts tests/component/investigate-evidence.test.ts tests/component/work-item-editor-draft.test.ts tests/component/investigate-route.test.ts tests/component/workbench-screen.test.ts tests/component/work-editor-focus.test.ts tests/component/workbench-guards.test.ts` gives PASS (the last three are the existing `WorkItemEditor` tests).
-- [ ] **Step 5: Gate and commit** (`feat(ui): the Investigate screen — finding list, filters, evidence and Add work item (WP-04 IN1–IN6, IN14–IN17)`).
+- [ ] **Step 4a: Extend the native smoke (IN51 a).** Add to `tests/e2e/smoke.e2e.ts` a second test, `'renders the Investigate route in a real leaf'`: open the city, `inspector.navigate('Investigate')`, then `expect.poll` until `inspector.screen('investigate')` is displayed, showing `.ci-no-snapshot` (the session has no scan), and with the nav's Act group reading Investigate, Refactor workbench, Audit report in that order. Add the title to `tests/e2e/required-scenarios.json` (9 titles). Run `npm run test:e2e`: the gate prints 9 of 9. RED proof: navigate to `'Investigat'` (no such item) and watch the poll fail; revert. (If Task 0 stopped under IN50, skip this step and record that it was skipped.)
+- [ ] **Step 5: Gate and commit** (`feat(ui): the Investigate screen — finding list, filters, evidence and Add work item (WP-04 IN1–IN6, IN14–IN17, IN51)`). Add `tests/e2e/smoke.e2e.ts` and `tests/e2e/required-scenarios.json` to the commit.
 
 ### Task 12: The source preview panel and Open in Obsidian
 
@@ -1758,11 +2044,23 @@ Five input classes the spec implies and no happy-path test covers. Each has a na
 ### Task 16: The end-to-end spine and the safety cases
 
 **Files:**
-- Create: `tests/acceptance/investigation-spine.test.ts`, `tests/acceptance/investigation-safety.test.ts`
-- Test: those two (jsdom project: `tests/acceptance/**/*.test.ts`)
+- Create: `tests/acceptance/investigation-spine.test.ts`, `tests/acceptance/investigation-safety.test.ts`, `tests/e2e/investigation.e2e.ts` (the native spine, IN51 d)
+- Modify: `tests/e2e/inspector.ts` (the spine's UI steps), `tests/e2e/required-scenarios.json` (the tenth title)
+- Test: the two acceptance files (jsdom project: `tests/acceptance/**/*.test.ts`), and the native spine (`npm run test:e2e`)
 
 **Interfaces:**
-- Consumes: everything above; `RELATIONS_PROJECT_DIR`, `relationsRecordingJson`, `parseFallowReportText`, `buildEvidenceReport`, `collectInventory`, `createRealNodePort`, `createCancellationToken`, `hashTree`, `createFakeVault`, `createFakeInvestigationFolders`, `createFakeProfileStoreHarness`, `createInvestigationNotes`, `createSourcePreview`, `syntheticFallowJson`, `snapshotWithPaths`, `parseYaml`, `isEvidenceBlock`.
+- Consumes: everything above; `RELATIONS_PROJECT_DIR`, `relationsRecordingJson`, `parseFallowReportText`, `buildEvidenceReport`, `collectInventory`, `createRealNodePort`, `createCancellationToken`, `hashTree`, `createFakeVault`, `createFakeInvestigationFolders`, `createFakeProfileStoreHarness`, `createInvestigationNotes`, `createSourcePreview`, `syntheticFallowJson`, `snapshotWithPaths`, `parseYaml`, `isEvidenceBlock`; for the native spine, Task 0's `test` fixture, `InspectorPage` and `writeEvidence`, and the UI's own classes (`.ci-investigate-row`, `.ci-source-preview__text`, `.ci-notes-panel__create`, `.ci-notes-panel__open`, `.ci-connect-fallow__file`, `.ci-connect-fallow__attach`) and the host modals the component tests drive (`tests/component/source-modal.test.ts`, `tests/component/consent-chain.test.ts`).
+- Produces, in `tests/e2e/inspector.ts`:
+  ```ts
+  scanFolder(folder: string): Promise<void>;          // command `codebase-inspector:scan-codebase` → source modal, vault-folder mode → scope approval, as a user
+  importReport(absolutePath: string): Promise<void>;  // Data & scans → import dialog → setValue on its file input → Attach
+  selectFinding(findingId: string): Promise<void>;    // Investigate → the row whose text holds the id
+  createNote(): Promise<string>;                      // Create investigation note… → Create note; returns the new note's vault path
+  refreshNote(path: string): Promise<void>;           // Refresh evidence… → Refresh evidence
+  readNote(path: string): Promise<string>;            // page.read(path)
+  frontmatter(path: string): Promise<Record<string, unknown>>;   // the real parseYaml, as describe's helper
+  cachedFingerprint(path: string): Promise<unknown>;  // app.metadataCache.getFileCache(file)?.frontmatter?.finding_fingerprint
+  ```
 
 - [ ] **Step 1: Write the spine** (`investigation-spine.test.ts`, IN38; each test `30_000` ms):
   - **Setup:** copy `RELATIONS_PROJECT_DIR` to a temp folder with `cpSync(…, { recursive: true })`; take `hashTree(root)`; scan it with `collectInventory(createRealNodePort(), { rootPath: root, exclusions: [], maxFileBytes: 1_000_000, followSymlinks: false }, approval('p1'), token, clock)`; read `relations-combined-3.27.0.json` through `parseFallowReportText` and `buildEvidenceReport({ …, stripPrefix: null, importedAt: new Date().toISOString(), snapshotId: snapshot.snapshotId })` (the recording's `src/…` paths match the scanned project, IP35); a fake vault on a **separate** temp base path; the real notes port (profile `p1` in `createFakeProfileStoreHarness`) and the real source preview (`getFilesystem: () => createRealNodePort()`, `resolveRoot: () => Promise.resolve(root)`). Mount `InvestigateScreen`.
@@ -1778,8 +2076,17 @@ Five input classes the spec implies and no happy-path test covers. Each has a na
   - **Collision (exact and case-only, IN27):** two creates for one finding give `<name>.md` and `<name> (2).md`, and the first is byte-identical after the second; with a lower-cased copy of `<name>.md` already in the folder, the dialog proposes `<name> (2).md` before confirm.
   - **Vanished or doubled marker (IN31):** the user deletes the end marker, and in a second note duplicates the begin marker; each refresh reports `REFRESH_MARKERS_EDITED`, and each note is byte-identical.
   - **Only the dialogs write (IN35):** attaching a new report, rescanning and re-selecting cause no vault write (`calls.create`, `createFolder`, `process` and `processFrontMatter` unchanged).
-- [ ] **Step 3: Run them.** Both pass on the code as it stands; these are acceptance pins. The RED proof is two mutations, each run and reverted: make `noteText` skip escaping `[` (the injection case fails), and make `spliceEvidenceBlock` accept a missing end marker (the vanished-marker case fails). Paste both runs.
-- [ ] **Step 4: Gate and commit** (`test(acceptance): finding → note → evidence spine and the safety cases (WP-04 IN37–IN39)`).
+- [ ] **Step 2a: Write the native spine** (`tests/e2e/investigation.e2e.ts`, IN51 d, IP55) — one test, `'keeps human sections byte-identical across a real refresh and links the note through the metadata cache'`, in a real vault through the real UI:
+  - **Setup (Node side):** copy `tests/fixtures/fallow/relations-project/` into the session's copied vault as `code/` (`cpSync(src, join(page.getVaultPath(), 'code'), { recursive: true })`), and hash it (`createHash('sha256')` over every file, a local helper: the fast suite's `hashTree` lives under `tests/fixtures/`, which native files never import, IP56). Wait until `app.vault.getFileByPath('code/package.json')` exists (`expect.poll`).
+  - **Scan and attach:** `inspector.openCity()`, `inspector.scanFolder('code')`, then `inspector.importReport(resolve('tests/fixtures/fallow/relations-combined-3.27.0.json'))`; the recording's `src/…` paths match the scanned folder.
+  - **Investigate and preview:** `inspector.selectFinding(<the import cycle's id, read from the recording>)`; `expect.poll` until `.ci-source-preview__text [aria-current="true"]` exists (the exact highlight in a real file).
+  - **Create:** `const path = await inspector.createNote()`; `inspector.frontmatter(path)` has `finding_fingerprint` `` `${anchorPath}#${id}` `` and `codebase_id` a non-empty string; `expect.poll(() => inspector.cachedFingerprint(path))` equals it (Obsidian's own metadata cache, IN33); the notes panel shows one `.ci-notes-panel__open`.
+  - **Edit:** inside `executeObsidian`, `vault.process` inserts `I checked a.ts.` after the `## Investigation notes` line and `Decided: keep.` after `## Decision`, then `processFrontMatter` sets `status: 'in progress'` and `reviewer: 'me'`; keep `human` = the text after the end-marker line (`readNote`).
+  - **Refresh:** run `scan-codebase` again (a refresh against the stored scope gives a new snapshot id), re-import the recording, select the same finding, `inspector.refreshNote(path)`. Then the text after the end-marker line equals `human` byte for byte; `frontmatter(path)` has the new `snapshot_id`, `status: 'in progress'`, `reviewer: 'me'` and the first `created`; the block differs from the first and names the new snapshot; `cachedFingerprint(path)` is unchanged.
+  - **No source write:** the hash of `code/` is unchanged (the note's folder is outside it).
+  - Write `writeEvidence(directory, 'spine', { path, before, after })` (the two note texts), add the title to `required-scenarios.json` (10 titles), and run `npm run test:e2e`: the gate prints 10 of 10. RED proof: make `refreshNote` also append a line after `## Decision` and watch the byte-identity assertion fail; revert. (If Task 0 stopped under IN50, skip this step and record it; the in-memory spine above still holds IN38.)
+- [ ] **Step 3: Run them.** Both acceptance files pass on the code as it stands; these are acceptance pins. The RED proof is two mutations, each run and reverted: make `noteText` skip escaping `[` (the injection case fails), and make `spliceEvidenceBlock` accept a missing end marker (the vanished-marker case fails). Paste both runs.
+- [ ] **Step 4: Gate and commit** (`test(acceptance): finding → note → evidence spine, the native spine and the safety cases (WP-04 IN37–IN39, IN51)`).
 
 ### Task 17: Harness seed and captures
 
@@ -1822,7 +2129,8 @@ Five input classes the spec implies and no happy-path test covers. Each has a na
   - spec §5's acceptance table, each row naming the test file and case that holds it (the city → workbench case in `investigate-entry-points.test.ts`; the spine and fs-diff in `investigation-spine.test.ts`, with O7's confirmed in-root note stated as the one exception and its test in `investigate-create.test.ts`; collision and race in `investigate-create.test.ts` and `investigation-notes.test.ts`; injection in `investigation-safety.test.ts` and `investigation-note-text.test.ts`; refresh in `investigation-spine.test.ts` and `investigate-refresh.test.ts`; stale location in `investigation-stale-location.test.ts` and `investigate-preview.test.ts`);
   - the two Task 16 mutation runs;
   - the five spec §6 pre-flight probe results, (a)–(e), with their IPF rulings;
-  - the list of `wp04-*` captures.
+  - the list of `wp04-*` captures;
+  - a **native acceptance** subsection (O8, IN48): the harness and its origin (describe, MIT), the command (`npm run test:e2e`, not part of `verify`), the required-scenario list, the gate's output line, the requested and resolved Obsidian app and installer versions, the platform and the commit from `reports/native/cases/*/environment.json`, the probe evidence, and the statement that native runs are local only (no CI) and desktop only (spec §8). Native cases are not a G8 layer (IP53); the two new `tests/unit/` files are counted in the `unit` row. If Task 0 stopped under IN50, say so here instead, with the controller's ruling.
 - [ ] **Step 2: The limitations.** Transcribe spec §8, and add: the note serialiser in tests is `yaml`, not Obsidian's own (IP29); escaping relies on Obsidian honouring CommonMark backslash escapes for its own syntax (record the probe result); the plugin is desktop-only (`manifest.json` `isDesktopOnly: true`), so the `no-filesystem` preview state is reachable only in tests (spec §3).
 - [ ] **Step 3: The deliverable.** Add a "Delivery record" to `docs/deliverables/Investigation and Notes.md`, like `Dependencies and Architecture.md`'s: the branch, the spec path, a table mapping 04.1–04.7 to IN decisions and tasks, and the scope sentence (clone groups, symbol tracing and an external editor deferred, O1/O5; notes inside the codebase root only after the explicit exclusion checkbox, O7).
 - [ ] **Step 3a: The README (IN41, O7).** Replace the bullet at `README.md:16–17` with IP31's words exactly: "- It reads **file text and file metadata only**. It never writes, moves, renames or deletes anything in the directory you select, with one exception you confirm each time: an investigation note you create in a folder inside that directory." Then run `npx vitest run tests/host/clean-vault-install.test.ts` (it reads the README's other disclosures; they are unchanged).
@@ -1833,15 +2141,17 @@ Five input classes the spec implies and no happy-path test covers. Each has a na
   FALLOW_BIN="$LOCALAPPDATA/npm-cache/_npx/ee3f2ca80543beb5/node_modules/@fallow-cli/win32-x64-msvc/fallow.exe" npm run test:fallow
   npm run analyze
   npm run harness-shot
+  npm run test:e2e
   ```
   Expected:
-  - `verify` exits 0;
+  - `verify` exits 0 (it typechecks and lints the native files, and never runs them);
   - `test:fallow` passes every case (this part changes no process code, so this is a regression check);
   - `analyze` reports no finding beyond the baseline of 9. A new dead export is removed, not baselined;
-  - `harness-shot` produces every capture, the five `wp04-*` ones included.
+  - `harness-shot` produces every capture, the five `wp04-*` ones included;
+  - `test:e2e` passes and its gate prints `Verified <n> executed native Vitest cases, including all 10 required scenarios.`, with `OBSIDIAN_VERSION` unset (the baseline 1.13.4); run it once more with `OBSIDIAN_VERSION=latest` and record that result too (a failure there is recorded, not hidden, and does not block unless the controller rules so).
 
-  Paste the tail of each run.
-- [ ] **Step 6: Commit** (`docs(evidence): WP-04 Part 1 acceptance, limitations, delivery record and refreshed counts`).
+  Paste the tail of each run, and keep `reports/native/` until the final review has read it (it is git-ignored).
+- [ ] **Step 6: Commit** (`docs(evidence): WP-04 Part 1 acceptance, native evidence, limitations, delivery record and refreshed counts`).
 
 ---
 
@@ -1892,10 +2202,17 @@ Five input classes the spec implies and no happy-path test covers. Each has a na
   | IN41 (the texts that change: two storage disclosures, the README sentence, `FILE_SOURCE_PREVIEW_LATER`) | 8 (disclosures), 15 (`FILE_SOURCE_PREVIEW_LATER`), 18 (README) |
   | O7 (notes may be written inside the root, after the checkbox) | 9 (plan, exclusion), 13 (dialog), 18 (evidence exception) |
   | §3 (one port, eight members; no copy in application; `mdCode` moved) | 2 (`mdCode`), 3 (vocabulary), 9 (port) |
-  | §6 pre-flight probe row (a)–(e) | before Task 1 (IPF rulings), 18 (recorded) |
+  | §6 pre-flight probe row (a)–(e) | 0 (native tests in `obsidian-facts.e2e.ts`), before Task 1 (IPF rulings), 2 (`PROBE_ESCAPED` pin), 18 (recorded) |
+  | O8 (native e2e adopted from describe as Task 0) | 0 |
+  | IN42 (stack), IN43 (separate project, not in `verify`) | 0 |
+  | IN44 (fresh session per file), IN45 (teardown guarantees), IN46 (discipline), IN47 (reaching Obsidian) | 0 |
+  | IN48 (evidence and the fail-closed gate) | 0 (gate and its unit test), 11 and 16 (required list grows), 18 (recorded) |
+  | IN49 (versions), IN50 (Windows first) | 0 (Step 1), 18 (baseline and `latest` runs) |
+  | IN51 (scenarios) | 0 (smoke, facts, cleanup), 11 (Investigate smoke), 16 (native spine) |
 
 - **The spec now carries the earlier deviations** (IP2–IP39, cited by number in IN2–IN41). What remains a plan-only choice:
   - the folder store is an adapter type, not an application port, so §3's "one application port" holds (IP42);
   - modules the spec does not list: `ui/read-models/investigation-evidence.ts` (the read model split before the cap), `application/investigation/root-path.ts`, `host/investigation-services.ts`, `tests/fixtures/fake-investigation.ts` and `fake-investigation-folders.ts` (IP41);
   - the defensive preview state is named `no-filesystem`, matching IN9's words (IP43);
-  - the IN39 injection string also reaches a specifier and a zone name by editing the synthetic JSON before the real parser reads it (IP44).
+  - the IN39 injection string also reaches a specifier and a zone name by editing the synthetic JSON before the real parser reads it (IP44);
+  - the native layer's placement and adaptations from describe (IP45–IP58): its unit tests in `tests/unit/`, the required list in one JSON file, the default version read from the manifest, the smoke's route to the city view, the tsconfig and lint wiring, no axe or mobile emulation, the shared probe strings, native cases outside G8, a Windows-safe runner script, a UI-driven native spine, a Markdown-only fixture vault, exact pins, and the stop rule.
