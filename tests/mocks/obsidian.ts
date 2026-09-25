@@ -20,6 +20,15 @@
 // every rect -> 1000x700) so the harness city never drew. tests/unit/obsidian-mock-
 // scope.test.ts pins that importing this module patches no DOM prototype.
 
+// Task 7 (IP29, resolving IN37): `yaml` 2.9.1 is a real dependency -- already installed
+// transitively through Vite, now an explicit devDependency so this mock does not rely on
+// another package's dependency tree. The REAL Obsidian app ships its OWN internal YAML
+// serialiser, not this library (IPF19: real Obsidian writes `yes` unquoted where this
+// library would quote it). So parseYaml's parsed VALUES here match what the real host
+// hands back to plugin code, but stringifyYaml's exact BYTES do not -- no test may assert
+// on the bytes this produces, only on values round-tripped back through parseYaml.
+import { parse, stringify } from 'yaml';
+
 // Ruling M17 (task-5-context.md section 5): node-access.ts reads `Platform.isDesktopApp`
 // at MODULE LOAD to decide whether to touch `window.require` at all. Under Vitest's
 // 'node' environment there is no `window`, so this must default to `false` — the
@@ -57,6 +66,12 @@ export class Plugin {
   }
 
   addSettingTab(_tab: unknown): void {}
+
+  // Task 7: real Plugin.registerEvent(ref) ties an EventRef's lifetime to the plugin so
+  // it is torn down automatically on unload. Nothing here reads the registration back --
+  // this double only exists so host code (`vault.on`/`metadataCache.on` wrapped in
+  // registerEvent, per IP12) has something real to call.
+  registerEvent(_ref: unknown): void {}
 
   onUserEnable(): void {}
 
@@ -218,6 +233,38 @@ export class CapacitorAdapter {
   getBasePath(): never {
     throw new Error('CapacitorAdapter has no getBasePath — mobile has no filesystem root.');
   }
+}
+
+// Task 7: the three vault file/folder classes, exactly as the shipped obsidian.d.ts
+// declares their public fields -- tests/fixtures/fake-vault.ts constructs real instances
+// of these (never plain objects), so `instanceof TFile`/`TFolder` (prefer-instanceof,
+// spec 4.4) holds under test the same way it holds against the real host.
+export class TAbstractFile {
+  path = '';
+  name = '';
+  parent: TFolder | null = null;
+  vault: unknown = null;
+}
+
+export class TFile extends TAbstractFile {
+  basename = '';
+  extension = '';
+  stat = { ctime: 0, mtime: 0, size: 0 };
+}
+
+export class TFolder extends TAbstractFile {
+  children: TAbstractFile[] = [];
+  isRoot(): boolean { return this.path === '/'; }
+}
+
+// Task 7 (IP29): thin wrappers so callers (the fixture, and later the host) import these
+// from 'obsidian' like every other Obsidian API, never `yaml` directly.
+export function parseYaml(text: string): unknown {
+  return parse(text);
+}
+
+export function stringifyYaml(value: unknown): string {
+  return stringify(value);
 }
 
 // Real Modal.open()/close() attach/detach the modal from the document and drive
