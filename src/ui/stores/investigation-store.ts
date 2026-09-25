@@ -5,13 +5,17 @@
 // PF-C9/IP37: this ONE watch on the evidence store's repositoryId is where Task 10 will
 // extend the reset (preview, notes, destination) rather than adding a second watcher.
 import { defineStore } from 'pinia';
-import { ref, watch } from 'vue';
+import { ref, shallowRef, watch } from 'vue';
+import { EMPTY_NOTE_INDEX, type NoteIndex } from '../../application/investigation/note-index';
 import { useEvidenceStore } from './evidence-store';
 
 export const useInvestigationStore = defineStore('investigation', () => {
   const evidence = useEvidenceStore();
   const selectedFingerprint = ref<string | null>(null);
   const findingGone = ref(false);
+  // WP-04 Task 6: the note index this leaf's Investigate read model reads (Task 10 wires
+  // its subscription; until then it stays EMPTY_NOTE_INDEX).
+  const notes = shallowRef<NoteIndex>(EMPTY_NOTE_INDEX);
 
   // PF14: arrow-function members.
   const open = (fingerprint: string): void => {
@@ -29,5 +33,5 @@ export const useInvestigationStore = defineStore('investigation', () => {
     findingGone.value = false;
   }, { flush: 'sync' });
 
-  return { selectedFingerprint, findingGone, open, markGone };
+  return { selectedFingerprint, findingGone, notes, open, markGone };
 });

@@ -3,6 +3,7 @@ import type { EntityId } from '../../domain/entity-id';
 import type { CodebaseSnapshot } from '../../domain/model';
 import { useCityStore } from '../stores/city-store';
 import { useEvidenceStore } from '../stores/evidence-store';
+import { useInvestigationStore } from '../stores/investigation-store';
 import { useReviewStore } from '../stores/review-store';
 import { isSampleBacked, type MetricValue } from '../evidence';
 import { fileSummariesFor, type FileSummary } from './file-summaries';
@@ -20,6 +21,7 @@ import { buildEvolutionModel, type EvolutionModel } from './evolution';
 import type { ChangeWindow } from '../fixtures/sample-evolution';
 import { SAMPLE_PACKAGES, type SamplePackage } from '../fixtures/sample-packages';
 import { buildQualityModel, type QualityModel } from './findings';
+import { buildInvestigationModel } from './investigation';
 import { buildOwnershipModel, type OwnershipModel } from './ownership';
 import { buildSecurityModel, type SecurityModel } from './security';
 import type { JournalEntry } from './snapshot-comparison';
@@ -146,6 +148,7 @@ export function useReadModels() {
   const store = useCityStore();
   const review = useReviewStore();
   const evidenceStore = useEvidenceStore();
+  const investigationStore = useInvestigationStore();
   const files = computed(() => (store.snapshot ? fileSummariesFor(store.snapshot) : NO_FILES));
   /** Part 6 Y34 (R7): the bound codebase's imported evidence, resolved against these files.
    *  A report bound to another codebase (a switch App has not rebound yet) is never shown. */
@@ -165,6 +168,9 @@ export function useReadModels() {
   const fileDetail = computed(() => (store.snapshot
     ? fileDetailFor(store.snapshot, files.value, store.selectedEntityId, evidence.value, relations.value) : null));
   const quality = computed(() => qualityModelFor(files.value, evidence.value, review.dispositions));
+  // WP-04 Task 6: EMPTY_NOTE_INDEX until Task 10 wires investigationStore.notes to the
+  // real note subscription.
+  const investigation = computed(() => buildInvestigationModel(quality.value, investigationStore.notes));
   const testConfidence = computed(() => (store.snapshot ? testConfidenceModelFor(store.snapshot, files.value) : null));
   const dependencies = computed(() => (store.snapshot ? dependenciesModelFor(store.snapshot) : null));
   const security = computed(() => securityModelFor(SAMPLE_PACKAGES));
@@ -172,7 +178,7 @@ export function useReadModels() {
   /** A11: the Hotspots screen shows sample values whenever any file's plotted signal does. */
   const filesUseSample = computed(() => files.value.some((f) => isSampleBacked(f.priority) || isSampleBacked(f.complexity)));
   return {
-    files, evidence, overview, citySummary, architecture, fileDetail, quality, testConfidence, dependencies, security,
+    files, evidence, overview, citySummary, architecture, fileDetail, quality, investigation, testConfidence, dependencies, security,
     ownership, filesUseSample, relations,
   };
 }
