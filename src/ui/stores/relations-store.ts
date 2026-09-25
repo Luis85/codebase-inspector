@@ -62,6 +62,22 @@ export const useRelationsStore = defineStore('relations', () => {
   );
   watch(() => city.selectedEntityId, () => { highlightedCycleId.value = null; }, { flush: 'sync' });
 
+  /** E26/JP6: a re-import replaces the report object without changing repositoryId or the
+   *  selection, so neither watcher above fires. Finding ids are content hashes, so a cycle
+   *  that is still reported under the same id is the same cycle and the highlight is kept;
+   *  otherwise it clears. The reset watcher above already handles report === null. */
+  watch(
+    () => evidence.report,
+    (report) => {
+      const id = highlightedCycleId.value;
+      if (report === null || id === null) return;
+      const { importCycles, reExportCycles } = report.normalized.relations;
+      const stillThere = importCycles.some((c) => c.findingId === id) || reExportCycles.some((c) => c.findingId === id);
+      if (!stillThere) highlightedCycleId.value = null;
+    },
+    { flush: 'sync' },
+  );
+
   // WP-03 E19: `reset` stays private — only the watcher above calls it, and a returned
   // member nothing reads is a new `npm run analyze` finding (N40's baseline wins).
   return {

@@ -148,7 +148,7 @@
 :where(.codebase-inspector-root) .ci-city-relations__glyph { font-weight: var(--font-semibold); }
 :where(.codebase-inspector-root) .ci-city-relations__glyph--out { color: var(--ci-relation-out); }
 :where(.codebase-inspector-root) .ci-city-relations__glyph--in { color: var(--ci-relation-in); }
-:where(.codebase-inspector-root) .ci-city-relations__path { font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-city-relations__path { flex: 1 1 0; min-width: 0; font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-city-relations__source,
 :where(.codebase-inspector-root) .ci-city-relations__hop,
 :where(.codebase-inspector-root) .ci-city-relations__kind { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }

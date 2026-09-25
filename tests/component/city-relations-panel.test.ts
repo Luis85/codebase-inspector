@@ -21,8 +21,23 @@ import {
   RELATION_ROW_LOCATION, RELATIONS_HOPS_LABEL, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
   RELATIONS_STATIC_NOTE, RELATIONS_TITLE,
 } from '../../src/ui/inspector-copy';
+import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
+import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
 import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson } from '../fixtures/relations-report';
+
+/** E26/JP6: a re-import, through the real parser and normaliser straight into `attach` on the
+ *  ALREADY-bound repository — unlike `attachRelationsReport`, which rebinds a fresh repository
+ *  (right for first attach, wrong for a rescan: it would reset the store itself, the very
+ *  thing this simulates a rescan withOUT triggering). */
+function reimportRelationsReport(snap: CodebaseSnapshot, json?: string): void {
+  const parsed = parseFallowReportText(json ?? relationsRecordingJson());
+  if (!parsed.ok) throw new Error(`test setup: the relations fixture was refused (${parsed.code} ${parsed.detail})`);
+  const report = buildEvidenceReport({
+    raw: parsed.report, fileName: 'relations.json', importedAt: '2026-09-24T10:00:00.000Z', snapshotId: snap.snapshotId, stripPrefix: 'src/',
+  });
+  if (!useEvidenceStore().attach(report)) throw new Error('test setup: the evidence store refused the re-import');
+}
 
 const BOOKMARK: CameraBookmark = { projection: 'orthographic', mode: '3d', position: [4, 5, 6], target: [1, 2, 3], up: [0, 1, 0], zoom: 2 };
 const LONG = Array.from({ length: 30 }, (_, i) => `long/f${String(i).padStart(2, '0')}.ts`);
@@ -31,6 +46,14 @@ function longCycleJson(): string {
   const raw = JSON.parse(relationsRecordingJson()) as { check: { circular_dependencies: unknown[] } };
   const files = LONG.map((p) => `src/${p}`);
   raw.check.circular_dependencies.push({ files, length: files.length, line: 1, col: 0, edges: files.map((path) => ({ path, line: 1, col: 0 })) });
+  return JSON.stringify(raw);
+}
+/** The recording with the core/a.ts → b.ts → c.ts cycle removed from `circular_dependencies`
+ *  (E26/JP6: a re-import that drops the highlighted cycle). Every other section, including
+ *  the barrel re-export cycle, is unchanged. */
+function withoutCoreCycleJson(): string {
+  const raw = JSON.parse(relationsRecordingJson()) as { check: { circular_dependencies: { files: string[] }[] } };
+  raw.check.circular_dependencies = raw.check.circular_dependencies.filter((c) => c.files[0] !== 'src/core/a.ts');
   return JSON.stringify(raw);
 }
 /** The recording with the core cycle's three imports on distinct lines: a.ts imports b.ts on
@@ -303,5 +326,33 @@ describe('the relations store, one per leaf (N31)', () => {
     expect(city.route).toBe('city');
     expect(city.inspectorOpen).toBe(true);
     expect(city.camera).toEqual(BOOKMARK);
+  });
+
+  it('E26/JP6: re-importing a report that drops the highlighted cycle clears it, and sends no cycle arcs', async () => {
+    const snap = setup();
+    const { renderer } = mountInspector();
+    const core = useReadModels().relations.value.cycles.find((c) => c.pathText.startsWith('core/a.ts'))!;
+    const store = useRelationsStore();
+    store.highlightCycle(core.findingId);
+    await nextTick();
+    expect(store.highlightedCycleId).toBe(core.findingId);
+
+    reimportRelationsReport(snap, withoutCoreCycleJson());
+    await nextTick();
+    expect(store.highlightedCycleId).toBeNull();
+    expect(renderer.setRelations).not.toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ role: 'cycle' })]));
+  });
+
+  it('E26/JP6: re-importing the same report keeps the highlight (same content-hash finding id)', async () => {
+    const snap = setup();
+    mountInspector();
+    const core = useReadModels().relations.value.cycles.find((c) => c.pathText.startsWith('core/a.ts'))!;
+    const store = useRelationsStore();
+    store.highlightCycle(core.findingId);
+    await nextTick();
+
+    reimportRelationsReport(snap);   // the exact same recording, re-imported
+    await nextTick();
+    expect(store.highlightedCycleId).toBe(core.findingId);
   });
 });
