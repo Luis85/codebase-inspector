@@ -100,13 +100,86 @@ describe('investigation store: the notes port (IN33, IP37)', () => {
     await flushPromises();
     expect(store.destination).toEqual({ folder: 'Beta notes', isDefault: false });
   });
+
+  it('A→B→A: the first read for A, arriving last, never overwrites the second', async () => {
+    const inner = createFakeInvestigationFolders({ p2: 'Beta notes' });
+    const firstRead = gate();
+    let p1Reads = 0;
+    const folders: InvestigationFolderStore = {
+      ...inner,
+      read: async (id) => {
+        if (id !== 'p1') return inner.read(id);
+        p1Reads += 1;
+        if (p1Reads > 1) return 'Alpha new';
+        await firstRead.promise;
+        return 'Alpha old';
+      },
+    };
+    const { store, evidence } = await setup(folders);
+    evidence.bindRepository('p1');
+    evidence.bindRepository('p2');
+    evidence.bindRepository('p1');
+    await vi.waitFor(() => { expect(store.destination).toEqual({ folder: 'Alpha new', isDefault: false }); });
+    firstRead.release();
+    await flushPromises();
+    expect(store.destination).toEqual({ folder: 'Alpha new', isDefault: false });
+  });
+
+  it('loadDestination re-reads the bound codebase\'s folder after it changed', async () => {
+    const folders = createFakeInvestigationFolders({ p1: 'Alpha notes' });
+    const { store, evidence } = await setup(folders);
+    evidence.bindRepository('p1');
+    await vi.waitFor(() => { expect(store.destination).toEqual({ folder: 'Alpha notes', isDefault: false }); });
+    await folders.write('p1', 'Moved notes');
+    await store.loadDestination();
+    expect(store.destination).toEqual({ folder: 'Moved notes', isDefault: false });
+  });
+
+  it('a failed destination read is failed, not "not yet read", and a later good read clears it', async () => {
+    const inner = createFakeInvestigationFolders({ p1: 'Alpha notes' });
+    let fail = true;
+    const folders: InvestigationFolderStore = { ...inner, read: (id) => (fail ? Promise.reject(new Error('data.json unreadable')) : inner.read(id)) };
+    const { store, evidence } = await setup(folders);
+    evidence.bindRepository('p1');
+    await vi.waitFor(() => { expect(store.destinationFailed).toBe(true); });
+    expect(store.destination).toBeNull();
+    fail = false;
+    await store.loadDestination();
+    expect(store.destinationFailed).toBe(false);
+    expect(store.destination).toEqual({ folder: 'Alpha notes', isDefault: false });
+  });
 });
+
+/** The preview tests read for 'p1', so the store is bound to it (readPreview refuses another codebase). */
+async function boundSetup() {
+  const s = await setup();
+  s.evidence.bindRepository('p1');
+  return s;
+}
 
 describe('investigation store: preview reads (IN13, IP39)', () => {
   beforeEach(() => { setActivePinia(createPinia()); });
 
+  it('refuses a request for a codebase other than the bound one, and reads nothing while unbound', async () => {
+    const { preview, store, evidence } = await setup();
+    await Promise.race([store.readPreview('a', r1), flushPromises()]);
+    expect(preview.requests).toHaveLength(0);
+    evidence.bindRepository('p2');
+    await Promise.race([store.readPreview('a', r1), flushPromises()]);
+    expect(preview.requests).toHaveLength(0);
+    expect(store.preview).toEqual({ status: 'idle' });
+  });
+
+  it('a read that throws synchronously is a read-error result, never a rejected readPreview', async () => {
+    const { store, real } = await boundSetup();
+    const throwing: SourcePreview = { read: () => { throw new Error('sync boom'); } };
+    store.setPorts(real, throwing);
+    await store.readPreview('a', r1);
+    expect(store.preview).toEqual({ status: 'ready', fingerprint: 'a', result: { status: 'unavailable', reason: 'read-error' } });
+  });
+
   it('a newer read wins whatever order the results arrive in', async () => {
-    const { preview, store } = await setup();
+    const { preview, store } = await boundSetup();
     void store.readPreview('a', r1);
     void store.readPreview('b', r2);
     expect(store.preview).toEqual({ status: 'loading', fingerprint: 'b' });
@@ -119,7 +192,7 @@ describe('investigation store: preview reads (IN13, IP39)', () => {
   });
 
   it('opening another finding resets the preview to idle, and a read that resolves after the reset is ignored', async () => {
-    const { preview, store } = await setup();
+    const { preview, store } = await boundSetup();
     store.open('a');
     void store.readPreview('a', r1);
     store.open('b');
@@ -130,7 +203,7 @@ describe('investigation store: preview reads (IN13, IP39)', () => {
   });
 
   it('opening the selected finding again keeps its preview (a selection watcher would not read again)', async () => {
-    const { preview, store } = await setup();
+    const { preview, store } = await boundSetup();
     store.open('a');
     void store.readPreview('a', r1);
     preview.resolveNext(okOf(1));
@@ -156,9 +229,9 @@ describe('investigation store: preview reads (IN13, IP39)', () => {
   });
 
   it('a read that rejects is a read-error result, never an unhandled rejection', async () => {
-    const store = useInvestigationStore();
+    const { store, real } = await boundSetup();
     const failing: SourcePreview = { read: () => Promise.reject(new Error('boom')) };
-    store.setPorts((await setup()).real, failing);
+    store.setPorts(real, failing);
     await store.readPreview('a', r1);
     expect(store.preview).toEqual({ status: 'ready', fingerprint: 'a', result: { status: 'unavailable', reason: 'read-error' } });
   });

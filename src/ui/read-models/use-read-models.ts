@@ -168,8 +168,8 @@ export function useReadModels() {
   const fileDetail = computed(() => (store.snapshot
     ? fileDetailFor(store.snapshot, files.value, store.selectedEntityId, evidence.value, relations.value) : null));
   const quality = computed(() => qualityModelFor(files.value, evidence.value, review.dispositions));
-  // WP-04 Task 6: EMPTY_NOTE_INDEX until Task 10 wires investigationStore.notes to the
-  // real note subscription.
+  // WP-04 Task 6/10: investigationStore.notes is the bound codebase's live note index (the
+  // notes port's subscription, rebound on every codebase change).
   const investigation = computed(() => buildInvestigationModel(quality.value, investigationStore.notes));
   const testConfidence = computed(() => (store.snapshot ? testConfidenceModelFor(store.snapshot, files.value) : null));
   const dependencies = computed(() => (store.snapshot ? dependenciesModelFor(store.snapshot) : null));

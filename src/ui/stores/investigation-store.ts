@@ -26,7 +26,16 @@ export type PreviewState =
 const IDLE: PreviewState = { status: 'idle' };
 // Module scope (oxlint consistent-function-scoping): captures nothing.
 const readFailed = (): PreviewResult => ({ status: 'unavailable', reason: 'read-error' });
-const ignore = (): void => {};
+
+/** Total (Task 10 review, item 4): a service that throws synchronously, or rejects, gives a
+ *  read-error result. The read itself still starts synchronously, in the caller's tick. */
+function readSafely(service: SourcePreview, request: PreviewRequest): Promise<PreviewResult> {
+  try {
+    return service.read(request).catch(readFailed);
+  } catch {
+    return Promise.resolve(readFailed());
+  }
+}
 
 export const useInvestigationStore = defineStore('investigation', () => {
   const evidence = useEvidenceStore();
@@ -35,35 +44,62 @@ export const useInvestigationStore = defineStore('investigation', () => {
   /** IN33: the BOUND codebase's note index (`list(repositoryId)`), never another codebase's:
    *  a portable key shared by two codebases attaches only to its own codebase's rows. */
   const notes = shallowRef<NoteIndex>(EMPTY_NOTE_INDEX);
-  /** IN18: the bound codebase's notes folder; null while unbound or not yet read. */
+  /** IN18: the bound codebase's notes folder; null while unbound, not yet read, or failed. */
   const destination = ref<NoteDestination | null>(null);
+  /** Task 10 review, item 2: a SEPARATE flag (so `destination` keeps its shape): true when
+   *  the last read of the folder setting failed, cleared by a bind or a good read. */
+  const destinationFailed = ref(false);
   const preview = shallowRef<PreviewState>(IDLE);
   let notesPort: InvestigationNotesPort | null = null;
   let sourcePreview: SourcePreview | null = null;
   let unsubscribe: (() => void) | null = null;
   // IP39: each read takes a token; a result for an older token is dropped.
   let previewToken = 0;
+  // Task 10 review, item 1: the same for destination reads. Every bind and every read bumps
+  // it, so only the LATEST read lands — A→B→A cannot let A's first read overwrite its second.
+  let destinationToken = 0;
 
   const resetPreview = (): void => {
     previewToken += 1;
     preview.value = IDLE;
   };
 
+  /** IN18: (re-)reads the bound codebase's folder. Called on bind, by the Settings row on
+   *  mount and by the create dialog on open: the settings tab that changes the folder has no
+   *  change signal. The shown folder stays until the new read lands. */
+  const loadDestination = async (): Promise<void> => {
+    const port = notesPort;
+    const id = evidence.repositoryId;
+    if (port === null || id === '') return;
+    destinationToken += 1;
+    const token = destinationToken;
+    try {
+      const next = await port.destination(id);
+      if (token !== destinationToken) return;
+      destination.value = next;
+      destinationFailed.value = false;
+    } catch {
+      if (token !== destinationToken) return;
+      destination.value = null;
+      destinationFailed.value = true;
+    }
+  };
+
   /** Drops the old subscription, then lists, subscribes and reads the destination for the
-   *  bound codebase. A destination that arrives after its codebase (or port) changed is ignored. */
+   *  bound codebase. */
   const bindNotes = (): void => {
     unsubscribe?.();
     unsubscribe = null;
     notes.value = EMPTY_NOTE_INDEX;
+    destinationToken += 1;
     destination.value = null;
+    destinationFailed.value = false;
     const port = notesPort;
     const id = evidence.repositoryId;
     if (port === null || id === '') return;
     notes.value = port.list(id);
     unsubscribe = port.subscribe(() => { notes.value = port.list(id); });
-    void port.destination(id).then((next) => {
-      if (notesPort === port && evidence.repositoryId === id) destination.value = next;
-    }, ignore);
+    void loadDestination();
   };
 
   // PF14: arrow-function members.
@@ -86,14 +122,16 @@ export const useInvestigationStore = defineStore('investigation', () => {
     resetPreview();
     bindNotes();
   };
-  /** IN13 (IP39): the ONLY place a preview is read. A newer call wins. */
+  /** IN13 (IP39): the ONLY place a preview is read. A newer call wins. A request for any
+   *  codebase but the bound one is refused (Task 10 review, item 3), and so is every request
+   *  while none is bound. */
   const readPreview = async (fingerprint: string, request: PreviewRequest): Promise<void> => {
     const service = sourcePreview;
-    if (service === null) return;
+    if (service === null || evidence.repositoryId === '' || request.codebaseId !== evidence.repositoryId) return;
     previewToken += 1;
     const token = previewToken;
     preview.value = { status: 'loading', fingerprint };
-    const result = await service.read(request).catch(readFailed);
+    const result = await readSafely(service, request);
     if (token === previewToken) preview.value = { status: 'ready', fingerprint, result };
   };
   const plan = (folder: string, baseName: string, rootPath: string | null): DestinationPlan | null =>
@@ -119,7 +157,7 @@ export const useInvestigationStore = defineStore('investigation', () => {
   });
 
   return {
-    selectedFingerprint, findingGone, notes, destination, preview, open, markGone, setPorts, readPreview, plan, create, refresh,
-    openNote, sourceNotePath,
+    selectedFingerprint, findingGone, notes, destination, destinationFailed, preview, open, markGone, setPorts, loadDestination,
+    readPreview, plan, create, refresh, openNote, sourceNotePath,
   };
 });

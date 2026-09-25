@@ -30,6 +30,7 @@ export const NOTES_FOLDER_ROW_TITLE = 'Investigation notes folder';
 export const NOTES_FOLDER_ROW_TEXT = 'New investigation notes for this codebase go here. Change it in Obsidian’s settings for this plugin.';
 export const NOTES_FOLDER_ROW_DEFAULT = '(default)';
 export const NOTES_FOLDER_ROW_NO_CODEBASE = 'Open a codebase to see its notes folder.';
+export const NOTES_FOLDER_ROW_FAILED = 'The notes folder setting for this codebase could not be read.';
 
 export const INVESTIGATE_EYEBROW = 'Act / Investigate';
 export const INVESTIGATE_TITLE = 'From a finding to a recorded decision.';

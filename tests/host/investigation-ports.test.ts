@@ -38,21 +38,31 @@ vi.mock('../../src/adapters/filesystem/node-source-filesystem', () => ({
 
 const REQUEST: PreviewRequest = { codebaseId: 'p1', expectedRoot: '/fake-root', relativePath: 'a.ts', maxFileBytes: 1_000_000, line: 1 };
 
-/** A notes port whose index the test changes, counting its live listeners. */
+/** A notes port holding one index per codebase, which the test changes; it counts its live
+ *  listeners. Like the host's, every listener hears every change, whichever codebase it is for. */
 function controllableNotes() {
   const listeners = new Set<() => void>();
   const listed: string[] = [];
-  let index: NoteIndex = EMPTY_NOTE_INDEX;
+  const indexes = new Map<string, NoteIndex>();
   const port: InvestigationNotesPort = {
     ...inertInvestigationNotes(),
-    list: (codebaseId) => { listed.push(codebaseId); return index; },
+    list: (codebaseId) => { listed.push(codebaseId); return indexes.get(codebaseId) ?? EMPTY_NOTE_INDEX; },
     subscribe: (listener) => { listeners.add(listener); return () => { listeners.delete(listener); }; },
   };
-  const change = (next: NoteIndex): void => {
-    index = next;
+  const change = (codebaseId: string, next: NoteIndex): void => {
+    indexes.set(codebaseId, next);
     for (const listener of Array.from(listeners)) listener();
   };
   return { port, listed, change, listenerCount: () => listeners.size };
+}
+
+/** One leaf: its own Pinia, wired to the shared ports and bound to `codebaseId`. */
+function leaf(notes: InvestigationNotesPort, codebaseId: string) {
+  const pinia = createPinia();
+  const ports: ReturnType<typeof dataPortDeps> = { ...dataPortDeps(), investigationNotes: notes };
+  wireDataPorts(pinia, ports as CityViewDeps);
+  useEvidenceStore(pinia).bindRepository(codebaseId);
+  return useInvestigationStore(pinia);
 }
 
 describe('the investigation ports (IN7, IN33)', () => {
@@ -77,12 +87,27 @@ describe('the investigation ports (IN7, IN33)', () => {
     useEvidenceStore(pinia).bindRepository('p1');
     const store = useInvestigationStore(pinia);
     const first: NoteIndex = { byFingerprint: new Map(), malformed: 1 };
-    notes.change(first);
+    notes.change('p1', first);
     expect(store.notes).toBe(first);
     unwireDataPorts(pinia);
     expect(notes.listenerCount()).toBe(0);
-    notes.change({ byFingerprint: new Map(), malformed: 2 });
+    notes.change('p1', { byFingerprint: new Map(), malformed: 2 });
     expect(store.notes).toBe(first);
+  });
+
+  it('two leaves on different codebases share one port: each lists only its own codebase', () => {
+    const notes = controllableNotes();
+    const alpha = leaf(notes.port, 'p1');
+    const beta = leaf(notes.port, 'p2');
+    expect(notes.listenerCount()).toBe(2);
+    const alphaIndex: NoteIndex = { byFingerprint: new Map(), malformed: 1 };
+    notes.change('p1', alphaIndex);
+    expect(alpha.notes).toBe(alphaIndex);
+    expect(beta.notes).toBe(EMPTY_NOTE_INDEX);
+    const betaIndex: NoteIndex = { byFingerprint: new Map(), malformed: 2 };
+    notes.change('p2', betaIndex);
+    expect(beta.notes).toBe(betaIndex);
+    expect(alpha.notes).toBe(alphaIndex);
   });
 });
 

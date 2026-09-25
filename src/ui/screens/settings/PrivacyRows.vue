@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import {
   REVIEW_RECORDS_SKIPPED, REVIEW_STORE_READ_FAILED, REVIEW_STORE_RETIRED_NOTE, REVIEW_STORE_UNSUPPORTED_NOTE,
   SETTINGS_CLEAR, SETTINGS_CLEAR_HINT, SETTINGS_CLEAR_OPEN, SETTINGS_CLEAR_TEXT, SETTINGS_EXPORT, SETTINGS_NETWORK,
   SETTINGS_NETWORK_TEXT, SETTINGS_NETWORK_VALUE, SETTINGS_STORAGE, SETTINGS_STORAGE_TEXT,
-  NOTES_FOLDER_ROW_DEFAULT, NOTES_FOLDER_ROW_NO_CODEBASE, NOTES_FOLDER_ROW_TEXT, NOTES_FOLDER_ROW_TITLE,
+  NOTES_FOLDER_ROW_DEFAULT, NOTES_FOLDER_ROW_FAILED, NOTES_FOLDER_ROW_NO_CODEBASE, NOTES_FOLDER_ROW_TEXT, NOTES_FOLDER_ROW_TITLE,
 } from '../../inspector-copy';
 import { useReviewStore } from '../../stores/review-store';
 import { useEvidenceStore } from '../../stores/evidence-store';
@@ -19,6 +19,9 @@ const review = useReviewStore();
 /** WP-04 IN18: the bound codebase's notes folder, read-only (it is set in Obsidian's settings tab). */
 const evidence = useEvidenceStore();
 const investigation = useInvestigationStore();
+// Task 10 review, item 1: the folder is changed in Obsidian's settings tab, which has no
+// change signal, so the row re-reads it each time it mounts.
+onMounted(() => { void investigation.loadDestination(); });
 const clearHintId = useUniqueId('ci-settings-clear-hint');
 const storageNoteId = useUniqueId('ci-settings-storage-note');
 const clearGate = useReviewWriteGate(clearHintId, storageNoteId);
@@ -79,6 +82,12 @@ function requestClear(): void {
       <h3>{{ NOTES_FOLDER_ROW_TITLE }}</h3>
       <p class="ci-note">
         {{ evidence.repositoryId === '' ? NOTES_FOLDER_ROW_NO_CODEBASE : NOTES_FOLDER_ROW_TEXT }}
+      </p>
+      <p
+        v-if="evidence.repositoryId !== '' && investigation.destinationFailed"
+        class="ci-note ci-settings__notes-folder-failed"
+      >
+        {{ NOTES_FOLDER_ROW_FAILED }}
       </p>
     </div>
     <span v-if="evidence.repositoryId !== '' && investigation.destination !== null">
