@@ -96,7 +96,6 @@ export const PRIORITY_SCALE_SUFFIX = ' / 100';
 export const ARCH_CARD_MODULES = 'Modules';
 export const ARCH_CARD_VIOLATIONS = 'Boundary violations';
 export const ARCH_MODULES_OMITTED_CAPTION = (shown: number): string => `The ${shown} largest are shown in the graph`;
-export const ARCH_VIOLATIONS_CAPTION = (failing: number): string => `${failing} of your rules violated`;
 /** WP-03 JF11: reworded — the module graph is evidenced imports now, never sample. */
 export const RULE_NOT_EVALUATED_REASON = 'A module in this rule is not in the module graph.';
 

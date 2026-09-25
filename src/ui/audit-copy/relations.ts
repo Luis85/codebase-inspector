@@ -91,3 +91,11 @@ export const ARCH_FALLOW_ZONES_UNMATCHED = (n: number): string =>
 /** N5: a Map node's label without a report — no edge counts, which would read as 0. */
 export const ARCH_NODE_LABEL_NOT_ANALYSED = (label: string, files: number): string =>
   `${label}, ${files} files, imports not analysed`;
+
+/** PO1 (JP3): the split Boundary violations / Your rules violated cards. The Boundary
+ *  violations card's caption once a report has been analysed — it is fallow's number
+ *  alone, so the caption says so rather than implying anything of yours is counted. */
+export const ARCH_VIOLATIONS_FALLOW_CAPTION = 'Reported by fallow';
+export const ARCH_CARD_RULES = 'Your rules violated';
+export const ARCH_RULES_CAPTION = (total: number, notEvaluated: number): string => `${total} rules · ${notEvaluated} not evaluated`;
+export const ARCH_RULES_NONE = 'No module rules yet. Add one on the Rules tab.';

@@ -5,9 +5,10 @@ import { aggregateEdges, stronglyConnected } from '../../domain/relations/querie
 import { collected, sumEvidence, unknown, type MetricValue } from '../evidence';
 import type { BoundaryRule } from '../stores/ports/review-repository';
 import {
-  ARCH_CARD_EVIDENCED, ARCH_CARD_MODULES, ARCH_CARD_VIOLATIONS, ARCH_MODULES_OMITTED_CAPTION, ARCH_NOT_ANALYSED_NO_SECTION, ARCH_NOT_ANALYSED_NOTE,
-  ARCH_VIOLATIONS_CAPTION, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_SHORT,
-  RELATION_CARD_CYCLES, RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL, RULE_NOT_EVALUATED_REASON,
+  ARCH_CARD_EVIDENCED, ARCH_CARD_MODULES, ARCH_CARD_RULES, ARCH_CARD_VIOLATIONS, ARCH_MODULES_OMITTED_CAPTION,
+  ARCH_NOT_ANALYSED_NO_SECTION, ARCH_NOT_ANALYSED_NOTE, ARCH_RULES_CAPTION, ARCH_RULES_NONE, ARCH_VIOLATIONS_FALLOW_CAPTION,
+  FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_SHORT, RELATION_CARD_CYCLES, RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL,
+  RULE_NOT_EVALUATED_REASON,
 } from '../inspector-copy';
 import { relationBoundaryValue, relationValue, type CycleView, type RelationModel } from './relations';
 import { byPriority, moduleLabel, moduleOf, type FileSummary } from './file-summaries';
@@ -29,7 +30,7 @@ export type RuleStatus = 'violation' | 'not-evaluated';
 export interface RuleEvaluation { rule: BoundaryRule; status: RuleStatus; violatingImports: MetricValue; reason: string | null }
 export interface MatrixCell { from: string; to: string; edge: ModuleEdge | null }
 export interface ArchitectureCard {
-  id: 'modules' | 'evidenced' | 'cycles' | 'violations'; label: string; icon: string;
+  id: 'modules' | 'evidenced' | 'cycles' | 'violations' | 'rules'; label: string; icon: string;
   value: MetricValue; caption: string; tone: 'accent' | 'danger' | 'warning';
 }
 export interface ArchitectureModel extends ArchitectureGraph {
@@ -153,20 +154,26 @@ export function moduleNeighbours(graph: ArchitectureGraph, name: string): { inco
   };
 }
 
-/** N20: the Boundary violations card adds fallow's own reported violations (through
- *  `relationBoundaryValue`, fix round 1 #1 — skipped entirely, not counted as 0, while
- *  boundaries are not configured — N11's rule) to the count of your OWN rules in
- *  violation (E11: skipped entirely, never a "Nothing to aggregate" 0, unless at least
- *  one rule is actually violated — rules that exist but evaluate not-evaluated contribute
- *  nothing, positive or negative). It is unknown only when both sources have nothing to
- *  add: boundaries not configured (or not analysed) AND no rule of yours is violated. */
-function violationsValue(relations: RelationModel, evaluations: readonly RuleEvaluation[]): MetricValue {
+/** PO1 (amending N20, WP-03 E8 and E24 — JP3's ruling): the Boundary violations card is
+ *  fallow's own reported count ALONE — never added to your violated rules. The two are
+ *  different units (a distinct-finding count vs. a rule count), so summing them once
+ *  produced a number that meant nothing; `relationBoundaryValue` already yields N11's own
+ *  "not configured" unknown (never a measured 0) and the "not analysed" unknown, so
+ *  neither needs restating here. See `rulesValue` for your own rules' own card. */
+function violationsValue(relations: RelationModel): MetricValue {
   // Final review #9: distinct findings, as Quality counts them — never two for one violation reported twice.
-  const fallow = relations.boundaries === 'not-configured' ? null : relationBoundaryValue(relations, relations.boundaryFindings);
-  const violatingRules = evaluations.filter((e) => e.status === 'violation');
-  const own = violatingRules.length === 0 ? null : sumEvidence(violatingRules.map((e) => e.violatingImports));
-  const parts = [fallow, own].filter((v): v is MetricValue => v !== null);
-  return parts.length === 0 ? unknown(FALLOW_BOUNDARIES_NOT_CONFIGURED, 'fallow') : sumEvidence(parts);
+  return relationBoundaryValue(relations, relations.boundaryFindings);
+}
+
+/** PO1 (JP3): the count of your OWN rules currently in violation, independent of
+ *  fallow's boundary count. Unknown with no rules at all (nothing to evaluate, ever, not
+ *  0 of nothing); unknown while nothing was analysed (the count would mean nothing);
+ *  otherwise the number of rules whose status is `violation` — a rule that merely exists
+ *  but evaluates not-evaluated contributes nothing, positive or negative. */
+function rulesValue(rules: readonly BoundaryRule[], evaluations: readonly RuleEvaluation[], notAnalysed: boolean, notAnalysedNote: string): MetricValue {
+  if (rules.length === 0) return unknown(ARCH_RULES_NONE);
+  if (notAnalysed) return unknown(notAnalysedNote);
+  return collected(evaluations.filter((e) => e.status === 'violation').length, 'review');
 }
 
 export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly BoundaryRule[]): ArchitectureModel {
@@ -191,14 +198,26 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
       // counts that could not be measured reads the not-analysed note instead.
       caption: notAnalysed ? notAnalysedNote : RELATION_CYCLES_CAPTION(files, groups, reExports) },
     { id: 'violations', label: ARCH_CARD_VIOLATIONS, icon: 'alert-triangle', tone: 'warning',
-      value: violationsValue(graph.relations, evaluations),
-      // E11: the caption states how many of your rules are violated only once a report
-      // was analysed enough for that count to mean something; 0 is real only then.
-      caption: notAnalysed ? notAnalysedNote : ARCH_VIOLATIONS_CAPTION(violating.length) },
+      value: violationsValue(graph.relations),
+      // PO1: fallow's own count needs no rule-count caption any more — it only ever
+      // says whether it is fallow's, or why there is nothing (the not-analysed note).
+      caption: notAnalysed ? notAnalysedNote : ARCH_VIOLATIONS_FALLOW_CAPTION },
+    { id: 'rules', label: ARCH_CARD_RULES, icon: 'shield', tone: 'warning',
+      value: rulesValue(rules, evaluations, notAnalysed, notAnalysedNote),
+      caption: rules.length === 0 ? ARCH_RULES_NONE
+        : notAnalysed ? notAnalysedNote
+        : ARCH_RULES_CAPTION(rules.length, evaluations.filter((e) => e.status === 'not-evaluated').length) },
   ];
-  return {
-    ...graph, matrix, rules: evaluations,
-    violatingEdgeKeys: new Set(violating.map((e) => edgeKey(e.rule.from, e.rule.to))),
-    cards, notAnalysed, notAnalysedNote,
-  };
+  // PO2 (JP4): the Map, Matrix, Edges filter and edge inspector all agree on ONE set —
+  // your violated rule pairs, union fallow's own boundary-violation pairs (`moduleOf` on
+  // each relation edge's paths, confirmed against file-summaries.ts as what
+  // FileSummary.module is built from, so this matches the Edges tab's own per-row lookup).
+  // A same-module fallow violation keys the diagonal (PO2, Review Focus 3): harmless — the
+  // Map never draws a self-edge (aggregateEdges drops same-group pairs) and the Matrix's
+  // diagonal cell is its own "Same module" branch regardless of this set.
+  const violatingEdgeKeys = new Set([
+    ...violating.map((e) => edgeKey(e.rule.from, e.rule.to)),
+    ...graph.relations.edges.filter((e) => e.sources.includes('boundary')).map((e) => edgeKey(moduleOf(e.fromPath), moduleOf(e.toPath))),
+  ]);
+  return { ...graph, matrix, rules: evaluations, violatingEdgeKeys, cards, notAnalysed, notAnalysedNote };
 }

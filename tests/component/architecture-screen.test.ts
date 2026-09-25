@@ -48,16 +48,19 @@ describe('ArchitectureScreen', () => {
     w.unmount();
   });
 
-  it('shows collected modules and unknown relation cards without a report', () => {
+  it('shows collected modules and unknown relation cards without a report (PO1: five cards, Boundary violations and Your rules violated split)', () => {
     withSnapshot();
     const w = mountArch();
     const cards = w.findAll('.ci-metric-card');
-    expect(cards).toHaveLength(4);
+    expect(cards).toHaveLength(5);
     expect(cards[0]!.find('.ci-metric-card__value').text()).toBe('6');
     expect(cards[0]!.find('.ci-provenance').exists()).toBe(false);
     expect(cards[1]!.find('.ci-metric-card__value').text()).toBe('—');
     expect(cards[1]!.find('.ci-provenance--unknown').exists()).toBe(true);
     expect(cards[3]!.find('.ci-metric-card__value').text()).toBe('—');
+    // The new fifth card ("Your rules violated"): unknown with no rules at all, never "—0".
+    expect(cards[4]!.find('.ci-metric-card__value').text()).toBe('—');
+    expect(cards[4]!.find('.ci-provenance--unknown').exists()).toBe(true);
     w.unmount();
   });
 
@@ -125,13 +128,17 @@ describe('ArchitectureScreen', () => {
     w.unmount();
   });
 
-  it('violations only hides every edge while no rule exists', async () => {
+  it('PO2: violations only keeps fallow\'s own boundary edge on the Map even while no rule exists', async () => {
     withRelationsSnapshot();
     const w = mountArch();
-    expect(w.findAll('.ci-module-map__edge').length).toBeGreaterThan(0);
+    const before = w.findAll('.ci-module-map__edge');
+    expect(before.length).toBeGreaterThan(0);
     expect(w.find('.ci-module-map__node').attributes('aria-label')).toMatch(/files, \d+ outgoing, \d+ incoming, evidenced imports$/);
     await w.find('.ci-architecture__toggle input').setValue(true);
-    expect(w.findAll('.ci-module-map__edge')).toHaveLength(0);
+    // The one evidenced cross-module edge is fallow's own boundary violation, so it stays
+    // shown (and marked as a violation) with no rule of yours in play (PO2/JP4).
+    expect(w.findAll('.ci-module-map__edge')).toHaveLength(before.length);
+    expect(w.findAll('.ci-module-map__edge--violation')).toHaveLength(before.length);
     w.unmount();
   });
 

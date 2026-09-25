@@ -84,10 +84,14 @@ describe('boundary rules', () => {
     await useReviewStore().addRule(edge.from, edge.to, 'No shortcuts', NOW);
     const w = mountArch();
     const violations = w.findAll('.ci-metric-card')[3]!;
-    // fallow's own reported violation (1) plus this one violated rule (1), collected
-    // (never sample, never unknown) — so no provenance badge at all (kit convention).
-    expect(violations.find('.ci-metric-card__value').text()).toBe('2');
+    // PO1: fallow's own reported violation (1) alone — your rule violation never adds to
+    // it, collected (never sample, never unknown) — so no provenance badge (kit convention).
+    expect(violations.find('.ci-metric-card__value').text()).toBe('1');
     expect(violations.find('.ci-provenance').exists()).toBe(false);
+    const rules = w.findAll('.ci-metric-card')[4]!;
+    // Your own violated-rule count, on its own card, also collected.
+    expect(rules.find('.ci-metric-card__value').text()).toBe('1');
+    expect(rules.find('.ci-provenance').exists()).toBe(false);
     await w.find('.ci-architecture__toggle input').setValue(true);
     expect(w.findAll('.ci-module-map__edge--violation')).toHaveLength(1);
     await openRulesTab(w);

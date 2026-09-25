@@ -131,6 +131,18 @@ describe('Architecture: Edges (WP-03 N21)', () => {
     w.unmount();
   });
 
+  it('PO2: with no rule of yours, Violations only keeps fallow\'s boundary edges and hides cycle-only edges', async () => {
+    setup();
+    const w = mountArch();
+    await openTab(w, ARCH_TAB_EDGES);
+    await w.find('.ci-architecture__toggle input').setValue(true);
+    // Only the boundary-sourced edge (ui/view.ts -> data/db.ts) qualifies; the cycle-only
+    // edges (core/*, barrel/*) are hidden with no rule of yours violated.
+    expect(cells(w).map((c) => c[0])).toEqual(['ui/view.ts']);
+    expect(cells(w).map((c) => c[2])).toEqual(['Boundary']);
+    w.unmount();
+  });
+
   it('shows at most 200 rows and says how many more are not shown', async () => {
     setup([...RELATIONS_PATHS, ...GENERATED], { json: manyViolationsJson() });
     expect(useReadModels().architecture.value.relations.edges).toHaveLength(250);

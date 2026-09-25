@@ -12,14 +12,15 @@ import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { relationModelFor } from '../../src/ui/read-models/relations';
 import {
-  architectureGraphFor, buildArchitectureModel, cycleModules, cyclesValue, evaluateRules, type RuleStatus,
+  architectureGraphFor, buildArchitectureModel, cycleModules, cyclesValue, edgeKey, evaluateRules, type RuleStatus,
 } from '../../src/ui/read-models/architecture';
+import { moduleOf } from '../../src/ui/read-models/file-summaries';
 import { buildOverviewModel } from '../../src/ui/read-models/overview';
 import { buildSourcesModel } from '../../src/ui/read-models/sources';
 import {
-  ARCH_NOT_ANALYSED_NOTE, ARCH_VIOLATIONS_CAPTION, ARCH_VIOLATIONS_NOT_CONFIGURED, EVIDENCE_SOURCE_FALLOW_PARTIAL,
-  FALLOW_NOT_ANALYSED, OVERVIEW_IMPORTS_ROW, RELATIONS_SCOPE_SHORT, RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL,
-  RULE_NOT_EVALUATED_REASON,
+  ARCH_NOT_ANALYSED_NOTE, ARCH_RULES_CAPTION, ARCH_RULES_NONE, ARCH_VIOLATIONS_FALLOW_CAPTION, ARCH_VIOLATIONS_NOT_CONFIGURED,
+  EVIDENCE_SOURCE_FALLOW_PARTIAL, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, OVERVIEW_IMPORTS_ROW, RELATIONS_SCOPE_SHORT,
+  RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL, RULE_NOT_EVALUATED_REASON,
 } from '../../src/ui/inspector-copy';
 import type { BoundaryRule } from '../../src/ui/stores/ports/review-repository';
 import { fallowDoc, rawReport } from '../fixtures/fallow-fixture';
@@ -79,22 +80,31 @@ describe('cards (N18, N20)', () => {
     expect(card.caption).toBe(RELATIONS_SCOPE_SHORT);
   });
 
-  it('the violations card adds fallow\'s own reported violation to your own violated rules', () => {
-    const withRule = buildArchitectureModel(graph, [rule('ui', 'data')]);
-    // fallow's 1 reported violation + your one violated rule's 1 violating import.
-    expect(withRule.cards.find((c) => c.id === 'violations')!.value).toMatchObject({ state: 'collected', value: 2 });
+  it('PO1: the violations card is fallow\'s own reported count alone — a violated rule of yours never adds to it', () => {
     const withoutRule = buildArchitectureModel(graph, []);
-    expect(withoutRule.cards.find((c) => c.id === 'violations')!.value).toMatchObject({ state: 'collected', value: 1 });
+    const withoutCard = withoutRule.cards.find((c) => c.id === 'violations')!;
+    expect(withoutCard.value).toMatchObject({ state: 'collected', value: 1 });
+    expect(withoutCard.caption).toBe(ARCH_VIOLATIONS_FALLOW_CAPTION);
+    const withRule = buildArchitectureModel(graph, [rule('ui', 'data')]);
+    // Same value as without the rule — not the sum (PO1): fallow's distinct-finding count
+    // and your rule count are two different units.
+    expect(withRule.cards.find((c) => c.id === 'violations')!.value).toEqual(withoutCard.value);
   });
 
-  it('E11: with a rule present but not violated, the card is the fallow part alone — never "Nothing to aggregate"', () => {
-    const model = buildArchitectureModel(graph, [rule('core', 'ui')]);
-    const card = model.cards.find((c) => c.id === 'violations')!;
-    expect(card.value).toMatchObject({ state: 'collected', value: 1 });
-    expect(card.caption).toBe(ARCH_VIOLATIONS_CAPTION(0));
+  it('PO1: the rules card counts your OWN violated rules, independent of fallow\'s boundary count', () => {
+    const none = buildArchitectureModel(graph, []).cards.find((c) => c.id === 'rules')!;
+    expect(none.value).toMatchObject({ state: 'unknown', reason: ARCH_RULES_NONE });
+
+    const notViolated = buildArchitectureModel(graph, [rule('core', 'ui')]).cards.find((c) => c.id === 'rules')!;
+    expect(notViolated.value).toMatchObject({ state: 'collected', value: 0 });
+    expect(notViolated.caption).toBe(ARCH_RULES_CAPTION(1, 1));
+
+    const violated = buildArchitectureModel(graph, [rule('ui', 'data')]).cards.find((c) => c.id === 'rules')!;
+    expect(violated.value).toMatchObject({ state: 'collected', value: 1 });
+    expect(violated.caption).toBe(ARCH_RULES_CAPTION(1, 0));
   });
 
-  it('without a report, every relation card is unknown(FALLOW_NOT_ANALYSED), edges is empty, modules stay collected, notAnalysed is true, and no caption renders a false 0', () => {
+  it('without a report, evidenced/cycles/violations read unknown(FALLOW_NOT_ANALYSED); modules stay collected, notAnalysed is true, and no caption renders a false 0', () => {
     const model = buildArchitectureModel(noReportGraph, []);
     expect(model.notAnalysed).toBe(true);
     expect(model.edges).toEqual([]);
@@ -104,6 +114,45 @@ describe('cards (N18, N20)', () => {
     expect(model.cards.find((c) => c.id === 'modules')).toMatchObject({ value: { state: 'collected' } });
     expect(model.cards.find((c) => c.id === 'cycles')!.caption).toBe(ARCH_NOT_ANALYSED_NOTE);
     expect(model.cards.find((c) => c.id === 'violations')!.caption).toBe(ARCH_NOT_ANALYSED_NOTE);
+  });
+
+  it('without a report, the rules card reads unknown(ARCH_RULES_NONE) with no rules, else the not-analysed note', () => {
+    const noRules = buildArchitectureModel(noReportGraph, []).cards.find((c) => c.id === 'rules')!;
+    expect(noRules.value).toMatchObject({ state: 'unknown', reason: ARCH_RULES_NONE });
+    const withRule = buildArchitectureModel(noReportGraph, [rule('ui', 'data')]).cards.find((c) => c.id === 'rules')!;
+    expect(withRule.value).toMatchObject({ state: 'unknown', reason: ARCH_NOT_ANALYSED_NOTE });
+    expect(withRule.caption).toBe(ARCH_NOT_ANALYSED_NOTE);
+  });
+
+  it('PO1/PO2: on the no-boundaries recording, a violated rule of yours never resurrects the violations card (still unknown, not configured); the rules card is collected 1', () => {
+    const doc = fallowDoc('relations-no-boundaries-3.27.0', (d) => {
+      const crossModuleFiles = ['src/ui/view.ts', 'src/core/a.ts'];
+      (d.check! as unknown as { circular_dependencies: unknown[] }).circular_dependencies.push({
+        files: crossModuleFiles, length: 2, line: 1, col: 0,
+        edges: crossModuleFiles.map((path) => ({ path, line: 1, col: 0 })),
+      });
+    });
+    const noBoundariesReport = buildEvidenceReport({
+      raw: rawReport(doc), fileName: 'relations.json', importedAt: IMPORTED_AT, snapshotId: snapshot.snapshotId, stripPrefix: 'src/',
+    });
+    const rel = relationModelFor(files, evidenceIndexFor(files, noBoundariesReport, snapshot.snapshotId));
+    expect(rel.boundaries).toBe('not-configured');
+    const noBoundariesGraph = architectureGraphFor(files, rel);
+    const model = buildArchitectureModel(noBoundariesGraph, [rule('ui', 'core')]);
+    expect(model.cards.find((c) => c.id === 'violations')!.value).toMatchObject({ state: 'unknown', reason: FALLOW_BOUNDARIES_NOT_CONFIGURED });
+    expect(model.cards.find((c) => c.id === 'rules')!.value).toMatchObject({ state: 'collected', value: 1 });
+  });
+
+  it('PO2 (JP4): violatingEdgeKeys unions your violated rule pairs with moduleOf(fromPath)->moduleOf(toPath) for every relation edge sourced from a boundary', () => {
+    const withoutRule = buildArchitectureModel(graph, [rule('core', 'ui')]);   // not-evaluated: contributes no pair
+    const boundaryEdge = relations.edges.find((e) => e.sources.includes('boundary'))!;
+    expect(boundaryEdge).toBeDefined();
+    const boundaryKey = edgeKey(moduleOf(boundaryEdge.fromPath), moduleOf(boundaryEdge.toPath));
+    expect(withoutRule.violatingEdgeKeys.has(boundaryKey)).toBe(true);
+    const withRule = buildArchitectureModel(graph, [rule('ui', 'data')]);
+    expect(withRule.violatingEdgeKeys.has(boundaryKey)).toBe(true);
+    // Both sources key the same pair here — still one Set entry, never counted twice.
+    expect(withRule.violatingEdgeKeys.size).toBe(withoutRule.violatingEdgeKeys.size);
   });
 
   it('fix round 1 #9: "files in a cycle" counts matched members of a PARTLY matched cycle too', () => {
