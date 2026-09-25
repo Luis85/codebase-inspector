@@ -1,0 +1,10 @@
+[
+  "loads the plugin without errors and opens the inspector on its default route",
+  "vault.create rejects a path that already exists",
+  "backslash escapes keep Obsidian syntax inert in reading and live-preview views",
+  "the metadata cache reports notes changed by process and processFrontMatter",
+  "stringifyYaml round-trips the frontmatter value shapes as strings",
+  "folders can be created one segment at a time",
+  "releases the app, driver and copied directories after a test body rejects",
+  "releases an acquired real session when final initialization rejects"
+]

@@ -8,11 +8,12 @@
     "dev": "vite build --watch",
     "harness": "vite --config vite.harness.config.ts",
     "harness-shot": "node scripts/harness-shot.mjs",
-    "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.test.json",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.test.json && vue-tsc --noEmit -p tests/e2e/tsconfig.json",
     "lint:fast": "oxlint --deny-warnings",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:fallow": "node scripts/fetch-fallow.mjs && vitest run --config vitest.fallow.config.ts",
+    "test:e2e": "node scripts/native-tests.mjs",
     "verify": "npm run typecheck && npm run lint:fast && npm run lint && npm run test && npm run build",
     "analyze": "npx --yes fallow@3.27.0 dead-code src",
     "install:vault": "node --env-file-if-exists=.env scripts/install-to-vault.mjs"
@@ -40,6 +41,11 @@
     "typescript-eslint": "8.70.0",
     "vite": "8.3.0",
     "vitest": "5.0.1",
-    "vue-tsc": "3.3.11"
+    "vue-tsc": "3.3.11",
+    "wdio-obsidian-service": "3.2.1",
+    "webdriverio": "9.32.0"
+  },
+  "overrides": {
+    "@puppeteer/browsers": "3.2.3"
   }
 }

@@ -4,10 +4,13 @@
     // "types" does not merge across "extends" — vite/client must be repeated here,
     // or src/main.ts's `import './ui/styles.css'` side-effect import stops typechecking
     // once this project's include list sweeps src/**/*.ts in alongside tests/**/*.ts.
-    "types": ["vite/client", "vitest/globals", "node"]
+    "types": ["vite/client", "vitest/globals", "node"],
+    // IP49: AggregateError, for tests/support/session-lifecycle.ts through its unit test. src stays ES2020.
+    "lib": ["ES2020", "ES2021.Promise", "DOM", "DOM.Iterable"]
   },
   "include": ["tests/**/*.ts", "src/**/*.ts", "src/**/*.vue"],
   // Part 6 Y21: the fallow fixture project is analysed by fallow, never compiled.
   // WP-03 Part 1 N34: the relations fixture project is the same — analysed by fallow only.
-  "exclude": ["tests/fixtures/fallow/project/**", "tests/fixtures/fallow/relations-project/**"]
+  // IP49: the native layer is its own project (tests/e2e/tsconfig.json): WDIO's types never meet vitest/globals'.
+  "exclude": ["tests/fixtures/fallow/project/**", "tests/fixtures/fallow/relations-project/**", "tests/e2e/**"]
 }

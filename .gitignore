@@ -4,3 +4,5 @@ dist/
 .obsidian
 harness-shots/
 .fallow-bin/
+.obsidian-cache/
+reports/

@@ -8,5 +8,5 @@
   "rules": {
     "unicorn/no-array-sort": "off"
   },
-  "ignorePatterns": ["dist/**", "docs/**", "node_modules/**", "tests/fixtures/fallow/project/**", "tests/fixtures/fallow/relations-project/**", ".fallow-bin/**"]
+  "ignorePatterns": ["dist/**", "docs/**", "node_modules/**", "tests/fixtures/fallow/project/**", "tests/fixtures/fallow/relations-project/**", ".fallow-bin/**", ".obsidian-cache/**", "reports/**"]
 }

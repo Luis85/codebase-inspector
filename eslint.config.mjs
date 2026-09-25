@@ -19,13 +19,13 @@ export default tseslint.config(
   // tests/fixtures/fallow/project/** is Part 6's fallow fixture project (Y21): analysed by
   // fallow, excluded from tsconfig.test.json, so it cannot be type-aware linted either.
   // tests/fixtures/fallow/relations-project/** is WP-03 Part 1's relations fixture (N34): same reason.
-  { ignores: ['dist/**', 'docs/**', 'node_modules/**', 'package.json', '.obsidian/**', 'tests/fixtures/fallow/project/**', 'tests/fixtures/fallow/relations-project/**', '.fallow-bin/**'] },
+  { ignores: ['dist/**', 'docs/**', 'node_modules/**', 'package.json', '.obsidian/**', 'tests/fixtures/fallow/project/**', 'tests/fixtures/fallow/relations-project/**', '.fallow-bin/**', '.obsidian-cache/**', 'reports/**'] },
   ...tseslint.configs.recommendedTypeChecked,
   ...vue.configs['flat/recommended'],
   ...obsidianmd.configs.recommended,   // no-nodejs-modules, hardcoded-config-path,
                                        // prefer-instanceof, detach-leaves,
                                        // no-unsupported-api, prefer-setting-definitions
-  { languageOptions: { parserOptions: { project: ['./tsconfig.json', './tsconfig.test.json'] } } },
+  { languageOptions: { parserOptions: { project: ['./tsconfig.json', './tsconfig.test.json', './tests/e2e/tsconfig.json'] } } },
 
   // vue.configs['flat/recommended'] sets up vue-eslint-parser for .vue files, but its
   // <script> block still parses with plain espree unless told to use
@@ -83,7 +83,7 @@ export default tseslint.config(
   // guard, and does not appear in ruling P3's do-not-weaken list. Fixture values read
   // via JSON.parse are typed at the call site instead of disabling no-unsafe-* here —
   // see tests/unit/manifest.test.ts's ManifestJson interface.
-  { files: ['tests/**/*.ts'], rules: { 'obsidianmd/hardcoded-config-path': 'off' } },
+  { files: ['tests/**/*.{ts,mts}'], rules: { 'obsidianmd/hardcoded-config-path': 'off' } },
 
   // tests/unit/validator.test.ts deliberately builds malformed / arbitrary-shaped
   // payloads to exercise validateSnapshot's and validateCityViewState's `unknown`
@@ -190,7 +190,7 @@ export default tseslint.config(
 
   // Rule 1 — size
   { files: ['src/**/*.{ts,vue}'], rules: { 'max-lines': ['error', 400] } },
-  { files: ['tests/**/*.ts'], rules: { 'max-lines': ['error', 450] } },
+  { files: ['tests/**/*.{ts,mts}'], rules: { 'max-lines': ['error', 450] } },
 
   // Rule 2 — layering
   //
