@@ -7,8 +7,12 @@
 // folder is shape-checked with zod on both read (IN19: a hand-edited or malformed entry
 // is never used -- the caller's default applies instead) and write (defensive, mirrors
 // analyzer-record.ts's withEntry -> RECORD.parse). PF-C12: the bound counts CODE POINTS
-// (`Array.from(v).length`), matching validateNoteFolder (note-path.ts), never zod's own
-// `.max()` (UTF-16 code units).
+// (`Array.from(v).length`) explicitly, via a `.refine`, matching validateNoteFolder
+// (note-path.ts) -- the same rule stated in one place, in application terms, rather than
+// left to this zod version's own internal string-length behaviour (fix round 1: verified
+// against node_modules/zod/v4/core/checks.cjs that zod 4.6.5's `.max()` on a string
+// already counts code points too, so this refine and a bare `.max()` currently agree; the
+// refine is kept so the rule stays explicit and does not silently drift if that changes).
 import { z } from 'zod';
 import type { Plugin } from 'obsidian';
 import { isPlainObject } from '../../domain/plain-data';

@@ -83,12 +83,12 @@ export default class CodebaseInspectorPlugin extends Plugin {
     }));
     this.addRibbonIcon('building-2', 'Open codebase city', () => { void openCity(this); });
     registerCommands(this);
+    const investigationFolders = createPluginDataInvestigationStore(this);
     // Ruling M30/M31: the settings tab's Connect/Reconnect flow (source-modal.ts)
     // stats a directory through this SAME adapter layer task 5 built -- never a
     // second path to Node. A FACTORY, not an already-built port: onload() registers
     // only, so building the real Node-backed port is deferred to the moment Connect/
     // Reconnect is actually clicked, never during onload itself.
-    const investigationFolders = createPluginDataInvestigationStore(this);
     const settingTab = new CodebaseInspectorSettingTab(
       this.app, this, profileStore, bindingStore, () => createNodeSourceFileSystem(), reviewRegistry, analysis, evidenceStore,
       investigationFolders);

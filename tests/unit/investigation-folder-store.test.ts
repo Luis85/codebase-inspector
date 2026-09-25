@@ -50,6 +50,19 @@ describe('the durable investigation folder store: read (IN19)', () => {
     expect(await createPluginDataInvestigationStore(plugin).read('p1')).toBeNull();
   });
 
+  // Fix round 1, item 1: pins the CODE-POINT bound (PF-C12), which 'x'.repeat(201) above
+  // does not -- an ASCII 'x'.repeat(201) fails a UTF-16-length `.max(200)` too, so that
+  // case alone cannot tell it apart from a bound that counts UTF-16 code units. Each
+  // U+1F600 is ONE code point but TWO UTF-16 code units, so exactly NOTE_FOLDER_MAX of
+  // them is 200 code points (must be accepted) but 400 UTF-16 units (a `.max(200)` on
+  // code units would wrongly refuse it).
+  it('accepts exactly NOTE_FOLDER_MAX code points, even as UTF-16 surrogate pairs (PF-C12)', async () => {
+    const plugin = newPlugin();
+    const astral = String.fromCodePoint(0x1F600).repeat(NOTE_FOLDER_MAX);
+    await plugin.saveData({ investigations: { p1: { folder: astral } } });
+    expect(await createPluginDataInvestigationStore(plugin).read('p1')).toBe(astral);
+  });
+
   it('never resolves an inherited key (toString) as a stored entry', async () => {
     const plugin = newPlugin();
     await plugin.saveData({ investigations: {} });
@@ -72,6 +85,22 @@ describe('the durable investigation folder store: write and purge (Polish E7)', 
     const store = createPluginDataInvestigationStore(plugin);
     const save = vi.spyOn(plugin, 'saveData');
     await store.purge('p1');
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  // Fix round 1, item 2: the read test above (toString) passes even with an `in`-based
+  // own-key check, because a non-object (the inherited `toString` FUNCTION) still fails
+  // the zod shape check and decodes to null either way -- it cannot tell `hasOwnProperty`
+  // from `in`. purge()'s early return, by contrast, only short-circuits (and so skips the
+  // save) when ownEntry() truly returns undefined; `'toString' in {}` is true, so an
+  // `in`-based check would treat this as "found" and go on to write a save-worthy
+  // replacement object, where `hasOwnProperty` correctly finds nothing to purge.
+  it('purging the inherited key toString saves nothing', async () => {
+    const plugin = newPlugin();
+    await plugin.saveData({ investigations: {} });
+    const store = createPluginDataInvestigationStore(plugin);
+    const save = vi.spyOn(plugin, 'saveData');
+    await store.purge('toString');
     expect(save).not.toHaveBeenCalled();
   });
 

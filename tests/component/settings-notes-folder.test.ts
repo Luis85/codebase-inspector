@@ -13,7 +13,7 @@ import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFakeFallowAnalysis, type FakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
 import { createFakeInvestigationFolders } from '../fixtures/fake-investigation-folders';
 import type { CodebaseProfile } from '../../src/domain/model';
-import { NOTES_FOLDER_PROBLEM, PROFILE_INVESTIGATION_PURGE_FAILED } from '../../src/ui/inspector-copy';
+import { NOTES_FOLDER_PROBLEM, PROFILE_INVESTIGATION_PURGE_FAILED, SETTINGS_STORAGE_TEXT } from '../../src/ui/inspector-copy';
 
 function makeProfile(overrides: Partial<CodebaseProfile> = {}): CodebaseProfile {
   return { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 1_000_000, ...overrides };
@@ -27,11 +27,12 @@ async function makeTab(initial: Record<string, string> = {}, analysis: FakeFallo
   const profileHarness = createFakeProfileStoreHarness();
   await profileHarness.store.save(makeProfile());
   const investigations = createFakeInvestigationFolders(initial);
+  const evidence = { remove: vi.fn() };
   const tab = new CodebaseInspectorSettingTab(
     app, {} as unknown as Plugin, profileHarness.store, createFakeBindingStoreHarness().store,
-    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, analysis, { remove: vi.fn() }, investigations);
+    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, analysis, evidence, investigations);
   await tab.refresh();
-  return { tab, investigations, profileStore: profileHarness.store, analysis };
+  return { tab, investigations, profileStore: profileHarness.store, analysis, evidence };
 }
 
 function findList(defs: SettingDefinitionItem[]): SettingDefinitionList {
@@ -131,11 +132,26 @@ describe('removing a profile purges its investigation notes folder setting (IP27
     expect(investigations.folders.has('p1')).toBe(false);
   });
 
-  it('shows PROFILE_INVESTIGATION_PURGE_FAILED when the purge fails, and never deletes the notes themselves', async () => {
-    const { tab, investigations } = await makeTab({ p1: 'Notes/Kept' });
+  it('shows PROFILE_INVESTIGATION_PURGE_FAILED when the purge fails', async () => {
+    const { tab, investigations, evidence } = await makeTab({ p1: 'Notes/Kept' });
     vi.spyOn(investigations, 'purge').mockRejectedValue(new Error('Could not write data.json.'));
     findList(tab.getSettingDefinitions()).onDelete!(0);
     await flushPromises();
     expect(document.querySelector('.notice')?.textContent).toBe(PROFILE_INVESTIGATION_PURGE_FAILED('Could not write data.json.'));
+    // The `.catch` pattern in settings-tab.ts's deleteProfile exists so ONE failed purge
+    // never blocks the rest of the removal: the session evidence is still cleared, and
+    // the list still refreshes (the profile itself is gone from it either way).
+    expect(evidence.remove).toHaveBeenCalledWith('p1');
+    expect(findList(tab.getSettingDefinitions()).items).toEqual([]);
+  });
+});
+
+describe('the Settings screen storage disclosure (IN41)', () => {
+  it('pins the exact words, including the investigation notes sentence', () => {
+    expect(SETTINGS_STORAGE_TEXT).toBe(
+      'Work items, finding decisions and boundary rules are saved for each codebase in this plugin’s own data for this vault, so they survive restarts. Imported findings and the report screen’s sections and note are kept for this session only. Investigation notes are ordinary notes in your vault, written only when you create or refresh one.');
+    // Task 8's own change: the old "No note in your vault is created or changed" claim
+    // is gone (it is no longer true once notes exist).
+    expect(SETTINGS_STORAGE_TEXT).not.toContain('No note in your vault is created or changed');
   });
 });
