@@ -53,6 +53,30 @@
 }
 :where(.codebase-inspector-root) .ci-source-preview__open-error { margin: 0 0 var(--ci-space-2); color: var(--ci-tone-danger); }
 
+/* WP-04 Task 13: the notes panel and the create-note dialog. */
+:where(.codebase-inspector-root) .ci-notes-panel__list { display: grid; gap: var(--ci-space-2); margin: 0; padding: 0; list-style: none; }
+:where(.codebase-inspector-root) .ci-notes-panel__item { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-notes-panel__path { flex: 1 1 12em; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-notes-panel__status { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-notes-panel__open-error { flex-basis: 100%; margin: 0; color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-create-note { display: grid; gap: var(--ci-space-2); max-width: 34em; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-create-note h3,
+:where(.codebase-inspector-root) .ci-create-note p { margin: 0; }
+:where(.codebase-inspector-root) .ci-create-note__label { font-size: var(--font-ui-small, 0.9em); font-weight: var(--font-medium, 500); }
+:where(.codebase-inspector-root) .ci-create-note__name-row { display: flex; align-items: center; gap: var(--ci-space-1); }
+:where(.codebase-inspector-root) .ci-create-note__name { flex: 1 1 auto; min-width: 0; }
+:where(.codebase-inspector-root) .ci-create-note__suffix { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-create-note__plan { display: grid; gap: var(--ci-space-1); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-create-note__path-label { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-create-note__problem,
+:where(.codebase-inspector-root) .ci-create-note__destination-failed,
+:where(.codebase-inspector-root) .ci-create-note__error { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-create-note__renamed,
+:where(.codebase-inspector-root) .ci-create-note__overlap,
+:where(.codebase-inspector-root) .ci-create-note__root { color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-create-note__exclude { display: flex; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-create-note__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); margin-top: var(--ci-space-2); }
+
 /* WP-04 Task 1: the Investigate screen (.ci-screen--investigate; layout rules arrive in Task 11). */
 
 /* Part 4 Task 10: Refactor workbench and the Work-item editor. */

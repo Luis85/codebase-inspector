@@ -7,10 +7,11 @@
 // and never redefined here.
 import type { EvidenceOrigin, FindingCategory } from '../../application/evidence/model';
 import type { NoteVocabulary } from '../../application/investigation/note-model';
-import type { NoteFolderProblem } from '../../application/investigation/note-path';
+import type { NoteFolderProblem, NoteNameProblem } from '../../application/investigation/note-path';
 import type { PreviewUnavailable } from '../../application/investigation/source-preview';
 import type { LocationCheck } from '../../application/investigation/stale-location';
 import { FINDING_LINE_TEXT, FINDING_RELATED_LABEL } from './quality';
+import { CANCEL } from './shared';
 
 // WP-04 Task 8 (IN18, IN19, IP10, IP11): the settings-tab row and its refusal words.
 export const NOTES_FOLDER_SETTING_NAME = 'Investigation notes folder';
@@ -253,3 +254,45 @@ export const PREVIEW_UNAVAILABLE: Readonly<Record<PreviewUnavailable, string>> =
   missing: 'The file is not there any more.',
   'read-error': 'The file could not be read.',
 };
+
+// WP-04 Task 13 (IN26-IN30; IP9, IP24, IP26, IP38): the notes panel and the create dialog.
+export const NOTE_PANEL_TITLE = 'Investigation notes';
+export const NOTE_PANEL_NONE = 'No note for this finding yet.';
+/** IP38: a missing or non-string status (null here) is "No status"; the status is the user's. */
+export const NOTE_STATUS = (status: string | null): string => (status === null || status.trim() === '' ? 'No status' : `Status: ${status}`);
+export const NOTE_OPEN = 'Open';
+export const NOTE_OPEN_LABEL = (path: string): string => `Open ${path}`;
+/** The notes panel's own role="alert" line when Open finds no file (E17: never silent). */
+export const NOTE_OPEN_FAILED = 'That note is not in the vault any more.';
+export const NOTE_CREATE_OPEN = 'Create investigation note…';
+export const NOTE_CREATE_TITLE = 'Create an investigation note';
+export const NOTE_CREATE_FOLDER = 'Folder';
+export const NOTE_CREATE_NAME = 'File name';
+export const NOTE_CREATE_SUFFIX = '.md';
+export const NOTE_CREATE_PATH = 'The note will be written to';
+export const NOTE_CREATE_RENAMED = (fileName: string): string => `A note with that name exists, so this one will be ${fileName}.`;
+export const NOTE_NAME_PROBLEM: Readonly<Record<NoteNameProblem, string>> = {
+  empty: 'Enter a file name.',
+  'too-long': 'Keep the file name to 100 characters or fewer.',
+  'unsafe-name': 'A file name cannot contain \\ / : * ? " < > | # ^ [ ], start with a dot, end with a dot or space, or be a reserved Windows name.',
+};
+export const NOTE_CREATE_FOLDER_IS_FILE = 'A file with that name is in the way of the folder.';
+export const NOTE_CREATE_NO_FREE_NAME = 'Names up to (99) are taken. Choose another file name.';
+export const NOTE_CREATE_OVERLAP = 'This folder is inside the codebase you scanned, so the note is written inside it.';
+export const NOTE_CREATE_EXCLUDE = 'Exclude this folder from scans of the codebase';
+export const NOTE_CREATE_ROOT_IS_FOLDER = 'This folder is the codebase folder itself. The note will appear in the next scan.';
+export const NOTE_CREATE_CONFIRM = 'Create note';
+export const NOTE_CREATE_CANCEL = CANCEL;
+/** A refusal wrote no note; it stays in the dialog's own role="alert" line (E17). */
+export const NOTE_CREATE_REFUSED: Readonly<Record<'invalid' | 'exists' | 'write-failed', string>> = {
+  invalid: 'The folder, the file name or the note text is not valid, so no note was written.',
+  exists: 'A note with that name appeared before this one was written, so no note was written. The next free name is shown above.',
+  'write-failed': 'The note could not be written.',
+};
+export const NOTE_CREATED = (path: string): string => `Created the investigation note ${path}.`;
+/** IN29: the exclusion changes the scan scope, so the next scan asks for approval again. */
+export const NOTE_CREATED_EXCLUDED = (path: string, folder: string): string =>
+  `Created the investigation note ${path}, and excluded ${folder} from scans of this codebase. The next scan asks you to approve the changed scope.`;
+/** IP26: a failed exclusion keeps the note and says so. */
+export const NOTE_EXCLUSION_FAILED = (path: string): string =>
+  `Created the investigation note ${path}, but its folder could not be added to this codebase’s excluded paths, so the next scan includes it.`;

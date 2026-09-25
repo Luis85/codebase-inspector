@@ -34,6 +34,9 @@ import InvestigationList from './investigate/InvestigationList.vue';
 import EvidencePanel from './investigate/EvidencePanel.vue';
 import UncertaintyPanel from './investigate/UncertaintyPanel.vue';
 import SourcePreviewPanel from './investigate/SourcePreviewPanel.vue';
+import NotesPanel from './investigate/NotesPanel.vue';
+import CreateNoteDialog from './investigate/CreateNoteDialog.vue';
+import { useInvestigationNotes } from './investigate/use-investigation-notes';
 import FindingReviewDialog from './quality/FindingReviewDialog.vue';
 import WorkItemEditor from './workbench/WorkItemEditor.vue';
 
@@ -77,6 +80,8 @@ const verdict = computed<LocationVerdict | null>(() => {
 });
 const uncertainties = computed(() => (selectedRow.value && bundle.value ? uncertaintiesFor(selectedRow.value, bundle.value, verdict.value) : []));
 const checklist = computed(() => (selectedRow.value ? checklistFor(selectedRow.value.kind) : []));
+const { root, creating, createInput, opening: openingNote, openFailed: noteOpenFailed, openCreate, closeCreate, onCreated, openLinked } =
+  useInvestigationNotes({ row: selectedRow, bundle, uncertainties, live: liveMessage });
 /** IN12: offered only when the anchor is a `.md` file the vault itself holds — the port's
  *  own check (host/investigation-notes.ts); this screen only asks and shows what it says. */
 const notePath = computed(() => {
@@ -221,7 +226,10 @@ async function workItemDone(message: string): Promise<void> {
 </script>
 
 <template>
-  <div class="ci-screen ci-screen--investigate">
+  <div
+    ref="root"
+    class="ci-screen ci-screen--investigate"
+  >
     <PageHeader
       :eyebrow="INVESTIGATE_EYEBROW"
       :title="INVESTIGATE_TITLE"
@@ -290,6 +298,14 @@ async function workItemDone(message: string): Promise<void> {
               :uncertainties="uncertainties"
               :checklist="checklist"
             />
+            <NotesPanel
+              :notes="selectedRow.notes"
+              :create-blocked="createInput === null || creating"
+              :opening="openingNote"
+              :open-failed="noteOpenFailed"
+              @create="openCreate"
+              @open="openLinked"
+            />
           </template>
           <p
             v-else
@@ -313,6 +329,12 @@ async function workItemDone(message: string): Promise<void> {
       :draft="workDraft"
       @close="closeWorkItemEditor"
       @done="workItemDone"
+    />
+    <CreateNoteDialog
+      v-if="creating && createInput"
+      v-bind="createInput"
+      @close="closeCreate"
+      @created="onCreated"
     />
   </div>
 </template>
