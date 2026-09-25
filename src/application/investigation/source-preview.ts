@@ -7,8 +7,9 @@
 import { normalizeRelativePath, isContained } from '../../domain/path-safety';
 import { countPhysicalLines } from '../../domain/metrics';
 import type { Clock } from '../ports/clock';
-import type { SourceFileSystemPort } from '../ports/source-filesystem-port';
+import type { SourceFileSystemPort, StatResult } from '../ports/source-filesystem-port';
 import { joinRootPath, sameRoot } from './root-path';
+import { INVISIBLE_CONTROLS } from './note-text';
 
 // IPF1: module-private — no consumer outside this file needs these as numbers; tests use
 // literals such as `512 * 1024`.
@@ -36,10 +37,14 @@ export type PreviewResult =
   | { readonly status: 'unavailable'; readonly reason: PreviewUnavailable };
 
 // IPF1: module-private — Task 10's wiring passes a plain object literal, never names this type.
+// Fix round 1, review minor 3: `caseSensitive` (default false) is the host adapter's own
+// platform knowledge (the same signal `node-source-filesystem.ts` derives from `path.sep`,
+// M20) — this module never reads the platform itself.
 interface SourcePreviewDeps {
   readonly getFilesystem: () => SourceFileSystemPort | null;
   readonly resolveRoot: (codebaseId: string) => Promise<string | null>;
   readonly clock: Clock;
+  readonly caseSensitive?: boolean;
 }
 
 export interface SourcePreview { read(request: PreviewRequest): Promise<PreviewResult> }
@@ -56,10 +61,11 @@ const classify = (reason: string): PreviewUnavailable => REASONS.find(([p]) => r
 const unavailable = (reason: PreviewUnavailable): PreviewResult => ({ status: 'unavailable', reason });
 
 // IP16: every C0 control except tab, DEL, C1 and the bidi/format controls — the same set
-// note-text.ts's INVISIBLE regex strips from a note, shown here as literal `\uXXXX` text
-// instead (a preview is a verbatim window onto the file, never a rewrite of its bytes).
-// eslint-disable-next-line no-control-regex -- detecting control characters is the point.
-const CONTROL_ESCAPE = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F‎‏‪-‮⁦-⁩]/g;
+// note-text.ts's INVISIBLE regex strips from a note (INVISIBLE_CONTROLS, its ONE shared
+// export — fix round 1, review item 1), shown here as literal `\uXXXX` text instead (a
+// preview is a verbatim window onto the file, never a rewrite of its bytes). Dynamically
+// built, so no-control-regex (which only sees a literal /…/ pattern) needs no disable here.
+const CONTROL_ESCAPE = new RegExp(`[\\u0000-\\u0008\\u000B-\\u001F\\u007F-\\u009F${INVISIBLE_CONTROLS}]`, 'g');
 const escapeControls = (value: string): string => value.replace(
   CONTROL_ESCAPE,
   (ch) => `\\u${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`,
@@ -82,11 +88,12 @@ function dropFinalLineEnding(text: string): string {
 
 /** [start, end] (1-based, inclusive): 20 lines either side of `line`, clipped at the file's
  *  edges and never shifted to fill 41 (IP16); the last 41 lines for a line past the end; the
- *  first 41 for no line. */
+ *  first 41 for no line OR a non-positive line (fix round 1, review minor 5: a line ≤ 0 is
+ *  not "past the end" — it names no real line at all, same as `null`). */
 function lineRange(count: number, line: number | null): readonly [number, number] {
   if (count === 0) return [1, 0];
-  if (line === null) return [1, Math.min(count, PREVIEW_CONTEXT * 2 + 1)];
-  if (line < 1 || line > count) return [Math.max(1, count - PREVIEW_CONTEXT * 2), count];
+  if (line === null || line < 1) return [1, Math.min(count, PREVIEW_CONTEXT * 2 + 1)];
+  if (line > count) return [Math.max(1, count - PREVIEW_CONTEXT * 2), count];
   return [Math.max(1, line - PREVIEW_CONTEXT), Math.min(count, line + PREVIEW_CONTEXT)];
 }
 
@@ -104,41 +111,84 @@ function windowOf(text: string, line: number | null): Pick<PreviewText, 'lines' 
   return { lines, lineCount };
 }
 
+// Fix round 1, review minor 2: the file can change between the pre-read stat and the read
+// itself. `attemptOnce` stats every ancestor and the file, reads, then (when `verify` is
+// true) re-stats the SAME paths: a newly-symlinked ancestor or file is `outside-root`
+// outright (a link is a link, retrying will not un-link it); a changed size or mtime means
+// the bytes just read may not be the bytes now on disk, so the caller re-runs the whole
+// attempt once, this time without verifying again (bounded to exactly one retry — never an
+// exact-looking result built from two different moments in time, and never an infinite
+// chase of a file that keeps changing). The POST-read stat's mtimeMs is what the result
+// reports, never the pre-read one.
+type Attempt = { readonly race: true } | { readonly race: false; readonly result: PreviewResult };
+
+async function checkAncestors(
+  fs: SourceFileSystemPort, root: string, segments: readonly string[],
+): Promise<PreviewResult | null> {
+  for (let i = 1; i < segments.length; i += 1) {
+    const dir = await fs.stat(joinRootPath(root, segments.slice(0, i).join('/')));
+    if (!dir.exists) return unavailable('missing');
+    if (dir.isSymbolicLink) return unavailable('outside-root');
+  }
+  return null;
+}
+
+async function attemptOnce(
+  fs: SourceFileSystemPort, root: string, abs: string, segments: readonly string[],
+  request: PreviewRequest, clock: Clock, verify: boolean,
+): Promise<Attempt> {
+  const ancestorProblem = await checkAncestors(fs, root, segments);
+  if (ancestorProblem !== null) return { race: false, result: ancestorProblem };
+  const preStat = await fs.stat(abs);
+  if (!preStat.exists) return { race: false, result: unavailable('missing') };
+  if (preStat.isSymbolicLink) return { race: false, result: unavailable('outside-root') };
+  if (!preStat.isFile) return { race: false, result: unavailable('not-a-file') };
+  const limit = Math.min(request.maxFileBytes, PREVIEW_MAX_BYTES);
+  if (preStat.size > limit) return { race: false, result: unavailable('too-large') };
+  const readResult = await fs.readText(abs, limit);
+  if (readResult.status === 'unavailable') return { race: false, result: unavailable(classify(readResult.reason)) };
+  let mtimeMs = preStat.mtimeMs;
+  if (verify) {
+    const postAncestorProblem = await checkAncestors(fs, root, segments);
+    if (postAncestorProblem !== null) return { race: false, result: postAncestorProblem };
+    const postStat: StatResult = await fs.stat(abs);
+    if (!postStat.exists) return { race: false, result: unavailable('missing') };
+    if (postStat.isSymbolicLink) return { race: false, result: unavailable('outside-root') };
+    if (postStat.size !== preStat.size || postStat.mtimeMs !== preStat.mtimeMs) return { race: true };
+    mtimeMs = postStat.mtimeMs;
+  }
+  return {
+    race: false,
+    result: {
+      status: 'ok',
+      text: { ...windowOf(readResult.text, request.line), size: readResult.bytes.byteLength, mtimeMs, readAt: clock.nowIso() },
+    },
+  };
+}
+
 export function createSourcePreview(deps: SourcePreviewDeps): SourcePreview {
   async function read(request: PreviewRequest): Promise<PreviewResult> {
     const fs = deps.getFilesystem();
     if (fs === null) return unavailable('no-filesystem');
-    const root = await deps.resolveRoot(request.codebaseId);
-    if (root === null || !sameRoot(root, request.expectedRoot)) return unavailable('no-binding');
+    let root: string | null;
+    try {
+      // Fix round 1, review minor 7: a rejected resolveRoot (a store lookup that throws, a
+      // profile removed mid-flight) is a binding failure, not an unhandled rejection.
+      root = await deps.resolveRoot(request.codebaseId);
+    } catch {
+      return unavailable('no-binding');
+    }
+    const options = { caseSensitive: deps.caseSensitive ?? false };
+    if (root === null || !sameRoot(root, request.expectedRoot, options)) return unavailable('no-binding');
     let rel: string;
     try { rel = normalizeRelativePath(request.relativePath); } catch { return unavailable('outside-root'); }
     const abs = joinRootPath(root, rel);
-    if (!isContained(root, abs)) return unavailable('outside-root');
-    // IP15: every parent folder below the root, stat'd and checked for a symlink/junction
-    // BEFORE the file itself — nothing is read until every path segment has passed.
+    if (!isContained(root, abs, options)) return unavailable('outside-root');
     const segments = rel.split('/');
-    for (let i = 1; i < segments.length; i += 1) {
-      const dir = await fs.stat(joinRootPath(root, segments.slice(0, i).join('/')));
-      if (!dir.exists) return unavailable('missing');
-      if (dir.isSymbolicLink) return unavailable('outside-root');
-    }
-    const st = await fs.stat(abs);
-    if (!st.exists) return unavailable('missing');
-    if (st.isSymbolicLink) return unavailable('outside-root');
-    if (!st.isFile) return unavailable('not-a-file');
-    const limit = Math.min(request.maxFileBytes, PREVIEW_MAX_BYTES);
-    if (st.size > limit) return unavailable('too-large');
-    const result = await fs.readText(abs, limit);
-    if (result.status === 'unavailable') return unavailable(classify(result.reason));
-    return {
-      status: 'ok',
-      text: {
-        ...windowOf(result.text, request.line),
-        size: result.bytes.byteLength,
-        mtimeMs: st.mtimeMs,
-        readAt: deps.clock.nowIso(),
-      },
-    };
+    const first = await attemptOnce(fs, root, abs, segments, request, deps.clock, true);
+    if (!first.race) return first.result;
+    const second = await attemptOnce(fs, root, abs, segments, request, deps.clock, false);
+    return second.race ? unavailable('read-error') : second.result;
   }
   return { read };
 }

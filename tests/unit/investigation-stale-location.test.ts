@@ -20,7 +20,13 @@ describe('locationVerdict (IN10)', () => {
     ['modified after the analysis', { currentMtimeMs: Date.parse('2026-09-25T10:00:01Z') }, 'modified', 'changed'],
     ['no mtime', { currentMtimeMs: null }, 'modified', 'unknown'],
     ['no analysis time', { analysedAt: null }, 'modified', 'unknown'],
+    // Fix round 1, review coverage 6h: an analysedAt string Date.parse cannot read at all
+    // (never a null) must fail towards stale the same as a genuinely absent one.
+    ['an unparseable analysis time', { analysedAt: 'not-a-real-date' }, 'modified', 'unknown'],
     ['a line past the end', { line: 11 }, 'line-range', 'changed'],
+    // Fix round 1, review coverage 6h: line 0 is not a real line (1-indexed) — it fails the
+    // range check the same way a line past the end does.
+    ['line zero', { line: 0 }, 'line-range', 'changed'],
   ] as const)('%s fails %s', (_name, change, failed, cause) => {
     expect(locationVerdict({ ...EXACT, ...change })).toEqual({ exact: false, failed, cause });
   });

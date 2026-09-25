@@ -15,16 +15,35 @@ export function joinRootPath(root: string, relativePath: string): string {
   return [trimmedRoot, ...segments].join(sep);
 }
 
+/** Resolves `.`/`..` textually, the same way `domain/path-safety.ts`'s own (unexported)
+ *  `segments()` does — a `..` pops the previous segment rather than being kept as a literal
+ *  segment. Duplicated here rather than imported: `path-safety.ts` does not export it, and
+ *  this task's own files are the only ones this fix round may touch. */
+function resolvedSegments(p: string): string[] {
+  const out: string[] = [];
+  for (const part of p.replace(/\\/g, '/').split('/')) {
+    if (part === '' || part === '.') continue;
+    if (part === '..') { if (out.length > 0) out.pop(); continue; }
+    out.push(part);
+  }
+  return out;
+}
+
 /** The POSIX path of `absolute` relative to `root`, or `null` when `absolute` is not inside
- *  `root` (`isContained`). `''` when `absolute` names the root itself. */
-export function relativeInside(root: string, absolute: string): string | null {
-  if (!isContained(root, absolute)) return null;
-  const rootSegments = root.replace(/\\/g, '/').split('/').filter((s) => s !== '' && s !== '.');
-  const absoluteSegments = absolute.replace(/\\/g, '/').split('/').filter((s) => s !== '' && s !== '.');
+ *  `root` (`isContained`). `''` when `absolute` names the root itself. Fix round 1, review
+ *  minor 4: both sides are resolved (not merely split) first, so
+ *  `relativeInside('C:\\app', 'C:\\app\\..\\app\\x')` is `'x'`, never `'../app/x'` — an
+ *  unresolved `..` earlier in `absolute` must not survive into the projected relative path. */
+export function relativeInside(root: string, absolute: string, options?: { caseSensitive?: boolean }): string | null {
+  if (!isContained(root, absolute, options)) return null;
+  const rootSegments = resolvedSegments(root);
+  const absoluteSegments = resolvedSegments(absolute);
   return absoluteSegments.slice(rootSegments.length).join('/');
 }
 
-/** True when `a` and `b` name the same root: each contains the other. */
-export function sameRoot(a: string, b: string): boolean {
-  return isContained(a, b) && isContained(b, a);
+/** True when `a` and `b` name the same root: each contains the other. Fix round 1, review
+ *  minor 3: `caseSensitive` (default false, `isContained`'s own default) is the caller's own
+ *  platform knowledge — this module never reads the platform itself. */
+export function sameRoot(a: string, b: string, options?: { caseSensitive?: boolean }): boolean {
+  return isContained(a, b, options) && isContained(b, a, options);
 }

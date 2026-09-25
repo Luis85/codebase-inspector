@@ -4,6 +4,7 @@
 // (not expressible in the in-memory fake, tests/unit/investigation-source-preview.test.ts)
 // gets a real Windows junction.
 import { afterEach, describe, expect, it } from 'vitest';
+import { join } from 'node:path';
 import { createSourcePreview } from '../../src/application/investigation/source-preview';
 import type { PreviewRequest } from '../../src/application/investigation/source-preview';
 import { createRealNodePort } from '../fixtures/real-node-port';
@@ -52,6 +53,19 @@ describe('createSourcePreview over the real Node adapter', () => {
     const preview = makePreview(tree.root);
     const result = await preview.read(requestFor(tree.root, 'a.ts'));
     expect(result).toEqual({ status: 'unavailable', reason: 'binary' });
+  });
+
+  // Fix round 1, review coverage 6g: the real adapter's own "file exceeds the maximum size"
+  // wording, asserted directly against `readText` — the exact prefix source-preview.ts's
+  // `classify()` matches (IP15), not a guess.
+  it('the real adapter\'s readText names an oversized file with "file exceeds the maximum size"', async () => {
+    const tree = await makeTempTree({ 'a.ts': 'x'.repeat(100) });
+    trees.push(tree);
+    const port = createRealNodePort();
+    const result = await port.readText(join(tree.root, 'a.ts'), 10);
+    expect(result.status).toBe('unavailable');
+    if (result.status !== 'unavailable') throw new Error('expected unavailable');
+    expect(result.reason.startsWith('file exceeds the maximum size')).toBe(true);
   });
 
   it('a symlinked ancestor (junction) is outside-root', async () => {
