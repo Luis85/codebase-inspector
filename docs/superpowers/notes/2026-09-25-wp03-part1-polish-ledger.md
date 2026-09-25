@@ -57,5 +57,21 @@ The pre-flight scan (2026-09-25, at 6419392) checked every "Consumes" name and p
 
 | # | Ruling |
 |---|---|
+| WP-03 Polish E1 | **Ruling:** a fallow boundary violation between two files of one module shows only on the Edges tab. — `aggregateEdges` drops same-module pairs, so the Map and Matrix never showed such an edge, and the Matrix diagonal is handled before any violation lookup. — Low: a same-module violation is not marked on the Map or Matrix. |
+| WP-03 Polish E2 | **Ruling:** Task 2's fix round 1 (mutation evidence only, no code change) is closed by the controller reading the appended mutation output instead of a re-review. — The fix diff is empty; there is nothing for a re-reviewer to read but the report. — None. |
+| WP-03 Polish E3 | **Ruling:** the first `npm run verify` run's no-freeze timing miss (55.6 ms against the 50 ms budget, `fallow-analysis.test.ts`) is a contention flake. It passed alone (22.3 ms) and on the second full run. — The Z38 budget is out of scope (JP1), and nothing in `src` on that path changed. — Low: a real regression would show again on the next run. |
+| WP-03 Polish E4 | **Ruling:** the fifth Architecture card wraps onto its own row at 1280 px (the `auto-fit` grid). No CSS change. — The grid is shared with every screen's cards, and the capture lays it out cleanly. — Low: the owner may prefer five cards on one row. |
+| WP-03 Polish E5 | **Ruling:** JP5 applies to Architecture only. File detail's Relations panel, the city Relations section and the Overview / Data & scans "Import relations" row keep the cycle-category gate; their now-false comment is corrected. — Only a trimmed or future writer reaches the boundary-only state (N2), and widening four more surfaces was not in the plan. — Low: in that state those surfaces say "not analysed" while Architecture shows the boundary edges. |
+| WP-03 Polish E6 | **Ruling:** "Violations only" on the Edges tab keeps a file edge whose **module pair** is violated (JP4's one set), so a cycle-only edge that shares a module pair with a fallow violation is kept. — Your rules are defined per module pair, and one set keeps the Map, Matrix, Edges filter and inspector in agreement. — Low: where fallow zones do not follow top-level folders, the filter can keep an edge fallow did not flag. |
+| WP-03 Polish E7 | **Ruling:** the final review's same-module fallow-violation test is deferred. — It needs a new recording with fallow zones inside one top-level folder; the behaviour is pinned structurally (E1). — Low: a regression there would not be caught by a test. |
+
+Also recorded during execution:
+- **Network error:** Task 3's implementer was cut off by an API network error and resumed with its work intact.
+- **Final whole-branch review (opus, 6419392..09f71f3):** ready with fixes; 0 Critical, 1 Important, 8 Minor. The one fix wave fixed Important 1 (the Map badge and the Selected module panel read the cycle-only evidence value in a boundary-only report) and Minors 1, 4 (the Report's two lines), 5, 6, 7 and 8 (the N20 pointer), and corrected the comment of Minor 2. Minor 2's scope is E5, Minor 3 is E6, and Minor 4's same-module test is E7. The fix wave is 2de7752 and 64d6331; the scoped re-review found every finding addressed and no new breakage.
 
 ## Deferred minors
+
+Each was triaged by the final whole-branch review as an acceptable follow-up.
+- **Task 1:** the rules, cycles and violations cards set a caption that `MetricCard` never shows while the value is unknown (house style). The one false caption among them was fixed in the final fix wave.
+- **Task 3:** two similar report-attach helpers in the panel test (the fixture's rebinds the repository, the local one does not), explained by a comment.
+- **Task 4:** a copied closing clause in the gate-evidence refresh paragraph; it is still true.
