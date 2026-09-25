@@ -296,7 +296,7 @@
 
 /* WP-04 Task 15 (IP32/IP33): the city inspector's Findings section, beside .ci-city-relations. */
 :where(.codebase-inspector-root) .ci-city-findings { margin-top: var(--ci-space-4); padding-top: var(--ci-space-3); border-top: 1px solid var(--ci-border); }
-:where(.codebase-inspector-root) .ci-city-findings__title { margin: 0 0 var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-city-findings__title { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0 0 var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-city-findings__list { list-style: none; margin: 0; padding: 0; }
 :where(.codebase-inspector-root) .ci-city-findings__row {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2);

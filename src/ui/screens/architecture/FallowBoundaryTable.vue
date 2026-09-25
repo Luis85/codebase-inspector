@@ -11,7 +11,7 @@ import type { BoundaryView, RelationModel } from '../../read-models/relations';
 import {
   ARCH_FALLOW_ZONES_COL, ARCH_FALLOW_ZONES_NONE, ARCH_FALLOW_ZONES_TITLE, ARCH_FALLOW_ZONES_UNMATCHED, CYCLE_REVIEW,
   EDGE_COL_FROM, EDGE_COL_LINE, EDGE_COL_TO, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, FINDING_REVIEW_LABEL,
-  INVESTIGATE_ACTION, RELATION_MEMBER_UNMATCHED, RULE_COL_ACTIONS,
+  INVESTIGATE_ACTION, INVESTIGATE_FINDING_LABEL, RELATION_MEMBER_UNMATCHED, RULE_COL_ACTIONS,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
@@ -94,10 +94,17 @@ const columns: readonly TableColumn<KeyedView>[] = [
           >
             {{ CYCLE_REVIEW }}
           </button>
+          <!-- Review fix round 1, item 8: defensive, like Review's own guard just above —
+               `rows` (script above) already filters to `isMatched` (from.id AND to.id both
+               resolved), and `fingerprint` is null only when `from.id` is unresolved, so a
+               row reaching this cell always has a non-null fingerprint. An unmatched
+               violation never reaches this table at all (it is listed, text-only, in the
+               "unmatched" block below). -->
           <button
             v-if="row.fingerprint !== null"
             type="button"
             class="ci-architecture__investigate"
+            :aria-label="INVESTIGATE_FINDING_LABEL(row.findingId, row.from.path)"
             @click="investigate(row)"
           >
             {{ INVESTIGATE_ACTION }}

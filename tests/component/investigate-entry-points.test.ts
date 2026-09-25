@@ -29,7 +29,8 @@ import type { CodebaseSnapshot } from '../../src/domain/model';
 import type { EvidenceReport } from '../../src/application/evidence/model';
 import { CITY_RENDERER_KEY } from '../../src/ui/renderer-handle';
 import {
-  ARCH_TAB_CYCLES, ARCH_TAB_RULES, CYCLE_KIND_LABEL, FILE_SOURCE_PREVIEW_LATER, FINDING_LINE_TEXT, RULE_TEXT,
+  ARCH_TAB_CYCLES, ARCH_TAB_RULES, CYCLE_KIND_LABEL, FILE_SOURCE_PREVIEW_LATER, FINDING_LINE_TEXT, FINDING_VIA_RELATED,
+  INVESTIGATE_ACTION, RULE_TEXT,
 } from '../../src/ui/inspector-copy';
 
 const IMPORTED_AT = '2026-09-23T10:00:00.000Z';
@@ -101,6 +102,9 @@ describe('Investigate entry points (WP-04 IN4, IN5, IN41)', () => {
     await investigate.trigger('click');
     await nextTick();
     expect(city.route).toBe('investigate');
+    // IP20 (review fix round 1, item 3): Investigate never changes the city selection —
+    // the entry point arrives with the selection it already had.
+    expect(city.selectedEntityId).toBe(finding.file.id);
     expect(useInvestigationStore().selectedFingerprint).toBe(finding.fingerprint);
     const evidenceText = w.find('.ci-evidence-panel__meta').text();
     expect(evidenceText).toContain(finding.id);
@@ -165,6 +169,10 @@ describe('Investigate entry points (WP-04 IN4, IN5, IN41)', () => {
     useInvestigationStore().open('some-other-fingerprint');
     const relatedWrapper = mountOn('data/db.ts');
     await nextTick();
+    // Review fix round 1, item 4: confirms this really is the RELATED case (data/db.ts is
+    // not the boundary violation's own anchor), not an anchored row that happens to share
+    // the same fingerprint by coincidence.
+    expect(relatedWrapper.find('.ci-file-finding__via').text()).toBe(FINDING_VIA_RELATED('ui/view.ts'));
     await relatedWrapper.find('.ci-file-finding__investigate').trigger('click');
     await nextTick();
     expect(useInvestigationStore().selectedFingerprint).toBe(boundaryFinding.fingerprint);
@@ -189,7 +197,8 @@ describe('Investigate entry points (WP-04 IN4, IN5, IN41)', () => {
     const barrelRow = rows.find((r) => r.find('.ci-cycle-list__kind').text() === CYCLE_KIND_LABEL.import && r.text().includes('barrel'))!;
     const barrelCycle = architecture.value.relations.cycles.find((c) => c.kind === 'import' && c.pathText.includes('barrel/index.ts'))!;
     expect(barrelCycle.fingerprint).not.toBeNull();
-    await barrelRow.find('.ci-cycle-list__investigate').trigger('click');
+    const barrelInvestigate = barrelRow.find('.ci-cycle-list__investigate');
+    await barrelInvestigate.trigger('click');
     await nextTick();
     expect(useCityStore().route).toBe('investigate');
     expect(useInvestigationStore().selectedFingerprint).toBe(barrelCycle.fingerprint);
@@ -198,7 +207,18 @@ describe('Investigate entry points (WP-04 IN4, IN5, IN41)', () => {
     const boundaryRow = w.find('.ci-architecture__fallow .ci-table__row');
     const boundaryFinding = architecture.value.relations.boundaryViolations[0]!;
     expect(boundaryFinding.fingerprint).not.toBeNull();
-    await boundaryRow.find('.ci-architecture__investigate').trigger('click');
+    const boundaryInvestigate = boundaryRow.find('.ci-architecture__investigate');
+    // Review fix round 1, item 1: each Investigate button carries its own accessible
+    // name — a screen reader hearing several identical "Investigate" buttons in a list
+    // otherwise cannot tell them apart. Two different rows' labels must differ, and each
+    // must start with the visible word.
+    const barrelLabel = barrelInvestigate.attributes('aria-label');
+    const boundaryLabel = boundaryInvestigate.attributes('aria-label');
+    expect(barrelLabel).toMatch(new RegExp(`^${INVESTIGATE_ACTION} `));
+    expect(boundaryLabel).toMatch(new RegExp(`^${INVESTIGATE_ACTION} `));
+    expect(barrelLabel).not.toBe(boundaryLabel);
+    expect(boundaryLabel).toContain('ui/view.ts');
+    await boundaryInvestigate.trigger('click');
     await nextTick();
     expect(useCityStore().route).toBe('investigate');
     expect(useInvestigationStore().selectedFingerprint).toBe(boundaryFinding.fingerprint);

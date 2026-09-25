@@ -10,7 +10,7 @@ import type { EntityId } from '../../../domain/entity-id';
 import type { CycleView } from '../../read-models/relations';
 import {
   ARCH_NODE_FILES, CYCLE_KIND_LABEL, CYCLE_REVIEW, CYCLE_SHOW_IN_CITY, CYCLE_SHOW_IN_CITY_LABEL, CYCLES_NONE,
-  FALLOW_NOT_ANALYSED, FINDING_REVIEW_LABEL, INVESTIGATE_ACTION,
+  FALLOW_NOT_ANALYSED, FINDING_REVIEW_LABEL, INVESTIGATE_ACTION, INVESTIGATE_FINDING_LABEL,
 } from '../../inspector-copy';
 import CycleMembers from './CycleMembers.vue';
 
@@ -26,6 +26,15 @@ function review(cycle: CycleView): void {
  *  path is not in this snapshot has nothing to open on Investigate either. */
 function investigate(cycle: CycleView): void {
   if (cycle.fingerprint !== null) emit('investigate', cycle.fingerprint);
+}
+/** Review fix round 1, item 1: the aria-label's own path — CycleView carries no bare
+ *  anchor-path string, so this reads it off the member whose id is `anchorId`. `anchorId`
+ *  itself is null whenever `matched` is false (relations.ts's cycleAnchor), even on a row
+ *  whose fingerprint is non-null (the anchor resolved but another member did not) — no
+ *  current fixture reaches that combination through the UI, and the fallback keeps the
+ *  label safe (never undefined) if one ever does. */
+function anchorPathOf(cycle: CycleView): string {
+  return cycle.members.find((m) => m.id === cycle.anchorId)?.path ?? '';
 }
 function showInCity(cycle: CycleView): void {
   if (cycle.anchorId !== null) emit('show-in-city', cycle.findingId, cycle.anchorId);
@@ -86,6 +95,7 @@ function showInCity(cycle: CycleView): void {
           v-if="c.fingerprint !== null"
           type="button"
           class="ci-cycle-list__investigate"
+          :aria-label="INVESTIGATE_FINDING_LABEL(c.findingId, anchorPathOf(c))"
           @click="investigate(c)"
         >
           {{ INVESTIGATE_ACTION }}
