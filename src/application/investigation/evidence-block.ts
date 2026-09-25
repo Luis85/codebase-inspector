@@ -28,6 +28,13 @@ function linesOf(text: string): Line[] {
  *  exactly one end line. On success, the new block takes the begin line's own line ending;
  *  everything outside the two marker lines is returned byte for byte. */
 export function spliceEvidenceBlock(note: string, block: string): SpliceResult {
+  // Fix round 1, finding 3: spliceEvidenceBlock trusted its own `block` argument. A malformed
+  // block (e.g. two begin markers) would splice in something isEvidenceBlock would reject, and
+  // a block holding a bare CR would double up into "\r\r\n" once joined onto a CRLF note's
+  // eol. Refuse the same way a disturbed note is refused.
+  if (!isEvidenceBlock(block) || block.includes('\r')) {
+    return { ok: false, reason: 'markers-edited' };
+  }
   const lines = linesOf(note);
   const begins = lines.filter((l) => l.content === EVIDENCE_BEGIN);
   const ends = lines.filter((l) => l.content === EVIDENCE_END);

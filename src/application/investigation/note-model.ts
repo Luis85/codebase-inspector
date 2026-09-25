@@ -6,10 +6,9 @@
 // EVIDENCE_BLOCK_MAX_BYTES (IP6).
 import { noteCode, noteText } from './note-text';
 
-// IPF1: module-private — nothing outside this file names the type discriminant directly yet;
-// a reader (Task 5, IP13) compares its own parsed value against the literal
-// 'codebase-investigation'. Exported the moment a second src module needs to name it.
-const NOTE_TYPE = 'codebase-investigation';
+// WP-04 E6: exported — Task 5's reader (IP13, "a note is ours when type is
+// codebase-investigation") names this constant.
+export const NOTE_TYPE = 'codebase-investigation';
 export const EVIDENCE_BEGIN = '<!-- codebase-inspector:evidence:begin -->';
 export const EVIDENCE_END = '<!-- codebase-inspector:evidence:end -->';
 // IPF1: module-private — no consumer outside this file needs the cap as a number; tests use
@@ -115,12 +114,32 @@ function label(word: string): string {
   return noteText(word);
 }
 
+// IP6: the shared list-and-"N more" mechanism. `floor` guarantees at least that many
+// survive even at the [0, 64] shrink step (related/cyclePath have no floor: they may show
+// zero; uncertainties gets a floor of 1 so the section is never empty when there is one).
+function boundedList(items: readonly string[], list: number, floor: number, more: (hidden: number) => string, format: (item: string) => string): { shown: string[]; moreLine: string | null } {
+  const cap = Math.max(floor, list);
+  const shown = items.slice(0, cap).map(format);
+  const hidden = items.length - Math.min(cap, items.length);
+  return { shown, moreLine: hidden > 0 ? label(more(hidden)) : null };
+}
+
 function listLines(groupLabel: string, items: readonly string[], list: number, value: number, more: (hidden: number) => string): string[] {
   if (items.length === 0) return [];
-  const shown = items.slice(0, list);
-  const hidden = items.length - shown.length;
-  const out = [`- ${groupLabel}:`, ...shown.map((item) => `  - ${noteCode(item, value * 2)}`)];
-  if (hidden > 0) out.push(`  - ${label(more(hidden))}`);
+  const { shown, moreLine } = boundedList(items, list, 0, more, (item) => noteCode(item, value * 2));
+  const out = [`- ${groupLabel}:`, ...shown.map((s) => `  - ${s}`)];
+  if (moreLine !== null) out.push(`  - ${moreLine}`);
+  return out;
+}
+
+// IP6 (fix round 1, finding 1): uncertainties were rendered with no cap at all, so a long
+// enough list alone could exceed EVIDENCE_BLOCK_MAX_BYTES past the shrink ladder's last step.
+// A floor of 1 keeps the section from going empty even when list = 0.
+function uncertaintyLines(items: readonly string[], list: number, value: number, more: (hidden: number) => string): string[] {
+  if (items.length === 0) return [];
+  const { shown, moreLine } = boundedList(items, list, 1, more, (item) => noteText(item, value));
+  const out = shown.map((s) => `- ${s}`);
+  if (moreLine !== null) out.push(`- ${moreLine}`);
   return out;
 }
 
@@ -147,19 +166,42 @@ function blockLines(facts: EvidenceFacts, words: NoteVocabulary, list: number, v
   lines.push(`- ${label(words.labels.snapshot)}: ${noteCode(facts.snapshotId, value * 2)}`);
   lines.push(`- ${label(words.labels.evidence)}: ${facts.reported ? noteText(facts.evidenceState, value) : label(words.labels.notReported)}`);
   lines.push('', headingLine(words.headings.uncertainties));
-  for (const u of facts.uncertainties) lines.push(`- ${noteText(u, value)}`);
+  lines.push(...uncertaintyLines(facts.uncertainties, list, value, words.labels.more));
   lines.push(EVIDENCE_END);
   return lines;
 }
 
-/** IN23/IN25: both markers, always ≤ EVIDENCE_BLOCK_MAX_BYTES UTF-8 (IP6's shrink ladder). */
+// IP6 (fix round 1, finding 1): a final backstop, independent of blockLines' own bookkeeping.
+// Truncates by whole code point (never splitting a multi-byte one) to leave room for a
+// closing "\n" + EVIDENCE_END, so the result is always ≤ EVIDENCE_BLOCK_MAX_BYTES and always
+// ends with the end marker, even if a future change to blockLines breaks the shrink ladder's
+// own bound.
+function hardGuard(block: string): string {
+  if (utf8Length(block) <= EVIDENCE_BLOCK_MAX_BYTES) return block;
+  const budget = EVIDENCE_BLOCK_MAX_BYTES - utf8Length(`\n${EVIDENCE_END}`);
+  let kept = '';
+  let bytes = 0;
+  for (const ch of block) {
+    const cp = ch.codePointAt(0) ?? 0;
+    const chBytes = cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+    if (bytes + chBytes > budget) break;
+    kept += ch;
+    bytes += chBytes;
+  }
+  return `${kept}\n${EVIDENCE_END}`;
+}
+
+/** IN23/IN25: both markers, always ≤ EVIDENCE_BLOCK_MAX_BYTES UTF-8 (IP6's shrink ladder,
+ *  with hardGuard as the final backstop). */
 export function renderEvidenceBlock(facts: EvidenceFacts, words: NoteVocabulary): string {
   let block = '';
   for (const [list, value] of SHRINK) {
     block = blockLines(facts, words, list, value).join('\n');
     if (utf8Length(block) <= EVIDENCE_BLOCK_MAX_BYTES) return block;
   }
-  return block; // [0, 64] is within the bound for any input: pinned by the size test
+  // The [0, 64] step holds for every realistic input (pinned by the worst-case test below);
+  // hardGuard is the backstop that keeps that promise even if it someday doesn't.
+  return hardGuard(block);
 }
 
 function humanSection(heading: string, prompt: string): string[] {

@@ -66,6 +66,10 @@ const FACTS: EvidenceFacts = {
   uncertainties: ['The line was not re-checked against the live file.'],
 };
 
+// Fix round 1, finding 1's worst-case test: captures nothing, so it is hoisted to module
+// scope (consistent-function-scoping).
+const longList = (prefix: string) => Array.from({ length: 5000 }, (_, i) => `${prefix}${'\u{1F600}'.repeat(200)}${i}`);
+
 describe('noteFrontmatter (IN20, IP4)', () => {
   it('returns exactly the ten keys, in order, with portable ids', () => {
     const fm = noteFrontmatter(
@@ -129,6 +133,32 @@ describe('size (IN25, IP6)', () => {
       related: Array.from({ length: 5000 }, (_, i) => `${'p'.repeat(1000)}${i}`),
     };
     const block = renderEvidenceBlock(big, WORDS);
+    expect(new TextEncoder().encode(block).length).toBeLessThanOrEqual(EVIDENCE_BLOCK_MAX_BYTES);
+    expect(block.endsWith(EVIDENCE_END)).toBe(true);
+  });
+
+  it('forces the last shrink step — every scalar field ~100k 4-byte code points, related/cyclePath/uncertainties at 5,000 entries each — and still holds (fix round 1, finding 1)', () => {
+    const fourByte = '\u{1F600}'.repeat(100_000);
+    const worst: EvidenceFacts = {
+      reported: true,
+      findingId: fourByte,
+      title: fourByte,
+      kindLabel: fourByte,
+      ruleText: fourByte,
+      ruleDetail: fourByte,
+      severityText: fourByte,
+      sourcePath: fourByte,
+      line: 1,
+      endLine: 1,
+      related: longList('r'),
+      cyclePath: longList('c'),
+      provider: fourByte,
+      analysedAt: fourByte,
+      snapshotId: fourByte,
+      evidenceState: fourByte,
+      uncertainties: longList('u'),
+    };
+    const block = renderEvidenceBlock(worst, WORDS);
     expect(new TextEncoder().encode(block).length).toBeLessThanOrEqual(EVIDENCE_BLOCK_MAX_BYTES);
     expect(block.endsWith(EVIDENCE_END)).toBe(true);
   });
