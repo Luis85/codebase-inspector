@@ -95,6 +95,40 @@ describe('buildInvestigationModel — order (IN3)', () => {
   });
 });
 
+describe('buildInvestigationModel — order tie-breaks (IN3, fix round 1 review item 1)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+
+  it('sorts a shared severity/kind/path group by line — no line last — then id in code-unit order', () => {
+    const { quality } = setup(4);
+    expect(quality.findings.length).toBeGreaterThan(0);
+    const base = quality.findings[0]!;
+    const mk = (id: string, line: number | null): QualityFinding => ({ ...base, id, line, fingerprint: `${base.file.id}#${id}` });
+    // Same severity, kind and path (all copied from `base`) for every row, so only line and
+    // id can break the tie. Deliberately out of order, with the two line-4 rows given in
+    // id-descending input order, so a missing id tie-break (a stable sort keeping input
+    // order) or wrong null-handling would show up as a wrong output order.
+    const rows: QualityFinding[] = [mk('id-line5', 5), mk('id-null', null), mk('id-line3', 3), mk('id-b', 4), mk('id-a', 4)];
+    const tieBreakQuality: QualityModel = { ...quality, findings: rows, byFingerprint: new Map(rows.map((f) => [f.fingerprint, f])) };
+    const m = buildInvestigationModel(tieBreakQuality, EMPTY_NOTE_INDEX);
+    expect(m.rows.map((r) => r.id)).toEqual(['id-line3', 'id-a', 'id-b', 'id-line5', 'id-null']);
+  });
+});
+
+describe('buildInvestigationModel — memoisation (fix round 1 review item 12)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+
+  it('returns the same object for the same (quality, notes) pair, and a different one for a different NoteIndex', () => {
+    const { quality } = setup(4);
+    const a = buildInvestigationModel(quality, EMPTY_NOTE_INDEX);
+    const b = buildInvestigationModel(quality, EMPTY_NOTE_INDEX);
+    expect(b).toBe(a);
+    const otherNotes: NoteIndex = { byFingerprint: new Map(), malformed: 0 };
+    const c = buildInvestigationModel(quality, otherNotes);
+    expect(c).not.toBe(a);
+    expect(c.rows).not.toBe(a.rows);
+  });
+});
+
 describe('filterInvestigation (IN2, IP19)', () => {
   beforeEach(() => { setActivePinia(createPinia()); });
 
@@ -116,9 +150,6 @@ describe('filterInvestigation (IN2, IP19)', () => {
     expect(bySeverity.length).toBeGreaterThan(0);
     expect(bySeverity.every((r) => r.severity === row!.severity)).toBe(true);
 
-    expect(filterInvestigation(m.rows, { ...DEFAULT_INVESTIGATION_FILTER, status: 'open' })).toHaveLength(m.rows.length);
-    expect(filterInvestigation(m.rows, { ...DEFAULT_INVESTIGATION_FILTER, status: 'dismissed' })).toHaveLength(0);
-
     const query = row!.file.path.slice(0, 5).toLowerCase();
     const byQuery = filterInvestigation(m.rows, { ...DEFAULT_INVESTIGATION_FILTER, query });
     expect(byQuery.length).toBeGreaterThan(0);
@@ -128,6 +159,28 @@ describe('filterInvestigation (IN2, IP19)', () => {
     expect(m.rules.length).toBeGreaterThan(0);
     const expectedRules = [...new Set(m.rows.map((r) => r.rule))].sort(byUnit);
     expect(m.rules).toEqual(expectedRules);
+  });
+
+  // Fix round 1, review item 11: the earlier status assertions used no dispositions, so
+  // 'dismissed' returning 0 rows proved only that the fixture has no dismissed findings,
+  // never that the filter narrows. A real disposition makes one row non-open.
+  it('status filter narrows once a disposition changes a row', () => {
+    const { files, evidence, quality } = setup(8);
+    const target = quality.findings[0]!;
+    const withDisposition = buildQualityModel(files, evidence, [{ fingerprint: target.fingerprint, status: 'dismissed', decidedAt: '2026-09-24T00:00:00.000Z' }]);
+    const m = buildInvestigationModel(withDisposition, EMPTY_NOTE_INDEX);
+    expect(m.rows.length).toBeGreaterThan(1);
+
+    const openOnly = filterInvestigation(m.rows, { ...DEFAULT_INVESTIGATION_FILTER, status: 'open' });
+    expect(openOnly.length).toBeGreaterThan(0);
+    expect(openOnly.every((r) => r.status === 'open')).toBe(true);
+    expect(openOnly.some((r) => r.fingerprint === target.fingerprint)).toBe(false);
+
+    const dismissedOnly = filterInvestigation(m.rows, { ...DEFAULT_INVESTIGATION_FILTER, status: 'dismissed' });
+    expect(dismissedOnly).toHaveLength(1);
+    expect(dismissedOnly[0]!.fingerprint).toBe(target.fingerprint);
+
+    expect(filterInvestigation(m.rows, { ...DEFAULT_INVESTIGATION_FILTER, status: 'all' })).toHaveLength(m.rows.length);
   });
 
   it('note filter narrows to with-note / without-note', () => {

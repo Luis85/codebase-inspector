@@ -8,7 +8,7 @@
 import { FINDING_CATEGORIES, type FindingCategory } from '../../application/evidence/model';
 import type { NoteIndex, NoteLink } from '../../application/investigation/note-index';
 import type { EvidenceIndex } from './evidence-index';
-import { severityRank, type FindingStatus, type QualityFinding, type QualityModel } from './findings';
+import { matchesFindingQuery, severityRank, type FindingStatus, type QualityFinding, type QualityModel } from './findings';
 import { findingRef } from './review-state';
 
 export type NoteFilter = 'all' | 'with-note' | 'without-note';
@@ -100,7 +100,9 @@ export function buildInvestigationModel(quality: QualityModel, notes: NoteIndex)
 }
 
 /** IN2/IP19: free-text query, Type, Rule, Severity, Status and Note narrow the rows.
- *  Quality's Module filter is not carried. */
+ *  Quality's Module filter is not carried. The query predicate is `matchesFindingQuery`
+ *  (findings.ts), shared with Quality's own `filterFindings` so the two never drift apart
+ *  (WP-04 Task 6 fix round 1, review item 3). */
 export function filterInvestigation(rows: readonly InvestigationRow[], filter: InvestigationFilter): readonly InvestigationRow[] {
   const q = filter.query.trim().toLowerCase();
   return rows.filter((r) => (filter.status === 'all' || r.status === filter.status)
@@ -108,6 +110,5 @@ export function filterInvestigation(rows: readonly InvestigationRow[], filter: I
     && (filter.rule === null || r.rule === filter.rule)
     && (filter.severity === null || r.severity === filter.severity)
     && (filter.note === 'all' || (filter.note === 'with-note' ? r.notes.length > 0 : r.notes.length === 0))
-    && (!q || r.file.path.toLowerCase().includes(q) || r.title.toLowerCase().includes(q) || r.id.toLowerCase().includes(q)
-      || (r.symbol ?? '').toLowerCase().includes(q)));
+    && matchesFindingQuery(r, q));
 }

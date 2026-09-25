@@ -10,12 +10,14 @@ import type { NoteLink } from '../../application/investigation/note-index';
 import type { EvidenceFacts, NoteIdentity } from '../../application/investigation/note-model';
 import type { LocationVerdict } from '../../application/investigation/stale-location';
 import {
-  CHECKLIST_BY_KIND, UNCERTAINTY_BY_KIND, UNCERTAINTY_IMPORT_TIME, UNCERTAINTY_LINE_MATCHED, UNCERTAINTY_LINE_NOT_CHECKED,
-  UNCERTAINTY_LINE_STALE, UNCERTAINTY_NO_LINE, UNCERTAINTY_NOT_RATED, UNCERTAINTY_REPORT_STALE, UNCERTAINTY_STATIC,
+  CHECKLIST_BY_KIND, NOTE_ANALYSED_AT_UNKNOWN, NOTE_EVIDENCE_STATE_TEXT, NOTE_PROVIDER_UNKNOWN, UNCERTAINTY_BY_KIND,
+  UNCERTAINTY_IMPORT_TIME, UNCERTAINTY_LINE_MATCHED, UNCERTAINTY_LINE_NOT_CHECKED, UNCERTAINTY_LINE_STALE, UNCERTAINTY_NO_LINE,
+  UNCERTAINTY_NOT_RATED, UNCERTAINTY_REPORT_FAILED_RUN, UNCERTAINTY_REPORT_STALE, UNCERTAINTY_STATIC,
 } from '../audit-copy/investigation';
-import { FINDING_DIALOG_RULE_VALUE, FINDING_KIND_LABEL, RELATIONS_SCOPE_NOTE, RULE_TEXT, SEVERITY_TEXT } from '../inspector-copy';
-import type { EvidenceIndex } from './evidence-index';
+import { FINDING_DIALOG_RULE_VALUE, FINDING_KIND_LABEL, FINDING_LINE_TEXT, RELATIONS_SCOPE_NOTE, RULE_TEXT, SEVERITY_TEXT } from '../inspector-copy';
+import { staleCauseOf, type EvidenceIndex } from './evidence-index';
 import type { FileSummary } from './file-summaries';
+import { STRUCTURE_CATEGORIES } from './findings';
 import type { InvestigationRow } from './investigation';
 import { cyclePathText } from './relations';
 
@@ -24,11 +26,8 @@ export interface EvidenceBundle {
   readonly location: string; readonly related: readonly string[]; readonly unmatchedRelated: ReadonlySet<string>;
   readonly cyclePath: string; readonly cycleFiles: readonly string[]; readonly provider: string;
   readonly origin: EvidenceOrigin; readonly analysedAt: string; readonly snapshotId: string;
-  readonly state: 'current' | 'stale';
+  readonly state: 'current' | 'stale'; readonly staleCause: 'snapshot' | 'failed-run' | null;
 }
-
-/** IN15: the categories whose evidence is only the partial relation graph (RELATIONS_SCOPE_NOTE). */
-const RELATION_SCOPED_KINDS: ReadonlySet<FindingCategory> = new Set(['cycle', 'boundary', 'unresolved-import']);
 
 /** N14/N20: the hop path is only for an import cycle — a re-export cycle has no hop order. */
 function cycleHops(row: InvestigationRow): readonly RelationHop[] {
@@ -48,12 +47,13 @@ export function evidenceBundleFor(row: InvestigationRow, evidence: EvidenceIndex
   if (report === null) return null;
   const hops = cycleHops(row);
   const known = new Set(files.map((f) => f.path));
+  const state: 'current' | 'stale' = evidence.state === 'stale' ? 'stale' : 'current';
   return {
     kindLabel: FINDING_KIND_LABEL[row.kind],
     ruleText: RULE_TEXT(row.rule),
     ruleDetail: FINDING_DIALOG_RULE_VALUE(row.rule, row.detail),
     severityText: SEVERITY_TEXT(row.severity),
-    location: `${row.anchorPath}:${row.line ?? '?'}`,
+    location: `${row.anchorPath} · ${FINDING_LINE_TEXT(row.line, row.endLine)}`,
     related: row.related,
     unmatchedRelated: new Set(row.related.filter((path) => !known.has(path))),
     cyclePath: cyclePathText(hops),
@@ -62,23 +62,37 @@ export function evidenceBundleFor(row: InvestigationRow, evidence: EvidenceIndex
     origin: originOf(report),
     analysedAt: analysedAtOf(report),
     snapshotId: report.snapshotId,
-    state: evidence.state === 'stale' ? 'stale' : 'current',
+    state,
+    // WP-04 E10 (fix round 1): a report can be stale because it belongs to another
+    // snapshot, OR because it belongs to this one but the run behind it failed
+    // (evidence-index.ts build(): `staleReason === undefined ? 'current' : 'stale'`).
+    // staleCauseOf tells the two apart so uncertaintiesFor never blames a snapshot
+    // mismatch that did not happen.
+    staleCause: state === 'stale' ? staleCauseOf(report) : null,
   };
 }
 
 /** IN15: generated factual statements, in this order — static analysis only; the
- *  stale-location verdict (or "not checked" before a preview is read); a stale report; the
- *  partial relation graph for cycle, boundary and unresolved rows; "Not rated" severity; an
- *  imported report's unknown analysis time; the kind's own caveat last. Never a score or an
- *  invented risk (IN17). */
+ *  stale-location verdict (or "not checked" before a preview is read, or "no line" when
+ *  the finding carries none at all — fix round 1, review item 6); a stale report (its own
+ *  words by staleCauseOf, fix round 1, review item 2), unless the line verdict already
+ *  named the same stale report (review item 7); the partial relation graph for cycle,
+ *  boundary and unresolved rows; "Not rated" severity; an imported report's unknown
+ *  analysis time; the kind's own caveat last. Never a score or an invented risk (IN17). */
 export function uncertaintiesFor(row: InvestigationRow, bundle: EvidenceBundle, verdict: LocationVerdict | null): readonly string[] {
   const out: string[] = [UNCERTAINTY_STATIC];
-  if (verdict === null) out.push(UNCERTAINTY_LINE_NOT_CHECKED);
+  const lineFailedOnReport = verdict !== null && !verdict.exact && verdict.failed === 'report';
+  if (row.line === null) out.push(UNCERTAINTY_NO_LINE);
+  else if (verdict === null) out.push(UNCERTAINTY_LINE_NOT_CHECKED);
   else if (verdict.exact) out.push(UNCERTAINTY_LINE_MATCHED(verdict.line));
   else if (verdict.failed === 'no-line') out.push(UNCERTAINTY_NO_LINE);
   else out.push(UNCERTAINTY_LINE_STALE(verdict.failed, verdict.cause, row.line));
-  if (bundle.state === 'stale') out.push(UNCERTAINTY_REPORT_STALE);
-  if (RELATION_SCOPED_KINDS.has(row.kind)) out.push(RELATIONS_SCOPE_NOTE);
+  // review item 7: the line verdict's own 'report' message already says the report is
+  // stale, so the standalone statement below would repeat it.
+  if (bundle.state === 'stale' && !lineFailedOnReport) {
+    out.push(bundle.staleCause === 'failed-run' ? UNCERTAINTY_REPORT_FAILED_RUN : UNCERTAINTY_REPORT_STALE);
+  }
+  if (STRUCTURE_CATEGORIES.includes(row.kind)) out.push(RELATIONS_SCOPE_NOTE);
   if (row.severity === 'unrated') out.push(UNCERTAINTY_NOT_RATED);
   if (bundle.origin === 'imported') out.push(UNCERTAINTY_IMPORT_TIME);
   out.push(UNCERTAINTY_BY_KIND[row.kind]);
@@ -115,24 +129,34 @@ export function evidenceFactsFor(row: InvestigationRow, bundle: EvidenceBundle, 
     provider: bundle.provider,
     analysedAt: bundle.analysedAt,
     snapshotId: bundle.snapshotId,
-    evidenceState: bundle.state,
+    // IN14 (fix round 1, review item 9): the block's own two-word text, never the code
+    // word ('current'/'stale') bundle.state carries.
+    evidenceState: NOTE_EVIDENCE_STATE_TEXT[bundle.state],
     uncertainties,
   };
 }
 
 /** IN34: a refreshed note for a finding the current report no longer lists — the block's
  *  own "Not reported by the current analysis" label carries that, never a fabricated
- *  location or severity here. */
+ *  location or severity here. Fix round 1 (review item 8): with no report attached at all,
+ *  `provider`/`analysedAt` read copy words, never a hard-coded 'fallow' guess or a blank
+ *  rendered value; with a stale report, the stale uncertainty (its own words by
+ *  staleCauseOf) is included, same as a listed finding's. */
 export function goneFactsFor(link: NoteLink, evidence: EvidenceIndex, snapshotId: string): EvidenceFacts {
   const report = evidence.report;
   const uncertainties: string[] = [UNCERTAINTY_STATIC];
-  if (report !== null && originOf(report) === 'imported') uncertainties.push(UNCERTAINTY_IMPORT_TIME);
+  if (report !== null) {
+    if (originOf(report) === 'imported') uncertainties.push(UNCERTAINTY_IMPORT_TIME);
+    if (evidence.state === 'stale') {
+      uncertainties.push(staleCauseOf(report) === 'failed-run' ? UNCERTAINTY_REPORT_FAILED_RUN : UNCERTAINTY_REPORT_STALE);
+    }
+  }
   return {
     reported: false,
     findingId: link.findingId,
     sourcePath: link.sourcePath,
-    provider: report?.provider ?? 'fallow',
-    analysedAt: report === null ? '' : analysedAtOf(report),
+    provider: report === null ? NOTE_PROVIDER_UNKNOWN : report.provider,
+    analysedAt: report === null ? NOTE_ANALYSED_AT_UNKNOWN : analysedAtOf(report),
     snapshotId,
     uncertainties,
   };

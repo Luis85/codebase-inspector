@@ -151,11 +151,14 @@ export const FINDING_TITLE_FOR = (kind: FindingCategory, rule: string, symbol: s
   }
   return symbol === null ? what : `${symbol} · ${what}`;
 };
+/** Y36: "Line unknown" / "Line N" / "Lines N–M" — shared by FINDING_META below and
+ *  (WP-04 Task 6 fix round 1) NOTE_VOCABULARY.labels.line in audit-copy/investigation.ts,
+ *  so the note's evidence block and File detail can never word a line differently. */
+export const FINDING_LINE_TEXT = (line: number | null, endLine: number | null): string =>
+  (line === null ? 'Line unknown' : endLine !== null && endLine !== line ? `Lines ${line}–${endLine}` : `Line ${line}`);
 /** Y36: File detail's line under each finding: the line or the range, then the rule. */
-export const FINDING_META = (line: number | null, endLine: number | null, rule: string): string => {
-  const where = line === null ? 'Line unknown' : endLine !== null && endLine !== line ? `Lines ${line}–${endLine}` : `Line ${line}`;
-  return `${where} · ${RULE_TEXT(rule)}`;
-};
+export const FINDING_META = (line: number | null, endLine: number | null, rule: string): string =>
+  `${FINDING_LINE_TEXT(line, endLine)} · ${RULE_TEXT(rule)}`;
 export const FILE_NO_FINDINGS_REPORTED = 'No findings reported for this file. That is not the same as zero complexity.';
 /** Y35: the rule and its thresholds replace the old confidence row. Unused exports carry
  *  COPY-20's caution. */

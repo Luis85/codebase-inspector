@@ -8,7 +8,7 @@
 import type { FindingCategory } from '../../application/evidence/model';
 import type { NoteVocabulary } from '../../application/investigation/note-model';
 import type { LocationCheck } from '../../application/investigation/stale-location';
-import { FINDING_RELATED_LABEL } from './quality';
+import { FINDING_LINE_TEXT, FINDING_RELATED_LABEL } from './quality';
 
 export const INVESTIGATE_EYEBROW = 'Act / Investigate';
 export const INVESTIGATE_TITLE = 'From a finding to a recorded decision.';
@@ -52,15 +52,29 @@ export const NOTE_VOCABULARY: NoteVocabulary = {
     evidence: 'Evidence',
     // IN34: a refreshed note for a finding the current report no longer lists.
     notReported: 'Not reported by the current analysis',
-    line: (line, endLine) => (line === null ? 'Line unknown' : endLine !== null && endLine !== line ? `Lines ${line}–${endLine}` : `Line ${line}`),
+    // WP-04 Task 6 fix round 1: shares FINDING_LINE_TEXT with quality.ts's FINDING_META
+    // rather than a second copy of the same "Line unknown"/"Line N"/"Lines N–M" wording.
+    line: FINDING_LINE_TEXT,
     more: (hidden) => `${hidden} more`,
   },
 };
+
+// WP-04 IN14 (fix round 1): the evidence block's own two-word evidence state ("collected or
+// stale"), never the code word ('current'/'stale') `EvidenceBundle.state` carries.
+export const NOTE_EVIDENCE_STATE_TEXT: Readonly<Record<'current' | 'stale', string>> = { current: 'Collected', stale: 'Stale' };
+// WP-04 IP4/Y28 (fix round 1): goneFactsFor's words when no report is attached at all — never
+// a hard-coded 'fallow' guess or a blank rendered value.
+export const NOTE_PROVIDER_UNKNOWN = 'No report is attached.';
+export const NOTE_ANALYSED_AT_UNKNOWN = 'Not known: no report is attached.';
 
 // WP-04 IN15/IN17: generated factual statements only — never a score, a percentage or an
 // invented risk word (Z23).
 export const UNCERTAINTY_STATIC = 'Static analysis only: this is not evidence from running the code.';
 export const UNCERTAINTY_REPORT_STALE = 'The report was attached to an earlier scan, so paths and lines may have changed since.';
+/** WP-04 E10 (fix round 1): staleCauseOf's other cause (evidence-index.ts) — the report
+ *  belongs to this snapshot, but the run behind it failed (Z23), so it is not a snapshot
+ *  mismatch. Never shown together with UNCERTAINTY_REPORT_STALE for the same finding. */
+export const UNCERTAINTY_REPORT_FAILED_RUN = 'The latest fallow analysis failed, so this report may not be current.';
 export const UNCERTAINTY_NOT_RATED = 'fallow gives this finding no severity.';
 export const UNCERTAINTY_IMPORT_TIME = 'When fallow ran is not known for an imported report; the import time is used as the latest possible analysis time.';
 export const UNCERTAINTY_LINE_NOT_CHECKED = 'The reported line has not been checked against the current file.';

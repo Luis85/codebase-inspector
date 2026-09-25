@@ -21,9 +21,10 @@ export type FindingStatus = 'open' | 'acknowledged' | 'dismissed';
 export interface QualityFinding extends FileFinding { file: FileSummary; moduleLabel: string; status: FindingStatus; reason: string | null }
 export interface QualityFilter { query: string; kind: FindingCategory | null; severity: string | null; module: string | null; status: FindingStatus | 'all' }
 export interface QualityCard { id: 'open' | 'structure' | FindingCategory; label: string; icon: string; value: MetricValue; caption: string; tone: 'accent' | 'warning' }
-/** WP-03 N13: the categories the "Import structure" card counts together. Module-private
- *  (WP-03 E5): nothing outside this file needs the list itself, only the card it drives. */
-const STRUCTURE_CATEGORIES: readonly FindingCategory[] = ['cycle', 'boundary', 'unresolved-import'];
+/** WP-03 N13: the categories the "Import structure" card counts together. WP-04 Task 6
+ *  fix round 1: exported — investigation-evidence.ts's RELATIONS_SCOPE_NOTE scope (cycle,
+ *  boundary, unresolved-import) is the same list, so both consumers read one source. */
+export const STRUCTURE_CATEGORIES: readonly FindingCategory[] = ['cycle', 'boundary', 'unresolved-import'];
 export interface QualityModel {
   findings: readonly QualityFinding[];
   byFingerprint: ReadonlyMap<string, QualityFinding>;
@@ -163,14 +164,20 @@ export function openHighFindingsValue(model: QualityModel): MetricValue {
   return { ...all, value: model.findings.filter((f) => f.status === 'open' && isHighSeverity(f.severity)).length };
 }
 
+/** WP-04 Task 6 fix round 1: shared with investigation.ts's filterInvestigation, so the two
+ *  screens' query matching can never drift apart. `q` is already trimmed and lowercased. */
+export function matchesFindingQuery(f: QualityFinding, q: string): boolean {
+  return !q || f.file.path.toLowerCase().includes(q) || f.title.toLowerCase().includes(q) || f.id.toLowerCase().includes(q)
+    || (f.symbol ?? '').toLowerCase().includes(q);
+}
+
 export function filterFindings(findings: readonly QualityFinding[], filter: QualityFilter): readonly QualityFinding[] {
   const q = filter.query.trim().toLowerCase();
   return findings.filter((f) => (filter.status === 'all' || f.status === filter.status)
     && (filter.kind === null || f.kind === filter.kind)
     && (filter.severity === null || f.severity === filter.severity)
     && (filter.module === null || f.file.module === filter.module)
-    && (!q || f.file.path.toLowerCase().includes(q) || f.title.toLowerCase().includes(q) || f.id.toLowerCase().includes(q)
-      || (f.symbol ?? '').toLowerCase().includes(q)));
+    && matchesFindingQuery(f, q));
 }
 
 function csvColumns(provenance: string): readonly CsvColumn<QualityFinding>[] {
