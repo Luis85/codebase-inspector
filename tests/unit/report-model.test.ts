@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { snapshotWithPaths } from '../fixtures/evidence-report';
+import { RELATIONS_PATHS } from '../fixtures/relations-report';
+import { rawReport } from '../fixtures/fallow-fixture';
 import { makeEntityId } from '../../src/domain/entity-id';
+import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { buildOverviewModel } from '../../src/ui/read-models/overview';
 import { architectureGraphFor, buildArchitectureModel } from '../../src/ui/read-models/architecture';
@@ -13,7 +17,8 @@ import { buildWorkbenchModel, planMarkdown, targetMarkdown } from '../../src/ui/
 import { REPORT_NOTE_MAX, useReportStore } from '../../src/ui/stores/report-store';
 import { NO_CHECKS } from '../../src/ui/stores/ports/review-repository';
 import {
-  FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_NOTE, REPORT_EVIDENCE_TEXT, REPORT_LIMITS, REPORT_RULES_TITLE, RULE_STATUS_LABEL,
+  ARCH_CARD_RULES, ARCH_CARD_VIOLATIONS, FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_NOTE, REPORT_EVIDENCE_TEXT, REPORT_LIMITS,
+  REPORT_RULES_TITLE, RULE_STATUS_LABEL,
 } from '../../src/ui/inspector-copy';
 
 function model() {
@@ -129,6 +134,47 @@ describe('report model and Markdown (Part 4 W6/W7)', () => {
     });
     const md = reportMarkdown(m, ALL, '');
     expect(md).toContain('Not in this snapshot');
+  });
+  // Minor 4 (polish final review): PO1's two units — fallow's own reported boundary
+  // violations and your own violated rules — stay two separate Architecture lines all
+  // the way through the Report model and its Markdown export, never summed into one
+  // value. A with-boundaries recording (fallow reports one boundary finding, ui -> data)
+  // plus a rule of yours over the SAME pair (also violated) gives each its own real
+  // collected(1) — a naive sum would read 2 somewhere, and this catches it wherever it did.
+  it('the Boundary violations and Your rules violated cards stay two separate lines in the Report and its Markdown, never summed', () => {
+    const snapshot = snapshotWithPaths(RELATIONS_PATHS, 'repo-report-po1');
+    const files = fileSummariesFor(snapshot);
+    const report = buildEvidenceReport({
+      raw: rawReport('relations-combined-3.27.0'), fileName: 'relations.json', importedAt: '2026-09-24T10:00:00.000Z',
+      snapshotId: snapshot.snapshotId, stripPrefix: 'src/',
+    });
+    const relations = relationModelFor(files, evidenceIndexFor(files, report, snapshot.snapshotId));
+    const graph = architectureGraphFor(files, relations);
+    const architecture = buildArchitectureModel(graph, [
+      { id: 'AR-001', from: 'ui', to: 'data', rationale: 'kept apart', createdAt: '2026-09-24T10:00:00.000Z' },
+    ]);
+    const violationsCard = architecture.cards.find((c) => c.id === 'violations')!;
+    const rulesCard = architecture.cards.find((c) => c.id === 'rules')!;
+    // Precondition: fallow's own count and your rule count are each really 1 — not 0, not unknown.
+    expect(violationsCard.value).toMatchObject({ state: 'collected', value: 1 });
+    expect(rulesCard.value).toMatchObject({ state: 'collected', value: 1 });
+
+    const m = buildReportModel({
+      snapshot, files, overview: buildOverviewModel(snapshot, files), architecture, security: buildSecurityModel(), plan: [],
+    });
+    const violationsLine = m.architecture.find((r) => r.label === ARCH_CARD_VIOLATIONS)!;
+    const rulesLine = m.architecture.find((r) => r.label === ARCH_CARD_RULES)!;
+    expect(violationsLine.value).toEqual(violationsCard.value);
+    expect(rulesLine.value).toEqual(rulesCard.value);
+    expect(m.architecture.filter((r) => r.label === ARCH_CARD_VIOLATIONS || r.label === ARCH_CARD_RULES)).toHaveLength(2);
+
+    const md = reportMarkdown(m, ALL, '');
+    const lines = md.split('\n');
+    const violationsMdLine = lines.find((l) => l.startsWith(`- ${ARCH_CARD_VIOLATIONS}:`));
+    const rulesMdLine = lines.find((l) => l.startsWith(`- ${ARCH_CARD_RULES}:`));
+    expect(violationsMdLine).toBeDefined();
+    expect(rulesMdLine).toBeDefined();
+    expect(violationsMdLine).not.toBe(rulesMdLine);
   });
 });
 

@@ -27,7 +27,11 @@ const SOURCE_LABEL: Readonly<Record<RelationSource, string>> = { cycle: RELATION
 
 interface RelationRow { key: string; id: EntityId; location: string; directionLabel: string; sourceLabel: string }
 
-/** Matches the Architecture screen's own "not analysed" reading (relations.analysed). */
+/** Polish final review #2 (comment only, no behaviour change): reads the report's cycle
+ *  category alone (relations.analysed) — as File detail, the city Relations section and
+ *  the Overview/Data & scans "imports" row all do. The Architecture screen no longer
+ *  matches this: its own notAnalysed gates on ANY analysed edge category (JP5), a wider
+ *  reading the controller scoped to Architecture alone (see architecture.ts's edgesAnalysed). */
 const notAnalysed = computed(() => !relations.value.analysed);
 
 const neighbours = computed(() => neighbourhood(

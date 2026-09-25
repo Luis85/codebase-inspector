@@ -6,7 +6,7 @@ import { collected, sumEvidence, unknown, type MetricValue } from '../evidence';
 import type { BoundaryRule } from '../stores/ports/review-repository';
 import {
   ARCH_CARD_EVIDENCED, ARCH_CARD_MODULES, ARCH_CARD_RULES, ARCH_CARD_VIOLATIONS, ARCH_MODULES_OMITTED_CAPTION,
-  ARCH_NOT_ANALYSED_NO_SECTION, ARCH_NOT_ANALYSED_NOTE, ARCH_RULES_CAPTION, ARCH_RULES_NONE, ARCH_VIOLATIONS_FALLOW_CAPTION,
+  ARCH_NOT_ANALYSED_NO_SECTION, ARCH_NOT_ANALYSED_NOTE, ARCH_RULES_CAPTION, ARCH_RULES_NONE, ARCH_RULES_NONE_REASON, ARCH_VIOLATIONS_FALLOW_CAPTION,
   FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_SHORT, RELATION_CARD_CYCLES, RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL,
   RULE_NOT_EVALUATED_REASON,
 } from '../inspector-copy';
@@ -185,7 +185,10 @@ function violationsValue(relations: RelationModel): MetricValue {
  *  otherwise the number of rules whose status is `violation` — a rule that merely exists
  *  but evaluates not-evaluated contributes nothing, positive or negative. */
 function rulesValue(rules: readonly BoundaryRule[], evaluations: readonly RuleEvaluation[], notAnalysed: boolean, notAnalysedNote: string): MetricValue {
-  if (rules.length === 0) return unknown(ARCH_RULES_NONE);
+  // Polish final review #7: the VALUE's own reason is ARCH_RULES_NONE_REASON, not the
+  // card's ARCH_RULES_NONE caption — Markdown (and anything else reading MetricValue.reason
+  // directly) has no Rules tab to point readers at.
+  if (rules.length === 0) return unknown(ARCH_RULES_NONE_REASON);
   if (notAnalysed) return unknown(notAnalysedNote);
   return collected(evaluations.filter((e) => e.status === 'violation').length, 'review');
 }
@@ -213,9 +216,18 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
     { id: 'cycles', label: RELATION_CARD_CYCLES, icon: 'refresh-cw', tone: 'danger',
       value: cyclesValue(graph.relations),
       // Fix round 1 #2: absent evidence is never rendered as 0 — a caption built from
-      // counts that could not be measured reads the not-analysed note instead. JP5: this
-      // card is cycle-specific, so it keeps the narrower cyclesNotAnalysed gate.
-      caption: cyclesNotAnalysed ? notAnalysedNote : RELATION_CYCLES_CAPTION(files, groups, reExports) },
+      // counts that could not be measured reads a not-analysed note instead. JP5: this
+      // card is cycle-specific, so it keeps the narrower cyclesNotAnalysed gate — but
+      // `notAnalysedNote` is the wider `notAnalysed` gate's own note (ARCH_NOT_ANALYSED_NOTE
+      // with no report, else ARCH_NOT_ANALYSED_NO_SECTION), which reads false here when
+      // boundaries alone made `notAnalysed` false: a boundary-only report DOES have a
+      // check section, so ARCH_NOT_ANALYSED_NO_SECTION's "no import cycle or boundary
+      // section" is wrong. Polish final review #1: that case (cyclesNotAnalysed with
+      // notAnalysed false) captions FALLOW_NOT_ANALYSED instead — the plain "not analysed"
+      // reading, same as a rule's own reason in that state (evaluateRules' FALLOW_NOT_ANALYSED
+      // branch is unreachable when boundaries are configured, but the cycles card is not
+      // gated on edgesAnalysed, so it can still land here).
+      caption: cyclesNotAnalysed ? (notAnalysed ? notAnalysedNote : FALLOW_NOT_ANALYSED) : RELATION_CYCLES_CAPTION(files, groups, reExports) },
     { id: 'violations', label: ARCH_CARD_VIOLATIONS, icon: 'alert-triangle', tone: 'warning',
       value: violationsValue(graph.relations),
       // PO1: fallow's own count needs no rule-count caption any more — it only ever

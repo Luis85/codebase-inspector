@@ -18,7 +18,7 @@ import { moduleOf } from '../../src/ui/read-models/file-summaries';
 import { buildOverviewModel } from '../../src/ui/read-models/overview';
 import { buildSourcesModel } from '../../src/ui/read-models/sources';
 import {
-  ARCH_NOT_ANALYSED_NO_SECTION, ARCH_NOT_ANALYSED_NOTE, ARCH_RULES_CAPTION, ARCH_RULES_NONE, ARCH_VIOLATIONS_FALLOW_CAPTION,
+  ARCH_NOT_ANALYSED_NOTE, ARCH_RULES_CAPTION, ARCH_RULES_NONE_REASON, ARCH_VIOLATIONS_FALLOW_CAPTION,
   ARCH_VIOLATIONS_NOT_CONFIGURED, EVIDENCE_SOURCE_FALLOW_PARTIAL, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED,
   OVERVIEW_IMPORTS_ROW, RELATIONS_SCOPE_SHORT, RELATION_CYCLES_CAPTION, RELATION_CYCLES_NOT_REPORTED, RULE_NOT_EVALUATED_PARTIAL,
   RULE_NOT_EVALUATED_REASON,
@@ -94,7 +94,9 @@ describe('cards (N18, N20)', () => {
 
   it('PO1: the rules card counts your OWN violated rules, independent of fallow\'s boundary count', () => {
     const none = buildArchitectureModel(graph, []).cards.find((c) => c.id === 'rules')!;
-    expect(none.value).toMatchObject({ state: 'unknown', reason: ARCH_RULES_NONE });
+    // Polish final review #7: the VALUE's reason is ARCH_RULES_NONE_REASON, a Markdown-safe
+    // reading — never ARCH_RULES_NONE, the card caption's own "Add one on the Rules tab" copy.
+    expect(none.value).toMatchObject({ state: 'unknown', reason: ARCH_RULES_NONE_REASON });
 
     const notViolated = buildArchitectureModel(graph, [rule('core', 'ui')]).cards.find((c) => c.id === 'rules')!;
     expect(notViolated.value).toMatchObject({ state: 'collected', value: 0 });
@@ -117,9 +119,9 @@ describe('cards (N18, N20)', () => {
     expect(model.cards.find((c) => c.id === 'violations')!.caption).toBe(ARCH_NOT_ANALYSED_NOTE);
   });
 
-  it('without a report, the rules card reads unknown(ARCH_RULES_NONE) with no rules, else the not-analysed note', () => {
+  it('without a report, the rules card reads unknown(ARCH_RULES_NONE_REASON) with no rules, else the not-analysed note', () => {
     const noRules = buildArchitectureModel(noReportGraph, []).cards.find((c) => c.id === 'rules')!;
-    expect(noRules.value).toMatchObject({ state: 'unknown', reason: ARCH_RULES_NONE });
+    expect(noRules.value).toMatchObject({ state: 'unknown', reason: ARCH_RULES_NONE_REASON });
     const withRule = buildArchitectureModel(noReportGraph, [rule('ui', 'data')]).cards.find((c) => c.id === 'rules')!;
     expect(withRule.value).toMatchObject({ state: 'unknown', reason: ARCH_NOT_ANALYSED_NOTE });
     expect(withRule.caption).toBe(ARCH_NOT_ANALYSED_NOTE);
@@ -202,9 +204,9 @@ describe('JP5: edges and the module views gate on ANY analysed edge category', (
     });
   });
 
-  it('the cycles card still reads not analysed (unchanged: the Cycles tab keeps the cycle-only gate)', () => {
+  it('the cycles card still reads not analysed (unchanged: the Cycles tab keeps the cycle-only gate); polish final review #1: captioned FALLOW_NOT_ANALYSED, not the false "no check section" note — this report HAS a check section (boundaries)', () => {
     const model = buildArchitectureModel(boundaryOnlyGraph, []);
-    expect(model.cards.find((c) => c.id === 'cycles')!.caption).toBe(ARCH_NOT_ANALYSED_NO_SECTION);
+    expect(model.cards.find((c) => c.id === 'cycles')!.caption).toBe(FALLOW_NOT_ANALYSED);
   });
 
   it('the evidenced-imports card is partial, with the edge count and RELATION_CYCLES_NOT_REPORTED', () => {

@@ -187,13 +187,24 @@ describe('Architecture: tabs and Cycles (WP-03 N21)', () => {
     expect(w.findAll('.ci-module-map__edge').length).toBeGreaterThan(0);
     const evidenced = useReadModels().architecture.value.cards.find((c) => c.id === 'evidenced')!;
     expect(evidenced.value).toMatchObject({ state: 'partial', value: 1, reason: RELATION_CYCLES_NOT_REPORTED });
+    // Final review #1: the Map's own provenance badge (relationEdgesValue, not the
+    // cycle-only relationValue) reads Partial above the boundary edge it is already
+    // drawing, and the ModuleInspector for `ui` lists its evidenced neighbour `data`
+    // under Imports, with the scope note shown (hasValue(evidence) is true here).
+    expect(w.find('.ci-module-map .ci-provenance').text()).toBe('Partial');
+    await w.findAll('.ci-module-map__node').find((n) => n.find('.ci-module-map__name').text() === 'ui')!.trigger('click');
+    const inspector = w.find('.ci-module-inspector');
+    expect(inspector.findAll('dd')[2]!.text()).toBe('data');
+    expect(inspector.find('.ci-module-inspector__scope').text()).toBe(RELATIONS_SCOPE_SHORT);
     await openTab(w, ARCH_TAB_MATRIX);
     expect(w.find('.ci-matrix__scroll').text()).not.toContain(ARCH_NOT_ANALYSED_NOTE);
     expect(w.find('.ci-matrix__scroll').text()).not.toContain(ARCH_NOT_ANALYSED_NO_SECTION);
     await openTab(w, ARCH_TAB_CYCLES);
     expect(w.find('[role="tabpanel"]').text()).toContain(FALLOW_NOT_ANALYSED);
     expect(w.findAll('.ci-cycle-list__row')).toHaveLength(0);
-    expect(useReadModels().architecture.value.cards.find((c) => c.id === 'cycles')!.caption).toBe(ARCH_NOT_ANALYSED_NO_SECTION);
+    // Polish final review #1: FALLOW_NOT_ANALYSED, not ARCH_NOT_ANALYSED_NO_SECTION — this
+    // report HAS a check section (boundaries), so "no import cycle or boundary section" is false here.
+    expect(useReadModels().architecture.value.cards.find((c) => c.id === 'cycles')!.caption).toBe(FALLOW_NOT_ANALYSED);
     w.unmount();
   });
 

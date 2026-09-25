@@ -12,6 +12,7 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useRelationsStore, type RelationControlDirection } from '../../src/ui/stores/relations-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
+import { useCityRelations } from '../../src/ui/read-models/use-city-relations';
 import { CITY_RENDERER_KEY } from '../../src/ui/renderer-handle';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
@@ -330,17 +331,25 @@ describe('the relations store, one per leaf (N31)', () => {
 
   it('E26/JP6: re-importing a report that drops the highlighted cycle clears it, and sends no cycle arcs', async () => {
     const snap = setup();
-    const { renderer } = mountInspector();
+    mountInspector();
     const core = useReadModels().relations.value.cycles.find((c) => c.pathText.startsWith('core/a.ts'))!;
     const store = useRelationsStore();
     store.highlightCycle(core.findingId);
     await nextTick();
     expect(store.highlightedCycleId).toBe(core.findingId);
+    // Minor 5 (polish final review): FileInspector never calls the renderer's setRelations
+    // itself (only CityStage does), so asserting against `renderer.setRelations` here was
+    // vacuous — it could never have been called either way. Assert on the read model that
+    // actually feeds the arcs instead: a `role: 'cycle'` arc exists while highlighted
+    // (non-empty precondition, E27), then none once the re-import drops the highlight.
+    const arcsBefore = useCityRelations().value.arcs;
+    expect(arcsBefore?.some((a) => a.role === 'cycle')).toBe(true);
 
     reimportRelationsReport(snap, withoutCoreCycleJson());
     await nextTick();
     expect(store.highlightedCycleId).toBeNull();
-    expect(renderer.setRelations).not.toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ role: 'cycle' })]));
+    const arcsAfter = useCityRelations().value.arcs;
+    expect(arcsAfter?.some((a) => a.role === 'cycle')).toBe(false);
   });
 
   it('E26/JP6: re-importing the same report keeps the highlight (same content-hash finding id)', async () => {

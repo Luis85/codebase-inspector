@@ -102,3 +102,8 @@ export const ARCH_VIOLATIONS_FALLOW_CAPTION = 'Reported by fallow';
 export const ARCH_CARD_RULES = 'Your rules violated';
 export const ARCH_RULES_CAPTION = (total: number, notEvaluated: number): string => `${total} rules · ${notEvaluated} not evaluated`;
 export const ARCH_RULES_NONE = 'No module rules yet. Add one on the Rules tab.';
+/** Polish final review #7: the rules card's `unknown` VALUE reason — Markdown and any
+ *  other surface that reads a MetricValue's own `reason` (never the card's caption) has
+ *  no Rules tab to point at, so it needs its own neutral wording; ARCH_RULES_NONE stays
+ *  the card's caption alone. */
+export const ARCH_RULES_NONE_REASON = 'No module rules defined.';

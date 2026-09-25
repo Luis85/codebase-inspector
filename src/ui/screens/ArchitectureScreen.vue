@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
-import { relationValue } from '../read-models/relations';
+import { relationEdgesValue } from '../read-models/relations';
 import { reviewFailureText } from '../read-models/review-failure';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
@@ -55,8 +55,12 @@ const {
   selectedModule, selectedEdge, selectedCycleId, moduleSummary, neighbours, selectedRule, selectedEdgeModel, edgeViolates,
   selectedCycle, highlightedModules, selectModule, selectEdge, selectRule, selectCycle,
 } = useArchitectureSelection(architecture, files);
-/** N20: the relation evidence state — the Map's and the module inspector's badge. */
-const relationEvidence = computed(() => relationValue(architecture.value.relations, architecture.value.relations.edges.length));
+/** N20 (JP5 fix): the relation evidence state — the Map's and the module inspector's
+ *  badge. `relationEdgesValue` (not `relationValue`, which gates on the cycle category
+ *  alone) reads `partial` in a boundary-only report — a cycle-only gate here left the Map
+ *  and ModuleInspector reading unknown/FALLOW_NOT_ANALYSED above edges the Map was
+ *  already drawing (JP5's own edge-category gate, `architecture.ts`'s `notAnalysed`). */
+const relationEvidence = computed(() => relationEdgesValue(architecture.value.relations, architecture.value.relations.edges.length));
 
 function onSaved(id: string): void {
   editorOpen.value = false;
