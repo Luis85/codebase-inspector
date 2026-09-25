@@ -13,7 +13,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import type { NoteIdentity } from '../../../application/investigation/note-model';
-import type { CreateNoteResult, DestinationPlan } from '../../../application/ports/investigation-notes-port';
+import type { DestinationPlan } from '../../../application/ports/investigation-notes-port';
+import type { SubmitNote } from './use-investigation-notes';
 import { useInvestigationStore } from '../../stores/investigation-store';
 import { useBusyAction } from '../../kit/use-busy-action';
 import { useUniqueId } from '../../unique-id';
@@ -24,11 +25,20 @@ import {
 } from '../../audit-copy/investigation';
 import CiDialog from '../../kit/Dialog.vue';
 
-type CreatedNote = Extract<CreateNoteResult, { status: 'created' }>;
 type ReadyPlan = Extract<DestinationPlan, { status: 'ok' }>;
 
-const props = defineProps<{ defaultFolder: string; defaultName: string; rootPath: string | null; identity: NoteIdentity; body: string }>();
-const emit = defineEmits<{ close: []; created: [result: CreatedNote] }>();
+// Fix round 1 (review 4): the planned file name's extension, as logic — never the display
+// copy NOTE_CREATE_SUFFIX (freeNoteName always ends a planned name with it).
+const MD_EXTENSION = '.md';
+
+const props = defineProps<{
+  defaultFolder: string; defaultName: string; rootPath: string | null; identity: NoteIdentity; body: string;
+  /** Fix round 1 (review 1): the SCREEN owns the write and its outcome (the announcement and
+   *  focus), so a note written after this dialog closed is still announced. `exclusion` is
+   *  the root-relative folder the request may add to the exclusions (E21), or null. */
+  submit: SubmitNote;
+}>();
+const emit = defineEmits<{ close: [] }>();
 const investigation = useInvestigationStore();
 const { busy, error, requestClose: requestCloseWith, run } = useBusyAction();
 const folderId = useUniqueId('ci-create-note-folder');
@@ -87,14 +97,12 @@ function confirm(): Promise<void> {
   const p = ready.value;
   if (blocked.value || p === null) return Promise.resolve();
   return run(async () => {
-    const result = await investigation.create({
-      identity: props.identity, folder: p.folder, baseName: p.fileName.slice(0, -NOTE_CREATE_SUFFIX.length), body: props.body,
-      excludeFolder: showExclude.value && exclude.value, rootPath: props.rootPath,
-    });
-    if (result !== null && result.status === 'created') {
-      emit('created', result);
-      return;
-    }
+    const excluding = showExclude.value && exclude.value;
+    const result = await props.submit({
+      identity: props.identity, folder: p.folder, baseName: p.fileName.slice(0, -MD_EXTENSION.length), body: props.body,
+      excludeFolder: excluding, rootPath: props.rootPath,
+    }, excluding ? p.rootRelativeFolder : null);
+    if (result !== null && result.status === 'created') return;   // the screen closes this dialog
     error.value = NOTE_CREATE_REFUSED[result === null ? 'write-failed' : result.reason];
     revision.value += 1;
   }, NOTE_CREATE_REFUSED['write-failed']);

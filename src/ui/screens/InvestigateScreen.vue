@@ -80,7 +80,7 @@ const verdict = computed<LocationVerdict | null>(() => {
 });
 const uncertainties = computed(() => (selectedRow.value && bundle.value ? uncertaintiesFor(selectedRow.value, bundle.value, verdict.value) : []));
 const checklist = computed(() => (selectedRow.value ? checklistFor(selectedRow.value.kind) : []));
-const { root, creating, createInput, opening: openingNote, openFailed: noteOpenFailed, openCreate, closeCreate, onCreated, openLinked } =
+const { root, creating, createInput, opening: openingNote, openFailed: noteOpenFailed, openCreate, closeCreate, submitCreate, openLinked } =
   useInvestigationNotes({ row: selectedRow, bundle, uncertainties, live: liveMessage });
 /** IN12: offered only when the anchor is a `.md` file the vault itself holds — the port's
  *  own check (host/investigation-notes.ts); this screen only asks and shows what it says. */
@@ -333,8 +333,8 @@ async function workItemDone(message: string): Promise<void> {
     <CreateNoteDialog
       v-if="creating && createInput"
       v-bind="createInput"
+      :submit="submitCreate"
       @close="closeCreate"
-      @created="onCreated"
     />
   </div>
 </template>

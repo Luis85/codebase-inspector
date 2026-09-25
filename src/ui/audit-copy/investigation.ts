@@ -290,9 +290,11 @@ export const NOTE_CREATE_REFUSED: Readonly<Record<'invalid' | 'exists' | 'write-
   'write-failed': 'The note could not be written.',
 };
 export const NOTE_CREATED = (path: string): string => `Created the investigation note ${path}.`;
-/** IN29: the exclusion changes the scan scope, so the next scan asks for approval again. */
-export const NOTE_CREATED_EXCLUDED = (path: string, folder: string): string =>
-  `Created the investigation note ${path}, and excluded ${folder} from scans of this codebase. The next scan asks you to approve the changed scope.`;
+/** IN29: the exclusion changes the scan scope, so the next scan asks for approval again.
+ *  Ruling E21: `exclusion` is the exclusion actually saved — the folder relative to the
+ *  codebase root (e.g. `notes`), never the vault folder. */
+export const NOTE_CREATED_EXCLUDED = (path: string, exclusion: string): string =>
+  `Created the investigation note ${path}, and added ${exclusion} to this codebase’s excluded paths. The next scan asks you to approve the changed scope.`;
 /** IP26: a failed exclusion keeps the note and says so. */
 export const NOTE_EXCLUSION_FAILED = (path: string): string =>
   `Created the investigation note ${path}, but its folder could not be added to this codebase’s excluded paths, so the next scan includes it.`;

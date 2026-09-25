@@ -17,9 +17,10 @@ import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review
 import { computeLayout } from '../../src/domain/layout/layout';
 import { noteBaseName } from '../../src/application/investigation/note-path';
 import { createInvestigationNotes } from '../../src/host/investigation-notes';
+import type { InvestigationNotesPort } from '../../src/application/ports/investigation-notes-port';
 import {
   FINDING_KIND_LABEL, NOTE_CREATE_EXCLUDE, NOTE_CREATE_OVERLAP, NOTE_CREATE_PATH, NOTE_CREATE_REFUSED, NOTE_CREATE_RENAMED,
-  NOTE_CREATE_ROOT_IS_FOLDER, NOTE_CREATED, NOTE_CREATED_EXCLUDED, NOTE_OPEN_FAILED, NOTE_PANEL_NONE, NOTE_STATUS,
+  NOTE_CREATE_ROOT_IS_FOLDER, NOTE_CREATED, NOTE_CREATED_EXCLUDED, NOTE_EXCLUSION_FAILED, NOTE_OPEN_FAILED, NOTE_PANEL_NONE, NOTE_STATUS,
   NOTES_FOLDER_PROBLEM, NOTES_FOLDER_ROW_FAILED,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
@@ -32,6 +33,32 @@ import { createFixedClock } from '../fixtures/clock';
 
 interface SetupOptions { readonly rootPath?: string; readonly folder?: string }
 
+/** Fix round 1: a transparent wrapper over the REAL port — `hold()` parks every create
+ *  until `release()` (a write in flight), `hidden` keeps paths out of the listed index (a
+ *  metadata cache that has not caught up yet), and `rejectOpen` makes Open reject. */
+function gated(port: InvestigationNotesPort) {
+  const waiting: (() => void)[] = [];
+  const gate = {
+    holding: false, rejectOpen: false, hidden: new Set<string>(),
+    hold: () => { gate.holding = true; },
+    release: () => { gate.holding = false; for (const go of waiting.splice(0)) go(); },
+  };
+  const wrapped: InvestigationNotesPort = {
+    ...port,
+    list: (id) => {
+      const index = port.list(id);
+      const visible = Array.from(index.byFingerprint, ([k, links]) => [k, links.filter((l) => !gate.hidden.has(l.path))] as const);
+      return { malformed: index.malformed, byFingerprint: new Map(visible) };
+    },
+    create: async (request) => {
+      if (gate.holding) await new Promise<void>((resolve) => { waiting.push(resolve); });
+      return port.create(request);
+    },
+    open: (path) => (gate.rejectOpen ? Promise.reject(new Error('host failed')) : port.open(path)),
+  };
+  return { gate, wrapped };
+}
+
 async function setup(options: SetupOptions = {}) {
   const fake = createFakeVault({ basePath: '/vault' });
   const base = buildSnapshotFixture({ files: 12, directories: 2 });
@@ -42,9 +69,10 @@ async function setup(options: SetupOptions = {}) {
   const notes = createInvestigationNotes(fake.app, {
     folders, profiles: harness.store, clock: createFixedClock('2026-09-25T10:00:00.000Z'), registerEvent: () => undefined,
   });
+  const { gate, wrapped } = gated(notes);
   useCityStore().setCity(snap, computeLayout(snap));
   attachSyntheticReport(snap);
-  useInvestigationStore().setPorts(notes, scriptedSourcePreview());
+  useInvestigationStore().setPorts(wrapped, scriptedSourcePreview());
   useReviewStore().setRepositoryFactory(() => createInMemoryReviewRepository());
   await useReviewStore().bindRepository(snap.repositoryId);
   useCityStore().navigate('investigate');
@@ -54,7 +82,7 @@ async function setup(options: SetupOptions = {}) {
   await flushPromises();
   const name = noteBaseName(row.id, FINDING_KIND_LABEL[row.kind], row.file.name);
   const exclusions = async (): Promise<readonly string[]> => (await harness.store.get(snap.repositoryId))?.exclusions ?? [];
-  return { fake, snap, folders, row, w, name, exclusions };
+  return { fake, snap, folders, row, w, name, exclusions, gate, profiles: harness.store };
 }
 
 type Mounted = Awaited<ReturnType<typeof setup>>['w'];
@@ -166,7 +194,20 @@ describe('inside the codebase root (IN29, IP26)', () => {
     expect((box.element as HTMLInputElement).checked).toBe(true);
     await confirm(w);
     expect(await exclusions()).toEqual(['.git', 'notes']);
-    expect(liveText(w)).toBe(NOTE_CREATED_EXCLUDED(`code/notes/${name}.md`, 'code/notes'));
+    expect(liveText(w)).toBe(NOTE_CREATED_EXCLUDED(`code/notes/${name}.md`, 'notes'));   // E21: the saved exclusion
+    expect(liveText(w)).toContain(' notes ');
+    expect(liveText(w)).not.toContain('added code/notes');
+    w.unmount();
+  });
+
+  it('IP26: an exclusion the profile store refuses keeps the note and announces NOTE_EXCLUSION_FAILED', async () => {
+    const { w, fake, name, exclusions, profiles } = await setup({ rootPath: '/vault/code', folder: 'code/notes' });
+    vi.spyOn(profiles, 'update').mockRejectedValue(new Error('locked'));
+    await openDialog(w);
+    await confirm(w);
+    expect(fake.paths()).toEqual([`code/notes/${name}.md`]);
+    expect(await exclusions()).toEqual(['.git']);
+    expect(liveText(w)).toBe(NOTE_EXCLUSION_FAILED(`code/notes/${name}.md`));
     w.unmount();
   });
 
@@ -296,6 +337,85 @@ describe('create, the race and the notes panel (IN20, IN28, IN30; IP24, E40)', (
     expect(leaf.openFile).toHaveBeenCalledTimes(1);
     expect(w.find('.ci-notes-panel__open-error').exists()).toBe(false);
     expect(fake.paths()).toEqual([path]);
+    w.unmount();
+  });
+});
+
+describe('outcomes outside the dialog (Task 13 review, fix round 1)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+
+  it('review 1: a note written after a selection change closed the dialog is still announced', async () => {
+    const { w, fake, gate, name } = await setup();
+    await openDialog(w);
+    gate.hold();
+    await w.find('.ci-create-note__confirm').trigger('click');
+    useInvestigationStore().open(useReadModels().investigation.value.rows[1]!.fingerprint);
+    await flushPromises();
+    expect(w.find('.ci-create-note').exists()).toBe(false);
+    expect(fake.paths()).toEqual([]);
+    gate.release();
+    await flushPromises();
+    expect(fake.paths()).toEqual([`Notes/${name}.md`]);
+    expect(liveText(w)).toBe(NOTE_CREATED(`Notes/${name}.md`));
+    expect(w.find('.ci-create-note').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('review 2: a notes change without the new note drops the pending focus, so a later change never moves focus', async () => {
+    const { w, fake, gate, name } = await setup();
+    const first = `Notes/${name}.md`;
+    const second = `Notes/${name} (2).md`;
+    await openDialog(w);
+    await confirm(w);
+    gate.hidden.add(second);   // the index has not heard of the second note yet
+    await openDialog(w);
+    await confirm(w);
+    expect(fake.paths()).toEqual([second, first]);
+    expect(liveText(w)).toBe(NOTE_CREATED(second));
+    const focused = document.activeElement;
+    fake.userWrite(first, fake.text(first)!.replace('status: open', 'status: doing'));   // unrelated
+    await flushPromises();
+    gate.hidden.delete(second);
+    fake.userWrite(second, fake.text(second)!.replace('status: open', 'status: doing'));
+    await flushPromises();
+    expect(openButtons(w).map((b) => b.attributes('data-path'))).toEqual([second, first]);
+    expect(w.findAll('.ci-notes-panel__status').map((s) => s.text())).toEqual([NOTE_STATUS('doing'), NOTE_STATUS('doing')]);
+    expect(document.activeElement).toBe(focused);
+    w.unmount();
+  });
+
+  it('review 5: a rejected Open shows the failure and never leaves Open stuck', async () => {
+    const { w, fake, gate, name } = await setup();
+    await openDialog(w);
+    await confirm(w);
+    gate.rejectOpen = true;
+    await openButtons(w)[0]!.trigger('click');
+    await flushPromises();
+    expect(w.find('.ci-notes-panel__open-error[role="alert"]').text()).toBe(NOTE_OPEN_FAILED);
+    expect(openButtons(w)[0]!.attributes('aria-disabled')).toBeUndefined();
+    gate.rejectOpen = false;
+    await openButtons(w)[0]!.trigger('click');
+    await flushPromises();
+    expect(fake.opened).toEqual([`Notes/${name}.md`]);
+    expect(w.find('.ci-notes-panel__open-error').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('review 6 (E13): Cancel and Escape are ignored while the write is in flight', async () => {
+    const { w, fake, gate, name } = await setup();
+    await openDialog(w);
+    gate.hold();
+    await w.find('.ci-create-note__confirm').trigger('click');
+    await w.find('.ci-create-note__cancel').trigger('click');
+    await w.find('.ci-dialog').trigger('keydown', { key: 'Escape' });
+    await flushPromises();
+    expect(w.find('.ci-create-note').exists()).toBe(true);
+    expect(w.find('.ci-create-note__cancel').attributes('aria-disabled')).toBe('true');
+    gate.release();
+    await flushPromises();
+    expect(fake.paths()).toEqual([`Notes/${name}.md`]);
+    expect(w.find('.ci-create-note').exists()).toBe(false);
+    expect(liveText(w)).toBe(NOTE_CREATED(`Notes/${name}.md`));
     w.unmount();
   });
 });
