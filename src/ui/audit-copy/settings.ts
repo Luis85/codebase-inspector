@@ -45,7 +45,7 @@ export const SETTINGS_NETWORK_TEXT = 'Everything the inspector shows is computed
 export const SETTINGS_NETWORK_VALUE = 'Local only';
 /** Part 6 Y5/R3: review decisions are saved per codebase; imported findings and the report stay per session. */
 export const SETTINGS_STORAGE = 'Saved review state';
-export const SETTINGS_STORAGE_TEXT = 'Work items, finding decisions and boundary rules are saved for each codebase in this plugin’s own data for this vault, so they survive restarts. Imported findings and the report screen’s sections and note are kept for this session only. No note in your vault is created or changed.';
+export const SETTINGS_STORAGE_TEXT = 'Work items, finding decisions and boundary rules are saved for each codebase in this plugin’s own data for this vault, so they survive restarts. Imported findings and the report screen’s sections and note are kept for this session only. Investigation notes are ordinary notes in your vault, written only when you create or refresh one.';
 export const SETTINGS_CLEAR = 'Clear review state';
 export const SETTINGS_CLEAR_TEXT = 'Remove every work item, finding decision and boundary rule saved for this codebase, and this session’s report note. No repository content is affected.';
 /** Part 6 R3: Clear is aria-disabled while no codebase is on screen (the Import hint's pattern). */

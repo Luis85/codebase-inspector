@@ -11,9 +11,10 @@ import type { ProfileStore } from '../application/ports/profile-store';
 import type { LocalBindingStore } from '../application/ports/local-binding-store';
 import type { SourceFileSystemPort } from '../application/ports/source-filesystem-port';
 import type { ReviewRepositoryRegistry } from '../adapters/storage/review-repository-registry';
+import type { InvestigationFolderStore } from '../adapters/storage/plugin-data-investigation-store';
 import {
-  FALLOW_PROFILE_REMOVED, PROFILE_ANALYZER_PURGE_FAILED, PROFILE_REVIEW_PURGE_FAILED, SETTINGS_FALLOW_BUSY,
-  SETTINGS_FALLOW_LIMIT_INVALID, SETTINGS_FALLOW_STORE_FAILED,
+  FALLOW_PROFILE_REMOVED, NOTES_FOLDER_PROBLEM, PROFILE_ANALYZER_PURGE_FAILED, PROFILE_INVESTIGATION_PURGE_FAILED,
+  PROFILE_REVIEW_PURGE_FAILED, SETTINGS_FALLOW_BUSY, SETTINGS_FALLOW_LIMIT_INVALID, SETTINGS_FALLOW_STORE_FAILED,
 } from '../ui/inspector-copy';
 import type { FallowAnalysisService } from '../application/analysis/fallow-analysis-service';
 import { AnalyzerStoreError } from '../application/analysis/analyzer-record';
@@ -25,6 +26,7 @@ import { ClearBindingModal } from './modals/clear-binding-modal';
 import { openSourceModal } from './modals/source-modal';
 import { createDefaultProfile } from './scan-flow';
 import { ValidationError, exclusionInputReasons, validationFailureText } from '../domain/validator';
+import { defaultNoteFolder, validateNoteFolder } from '../application/investigation/note-path';
 
 function parseExclusions(rawLines: string): string[] {
   return rawLines.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
@@ -56,6 +58,9 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     // Polish D5 (L22): the plugin's one session evidence repository, so a removed codebase's
     // findings go with it (main.ts passes its instance).
     private readonly evidence: Pick<EvidenceRepository, 'remove'>,
+    // WP-04 Task 8 (IN18, IN19): the plugin's one investigation folder store (main.ts
+    // passes its instance). IP28: a required 9th constructor parameter.
+    private readonly investigations: InvestigationFolderStore,
   ) {
     super(app, plugin);
   }
@@ -79,7 +84,8 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       const entries: ProfileEntry[] = [];
       for (const profile of profiles) {
         const binding = profile.bindingId === null ? null : await this.bindingStore.get(profile.bindingId);
-        entries.push({ profile, binding, analyzer: await this.analysis.readBinding(profile.profileId) });
+        const investigationFolder = (await this.investigations.read(profile.profileId)) ?? defaultNoteFolder(profile.name);
+        entries.push({ profile, binding, analyzer: await this.analysis.readBinding(profile.profileId), investigationFolder });
       }
       this.entries = entries;
     } catch (e) {
@@ -124,6 +130,7 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       onClearBinding: (id) => { this.confirmClearBinding(id); },
       onForgetAnalyzer: (id) => { this.trackUpdate(this.forgetAnalyzer(id)); },
       onAnalyzerTimeoutChange: (id, raw) => { this.trackUpdate(this.changeAnalyzerTimeout(id, raw)); },
+      onInvestigationFolderChange: (id, raw) => { this.trackUpdate(this.changeInvestigationFolder(id, raw)); },
     });
   }
 
@@ -169,6 +176,9 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     await this.reviewRegistry.purge(id).catch((e: unknown) => { this.showFailure(e, PROFILE_REVIEW_PURGE_FAILED); });
     // Part 7 Z11: and its fallow executable setting, whatever its format (a run in flight is cancelled).
     await this.analysis.purgeProfile(id).catch((e: unknown) => { this.showFailure(e, PROFILE_ANALYZER_PURGE_FAILED); });
+    // WP-04 Task 8 (IP27): and its investigation notes folder setting, after the analyzer
+    // purge; the investigation notes already created stay in the vault (IN18).
+    await this.investigations.purge(id).catch((e: unknown) => { this.showFailure(e, PROFILE_INVESTIGATION_PURGE_FAILED); });
     // Polish D5: and its session evidence, last, for this profile only.
     try {
       this.evidence.remove(id);
@@ -199,6 +209,19 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       if (result !== 'saved') this.notify(result === 'invalid' ? SETTINGS_FALLOW_LIMIT_INVALID : FALLOW_PROFILE_REMOVED);
     } catch (e) {
       this.showAnalyzerFailure(e);
+    }
+    await this.refresh();
+  }
+
+  /** WP-04 Task 8 (IN19, IP10, IP11): validated the same way `changeExclusions` is --
+   *  refused here, the typed value is never persisted and `refresh()` below puts the
+   *  stored value (or the default) back in the field. */
+  private async changeInvestigationFolder(profileId: string, rawValue: string): Promise<void> {
+    const checked = validateNoteFolder(rawValue, this.app.vault.configDir);
+    if (checked.ok) {
+      try { await this.investigations.write(profileId, checked.folder); } catch (e) { this.showFailure(e); }
+    } else {
+      this.notify(NOTES_FOLDER_PROBLEM[checked.problem]);
     }
     await this.refresh();
   }

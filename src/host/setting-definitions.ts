@@ -12,6 +12,7 @@ import { FALLOW_TESTED_VERSIONS } from '../application/analysis/fallow-invocatio
 import { COPY_28 } from '../ui/copy';
 import {
   FALLOW_EXE_INVALID, FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE, FALLOW_EXE_UNSUPPORTED, FALLOW_TRUST_VALUE,
+  NOTES_FOLDER_SETTING_DESC, NOTES_FOLDER_SETTING_NAME,
   SETTINGS_FALLOW_EXECUTABLE_NAME, SETTINGS_FALLOW_FORGET, SETTINGS_FALLOW_LIMIT_DESC, SETTINGS_FALLOW_LIMIT_NAME,
 } from '../ui/inspector-copy';
 
@@ -24,6 +25,8 @@ export interface ProfileEntry {
   binding: LocalBinding | null;
   /** Part 7 Z12: this profile's fallow executable record, as read from data.json. */
   analyzer: AnalyzerBindingRead;
+  /** WP-04 Task 8 (IN19): the stored investigation notes folder, or the default. */
+  investigationFolder: string;
 }
 
 export interface SettingDefinitionsCallbacks {
@@ -38,6 +41,8 @@ export interface SettingDefinitionsCallbacks {
   onForgetAnalyzer: (profileId: string) => void;
   /** Part 7 Z10: the typed time limit, validated by the service. */
   onAnalyzerTimeoutChange: (profileId: string, rawValue: string) => void;
+  /** WP-04 Task 8 (IN19): the typed folder, validated by settings-tab.ts. */
+  onInvestigationFolderChange: (profileId: string, rawValue: string) => void;
 }
 
 // COPY-28, from the ONE catalogue (final whole-branch review, minor 1). This used to be
@@ -56,9 +61,11 @@ export const STORAGE_DISCLOSURE_TEXT =
   'file, and survive restarts. When you choose a fallow executable for a codebase, its path, ' +
   'its time limit and a fingerprint of what you trusted (the executable’s path, size and ' +
   'modification time, the folder, the arguments and the fallow version) are stored there too, ' +
-  'marked with this device: another device never runs it without asking again. Removing a ' +
-  'profile removes its review decisions and its executable setting. fallow findings, imported ' +
-  'or collected, are kept for this session only. Nothing about them is sent anywhere else.';
+  'marked with this device: another device never runs it without asking again. Each codebase’s ' +
+  'investigation notes folder is stored there too. Removing a profile removes its review ' +
+  'decisions, its executable setting and its notes folder setting; it never deletes the ' +
+  'investigation notes you created. fallow findings, imported or collected, are kept for this ' +
+  'session only. Nothing about them is sent anywhere else.';
 
 export const SYMLINK_POLICY_TEXT =
   'Symbolic links and junctions are never followed. They are reported as skipped, with a reason.';
@@ -79,6 +86,16 @@ function renderExclusionsRow(setting: Setting, profile: CodebaseProfile, onChang
   setting.setName('Excluded paths').setDesc('One relative path per line.');
   const textarea = setting.controlEl.createEl('textarea', { text: profile.exclusions.join('\n') });
   textarea.addEventListener('change', () => { onChange(textarea.value); });
+}
+
+/** WP-04 Task 8 (IN19): the investigation notes folder row, right after Excluded paths.
+ *  `entry.investigationFolder` is always the stored value or the default (settings-
+ *  tab.ts's refresh()); a refusal (IN19) never persists, so refresh() puts that same
+ *  value back in the field. */
+function renderInvestigationFolderRow(setting: Setting, entry: ProfileEntry, onChange: (rawValue: string) => void): void {
+  setting.setName(NOTES_FOLDER_SETTING_NAME).setDesc(NOTES_FOLDER_SETTING_DESC);
+  const input = setting.controlEl.createEl('input', { attr: { type: 'text', value: entry.investigationFolder } });
+  input.addEventListener('change', () => { onChange(input.value); });
 }
 
 function renderMaxFileBytesRow(setting: Setting, profile: CodebaseProfile, onChange: (rawValue: string) => void): void {
@@ -169,6 +186,7 @@ function buildProfilePage(entry: ProfileEntry, callbacks: SettingDefinitionsCall
     items: [
       { name: 'Name', render: (setting) => { renderNameRow(setting, profile, (name) => { callbacks.onRenameProfile(profile.profileId, name); }); } },
       { name: 'Excluded paths', render: (setting) => { renderExclusionsRow(setting, profile, (raw) => { callbacks.onExclusionsChange(profile.profileId, raw); }); } },
+      { name: NOTES_FOLDER_SETTING_NAME, render: (setting) => { renderInvestigationFolderRow(setting, entry, (raw) => { callbacks.onInvestigationFolderChange(profile.profileId, raw); }); } },
       { name: 'Maximum file size to read', render: (setting) => { renderMaxFileBytesRow(setting, profile, (raw) => { callbacks.onMaxFileBytesChange(profile.profileId, raw); }); } },
       { name: 'Source folder', render: (setting) => { renderBindingStatusRow(setting, entry, callbacks); } },
       { name: 'fallow executable', render: (setting) => { renderAnalyzerRow(setting, entry, callbacks); } },

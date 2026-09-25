@@ -20,6 +20,7 @@ import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
 import { createFakeBindingStoreHarness } from '../fixtures/fake-binding-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFakeFallowAnalysis, type FakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
+import { createFakeInvestigationFolders } from '../fixtures/fake-investigation-folders';
 
 const EXE = 'C:\\Tools\\fallow\\fallow.exe';
 const TRUST = { fingerprint: '0a1b2c3d', version: '3.27.0', grantedAt: '2026-09-23T10:00:00.000Z' };
@@ -37,7 +38,7 @@ async function makeTab(read: AnalyzerBindingRead | null): Promise<{ tab: Codebas
   if (read !== null) analysis.setBinding('p1', read);
   const tab = new CodebaseInspectorSettingTab(
     {} as unknown as App, {} as unknown as Plugin, profiles.store, createFakeBindingStoreHarness().store,
-    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, analysis, { remove: vi.fn() });
+    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, analysis, { remove: vi.fn() }, createFakeInvestigationFolders());
   await tab.refresh();
   return { tab, analysis };
 }
@@ -62,7 +63,7 @@ afterEach(() => {
 describe('the fallow executable row (Z12)', () => {
   it('without a record: the none text, no Forget, and no time-limit row', async () => {
     const { tab } = await makeTab(null);
-    expect(rowNames(tab)).toEqual(['Name', 'Excluded paths', 'Maximum file size to read', 'Source folder', 'fallow executable']);
+    expect(rowNames(tab)).toEqual(['Name', 'Excluded paths', 'Investigation notes folder', 'Maximum file size to read', 'Source folder', 'fallow executable']);
     const row = render(tab, 'fallow executable');
     expect(row.nameEl.textContent).toBe('fallow executable');
     expect(row.descEl.textContent).toBe(FALLOW_EXE_NONE);
@@ -176,7 +177,7 @@ describe('removing a profile purges its executable setting (Z11)', () => {
 describe('the storage disclosure (Z12)', () => {
   it('names the executable setting, its fingerprint and the device rule', () => {
     expect(STORAGE_DISCLOSURE_TEXT).toBe(
-      'Codebase profiles, local folder bindings and each codebase’s review decisions (work items, boundary rules and finding decisions) are stored in this vault, in this plugin’s own data file, and survive restarts. When you choose a fallow executable for a codebase, its path, its time limit and a fingerprint of what you trusted (the executable’s path, size and modification time, the folder, the arguments and the fallow version) are stored there too, marked with this device: another device never runs it without asking again. Removing a profile removes its review decisions and its executable setting. fallow findings, imported or collected, are kept for this session only. Nothing about them is sent anywhere else.');
+      'Codebase profiles, local folder bindings and each codebase’s review decisions (work items, boundary rules and finding decisions) are stored in this vault, in this plugin’s own data file, and survive restarts. When you choose a fallow executable for a codebase, its path, its time limit and a fingerprint of what you trusted (the executable’s path, size and modification time, the folder, the arguments and the fallow version) are stored there too, marked with this device: another device never runs it without asking again. Each codebase’s investigation notes folder is stored there too. Removing a profile removes its review decisions, its executable setting and its notes folder setting; it never deletes the investigation notes you created. fallow findings, imported or collected, are kept for this session only. Nothing about them is sent anywhere else.');
   });
 });
 

@@ -21,6 +21,7 @@ import type { SourceFileSystemPort } from '../../src/application/ports/source-fi
 import type { CodebaseProfile, LocalBinding } from '../../src/domain/model';
 import { BINDING_MISSING_TEXT, STORAGE_DISCLOSURE_TEXT, SYMLINK_POLICY_TEXT } from '../../src/host/setting-definitions';
 import { createFakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
+import { createFakeInvestigationFolders } from '../fixtures/fake-investigation-folders';
 
 function makeProfile(overrides: Partial<CodebaseProfile> = {}): CodebaseProfile {
   return { profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: [], maxFileBytes: 1_000_000, ...overrides };
@@ -41,7 +42,7 @@ async function makeTab(
   for (const p of profiles) await profileHarness.store.save(p);
   for (const b of bindings) await bindingHarness.store.save(b);
   const tab = new CodebaseInspectorSettingTab(
-    app, {} as unknown as Plugin, profileHarness.store, bindingHarness.store, () => filesystem, { purge: () => Promise.resolve() }, createFakeFallowAnalysis(), { remove: vi.fn() });
+    app, {} as unknown as Plugin, profileHarness.store, bindingHarness.store, () => filesystem, { purge: () => Promise.resolve() }, createFakeFallowAnalysis(), { remove: vi.fn() }, createFakeInvestigationFolders());
   await tab.refresh();
   return { tab, profileStore: profileHarness.store, bindingStore: bindingHarness.store };
 }

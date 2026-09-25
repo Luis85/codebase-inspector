@@ -13,6 +13,7 @@ import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
 import { createFakeBindingStoreHarness } from '../fixtures/fake-binding-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFakeFallowAnalysis, type FakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
+import { createFakeInvestigationFolders } from '../fixtures/fake-investigation-folders';
 import { emptyEvidenceReport } from '../fixtures/evidence-report';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
 import type { EvidenceRepository } from '../../src/application/ports/evidence-repository';
@@ -39,7 +40,7 @@ function newTab(
 ): CodebaseInspectorSettingTab {
   return new CodebaseInspectorSettingTab(
     {} as unknown as App, {} as unknown as ObsidianPlugin, profileStore, createFakeBindingStoreHarness().store,
-    () => createFakeSourceFileSystem({}).port, registry, options.analysis ?? createFakeFallowAnalysis(), options.evidence ?? { remove: vi.fn() });
+    () => createFakeSourceFileSystem({}).port, registry, options.analysis ?? createFakeFallowAnalysis(), options.evidence ?? { remove: vi.fn() }, createFakeInvestigationFolders());
 }
 
 afterEach(() => {

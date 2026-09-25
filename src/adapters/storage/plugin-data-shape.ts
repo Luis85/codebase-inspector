@@ -7,12 +7,15 @@ import { asUnknownArray } from '../../domain/plain-data';
  *  Part 4 W1) adds `reviews`, `{ [repositoryId]: record set }`, owned by the durable
  *  review adapter (plugin-data-review-repository.ts) and written under the same lock.
  *  Part 7 Z1 adds `analyzers`, `{ [profileId]: fallow executable record }`, owned by
- *  plugin-data-analyzer-store.ts, under the same lock. */
+ *  plugin-data-analyzer-store.ts, under the same lock. WP-04 Task 8 (IN18, IN19) adds
+ *  `investigations`, `{ [profileId]: { folder } }`, owned by
+ *  plugin-data-investigation-store.ts, under the same lock. */
 export interface PluginDataShape {
   profiles?: unknown;
   bindings?: unknown;
   reviews?: unknown;
   analyzers?: unknown;
+  investigations?: unknown;
 }
 
 // Fix round 1, Critical 1: one promise chain per Plugin instance. There is exactly one

@@ -7,8 +7,24 @@
 // and never redefined here.
 import type { FindingCategory } from '../../application/evidence/model';
 import type { NoteVocabulary } from '../../application/investigation/note-model';
+import type { NoteFolderProblem } from '../../application/investigation/note-path';
 import type { LocationCheck } from '../../application/investigation/stale-location';
 import { FINDING_LINE_TEXT, FINDING_RELATED_LABEL } from './quality';
+
+// WP-04 Task 8 (IN18, IN19, IP10, IP11): the settings-tab row and its refusal words.
+export const NOTES_FOLDER_SETTING_NAME = 'Investigation notes folder';
+export const NOTES_FOLDER_SETTING_DESC = 'The vault folder new investigation notes go in. You confirm the folder and file name each time a note is created.';
+export const NOTES_FOLDER_PROBLEM: Readonly<Record<NoteFolderProblem, string>> = {
+  empty: 'Enter a folder inside this vault.',
+  'not-relative': 'Use a folder path inside this vault, such as Notes/Investigations, without a leading slash, a drive letter, or . and .. segments.',
+  'too-long': 'Keep the folder path to 200 characters or fewer.',
+  'config-dir': 'Notes cannot go in the vault’s configuration folder.',
+  'unsafe-name': 'A folder name cannot contain \\ / : * ? " < > | # ^ [ ], start with a dot, end with a dot or space, or be a reserved Windows name.',
+};
+/** PF-C5: the PROFILE_ prefix follows the PROFILE_*_PURGE_FAILED precedent
+ *  (PROFILE_REVIEW_PURGE_FAILED, storage.ts; PROFILE_ANALYZER_PURGE_FAILED, fallow-run.ts). */
+export const PROFILE_INVESTIGATION_PURGE_FAILED = (reason: string): string =>
+  `The profile was removed, but its investigation notes folder setting could not be removed: ${reason}`;
 
 export const INVESTIGATE_EYEBROW = 'Act / Investigate';
 export const INVESTIGATE_TITLE = 'From a finding to a recorded decision.';

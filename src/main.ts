@@ -9,6 +9,7 @@ import { InMemorySnapshotStore } from './adapters/storage/in-memory-snapshot-sto
 import { InMemoryEvidenceStore } from './adapters/storage/in-memory-evidence-store';
 import { createReviewRepositoryRegistry } from './adapters/storage/review-repository-registry';
 import { createPluginDataAnalyzerStore } from './adapters/storage/plugin-data-analyzer-store';
+import { createPluginDataInvestigationStore } from './adapters/storage/plugin-data-investigation-store';
 import { createExecutableInspector } from './adapters/fallow/executable-inspector';
 import { createFallowRunner } from './adapters/fallow/fallow-runner';
 import { AnalysisCoordinator } from './application/analysis/analysis-coordinator';
@@ -87,8 +88,10 @@ export default class CodebaseInspectorPlugin extends Plugin {
     // second path to Node. A FACTORY, not an already-built port: onload() registers
     // only, so building the real Node-backed port is deferred to the moment Connect/
     // Reconnect is actually clicked, never during onload itself.
+    const investigationFolders = createPluginDataInvestigationStore(this);
     const settingTab = new CodebaseInspectorSettingTab(
-      this.app, this, profileStore, bindingStore, () => createNodeSourceFileSystem(), reviewRegistry, analysis, evidenceStore);
+      this.app, this, profileStore, bindingStore, () => createNodeSourceFileSystem(), reviewRegistry, analysis, evidenceStore,
+      investigationFolders);
     this.addSettingTab(settingTab);
     void settingTab.refresh();
 

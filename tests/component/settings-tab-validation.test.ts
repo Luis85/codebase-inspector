@@ -12,6 +12,7 @@ import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
 import { createFakeBindingStoreHarness } from '../fixtures/fake-binding-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
+import { createFakeInvestigationFolders } from '../fixtures/fake-investigation-folders';
 import { ValidationError } from '../../src/domain/validator';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
 import type { CodebaseProfile } from '../../src/domain/model';
@@ -23,7 +24,7 @@ function makeProfile(overrides: Partial<CodebaseProfile> = {}): CodebaseProfile 
 function newTab(profileStore: ProfileStore): CodebaseInspectorSettingTab {
   return new CodebaseInspectorSettingTab(
     {} as unknown as App, {} as unknown as Plugin, profileStore, createFakeBindingStoreHarness().store,
-    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, createFakeFallowAnalysis(), { remove: vi.fn() });
+    () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, createFakeFallowAnalysis(), { remove: vi.fn() }, createFakeInvestigationFolders());
 }
 
 async function makeTab(profiles: readonly CodebaseProfile[]) {
