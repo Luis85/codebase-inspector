@@ -59,7 +59,7 @@ describe('workspace shell', () => {
   it('lists every navigable route and marks the current one', () => {
     const w = mountShell();
     const items = w.findAll('.ci-nav__item');
-    expect(items).toHaveLength(14);
+    expect(items).toHaveLength(15);
     expect(w.find('.ci-nav__item[aria-current="page"]').text()).toContain('Code city');
     w.unmount();
   });

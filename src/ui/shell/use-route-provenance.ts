@@ -23,6 +23,8 @@ export function useRouteProvenance(): ComputedRef<boolean> {
       case 'file': return fileDetail.value?.usesSample ?? false;
       // Part 6 Y33: findings are imported fallow evidence or Not analysed, never sample.
       case 'quality': return false;
+      // WP-04 IN14: the Investigate evidence bundle is imported fallow evidence or Not analysed, never sample.
+      case 'investigate': return false;
       case 'tests': return testConfidence.value?.usesSample ?? false;
       case 'dependencies': return dependencies.value?.usesSample ?? false;
       case 'security': return security.value.usesSample;

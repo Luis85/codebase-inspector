@@ -296,3 +296,5 @@ export * from './audit-copy/fallow';
 export * from './audit-copy/fallow-run';
 /** WP-03 Part 1: dependency evidence (Architecture, File detail and city Relations). */
 export * from './audit-copy/relations';
+/** WP-04 Part 1: the Investigate screen, its dialogs and note vocabulary. */
+export * from './audit-copy/investigation';

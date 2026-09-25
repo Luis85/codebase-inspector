@@ -36,6 +36,7 @@ import DependenciesScreen from './screens/DependenciesScreen.vue';
 import SecurityScreen from './screens/SecurityScreen.vue';
 import EvolutionScreen from './screens/EvolutionScreen.vue';
 import OwnershipScreen from './screens/OwnershipScreen.vue';
+import InvestigateScreen from './screens/InvestigateScreen.vue';
 import WorkbenchScreen from './screens/WorkbenchScreen.vue';
 import ReportScreen from './screens/ReportScreen.vue';
 import SourcesScreen from './screens/SourcesScreen.vue';
@@ -178,6 +179,7 @@ defineExpose({ rendererHost });
       <SecurityScreen v-else-if="store.route === 'security'" />
       <EvolutionScreen v-else-if="store.route === 'evolution'" />
       <OwnershipScreen v-else-if="store.route === 'ownership'" />
+      <InvestigateScreen v-else-if="store.route === 'investigate'" />
       <WorkbenchScreen v-else-if="store.route === 'workbench'" />
       <ReportScreen v-else-if="store.route === 'report'" />
       <SourcesScreen v-else-if="store.route === 'sources'" />

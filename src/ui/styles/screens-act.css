@@ -1,5 +1,7 @@
 /* WP-02 screens, Act area: Refactor workbench and Audit report (Part 4). */
 
+/* WP-04 Task 1: the Investigate screen (.ci-screen--investigate; layout rules arrive in Task 11). */
+
 /* Part 4 Task 10: Refactor workbench and the Work-item editor. */
 :where(.codebase-inspector-root) .ci-workbench__toolbar {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-3);

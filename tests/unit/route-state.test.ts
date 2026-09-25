@@ -7,8 +7,8 @@ import { pickUiState, seedStoreFromState } from '../../src/host/view-state-sync'
 import { useCityStore } from '../../src/ui/stores/city-store';
 
 describe('route vocabulary', () => {
-  it('lists all 15 prototype routes and defaults to Overview', () => {
-    expect(ROUTE_IDS).toHaveLength(15);
+  it('lists all 16 prototype routes and defaults to Overview', () => {
+    expect(ROUTE_IDS).toHaveLength(16);
     expect(DEFAULT_ROUTE).toBe('overview');
   });
 });

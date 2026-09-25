@@ -3,7 +3,7 @@
 export const ROUTE_IDS = [
   'overview', 'city', 'architecture', 'hotspots',
   'quality', 'tests', 'dependencies', 'security', 'evolution', 'ownership',
-  'workbench', 'report', 'sources', 'settings', 'file',
+  'investigate', 'workbench', 'report', 'sources', 'settings', 'file',
 ] as const;
 
 export type RouteId = (typeof ROUTE_IDS)[number];

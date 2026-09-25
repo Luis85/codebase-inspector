@@ -16,7 +16,7 @@ const files = [
 
 describe('paletteItems', () => {
   it('lists every route when the query is empty', () => {
-    expect(paletteItems('', files).filter((i) => i.kind === 'route')).toHaveLength(15);
+    expect(paletteItems('', files).filter((i) => i.kind === 'route')).toHaveLength(16);
   });
   it('matches routes and file paths case-insensitively', () => {
     const items = paletteItems('COST', files);

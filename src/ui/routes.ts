@@ -20,6 +20,7 @@ export const ROUTE_META: Readonly<Record<RouteId, RouteMeta>> = {
   security: { id: 'security', title: 'Security', group: 'Audit', icon: 'shield', part: 3, goal: 'Review possible issues without presenting an unverified exploitability verdict.' },
   evolution: { id: 'evolution', title: 'Evolution', group: 'Audit', icon: 'trending-up', part: 3, goal: 'Understand trends and change relationships rather than judging one snapshot.' },
   ownership: { id: 'ownership', title: 'Ownership', group: 'Audit', icon: 'users', part: 3, goal: 'Plan continuity and knowledge sharing at module/team level.' },
+  investigate: { id: 'investigate', title: 'Investigate', group: 'Act', icon: 'search', part: 4, goal: 'Investigate one finding with its evidence and uncertainties, and record the outcome in a note.' },
   workbench: { id: 'workbench', title: 'Refactor workbench', group: 'Act', icon: 'wrench', part: 4, goal: 'Convert evidence into scoped, verifiable improvement work.' },
   report: { id: 'report', title: 'Audit report', group: 'Act', icon: 'file-text', part: 4, goal: 'Communicate scope, evidence, limitations and proposed work clearly.' },
   sources: { id: 'sources', title: 'Data & scans', group: 'Configure', icon: 'database', part: 4, goal: 'Make source scope and provider provenance explicit before interpretation.' },
@@ -30,7 +31,7 @@ export const ROUTE_META: Readonly<Record<RouteId, RouteMeta>> = {
 export const NAV_SECTIONS: readonly { group: string; routes: readonly RouteId[] }[] = [
   { group: 'Explore', routes: ['overview', 'city', 'architecture', 'hotspots'] },
   { group: 'Audit', routes: ['quality', 'tests', 'dependencies', 'security', 'evolution', 'ownership'] },
-  { group: 'Act', routes: ['workbench', 'report'] },
+  { group: 'Act', routes: ['investigate', 'workbench', 'report'] },
 ];
 
 export const NAV_FOOTER: readonly RouteId[] = ['sources', 'settings'];
