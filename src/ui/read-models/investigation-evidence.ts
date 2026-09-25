@@ -184,6 +184,7 @@ export interface RefreshChanges {
   readonly sourcePath: { readonly from: string; readonly to: string } | null;
   readonly state: 'current' | 'stale' | 'not-reported';
   readonly line: number | null;
+  readonly endLine: number | null;
 }
 
 const changeOf = (from: string, to: string): { readonly from: string; readonly to: string } | null => (from === to ? null : { from, to });
@@ -198,6 +199,7 @@ export function refreshChangesFor(link: NoteLink, row: InvestigationRow | null, 
     sourcePath: row === null ? null : changeOf(link.sourcePath, row.anchorPath),
     state: row === null ? 'not-reported' : evidence.state === 'stale' ? 'stale' : 'current',
     line: row === null ? null : row.line,
+    endLine: row === null ? null : row.endLine,
   };
 }
 

@@ -3,20 +3,20 @@
   change (old, from the note's frontmatter, to new), any source-path change, and the evidence
   state and line the new block records — the note stores no old line or state, so those are
   never compared (IP25). Nothing is written until Refresh evidence. The screen's composable
-  owns the write and its outcome (use-note-refresh.ts, E22): a refreshed or partial result
-  closes this dialog and is announced there; every refusal stays in this dialog's own
-  role="alert" line and changed nothing. The busy/error scaffold is use-busy-action (IPF9),
+  owns the write and its outcome (use-note-refresh.ts, E22-E24): a refreshed or partial
+  result closes this dialog and is announced there; every refusal stays in this dialog's own
+  role="alert" line (or is announced, when this dialog closed meanwhile) and changed nothing. The busy/error scaffold is use-busy-action (IPF9),
   and both buttons are aria-disabled with guarded handlers while the write runs (E40).
 -->
 <script setup lang="ts">
 import type { NoteLink } from '../../../application/investigation/note-index';
 import type { RefreshNoteRequest } from '../../../application/ports/investigation-notes-port';
 import type { RefreshChanges } from '../../read-models/investigation-evidence';
-import type { SubmitRefresh } from './use-note-refresh';
+import { refreshWords, type SubmitRefresh } from './use-note-refresh';
 import { useBusyAction } from '../../kit/use-busy-action';
 import {
-  REFRESH_AFTER, REFRESH_CANCEL, REFRESH_CONFIRM, REFRESH_EXPLAIN, REFRESH_FAILED, REFRESH_LINE, REFRESH_MARKERS_EDITED, REFRESH_SNAPSHOT,
-  REFRESH_SOURCE_PATH, REFRESH_STATE, REFRESH_TITLE,
+  REFRESH_AFTER, REFRESH_CANCEL, REFRESH_CONFIRM, REFRESH_EXPLAIN, REFRESH_FAILED, REFRESH_LINE, REFRESH_SNAPSHOT, REFRESH_SOURCE_PATH,
+  REFRESH_STATE, REFRESH_TITLE,
 } from '../../audit-copy/investigation';
 import CiDialog from '../../kit/Dialog.vue';
 
@@ -33,7 +33,7 @@ function confirm(): Promise<void> {
   return run(async () => {
     const result = await props.submit(props.request);
     if (result === 'refreshed' || result === 'partial') return;   // the screen closes this dialog
-    error.value = result === 'markers-edited' ? REFRESH_MARKERS_EDITED : REFRESH_FAILED[result ?? 'write-failed'];
+    error.value = refreshWords(result, props.request.path);
   }, REFRESH_FAILED['write-failed']);
 }
 </script>
@@ -79,7 +79,7 @@ function confirm(): Promise<void> {
           v-if="changes.state !== 'not-reported'"
           class="ci-refresh-note__line"
         >
-          {{ REFRESH_LINE(changes.line) }}
+          {{ REFRESH_LINE(changes.line, changes.endLine) }}
         </li>
       </ul>
       <p

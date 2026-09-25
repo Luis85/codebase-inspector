@@ -4,8 +4,9 @@
   sorted by path (noteIndexFor, IN30). Every value is interpolated text only (IN17). The
   screen owns the async open and its guard (the same split as SourcePreviewPanel's Open in
   Obsidian): this panel reflects `opening` and `openFailed` and guards its own presses
-  synchronously (E40). `.ci-notes-panel__create` and `.ci-notes-panel__open` (+ `data-path`)
-  are the classes Tasks 16 and 17 click (IPF12).
+  synchronously (E40). `.ci-notes-panel__create`, `.ci-notes-panel__open` and
+  `.ci-notes-panel__refresh` (+ `data-path`), and OrphanNotesPanel's `.ci-orphan-notes__open`
+  and `.ci-orphan-notes__refresh` (+ `data-path`), are the classes Tasks 16 and 17 click (IPF12).
 -->
 <script setup lang="ts">
 import type { NoteLink } from '../../../application/investigation/note-index';

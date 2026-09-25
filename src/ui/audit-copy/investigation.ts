@@ -315,7 +315,7 @@ export const REFRESH_STATE: Readonly<Record<'current' | 'stale' | 'not-reported'
   current: NOTE_EVIDENCE_STATE_TEXT.current, stale: NOTE_EVIDENCE_STATE_TEXT.stale, 'not-reported': NOTE_VOCABULARY.labels.notReported,
 };
 /** The block's own line words (FINDING_LINE_TEXT, as NOTE_VOCABULARY.labels.line). */
-export const REFRESH_LINE = (line: number | null): string => FINDING_LINE_TEXT(line, null);
+export const REFRESH_LINE = (line: number | null, endLine: number | null): string => FINDING_LINE_TEXT(line, endLine);
 export const REFRESH_CONFIRM = 'Refresh evidence';
 export const REFRESH_CANCEL = CANCEL;
 export const REFRESH_DONE = (path: string): string => `Refreshed the evidence in ${path}.`;
@@ -325,7 +325,7 @@ export const REFRESH_PARTIAL = (path: string): string =>
 export const REFRESH_MARKERS_EDITED = 'The note’s evidence markers were edited, moved or removed, so nothing was changed. Restore exactly one begin and one end marker line, or start a new note.';
 /** Refusals stay in the dialog's own role="alert" line (E17). */
 export const REFRESH_FAILED: Readonly<Record<'missing' | 'not-linked' | 'write-failed', string>> = {
-  missing: 'That note is not in the vault any more, so nothing was changed.',
+  missing: 'No note was found at this path any more. It may have been renamed or moved, so nothing was changed.',
   'not-linked': 'That note is no longer linked to a finding of this codebase, so nothing was changed.',
   'write-failed': 'The evidence could not be written to the note.',
 };

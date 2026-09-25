@@ -1,123 +1,22 @@
 // WP-04 IN31-IN36, O6 (IP8, IP25; E15, E17, E22, E40): refreshing a note's evidence block
 // from the Investigate screen, and the notes for findings not in this report. Notes are
 // created through the REAL host notes port (the create dialog) over the in-memory fake
-// vault, then edited as a person would with `userWrite`. Nothing here mocks the port.
+// vault, then edited as a person would with `userWrite`. Nothing here mocks the port. The
+// shared setup is investigate-refresh-support.ts; the review's edge cases are in
+// investigate-refresh-review.test.ts.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { flushPromises, mount } from '@vue/test-utils';
+import { flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import '../mocks/obsidian';
-import InvestigateScreen from '../../src/ui/screens/InvestigateScreen.vue';
-import { useCityStore } from '../../src/ui/stores/city-store';
-import { useInvestigationStore } from '../../src/ui/stores/investigation-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
-import { computeLayout } from '../../src/domain/layout/layout';
-import type { CodebaseSnapshot } from '../../src/domain/model';
 import { EVIDENCE_END } from '../../src/application/investigation/note-model';
-import { noteBaseName } from '../../src/application/investigation/note-path';
-import { createInvestigationNotes } from '../../src/host/investigation-notes';
-import type { InvestigationNotesPort } from '../../src/application/ports/investigation-notes-port';
 import {
-  FINDING_KIND_LABEL, FINDING_STATUS_LABEL, INVESTIGATE_COUNTS, NOTE_CREATED, NOTE_STATUS, NOTE_VOCABULARY, NOTES_MALFORMED, REFRESH_DONE, REFRESH_FAILED,
+  FINDING_STATUS_LABEL, INVESTIGATE_COUNTS, NOTE_CREATED, NOTE_STATUS, NOTE_VOCABULARY, NOTES_MALFORMED, REFRESH_DONE, REFRESH_FAILED,
   REFRESH_LINE, REFRESH_MARKERS_EDITED, REFRESH_PARTIAL, REFRESH_SNAPSHOT, REFRESH_SOURCE_PATH, REFRESH_STATE,
 } from '../../src/ui/inspector-copy';
-import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
-import { attachSyntheticReport, snapshotWithOnlyFiles, syntheticEvidenceReport } from '../fixtures/evidence-report';
-import { createFakeVault } from '../fixtures/fake-vault';
-import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
-import { createFakeInvestigationFolders } from '../fixtures/fake-investigation-folders';
-import { scriptedSourcePreview } from '../fixtures/fake-investigation';
-import { createFixedClock } from '../fixtures/clock';
-
-/** A transparent wrapper over the REAL port: `hold()` parks every refresh until `release()`. */
-function gated(port: InvestigationNotesPort) {
-  const waiting: (() => void)[] = [];
-  const gate = {
-    holding: false,
-    hold: () => { gate.holding = true; },
-    release: () => { gate.holding = false; for (const go of waiting.splice(0)) go(); },
-  };
-  const wrapped: InvestigationNotesPort = {
-    ...port,
-    refresh: async (request) => {
-      if (gate.holding) await new Promise<void>((resolve) => { waiting.push(resolve); });
-      return port.refresh(request);
-    },
-  };
-  return { gate, wrapped };
-}
-
-/** One note, created through the create dialog for the first unused-export finding (a
- *  finding a later report can drop by leaving its file out). */
-async function setup() {
-  const fake = createFakeVault({ basePath: '/vault' });
-  const base = buildSnapshotFixture({ files: 12, directories: 2 });
-  const snap: CodebaseSnapshot = { ...base, scope: { ...base.scope, rootPath: '/elsewhere/code' } };
-  const harness = createFakeProfileStoreHarness();
-  await harness.writeRaw({ profiles: [{ profileId: snap.repositoryId, name: 'Alpha', bindingId: null, exclusions: ['.git'], maxFileBytes: 1_000_000 }] });
-  const notes = createInvestigationNotes(fake.app, {
-    folders: createFakeInvestigationFolders({ [snap.repositoryId]: 'Notes' }), profiles: harness.store,
-    clock: createFixedClock('2026-09-25T10:00:00.000Z'), registerEvent: () => undefined,
-  });
-  const { gate, wrapped } = gated(notes);
-  useCityStore().setCity(snap, computeLayout(snap));
-  attachSyntheticReport(snap);
-  useInvestigationStore().setPorts(wrapped, scriptedSourcePreview());
-  useReviewStore().setRepositoryFactory(() => createInMemoryReviewRepository());
-  await useReviewStore().bindRepository(snap.repositoryId);
-  useCityStore().navigate('investigate');
-  const row = useReadModels().investigation.value.rows.find((r) => r.kind === 'unused-exports')!;
-  useInvestigationStore().open(row.fingerprint);
-  const w = mount(InvestigateScreen, { attachTo: document.body });
-  await flushPromises();
-  await w.find('.ci-notes-panel__create').trigger('click');
-  await flushPromises();
-  await w.find('.ci-create-note__confirm').trigger('click');
-  await flushPromises();
-  const path = `Notes/${noteBaseName(row.id, FINDING_KIND_LABEL[row.kind], row.file.name)}.md`;
-  expect(fake.paths()).toEqual([path]);
-  return { fake, snap, row, w, path, gate };
-}
-
-type Ctx = Awaited<ReturnType<typeof setup>>;
-type Mounted = Ctx['w'];
-
-async function click(w: Mounted, selector: string): Promise<void> {
-  await w.find(selector).trigger('click');
-  await flushPromises();
-}
-const liveText = (w: Mounted): string => w.find('.ci-investigate__live').text();
-/** Everything after the end-marker line: the user's own sections. */
-const afterBlock = (text: string): string => text.slice(text.indexOf(`${EVIDENCE_END}\n`) + EVIDENCE_END.length + 1);
-const blockOf = (text: string): string => text.slice(0, text.indexOf(EVIDENCE_END));
-
-function frontmatterOf(ctx: Ctx): Record<string, unknown> {
-  const file = ctx.fake.app.vault.getFileByPath(ctx.path);
-  if (file === null) throw new Error(`no file at ${ctx.path}`);
-  return ctx.fake.app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown>;
-}
-
-/** Re-attaches the same findings to a new scan of the same codebase. */
-async function rescan(ctx: Ctx, snapshotId = 'snapshot-next'): Promise<void> {
-  const next = { ...ctx.snap, snapshotId };
-  useCityStore().setCity(next, computeLayout(next));
-  useEvidenceStore().attach(syntheticEvidenceReport(next));
-  await flushPromises();
-}
-
-/** A report for the same snapshot that no longer lists the note's finding (IN34). */
-async function dropFinding(ctx: Ctx): Promise<void> {
-  const kept = ctx.snap.entities.filter((e) => e.kind === 'file' && e.path !== ctx.row.anchorPath).map((e) => e.path);
-  useEvidenceStore().attach(syntheticEvidenceReport(snapshotWithOnlyFiles(ctx.snap, kept), { snapshotId: ctx.snap.snapshotId }));
-  await flushPromises();
-}
-
-async function userEdit(ctx: Ctx, edit: (text: string) => string): Promise<void> {
-  ctx.fake.userWrite(ctx.path, edit(ctx.fake.text(ctx.path)!));
-  await flushPromises();
-}
+import {
+  afterBlock, blockOf, click, dropFinding, frontmatterOf, liveText, rescan, setup, switchCodebase, userEdit,
+} from './investigate-refresh-support';
 
 describe('refreshing a linked note (IN31, IN32; IP8, IP25, E40)', () => {
   beforeEach(() => { setActivePinia(createPinia()); });
@@ -131,7 +30,7 @@ describe('refreshing a linked note (IN31, IN32; IP8, IP25, E40)', () => {
     expect(w.find('.ci-refresh-note__snapshot').text()).toBe(REFRESH_SNAPSHOT('snapshot-fixture', 'snapshot-next'));
     expect(w.find('.ci-refresh-note__source').exists()).toBe(false);
     expect(w.find('.ci-refresh-note__state').text()).toBe(REFRESH_STATE.current);
-    expect(w.find('.ci-refresh-note__line').text()).toBe(REFRESH_LINE(row.line));
+    expect(w.find('.ci-refresh-note__line').text()).toBe(REFRESH_LINE(row.line, row.endLine));
     expect(fake.calls.process).toBe(0);
     gate.hold();
     const confirm = w.find('.ci-refresh-note__confirm');
@@ -228,10 +127,7 @@ describe('refreshing a linked note (IN31, IN32; IP8, IP25, E40)', () => {
     await click(w, '.ci-notes-panel__refresh');
     gate.hold();
     await w.find('.ci-refresh-note__confirm').trigger('click');
-    const other = buildSnapshotFixture({ files: 12, directories: 2, repositoryId: 'repo-other' });
-    useCityStore().setCity(other, computeLayout(other));
-    attachSyntheticReport(other);
-    await flushPromises();
+    await switchCodebase();
     expect(w.find('.ci-refresh-note').exists()).toBe(false);
     gate.release();
     await flushPromises();
