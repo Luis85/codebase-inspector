@@ -1,7 +1,7 @@
 // WP-04 IN51 (d), IP55, IP56, spec §5: the native spine. In a real vault, through the real UI:
-// the WP-03 relations project copied into the session's vault as `code/`, connected to a profile
-// in Settings (the preview's root, IP14), scanned through the plugin's own source and scope
-// modals, its 3.27.0 recording imported through Data & scans;
+// the WP-03 relations project copied into the session's vault as `code/`, scanned through the
+// plugin's own source and scope modals (the default flow: an unbound profile, whose preview reads
+// under the snapshot's root, E25), its 3.27.0 recording imported through Data & scans;
 // Investigate shows the exact highlight; a note is created, edited as a person would (a real
 // `vault.process` and `processFrontMatter`), and refreshed after a rescan and re-import. The
 // person's sections stay byte-identical, their frontmatter value-identical, and Obsidian's
@@ -18,6 +18,7 @@ import { test } from './fixture';
 
 const RECORDING = resolve('tests/fixtures/fallow/relations-combined-3.27.0.json');
 const CYCLE_ANCHOR = 'src/core/a.ts';
+const BEGIN_MARKER = '<!-- codebase-inspector:evidence:begin -->';
 const END_MARKER = '<!-- codebase-inspector:evidence:end -->';
 
 /** IP56: a local tree hash (the fast suite's hashTree lives under tests/fixtures/, which native files never import). */
@@ -32,18 +33,19 @@ function hashTree(root: string, prefix = ''): Record<string, string> {
   return out;
 }
 
-/** The import cycle's finding id, read from the recording through the real parser and normaliser. */
-function cycleId(): string {
+/** The import cycle's finding id and reported line, read from the recording through the real parser and normaliser. */
+function cycleFinding(): { id: string; line: number } {
   const parsed = parseFallowReportText(readFileSync(RECORDING, 'utf8'));
   if (!parsed.ok) throw new Error(`the recording was refused (${parsed.code})`);
   const report = buildEvidenceReport({ raw: parsed.report, fileName: 'r.json', stripPrefix: null, importedAt: new Date().toISOString(), snapshotId: 's' });
   const cycle = report.normalized.findings.find((f) => f.category === 'cycle' && f.path === CYCLE_ANCHOR && f.line !== null);
-  if (!cycle) throw new Error('no import cycle on src/core/a.ts in the recording');
-  return cycle.id;
+  if (!cycle || cycle.line === null) throw new Error('no import cycle on src/core/a.ts in the recording');
+  return { id: cycle.id, line: cycle.line };
 }
 
 const afterEnd = (text: string): string => text.slice(text.indexOf(`${END_MARKER}\n`) + END_MARKER.length + 1);
-const blockOf = (text: string): string => text.slice(0, text.indexOf(END_MARKER));
+/** The evidence block alone, from its begin marker: never the frontmatter, whose snapshot_id changes too. */
+const blockOf = (text: string): string => text.slice(text.indexOf(BEGIN_MARKER), text.indexOf(END_MARKER));
 
 describe('the investigation spine in the real Obsidian host (IN51 d)', () => {
   test('keeps human sections byte-identical across a real refresh and links the note through the metadata cache', async ({ native: { browser, page, inspector, directory } }) => {
@@ -59,18 +61,20 @@ describe('the investigation spine in the real Obsidian host (IN51 d)', () => {
       packageJsonIndexed: app.vault.getFileByPath('code/package.json') !== null,
       codeFolderIndexed: app.vault.getFolderByPath('code') !== null,
     })));
-    const id = cycleId();
+    const { id, line } = cycleFinding();
     const fingerprint = `${CYCLE_ANCHOR}#${id}`;
 
-    // A profile connected to code/ in Settings (the preview's root is its live binding, IP14), then the scan
-    // through scan-codebase's own modals, the recording attached, and Investigate: the exact highlight in a real file.
+    // The default user flow: scan-codebase's own source and scope modals (a profile with no binding, scan-flow.ts),
+    // the recording attached, and Investigate: the exact highlight in a real file under the snapshot's root (E25).
     await inspector.openCity();
-    await inspector.addConnectedProfile('code');
     await inspector.scanFolder('code');
     const firstSnapshot = await inspector.snapshotId();
     await inspector.importReport(RECORDING);
     await inspector.selectFinding(id);
     await expect.poll(() => inspector.root().$('.ci-source-preview__text [aria-current="true"]').isExisting()).toBe(true);
+    // Exactly one highlighted line, and it is the finding's own (line 1 in this recording).
+    expect(line).toBe(1);
+    expect(await inspector.highlightedLines()).toEqual([String(line)]);
 
     // Create: the note's frontmatter, and Obsidian's own metadata cache, link it (IN33).
     const path = await inspector.createNote();
@@ -117,9 +121,11 @@ describe('the investigation spine in the real Obsidian host (IN51 d)', () => {
     const refreshed = await inspector.frontmatter(path);
     expect(refreshed).toEqual({ ...created, snapshot_id: nextSnapshot, status: 'in progress', reviewer: 'me' });
     expect(refreshed.created).toBe(created.created);
+    expect(blockOf(after).startsWith(BEGIN_MARKER)).toBe(true);
     expect(blockOf(after)).not.toBe(blockOf(before));
     expect(blockOf(after)).toContain(String(nextSnapshot));
     expect(blockOf(after)).not.toContain(String(firstSnapshot));
+    expect(after.split('\n').filter((l) => l === END_MARKER)).toHaveLength(1);
     expect(await inspector.cachedFingerprint(path)).toBe(fingerprint);
 
     // No source write: the note's folder is outside code/, and code/ is unchanged.

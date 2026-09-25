@@ -1,7 +1,8 @@
 // WP-04 (IP41): the investigation services, built once in onload and inert until a leaf uses
 // them. The notes port registers its vault and metadata-cache events through
 // plugin.registerEvent on its first list or subscribe, never in onload (IP12, spec 4.4). The
-// preview's root comes from the codebase's LIVE binding on this device (IP14); the filesystem
+// preview's root comes from the codebase's LIVE binding on this device (IP14), or, for a codebase
+// with no binding at all, from the scanned snapshot's own root (E25); the filesystem
 // is built per read and is null where there is no Node filesystem.
 import { Platform } from 'obsidian';
 import type { Plugin } from 'obsidian';
@@ -27,9 +28,13 @@ function nodeFilesystem(): SourceFileSystemPort | null {
 }
 
 export function createInvestigationServices(plugin: Plugin, deps: InvestigationServiceDeps): InvestigationServices {
-  const resolveRoot = async (codebaseId: string): Promise<string | null> => {
+  // WP-04 E25 (amends IP14): a profile with no binding (scan-codebase's own, bindingId null) is
+  // `unbound`, and the preview reads under the in-memory snapshot's approved root; a binding id
+  // whose record this device lacks stays null (no-binding).
+  const resolveRoot = async (codebaseId: string): Promise<string | null | { readonly unbound: true }> => {
     const profile = await deps.profileStore.get(codebaseId);
-    if (!profile?.bindingId) return null;
+    if (profile === null) return null;
+    if (profile.bindingId === null) return { unbound: true };
     return (await deps.bindingStore.get(profile.bindingId))?.rootPath ?? null;
   };
   return {

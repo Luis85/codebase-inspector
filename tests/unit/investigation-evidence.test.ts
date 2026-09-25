@@ -281,11 +281,12 @@ describe('noteIdentityFor / evidenceFactsFor / goneFactsFor (IP4, IP23, Y28)', (
     const uncertainties = uncertaintiesFor(row, bundle, null);
     const facts = evidenceFactsFor(row, bundle, uncertainties);
     expect(facts.reported).toBe(true);
-    // Fix round 1, review item 9: the block's own two-word text ("Collected" here, since
-    // this report is current), never the code word ('current'/'stale') bundle.state carries.
+    // Fix round 1, review item 9: the block's own words ("Current" here, since this report is
+    // current), never the code word ('current'/'stale') bundle.state carries. WP-04 E26: never
+    // 'Collected' either, even for this collected report (that is its origin, not its state).
     if (facts.reported) {
       expect(facts.evidenceState).toBe(NOTE_EVIDENCE_STATE_TEXT[bundle.state]);
-      expect(facts.evidenceState).toBe('Collected');
+      expect(facts.evidenceState).toBe('Current');
     }
     const serialised = JSON.stringify(facts);
     expect(serialised).not.toContain(report.collected!.rootPath);

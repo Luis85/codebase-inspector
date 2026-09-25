@@ -8,12 +8,12 @@ import { createPinia, setActivePinia } from 'pinia';
 import type { CodebaseSnapshot } from '../../src/domain/model';
 import { EVIDENCE_BEGIN, EVIDENCE_END } from '../../src/application/investigation/note-model';
 import { NOTE_VOCABULARY, NOTES_FOLDER_PROBLEM, NOTE_CREATE_RENAMED, REFRESH_MARKERS_EDITED } from '../../src/ui/inspector-copy';
-import { parseYaml } from '../mocks/obsidian';
+import { noteText } from '../../src/application/investigation/note-text';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { snapshotWithPaths, syntheticFallowJson } from '../fixtures/evidence-report';
 import type { FakeVault } from '../fixtures/fake-vault';
 import {
-  click, createThroughDialog, mountWorld, refreshThroughDialog, reportFor, rowWhere, selectRow, show, textOf, writeCalls,
+  bodyOf, click, createThroughDialog, frontmatterOf, mountWorld, refreshThroughDialog, reportFor, rowWhere, selectRow, show, textOf, writeCalls,
 } from './investigation-support';
 import type { Mounted } from './investigation-support';
 import type { FindingCategory } from '../../src/application/evidence/model';
@@ -22,8 +22,11 @@ const SAFETY_TIMEOUT = 30_000;
 /** E9: the bidi override is built from its number, never typed into this file. */
 const RLO = String.fromCharCode(0x202e);
 /** IN39's hostile text: every Markdown and Obsidian opener, a marker comment, bare URLs, a
- *  bidi override, and a line break followed by a heading and an ordered-list item. */
-const H = `[[x]] ![[x]] <script>alert(1)</script> ${EVIDENCE_END} #tag $x$ %%c%% ==x== https://x www.x ${RLO}evil\n# h\n1) item`;
+ *  bidi override, a block id, and line breaks followed by a heading, an ordered-list item and
+ *  a thematic break / frontmatter fence (Review Focus 2). */
+const H = `[[x]] ![[x]] <script>alert(1)</script> ${EVIDENCE_END} #tag $x$ %%c%% ==x== ^block https://x www.x ${RLO}evil\n# h\n1) item\n---\nend`;
+/** H's tail as noteText flattens and escapes it: one line, the heading and fence inert. */
+const FLAT_TAIL = 'evil \\# h 1) item --- end';
 const IN20_KEYS = [
   'type', 'codebase_id', 'entity_id', 'source_path', 'snapshot_id', 'finding_id', 'finding_fingerprint', 'provider', 'status', 'created',
 ];
@@ -53,12 +56,6 @@ async function world(snapshot: CodebaseSnapshot = eightFiles(), json: string = s
   return { snapshot, fake, w, rowOf };
 }
 
-function frontmatterOf(text: string): Record<string, unknown> {
-  const match = /^---\n([\s\S]*?)\n---\n/.exec(text);
-  if (!match) throw new Error('the note has no frontmatter block');
-  return parseYaml(match[1]!) as Record<string, unknown>;
-}
-
 /** An occurrence of `token` that no backslash escapes (its first character not preceded by `\`). */
 function unescaped(text: string, token: string): boolean {
   let at = text.indexOf(token);
@@ -74,9 +71,12 @@ function expectInert(text: string): void {
   const lines = text.split('\n');
   expect(lines.filter((l) => l === EVIDENCE_BEGIN)).toHaveLength(1);
   expect(lines.filter((l) => l === EVIDENCE_END)).toHaveLength(1);
-  // The only headings are our own eight, in order; no line opens an ordered list.
+  // The only headings are our own eight, in order; no line opens an ordered list; the only
+  // `---` lines are the frontmatter's own two fences, at the top.
   expect(lines.filter((l) => l.startsWith('#'))).toEqual(HEADING_LINES);
   expect(lines.filter((l) => /^\s*\d+[.)]/.test(l))).toEqual([]);
+  const fences = lines.map((l, i) => ({ l, i })).filter(({ l }) => /^\s*(-\s*){3,}$/.test(l)).map(({ i }) => i);
+  expect(fences).toEqual([0, IN20_KEYS.length + 1]);
   // Every list line is one of ours: a label, a checklist box, a nested code item, or an uncertainty.
   const uncertainties = lines.indexOf(`## ${NOTE_VOCABULARY.headings.uncertainties}`);
   const listLines = lines.map((l, i) => ({ l, i })).filter(({ l }) => /^\s*[-+*] /.test(l));
@@ -89,8 +89,8 @@ function expectInert(text: string): void {
   // The payload stayed on one line: each line carrying it carries all of it, flattened.
   const carriers = lines.filter((l) => l.includes('evil'));
   expect(carriers.length).toBeGreaterThan(0);
-  for (const line of carriers) expect(line).toContain('evil \\# h 1) item');
-  for (const token of ['[[', '<script', '%%', '==x==', '$x$', 'https://', 'www.', RLO]) {
+  for (const line of carriers) expect(line).toContain(FLAT_TAIL);
+  for (const token of ['[[', '<script', '%%', '==x==', '$x$', '^block', 'https://', 'www.', RLO]) {
     expect(unescaped(text, token), `unescaped ${token}`).toBe(false);
   }
   expect(Object.keys(frontmatterOf(text))).toEqual(IN20_KEYS);
@@ -132,9 +132,19 @@ describe('injection through report text (IN39, Review Focus 2)', () => {
     await click(w, '.ci-create-note__confirm');
     const [path] = fake.paths();
     expect(path).toBe(w.find('.ci-notes-panel__open').attributes('data-path'));
-    const fm = frontmatterOf(textOf(fake, path!));
+    const text = textOf(fake, path!);
+    const fm = frontmatterOf(text);
     expect(fm.source_path).toBe(hostilePath);
     expect(fm.finding_fingerprint).toBe(`${hostilePath}#${row.id}`);
+    // The body is inert: the path appears only inside a code span (literal in CommonMark and
+    // Obsidian), and nothing outside one opens a link, embed, tag or block id.
+    const labels = NOTE_VOCABULARY.labels;
+    const body = bodyOf(text).split('\n');
+    expect(body).toContain(`- ${noteText(labels.location)}: \`${hostilePath}\` · ${noteText(labels.line(row.line, row.endLine))}`);
+    const outsideCode = body.map((l) => l.replace(/(`+).*?\1/g, '')).join('\n');
+    expect(bodyOf(text)).toContain(hostilePath);
+    expect(outsideCode).not.toContain('[[x]]');
+    expect(unescaped(outsideCode, '[[')).toBe(false);
     w.unmount();
   }, SAFETY_TIMEOUT);
 });

@@ -119,6 +119,8 @@ async function services(options: { isLinux?: boolean } = {}) {
   await profiles.writeRaw({ profiles: [
     { profileId: 'p1', name: 'Alpha', bindingId: 'b1', exclusions: [], maxFileBytes: 1_000_000 },
     { profileId: 'p2', name: 'Beta', bindingId: null, exclusions: [], maxFileBytes: 1_000_000 },
+    // A binding id whose record this device does not hold (cleared, or bound on another device).
+    { profileId: 'p3', name: 'Gamma', bindingId: 'b-missing', exclusions: [], maxFileBytes: 1_000_000 },
   ] });
   const bindings = createFakeBindingStoreHarness();
   await bindings.writeRaw({ bindings: [{ bindingId: 'b1', label: 'Alpha', rootPath: '/fake-root', machineId: FAKE_MACHINE_ID }] });
@@ -150,8 +152,14 @@ describe('createInvestigationServices (IP12, IP14)', () => {
     const { built } = await services();
     expect(await built.preview.read(REQUEST)).toMatchObject({ status: 'ok', text: { lineCount: 2 } });
     expect(await built.preview.read({ ...REQUEST, expectedRoot: '/elsewhere' })).toEqual({ status: 'unavailable', reason: 'no-binding' });
-    expect(await built.preview.read({ ...REQUEST, codebaseId: 'p2' })).toEqual({ status: 'unavailable', reason: 'no-binding' });
     expect(await built.preview.read({ ...REQUEST, codebaseId: 'gone' })).toEqual({ status: 'unavailable', reason: 'no-binding' });
+  });
+
+  it('E25: a profile with no binding (scan-codebase\'s own) reads under the snapshot root; a binding whose record is gone does not', async () => {
+    const { built } = await services();
+    expect(await built.preview.read({ ...REQUEST, codebaseId: 'p2' })).toMatchObject({ status: 'ok', text: { lineCount: 2 } });
+    expect(await built.preview.read({ ...REQUEST, codebaseId: 'p2', expectedRoot: '' })).toEqual({ status: 'unavailable', reason: 'no-binding' });
+    expect(await built.preview.read({ ...REQUEST, codebaseId: 'p3' })).toEqual({ status: 'unavailable', reason: 'no-binding' });
   });
 
   it('compares the roots case-sensitively only on Linux (Platform.isLinux)', async () => {

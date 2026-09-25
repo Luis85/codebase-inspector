@@ -11,13 +11,13 @@ import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { parseYaml, stringifyYaml } from '../mocks/obsidian';
+import { stringifyYaml } from '../mocks/obsidian';
 import { EVIDENCE_END } from '../../src/application/investigation/note-model';
 import { NOTE_VOCABULARY } from '../../src/ui/inspector-copy';
 import { hashTree } from '../fixtures/temp-tree';
 import { relationsRecordingJson } from '../fixtures/relations-report';
 import {
-  CYCLE_ANCHOR, PROFILE_ID, afterBlock, blockOf, cleanupTemps, copyRelationsProject, createThroughDialog, mountWorld,
+  CYCLE_ANCHOR, PROFILE_ID, afterBlock, blockOf, bodyOf, cleanupTemps, copyRelationsProject, createThroughDialog, frontmatterOf, mountWorld,
   refreshThroughDialog, reportFor, rowWhere, scanRoot, selectRow, show, textOf, vaultBase,
 } from './investigation-support';
 import type { Mounted } from './investigation-support';
@@ -26,18 +26,6 @@ import type { FakeVault } from '../fixtures/fake-vault';
 const SPINE_TIMEOUT = 30_000;
 const RECORDING = relationsRecordingJson();
 const HEADINGS = NOTE_VOCABULARY.headings;
-
-/** The note's frontmatter, parsed with the real YAML library (IN37: values, never bytes). */
-function frontmatterOf(text: string): Record<string, unknown> {
-  const match = /^---\n([\s\S]*?)\n---\n/.exec(text);
-  if (!match) throw new Error('the note has no frontmatter block');
-  return parseYaml(match[1]!) as Record<string, unknown>;
-}
-
-function bodyOf(text: string): string {
-  const match = /^---\n[\s\S]*?\n---\n/.exec(text);
-  return match ? text.slice(match[0].length) : text;
-}
 
 /** Writes text under two human headings and edits the frontmatter as a person would. */
 function personEdits(text: string): string {

@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { flushPromises, mount } from '@vue/test-utils';
-import '../mocks/obsidian';
+import { parseYaml } from '../mocks/obsidian';
 import InvestigateScreen from '../../src/ui/screens/InvestigateScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useInvestigationStore } from '../../src/ui/stores/investigation-store';
@@ -181,6 +181,19 @@ export function textOf(fake: FakeVault, path: string): string {
   const text = fake.text(path);
   if (text === undefined) throw new Error(`no note at ${path}`);
   return text;
+}
+
+/** The note's frontmatter, parsed with the real YAML library (IN37: values, never bytes). */
+export function frontmatterOf(text: string): Record<string, unknown> {
+  const match = /^---\n([\s\S]*?)\n---\n/.exec(text);
+  if (!match) throw new Error('the note has no frontmatter block');
+  return parseYaml(match[1]!) as Record<string, unknown>;
+}
+
+/** The note's text after its frontmatter block: what Obsidian renders as Markdown. */
+export function bodyOf(text: string): string {
+  const match = /^---\n[\s\S]*?\n---\n/.exec(text);
+  return match ? text.slice(match[0].length) : text;
 }
 
 /** Everything after the end-marker line: the person's own sections. */

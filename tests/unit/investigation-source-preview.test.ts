@@ -170,6 +170,33 @@ describe('createSourcePreview — unavailable states (IN9)', () => {
     expect(result).toEqual({ status: 'unavailable', reason: 'no-binding' });
   });
 
+  // WP-04 E25 (amends IP14): a codebase with no LocalBinding reads under the snapshot's own
+  // approved root; a bound one only under a live root equal to it; no snapshot root, no read.
+  it('E25: an unbound codebase reads under the request\'s snapshot root', async () => {
+    const { port } = createFakeSourceFileSystem({ 'a.ts': 'one\ntwo\n' });
+    const preview = createSourcePreview({ getFilesystem: () => port, resolveRoot: () => Promise.resolve({ unbound: true } as const), clock: createFixedClock() });
+    expect(await preview.read(requestFor('a.ts', 1))).toMatchObject({ status: 'ok', text: { lineCount: 2 } });
+  });
+
+  it('E25: a bound codebase whose live root equals the snapshot root reads', async () => {
+    const { port } = createFakeSourceFileSystem({ 'a.ts': 'one\ntwo\n' });
+    const preview = createSourcePreview({ getFilesystem: () => port, resolveRoot: () => Promise.resolve('/fake-root'), clock: createFixedClock() });
+    expect(await preview.read(requestFor('a.ts', 1))).toMatchObject({ status: 'ok', text: { lineCount: 2 } });
+  });
+
+  it('E25: a bound codebase whose live root differs is no-binding, even where the snapshot root would read', async () => {
+    const { port } = createFakeSourceFileSystem({ 'a.ts': 'one\ntwo\n' });
+    const preview = createSourcePreview({ getFilesystem: () => port, resolveRoot: () => Promise.resolve('/other-root'), clock: createFixedClock() });
+    expect(await preview.read(requestFor('a.ts', 1))).toEqual({ status: 'unavailable', reason: 'no-binding' });
+  });
+
+  it('E25: an unbound codebase with no snapshot root never reads', async () => {
+    const { port } = createFakeSourceFileSystem({ 'a.ts': 'one\ntwo\n' });
+    const preview = createSourcePreview({ getFilesystem: () => port, resolveRoot: () => Promise.resolve({ unbound: true } as const), clock: createFixedClock() });
+    expect(await preview.read(requestFor('a.ts', 1, { expectedRoot: '' }))).toEqual({ status: 'unavailable', reason: 'no-binding' });
+    expect(port.readLog()).toEqual([]);
+  });
+
   // Fix round 1, review minor 7: resolveRoot's own promise can reject (a store lookup that
   // throws); that must resolve read() to no-binding, never reject read()'s own promise.
   it('a rejected resolveRoot is no-binding, not a thrown/rejected read()', async () => {

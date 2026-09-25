@@ -91,7 +91,9 @@ export const NOTE_VOCABULARY: NoteVocabulary = {
 
 // WP-04 IN14 (fix round 1): the evidence block's own two-word evidence state ("collected or
 // stale"), never the code word ('current'/'stale') `EvidenceBundle.state` carries.
-export const NOTE_EVIDENCE_STATE_TEXT: Readonly<Record<'current' | 'stale', string>> = { current: 'Collected', stale: 'Stale' };
+// WP-04 E26: the evidence's state against the current snapshot, never 'Collected' (a collected
+// report's origin, a different fact).
+export const NOTE_EVIDENCE_STATE_TEXT: Readonly<Record<'current' | 'stale', string>> = { current: 'Current', stale: 'Stale' };
 // WP-04 IP4/Y28 (fix round 1): goneFactsFor's words when no report is attached at all — never
 // a hard-coded 'fallow' guess or a blank rendered value.
 export const NOTE_PROVIDER_UNKNOWN = 'No report is attached.';

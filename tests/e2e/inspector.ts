@@ -1,11 +1,9 @@
 // IPF20: native tests never match Obsidian's own UI text (the session UI follows the system locale, German
 // here); they use selectors, command ids and `executeObsidian`.
 import { expect } from 'vitest';
-import { CITY_VIEW_TYPE, PLUGIN_ID, type NativeBrowser } from './session';
+import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
 
 type ErrorWindow = Window & { ciErrors?: string[] };
-/** Obsidian's settings modal: on `app`, but not in the public typings. */
-interface SettingsApp { setting: { open(): void; openTabById(id: string): void; close(): void } }
 
 export type InspectorPage = ReturnType<typeof createInspectorPage>;
 
@@ -27,7 +25,7 @@ export function createInspectorPage(browser: NativeBrowser) {
   const root = () => browser.$(`.workspace-leaf-content[data-type="${CITY_VIEW_TYPE}"] .codebase-inspector-root`);
   // One selector per call, so a modal that is still closing never scopes the search.
   const inModal = (selector: string) => browser.$(`.modal-container ${selector}`);
-  /** The source modal (scan-codebase's or Settings' Connect): vault-folder mode, the folder, Continue. */
+  /** The source modal: vault-folder mode, the folder, Continue. */
   const chooseVaultFolder = async (folder: string): Promise<void> => {
     await inModal('input[type="radio"][name="source-mode"][value="vault-folder"]').click();
     await inModal('[data-field="vault-folder-path"]').setValue(folder);
@@ -63,42 +61,6 @@ export function createInspectorPage(browser: NativeBrowser) {
       await expect.poll(() => scan.isEnabled()).toBe(true);
       await scan.click();
       await scanned(before);
-    },
-    /** Settings → this plugin's tab → Add profile → the new profile's page → Connect → the
-     *  source modal in vault-folder mode: a profile with the LocalBinding the preview's root
-     *  comes from (IP14), which the next `scan-codebase` then uses. A profile that a first
-     *  `scan-codebase` creates itself is unbound (scan-flow.ts), so its preview reads
-     *  `no-binding`, and the Settings tab does not list it until the plugin reloads (both in
-     *  the Task 16 report). */
-    async addConnectedProfile(folder: string): Promise<void> {
-      const main = await browser.getWindowHandle();
-      // Serialised into the app window: the (untyped) settings modal is reached inside each callback.
-      await browser.executeObsidian(({ app }, id) => {
-        const { setting } = app as unknown as SettingsApp;
-        setting.open();
-        setting.openTabById(id);
-      }, PLUGIN_ID);
-      // Observed in Obsidian 1.13.4: Settings opens in its own window.
-      await expect.poll(async () => (await browser.getWindowHandles()).length).toBe(2);
-      const settings = (await browser.getWindowHandles()).find((handle) => handle !== main);
-      if (settings === undefined) throw new Error('Settings did not open a window');
-      await browser.switchToWindow(settings);
-      try {
-        await browser.$('.setting-group.mod-list .extra-setting-button[aria-label="Add profile"]').click();
-        const profile = browser.$('.setting-group.mod-list .setting-items .setting-item:not(.mod-empty-state)');
-        await expect.poll(() => profile.isExisting()).toBe(true);
-        await profile.click();
-        // The profile's page slides in: Connect exists before it can take a click.
-        const connect = browser.$('[data-action="connect"]');
-        await expect.poll(() => connect.isClickable()).toBe(true);
-        await connect.click();
-        await chooseVaultFolder(folder);
-        await expect.poll(() => browser.$('[data-action="clear-binding"]').isExisting()).toBe(true);
-      } finally {
-        await browser.switchToWindow(main);
-      }
-      await browser.executeObsidian(({ app }) => { (app as unknown as SettingsApp).setting.close(); });
-      await expect.poll(async () => (await browser.getWindowHandles()).length).toBe(1);
     },
     /** `scan-codebase` again: a refresh against the stored scope, with no modal (a new snapshot id). */
     async rescan(): Promise<void> {
@@ -159,6 +121,9 @@ export function createInspectorPage(browser: NativeBrowser) {
       const file = app.vault.getFileByPath(target);
       return file === null ? null : app.metadataCache.getFileCache(file)?.frontmatter?.finding_fingerprint;
     }, path),
+    /** The line number of every highlighted (`aria-current="true"`) source preview line. */
+    highlightedLines: async (): Promise<string[]> => root().$$('.ci-source-preview__text [aria-current="true"]')
+      .map(async (line) => (await textOf(line.$('.ci-source-preview__number'))).trim()),
     /** The notes panel's listed note paths (each Open button's `data-path`). */
     notePaths: async (): Promise<(string | null)[]> => root().$$('.ci-notes-panel__open').map((b) => b.getAttribute('data-path')),
     async recordErrors(): Promise<void> {
