@@ -10,15 +10,22 @@ import type { EntityId } from '../../../domain/entity-id';
 import type { CycleView } from '../../read-models/relations';
 import {
   ARCH_NODE_FILES, CYCLE_KIND_LABEL, CYCLE_REVIEW, CYCLE_SHOW_IN_CITY, CYCLE_SHOW_IN_CITY_LABEL, CYCLES_NONE,
-  FALLOW_NOT_ANALYSED, FINDING_REVIEW_LABEL,
+  FALLOW_NOT_ANALYSED, FINDING_REVIEW_LABEL, INVESTIGATE_ACTION,
 } from '../../inspector-copy';
 import CycleMembers from './CycleMembers.vue';
 
 defineProps<{ cycles: readonly CycleView[]; notAnalysed: boolean; selectedId: string | null }>();
-const emit = defineEmits<{ select: [id: string]; review: [fingerprint: string]; 'show-in-city': [id: string, anchorId: EntityId] }>();
+const emit = defineEmits<{
+  select: [id: string]; review: [fingerprint: string]; investigate: [fingerprint: string]; 'show-in-city': [id: string, anchorId: EntityId];
+}>();
 
 function review(cycle: CycleView): void {
   if (cycle.fingerprint !== null) emit('review', cycle.fingerprint);
+}
+/** WP-04 IN5/IP34: same `fingerprint !== null` guard as Review — a cycle whose anchor
+ *  path is not in this snapshot has nothing to open on Investigate either. */
+function investigate(cycle: CycleView): void {
+  if (cycle.fingerprint !== null) emit('investigate', cycle.fingerprint);
 }
 function showInCity(cycle: CycleView): void {
   if (cycle.anchorId !== null) emit('show-in-city', cycle.findingId, cycle.anchorId);
@@ -74,6 +81,14 @@ function showInCity(cycle: CycleView): void {
           @click="review(c)"
         >
           {{ CYCLE_REVIEW }}
+        </button>
+        <button
+          v-if="c.fingerprint !== null"
+          type="button"
+          class="ci-cycle-list__investigate"
+          @click="investigate(c)"
+        >
+          {{ INVESTIGATE_ACTION }}
         </button>
         <button
           v-if="c.anchorId !== null"

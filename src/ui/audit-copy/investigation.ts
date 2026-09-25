@@ -5,6 +5,12 @@
 // INVESTIGATE_HOTSPOT_TITLE/_DETAIL, INVESTIGATE_MODULE_DETAIL, INVESTIGATE_FILE_TITLE,
 // INVESTIGATE_LARGEST_DETAIL (inspector-copy.ts) and INVESTIGATE_FILE_LABEL are untouched
 // and never redefined here.
+//
+// WP-04 Task 15 (IN5, IN41; IP32-IP34): the entry points into Investigate — Quality's
+// review dialog, File detail's finding rows, the city inspector's new Findings section
+// and Architecture's cycle and fallow boundary rows — share one action word and one
+// aria-label builder, so a screen reader hears the same "Investigate <id> in <path>"
+// wherever the button appears.
 import type { EvidenceOrigin, FindingCategory } from '../../application/evidence/model';
 import type { NoteVocabulary } from '../../application/investigation/note-model';
 import type { NoteFolderProblem, NoteNameProblem } from '../../application/investigation/note-path';
@@ -334,3 +340,19 @@ export const NOTES_ORPHAN_TEXT = 'A changed analysis is not a finished task: the
 /** IN36: counted, never dropped. */
 export const NOTES_MALFORMED = (n: number): string =>
   `${n} investigation ${n === 1 ? 'note' : 'notes'} could not be read: ${n === 1 ? 'its' : 'their'} frontmatter was changed.`;
+
+// WP-04 Task 15 (IN5, IN41; IP32-IP34): every Investigate entry point's own words.
+export const INVESTIGATE_ACTION = 'Investigate';
+/** The aria-label a row's Investigate button carries wherever more than one could read
+ *  the same visible word — "Investigate UN-1 in src/a.ts". */
+export const INVESTIGATE_FINDING_LABEL = (findingId: string, path: string): string => `Investigate ${findingId} in ${path}`;
+/** IP32/IP33: the city inspector's Findings section, shown only while a report is
+ *  attached — title, one row's kind/rule/line, and the "N more on Investigate" footer
+ *  once more than CITY_FINDINGS_LIMIT touch the selected file. */
+export const CITY_FINDINGS_TITLE = 'Findings';
+/** `line` is the row's own reported line; the "Line unknown"/"Line N" words are
+ *  FINDING_LINE_TEXT's (quality.ts), so this can never disagree with every other
+ *  surface about what an unreported line reads as. */
+export const CITY_FINDINGS_ROW = (kind: string, rule: string, line: number | null): string =>
+  `${kind} · ${rule} · ${FINDING_LINE_TEXT(line, null)}`;
+export const CITY_FINDINGS_MORE = (n: number): string => `${n} more on Investigate`;

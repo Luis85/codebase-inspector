@@ -46,7 +46,7 @@ describe('FileDetailScreen', () => {
     expect(w.text()).toContain(file.path);
     expect(w.findAll('.ci-metric-card')).toHaveLength(4);
     expect(w.find('.ci-source-context').text()).toContain('Bytes');
-    expect(w.text()).toContain('Source preview arrives with the source provider.');
+    expect(w.text()).toContain('A read-only preview of this file is on Investigate, at a reported finding’s line.');
     expect(w.text()).toContain('No findings does not imply no defects.');
     w.unmount();
   });

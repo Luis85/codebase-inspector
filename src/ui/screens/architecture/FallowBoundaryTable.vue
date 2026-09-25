@@ -11,14 +11,14 @@ import type { BoundaryView, RelationModel } from '../../read-models/relations';
 import {
   ARCH_FALLOW_ZONES_COL, ARCH_FALLOW_ZONES_NONE, ARCH_FALLOW_ZONES_TITLE, ARCH_FALLOW_ZONES_UNMATCHED, CYCLE_REVIEW,
   EDGE_COL_FROM, EDGE_COL_LINE, EDGE_COL_TO, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, FINDING_REVIEW_LABEL,
-  RELATION_MEMBER_UNMATCHED, RULE_COL_ACTIONS,
+  INVESTIGATE_ACTION, RELATION_MEMBER_UNMATCHED, RULE_COL_ACTIONS,
 } from '../../inspector-copy';
 import type { TableColumn } from '../../kit/table-types';
 import EvidenceTable from '../../kit/EvidenceTable.vue';
 import Panel from '../../kit/Panel.vue';
 
 const props = defineProps<{ relations: RelationModel }>();
-const emit = defineEmits<{ review: [fingerprint: string] }>();
+const emit = defineEmits<{ review: [fingerprint: string]; investigate: [fingerprint: string] }>();
 
 const isMatched = (v: BoundaryView): boolean => v.from.id !== null && v.to.id !== null;
 /** Final review #9: a violation reported twice (same from/to/specifier, another line)
@@ -29,6 +29,10 @@ const rows = computed<KeyedView[]>(() => props.relations.boundaryViolations
 const unmatched = computed(() => props.relations.boundaryViolations.filter((v) => !isMatched(v)));
 function review(v: BoundaryView): void {
   if (v.fingerprint !== null) emit('review', v.fingerprint);
+}
+/** WP-04 IN5/IP34: same `fingerprint !== null` guard as Review. */
+function investigate(v: BoundaryView): void {
+  if (v.fingerprint !== null) emit('investigate', v.fingerprint);
 }
 const columns: readonly TableColumn<KeyedView>[] = [
   { key: 'from', label: EDGE_COL_FROM, sortValue: (v) => v.from.path },
@@ -89,6 +93,14 @@ const columns: readonly TableColumn<KeyedView>[] = [
             @click="review(row)"
           >
             {{ CYCLE_REVIEW }}
+          </button>
+          <button
+            v-if="row.fingerprint !== null"
+            type="button"
+            class="ci-architecture__investigate"
+            @click="investigate(row)"
+          >
+            {{ INVESTIGATE_ACTION }}
           </button>
         </template>
       </EvidenceTable>

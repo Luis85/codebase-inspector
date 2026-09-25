@@ -243,7 +243,10 @@ export const FILE_COMMITS_CHIP = (n: string): string => `${n} commits / 90d`;
 export const FILE_SAMPLE_CHIP = 'Sample signals';
 export const FILE_SOURCE_TITLE = 'Source context';
 export const FILE_SOURCE_SUBTITLE = 'Inventory facts for this file. File content is not read.';
-export const FILE_SOURCE_PREVIEW_LATER = 'Source preview arrives with the source provider.';
+/** WP-04 Task 15 (IN41, IP31): reworded in place to point at Investigate's own source
+ *  preview (Task 12), which reads the reported finding's line — never a second preview
+ *  built here. */
+export const FILE_SOURCE_PREVIEW_LATER = 'A read-only preview of this file is on Investigate, at a reported finding’s line.';
 export const FILE_COPY_PATH = 'Copy path';
 export const FILE_COPY_FAILED = 'Could not copy the path. Select it and copy it manually.';
 export const FILE_FACT_PATH = 'Path';

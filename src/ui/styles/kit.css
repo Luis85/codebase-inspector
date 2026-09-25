@@ -293,3 +293,14 @@
 :where(.codebase-inspector-root) .ci-finding-dialog__related-label { margin: 0; color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-finding-dialog__related ul { margin: 0; padding-left: var(--ci-space-4); }
 :where(.codebase-inspector-root) .ci-finding-dialog__cycle-path { overflow-wrap: anywhere; color: var(--ci-text-muted); }
+
+/* WP-04 Task 15 (IP32/IP33): the city inspector's Findings section, beside .ci-city-relations. */
+:where(.codebase-inspector-root) .ci-city-findings { margin-top: var(--ci-space-4); padding-top: var(--ci-space-3); border-top: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-city-findings__title { margin: 0 0 var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-city-findings__list { list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-city-findings__row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2);
+  padding: var(--ci-space-2) 0; border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-city-findings__text { flex: 1 1 auto; min-width: 0; }
+:where(.codebase-inspector-root) .ci-city-findings__via { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }

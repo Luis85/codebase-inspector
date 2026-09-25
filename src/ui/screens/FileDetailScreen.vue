@@ -7,6 +7,7 @@ import { reviewFailureText } from '../read-models/review-failure';
 import { useCityStore } from '../stores/city-store';
 import { useReviewStore } from '../stores/review-store';
 import { useImportReport } from './use-import-report';
+import { useOpenInvestigation } from './investigate/use-open-investigation';
 import {
   ADD_TO_PLAN_FAILED, FILE_BROWSE_HOTSPOTS, FILE_EYEBROW, FILE_HISTORY_FOOTNOTE, FILE_HISTORY_NONE, FILE_HISTORY_SUBTITLE,
   FILE_HISTORY_TITLE, FILE_NO_SELECTION, FILE_NO_SELECTION_TITLE, WORK_ITEM_TITLE,
@@ -28,6 +29,7 @@ const review = useReviewStore();
 const { fileDetail, quality } = useReadModels();
 /** Part 6 Y36/Y39 (Polish E9): Import report goes to Data & scans and asks for the S14 dialog. */
 const importReport = useImportReport();
+const openInvestigation = useOpenInvestigation();
 const liveMessage = ref('');
 /** The fingerprint under review; the dialog is shared with Code quality. */
 const reviewing = ref<string | null>(null);
@@ -122,6 +124,7 @@ async function addWorkItem(): Promise<void> {
           :evidence="quality.evidence.state"
           :badge="evidenceBadgeFor(quality.evidence)"
           @review="reviewing = $event"
+          @investigate="openInvestigation"
           @import="importReport"
         />
       </div>

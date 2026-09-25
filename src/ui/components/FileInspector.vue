@@ -22,6 +22,7 @@ import {
   ADD_TO_PLAN_FAILED, ADD_TO_PLAN_LABEL, IN_PLAN_LABEL, INVESTIGATE_FILE_LABEL, WORK_ITEM_TITLE,
 } from '../inspector-copy';
 import type { Observation } from '../../domain/model';
+import CityFindingsPanel from '../screens/city/CityFindingsPanel.vue';
 import CityRelationsPanel from '../screens/city/CityRelationsPanel.vue';
 
 const store = useCityStore();
@@ -203,6 +204,8 @@ async function copyRelativePath(): Promise<void> {
         @focus="($event.target as HTMLInputElement).select()"
       >
     </label>
+    <!-- WP-04 Task 15 (IP32/IP33): the file's reported findings, shown only with a report. -->
+    <CityFindingsPanel v-if="selectedEntity.kind === 'file'" />
     <!-- WP-03 N30: the file's evidenced relations and the arcs they draw. -->
     <CityRelationsPanel v-if="selectedEntity.kind === 'file'" />
     <p

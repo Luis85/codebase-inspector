@@ -31,6 +31,7 @@ import FallowBoundaryTable from './architecture/FallowBoundaryTable.vue';
 import BoundaryInspector from './architecture/BoundaryInspector.vue';
 import RuleEditor from './architecture/RuleEditor.vue';
 import { useArchitectureSelection } from './architecture/use-architecture-selection';
+import { useOpenInvestigation } from './investigate/use-open-investigation';
 
 /** N21: Map, Matrix, Cycles, Edges, Rules, in that order. */
 const TABS: readonly TabItem[] = [
@@ -45,6 +46,7 @@ const store = useCityStore();
 const review = useReviewStore();
 const evidence = useEvidenceStore();
 const relationsStore = useRelationsStore();
+const openInvestigation = useOpenInvestigation();
 const { architecture, files } = useReadModels();
 const tab = ref('map');
 const root = ref<HTMLElement | null>(null);
@@ -176,6 +178,7 @@ function reviewFinding(fingerprint: string): void {
               :selected-id="selectedCycleId"
               @select="selectCycle"
               @review="reviewFinding"
+              @investigate="openInvestigation"
               @show-in-city="relationsStore.showCycleInCity"
             />
             <EdgeList
@@ -197,6 +200,7 @@ function reviewFinding(fingerprint: string): void {
               <FallowBoundaryTable
                 :relations="architecture.relations"
                 @review="reviewFinding"
+                @investigate="openInvestigation"
               />
             </template>
           </Tabs>

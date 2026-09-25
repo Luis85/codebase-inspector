@@ -11,13 +11,14 @@ import { reviewFailureText } from '../../read-models/review-failure';
 import { useReviewStore } from '../../stores/review-store';
 import { DISMISS_REASON_MAX } from '../../stores/ports/review-repository';
 import { useUniqueId } from '../../unique-id';
+import { useOpenInvestigation } from '../investigate/use-open-investigation';
 import {
   DIALOG_CLOSE, FINDING_ACKNOWLEDGE, FINDING_ACKNOWLEDGED, FINDING_ADD_WORK_ITEM, FINDING_DECISION_FAILED,
   FINDING_DIALOG_LOCATION, FINDING_DIALOG_PROVIDER, FINDING_DIALOG_PROVIDER_VALUE, FINDING_DIALOG_REASON,
   FINDING_DIALOG_RULE, FINDING_DIALOG_RULE_VALUE, FINDING_DIALOG_TITLE, FINDING_DISMISS, FINDING_DISMISS_CANCEL, FINDING_DISMISS_HINT,
   FINDING_DISMISS_PLACEHOLDER, FINDING_DISMISS_REASON, FINDING_DISMISS_REQUIRED, FINDING_DISMISS_SAVE, FINDING_DISMISS_TITLE,
   FINDING_DISMISS_TOO_LONG, FINDING_DISMISSED, FINDING_IN_PLAN, FINDING_OPEN_FILE, FINDING_REOPEN, FINDING_REOPENED,
-  FINDING_REVIEW_LOADING, FINDING_STATUS_LABEL, QUALITY_LOCATION, REVIEW_STORE_READ_FAILED, SEVERITY_TEXT, WORK_ITEM_TITLE,
+  FINDING_REVIEW_LOADING, FINDING_STATUS_LABEL, INVESTIGATE_ACTION, QUALITY_LOCATION, REVIEW_STORE_READ_FAILED, SEVERITY_TEXT, WORK_ITEM_TITLE,
 } from '../../inspector-copy';
 import CiDialog from '../../kit/Dialog.vue';
 import EvidenceBadge from '../../kit/EvidenceBadge.vue';
@@ -25,6 +26,7 @@ import FindingRelatedRow from './FindingRelatedRow.vue';
 
 const props = defineProps<{ fingerprint: string }>();
 const emit = defineEmits<{ close: []; openFile: [id: EntityId] }>();
+const openInvestigation = useOpenInvestigation();
 const { quality, files } = useReadModels();
 /** Part 6 Y35: who reported the finding, and when. The badge says the source match is unverified. */
 const provider = computed(() => {
@@ -129,6 +131,12 @@ async function addWorkItem(): Promise<void> {
   const f = finding.value;
   if (f && !workItemBlocked.value) await run(() => review.addWorkItemForFile(f.file.id, WORK_ITEM_TITLE(f.file.name), new Date()), FINDING_IN_PLAN);
 }
+
+/** WP-04 IN5/IP34: closes the dialog, then opens the SAME fingerprint on Investigate. */
+function investigate(): void {
+  emit('close');
+  openInvestigation(props.fingerprint);
+}
 </script>
 
 <template>
@@ -184,6 +192,13 @@ async function addWorkItem(): Promise<void> {
           @click="emit('openFile', finding.file.id)"
         >
           {{ FINDING_OPEN_FILE }}
+        </button>
+        <button
+          type="button"
+          class="ci-finding-dialog__investigate"
+          @click="investigate"
+        >
+          {{ INVESTIGATE_ACTION }}
         </button>
         <button
           type="button"

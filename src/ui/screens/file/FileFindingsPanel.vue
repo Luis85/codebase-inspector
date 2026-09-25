@@ -8,7 +8,7 @@ import type { FileFinding } from '../../read-models/file-detail';
 import { severityTone, type FindingStatus, type QualityFinding } from '../../read-models/findings';
 import {
   FILE_FINDINGS_CAVEAT, FILE_FINDINGS_CAVEAT_TITLE, FILE_FINDINGS_SUBTITLE, FILE_FINDINGS_TITLE, FILE_NO_FINDINGS_REPORTED,
-  FINDING_META, FINDING_STATUS_LABEL, FINDING_VIA_RELATED, SEVERITY_TEXT,
+  FINDING_META, FINDING_STATUS_LABEL, FINDING_VIA_RELATED, INVESTIGATE_ACTION, INVESTIGATE_FINDING_LABEL, SEVERITY_TEXT,
 } from '../../inspector-copy';
 import Panel from '../../kit/Panel.vue';
 import Callout from '../../kit/Callout.vue';
@@ -19,7 +19,7 @@ const props = defineProps<{
   findings: readonly FileFinding[]; count: MetricValue; statuses: ReadonlyMap<string, QualityFinding>;
   evidence: EvidenceIndexState; badge: EvidenceBadgeProps | null;
 }>();
-const emit = defineEmits<{ review: [fingerprint: string]; import: [] }>();
+const emit = defineEmits<{ review: [fingerprint: string]; investigate: [fingerprint: string]; import: [] }>();
 /** A finding without a decision is open. */
 const statusOf = (fingerprint: string): FindingStatus => props.statuses.get(fingerprint)?.status ?? 'open';
 </script>
@@ -78,6 +78,16 @@ const statusOf = (fingerprint: string): FindingStatus => props.statuses.get(fing
             v-if="!f.anchored"
             class="ci-file-finding__via"
           >{{ FINDING_VIA_RELATED(f.anchorPath) }}</span>
+        </button>
+        <!-- E20: a <button> holds phrasing content only, so this is a SIBLING of the
+             row button above, never nested inside it. -->
+        <button
+          type="button"
+          class="ci-file-finding__investigate"
+          :aria-label="INVESTIGATE_FINDING_LABEL(f.id, f.anchorPath)"
+          @click="emit('investigate', f.fingerprint)"
+        >
+          {{ INVESTIGATE_ACTION }}
         </button>
       </li>
     </ul>
