@@ -11,8 +11,11 @@ import { useReadModels } from '../read-models/use-read-models';
 import {
   DEFAULT_INVESTIGATION_FILTER, filterInvestigation, type InvestigationFilter,
 } from '../read-models/investigation';
-import { evidenceBundleFor, uncertaintiesFor, checklistFor } from '../read-models/investigation-evidence';
+import {
+  evidenceBundleFor, locationInputsFor, previewRequestFor, uncertaintiesFor, checklistFor,
+} from '../read-models/investigation-evidence';
 import { FINDINGS_PAGE } from '../read-models/findings';
+import { locationVerdict, type LocationVerdict } from '../../application/investigation/stale-location';
 import { useCityStore } from '../stores/city-store';
 import { useInvestigationStore } from '../stores/investigation-store';
 import { useImportReport } from './use-import-report';
@@ -30,6 +33,7 @@ import InvestigationFilters from './investigate/InvestigationFilters.vue';
 import InvestigationList from './investigate/InvestigationList.vue';
 import EvidencePanel from './investigate/EvidencePanel.vue';
 import UncertaintyPanel from './investigate/UncertaintyPanel.vue';
+import SourcePreviewPanel from './investigate/SourcePreviewPanel.vue';
 import FindingReviewDialog from './quality/FindingReviewDialog.vue';
 import WorkItemEditor from './workbench/WorkItemEditor.vue';
 
@@ -50,8 +54,26 @@ const rows = computed(() => filterInvestigation(model.value.rows, filter.value))
 const selectedRow = computed(() => (investigationStore.selectedFingerprint === null
   ? null : model.value.byFingerprint.get(investigationStore.selectedFingerprint) ?? null));
 const bundle = computed(() => (selectedRow.value ? evidenceBundleFor(selectedRow.value, model.value.evidence, files.value) : null));
-const uncertainties = computed(() => (selectedRow.value && bundle.value ? uncertaintiesFor(selectedRow.value, bundle.value, null) : []));
+/** IN10: the highlight verdict, only once the CURRENT selection's preview has read ok —
+ *  a stale or in-flight result for another row (mid-switch) never lends its verdict here. */
+const verdict = computed<LocationVerdict | null>(() => {
+  const row = selectedRow.value;
+  const snapshot = store.snapshot;
+  const state = investigationStore.preview;
+  if (row === null || snapshot === null) return null;
+  if (state.status !== 'ready' || state.fingerprint !== row.fingerprint || state.result.status !== 'ok') return null;
+  return locationVerdict(locationInputsFor(row, snapshot, model.value.evidence, state.result.text));
+});
+const uncertainties = computed(() => (selectedRow.value && bundle.value ? uncertaintiesFor(selectedRow.value, bundle.value, verdict.value) : []));
 const checklist = computed(() => (selectedRow.value ? checklistFor(selectedRow.value.kind) : []));
+/** IN12: offered only when the anchor is a `.md` file the vault itself holds — the port's
+ *  own check (host/investigation-notes.ts); this screen only asks and shows what it says. */
+const notePath = computed(() => {
+  const row = selectedRow.value;
+  const snapshot = store.snapshot;
+  if (row === null || snapshot === null) return null;
+  return investigationStore.sourceNotePath(snapshot.scope.rootPath, row.anchorPath);
+});
 const listCounts = computed(() => INVESTIGATE_COUNTS(model.value.rows.length, model.value.withNotes, model.value.orphanNotes.length, model.value.malformedNotes));
 const workDraft = computed(() => {
   const row = selectedRow.value;
@@ -89,6 +111,15 @@ watch(() => investigationStore.selectedFingerprint, (fp) => {
   if (i >= 0 && i >= shown.value) shown.value = Math.ceil((i + 1) / FINDINGS_PAGE) * FINDINGS_PAGE;
 }, { immediate: true });
 
+/** IN7/IN13 (IP39): the ONLY trigger for a preview read besides Reload — a selection
+ *  change, never a list render or a re-import. `immediate` so a fingerprint opened before
+ *  this screen mounted (a real entry point) still reads on first render. */
+watch(() => investigationStore.selectedFingerprint, (fp) => {
+  const row = fp === null ? null : model.value.byFingerprint.get(fp) ?? null;
+  const snapshot = store.snapshot;
+  if (row !== null && snapshot !== null) void investigationStore.readPreview(row.fingerprint, previewRequestFor(row, snapshot));
+}, { immediate: true });
+
 function updateFilter(next: InvestigationFilter): void {
   filter.value = next;
   shown.value = FINDINGS_PAGE;
@@ -101,6 +132,19 @@ function resetFilters(): void {
 
 function select(fingerprint: string): void {
   investigationStore.open(fingerprint);
+}
+
+/** IN11: Reload re-reads the CURRENT selection's anchor file (the panel itself guards a
+ *  press while already loading, E40). */
+function reloadPreview(): void {
+  const row = selectedRow.value;
+  const snapshot = store.snapshot;
+  if (row !== null && snapshot !== null) void investigationStore.readPreview(row.fingerprint, previewRequestFor(row, snapshot));
+}
+
+function openInObsidian(): void {
+  const path = notePath.value;
+  if (path !== null) void investigationStore.openNote(path);
 }
 
 function openReview(): void {
@@ -190,6 +234,14 @@ async function workItemDone(message: string): Promise<void> {
               @review="openReview"
               @open-file="openFile()"
               @add-work-item="openWorkItemEditor"
+            />
+            <SourcePreviewPanel
+              :row="selectedRow"
+              :state="investigationStore.preview"
+              :verdict="verdict"
+              :note-path="notePath"
+              @reload="reloadPreview"
+              @open-in-obsidian="openInObsidian"
             />
             <UncertaintyPanel
               :uncertainties="uncertainties"

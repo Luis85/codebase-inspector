@@ -32,6 +32,20 @@
 :where(.codebase-inspector-root) .ci-uncertainty-panel__list,
 :where(.codebase-inspector-root) .ci-uncertainty-panel__checklist { display: grid; gap: var(--ci-space-2); margin: 0; padding-left: var(--ci-space-4); }
 
+/* WP-04 Task 12: the source preview panel. IPF6: never `display: block` on
+   .ci-source-preview__line — the newline inside each line's own span is what breaks the
+   line, not the layout. */
+:where(.codebase-inspector-root) .ci-source-preview__actions { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-source-preview__read-at { margin: 0 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-source-preview__text {
+  margin: 0; max-height: 28em; overflow: auto; border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small);
+  padding: var(--ci-space-2) var(--ci-space-3); background: var(--ci-raised); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em);
+}
+:where(.codebase-inspector-root) .ci-source-preview__line[aria-current="true"] { background: var(--ci-tone-accent); color: var(--ci-on-accent, inherit); border-radius: 2px; }
+:where(.codebase-inspector-root) .ci-source-preview__number {
+  display: inline-block; width: 3.5em; padding-right: var(--ci-space-2); color: var(--ci-text-faint); text-align: right; user-select: none;
+}
+
 /* WP-04 Task 1: the Investigate screen (.ci-screen--investigate; layout rules arrive in Task 11). */
 
 /* Part 4 Task 10: Refactor workbench and the Work-item editor. */

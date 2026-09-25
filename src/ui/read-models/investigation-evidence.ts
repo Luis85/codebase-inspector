@@ -6,9 +6,12 @@
 // for one a refresh no longer finds (IN34). Never a score, a percentage or an invented
 // risk word (IN17), and never a collected report's absolute paths (Y28).
 import { originOf, type EvidenceOrigin, type EvidenceReport, type FindingCategory, type RelationHop } from '../../application/evidence/model';
+import type { EntityId } from '../../domain/entity-id';
+import type { CodebaseSnapshot } from '../../domain/model';
 import type { NoteLink } from '../../application/investigation/note-index';
 import type { EvidenceFacts, NoteIdentity } from '../../application/investigation/note-model';
-import type { LocationVerdict } from '../../application/investigation/stale-location';
+import type { PreviewRequest, PreviewText } from '../../application/investigation/source-preview';
+import type { LocationInputs, LocationVerdict } from '../../application/investigation/stale-location';
 import {
   CHECKLIST_BY_KIND, NOTE_ANALYSED_AT_UNKNOWN, NOTE_EVIDENCE_STATE_TEXT, NOTE_PROVIDER_UNKNOWN, UNCERTAINTY_BY_KIND,
   UNCERTAINTY_IMPORT_TIME, UNCERTAINTY_LINE_MATCHED, UNCERTAINTY_LINE_NOT_CHECKED, UNCERTAINTY_LINE_STALE, UNCERTAINTY_NO_LINE,
@@ -37,6 +40,45 @@ function cycleHops(row: InvestigationRow): readonly RelationHop[] {
 /** IN10's upper bound: collected.startedAt for a collected report, importedAt otherwise. */
 export function analysedAtOf(report: EvidenceReport): string {
   return report.collected?.startedAt ?? report.importedAt;
+}
+
+/** The scan's own observation for one metric on one entity — `measured` with a value,
+ *  else null (an `unavailable` observation, or none at all, is as unknown as never having
+ *  scanned the file: IN10's checks fail towards stale on either). */
+function observedValue(snapshot: CodebaseSnapshot, entityId: EntityId, metricId: 'byte-size' | 'physical-lines'): number | null {
+  const obs = snapshot.observations.find((o) => o.entityId === entityId && o.measurement.metricId === metricId);
+  return obs !== undefined && obs.status === 'measured' ? obs.value : null;
+}
+
+/** IP14 (IN7): the request for the row's anchor file, under the snapshot's OWN root and
+ *  byte limit — the service itself re-checks this against the live binding, but the
+ *  expected root and limit travel with the request so a reconnected codebase can never
+ *  read another folder's file under this finding's path. */
+export function previewRequestFor(row: InvestigationRow, snapshot: CodebaseSnapshot): PreviewRequest {
+  return {
+    codebaseId: snapshot.repositoryId,
+    expectedRoot: snapshot.scope.rootPath,
+    relativePath: row.anchorPath,
+    maxFileBytes: snapshot.scope.maxFileBytes,
+    line: row.line,
+  };
+}
+
+/** IN10 (IP17): the stale-location inputs for the row's anchor entity — `row.file` IS the
+ *  anchor (titledFindings, findings.ts, keeps only `anchored` rows), so its own id is the
+ *  entity the scan observed. `reportCurrent` is the report's OWN currency (Y30), never the
+ *  line verdict's — a stale report still gets its own 'report' check, first in IP17's order. */
+export function locationInputsFor(row: InvestigationRow, snapshot: CodebaseSnapshot, evidence: EvidenceIndex, text: PreviewText): LocationInputs {
+  return {
+    reportCurrent: evidence.state === 'current',
+    observedBytes: observedValue(snapshot, row.file.id, 'byte-size'),
+    observedLines: observedValue(snapshot, row.file.id, 'physical-lines'),
+    currentBytes: text.size,
+    currentLines: text.lineCount,
+    currentMtimeMs: text.mtimeMs,
+    analysedAt: evidence.report === null ? null : analysedAtOf(evidence.report),
+    line: row.line,
+  };
 }
 
 /** IN14: the selected row's evidence, resolved against the current report and files. Null

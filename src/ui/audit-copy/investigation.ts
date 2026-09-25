@@ -8,6 +8,7 @@
 import type { EvidenceOrigin, FindingCategory } from '../../application/evidence/model';
 import type { NoteVocabulary } from '../../application/investigation/note-model';
 import type { NoteFolderProblem } from '../../application/investigation/note-path';
+import type { PreviewUnavailable } from '../../application/investigation/source-preview';
 import type { LocationCheck } from '../../application/investigation/stale-location';
 import { FINDING_LINE_TEXT, FINDING_RELATED_LABEL } from './quality';
 
@@ -210,3 +211,33 @@ export const INVESTIGATE_PROVIDER_TEXT = (provider: string, version: string): st
 export const INVESTIGATE_WORK_ITEM_LINE = (title: string, statusLabel: string): string => `${title} — ${statusLabel}`;
 /** Fix round 1 (review item 6): a finding row's own path-and-line text. */
 export const INVESTIGATE_ROW_LOCATION = (path: string, line: string): string => `${path} · ${line}`;
+
+// WP-04 Task 12 (IN7-IN13; IP16, IP17): the source preview panel — title, loading, the
+// read time, Reload, Open in Obsidian, the reported-line label and the stale-location
+// callout, plus every unavailable reason (IN9).
+export const PREVIEW_TITLE = 'Source at the reported line';
+export const PREVIEW_SUBTITLE = 'A read-only window of the file as it is now. Nothing is written.';
+export const PREVIEW_LOADING = 'Reading the file…';
+export const PREVIEW_READ_AT = (time: string): string => `Read at ${time}`;
+export const PREVIEW_RELOAD = 'Reload';
+export const PREVIEW_OPEN_IN_OBSIDIAN = 'Open in Obsidian';
+export const PREVIEW_LINE_LABEL = (line: number): string => `Reported line ${line}`;
+export const PREVIEW_CUT = '…';
+/** IPF13 PF-C10: delegates to UNCERTAINTY_LINE_STALE for every check but `no-line`, whose
+ *  own sentence is never restated by UNCERTAINTY_LINE_STALE (which has no `no-line` case
+ *  at all — a finding with no line is its own verdict, stale-location.ts). */
+export const PREVIEW_STALE_LOCATION = (check: LocationCheck | 'no-line', cause: 'changed' | 'unknown' | null, line: number | null): string =>
+  (check === 'no-line'
+    ? 'fallow reports no line for this finding, so the first 41 lines are shown.'
+    : UNCERTAINTY_LINE_STALE(check, cause as 'changed' | 'unknown', line));
+export const PREVIEW_UNAVAILABLE: Readonly<Record<PreviewUnavailable, string>> = {
+  'no-binding': 'This codebase’s folder is not connected on this device, or it now points to another folder than the scan read.',
+  'no-filesystem': 'Source preview needs the desktop app’s file access.',
+  'outside-root': 'The file is not inside the codebase folder, or its path goes through a link. It was not read.',
+  'not-a-file': 'The path is not a regular file.',
+  'too-large': 'The file is larger than the preview limit, so it was not read.',
+  binary: 'The file looks binary, so it is not shown.',
+  'not-utf8': 'The file is not UTF-8 text, so it is not shown.',
+  missing: 'The file is not there any more.',
+  'read-error': 'The file could not be read.',
+};
