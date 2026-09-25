@@ -168,7 +168,7 @@ function reviewFinding(fingerprint: string): void {
             <CycleList
               v-else-if="tab === 'cycles'"
               :cycles="architecture.relations.cycles"
-              :not-analysed="architecture.notAnalysed"
+              :not-analysed="architecture.cyclesNotAnalysed"
               :selected-id="selectedCycleId"
               @select="selectCycle"
               @review="reviewFinding"

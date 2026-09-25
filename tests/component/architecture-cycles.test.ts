@@ -16,7 +16,7 @@ import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import {
   ARCH_EDGES_OMITTED_NOTE, ARCH_NOT_ANALYSED_NO_SECTION, ARCH_NOT_ANALYSED_NOTE, ARCH_TAB_CYCLES, ARCH_TAB_EDGES, ARCH_TAB_MAP, ARCH_TAB_MATRIX,
   ARCH_MATRIX_NO_EDGE, ARCH_NODE_LABEL_NOT_ANALYSED, ARCH_NONE, ARCH_TAB_RULES, CYCLE_KIND_LABEL, FALLOW_NOT_ANALYSED, NO_VALUE,
-  RELATION_MEMBER_UNMATCHED, RELATIONS_SCOPE_SHORT,
+  RELATION_CYCLES_NOT_REPORTED, RELATION_MEMBER_UNMATCHED, RELATIONS_SCOPE_SHORT,
 } from '../../src/ui/inspector-copy';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
 import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson } from '../fixtures/relations-report';
@@ -42,6 +42,15 @@ function crossModuleCycleJson(): string {
     files: ['src/data/db.ts', 'src/ui/view.ts'], length: 2, line: 2, col: 0,
     edges: [{ path: 'src/data/db.ts', line: 2, col: 0 }, { path: 'src/ui/view.ts', line: 3, col: 9 }],
   });
+  return JSON.stringify(raw);
+}
+
+/** JP5 (WP-03 Task 9 deferred minor): the recording trimmed of its cycle category — 1
+ *  reported boundary violation, no import or re-export cycle. */
+function boundaryOnlyJson(): string {
+  const raw = JSON.parse(relationsRecordingJson()) as { check: { circular_dependencies?: unknown; re_export_cycles?: unknown } };
+  delete raw.check.circular_dependencies;
+  delete raw.check.re_export_cycles;
   return JSON.stringify(raw);
 }
 
@@ -167,6 +176,24 @@ describe('Architecture: tabs and Cycles (WP-03 N21)', () => {
     await openTab(w, ARCH_TAB_MATRIX);
     expect(w.find('.ci-matrix__scroll').text()).toContain(noSection);
     expect(w.find('.ci-matrix__scroll').text()).not.toContain(ARCH_NOT_ANALYSED_NOTE);
+    w.unmount();
+  });
+
+  it('JP5: boundaries configured but no cycle section — the Map and Matrix show the boundary edge; the Cycles tab and cycles card still read not analysed', async () => {
+    setup(RELATIONS_PATHS, { json: boundaryOnlyJson() });
+    const w = mountArch();
+    expect(w.find('.ci-module-map').text()).not.toContain(ARCH_NOT_ANALYSED_NOTE);
+    expect(w.find('.ci-module-map').text()).not.toContain(ARCH_NOT_ANALYSED_NO_SECTION);
+    expect(w.findAll('.ci-module-map__edge').length).toBeGreaterThan(0);
+    const evidenced = useReadModels().architecture.value.cards.find((c) => c.id === 'evidenced')!;
+    expect(evidenced.value).toMatchObject({ state: 'partial', value: 1, reason: RELATION_CYCLES_NOT_REPORTED });
+    await openTab(w, ARCH_TAB_MATRIX);
+    expect(w.find('.ci-matrix__scroll').text()).not.toContain(ARCH_NOT_ANALYSED_NOTE);
+    expect(w.find('.ci-matrix__scroll').text()).not.toContain(ARCH_NOT_ANALYSED_NO_SECTION);
+    await openTab(w, ARCH_TAB_CYCLES);
+    expect(w.find('[role="tabpanel"]').text()).toContain(FALLOW_NOT_ANALYSED);
+    expect(w.findAll('.ci-cycle-list__row')).toHaveLength(0);
+    expect(useReadModels().architecture.value.cards.find((c) => c.id === 'cycles')!.caption).toBe(ARCH_NOT_ANALYSED_NO_SECTION);
     w.unmount();
   });
 

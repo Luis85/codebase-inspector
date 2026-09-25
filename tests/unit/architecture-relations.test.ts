@@ -18,9 +18,10 @@ import { moduleOf } from '../../src/ui/read-models/file-summaries';
 import { buildOverviewModel } from '../../src/ui/read-models/overview';
 import { buildSourcesModel } from '../../src/ui/read-models/sources';
 import {
-  ARCH_NOT_ANALYSED_NOTE, ARCH_RULES_CAPTION, ARCH_RULES_NONE, ARCH_VIOLATIONS_FALLOW_CAPTION, ARCH_VIOLATIONS_NOT_CONFIGURED,
-  EVIDENCE_SOURCE_FALLOW_PARTIAL, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, OVERVIEW_IMPORTS_ROW, RELATIONS_SCOPE_SHORT,
-  RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL, RULE_NOT_EVALUATED_REASON,
+  ARCH_NOT_ANALYSED_NO_SECTION, ARCH_NOT_ANALYSED_NOTE, ARCH_RULES_CAPTION, ARCH_RULES_NONE, ARCH_VIOLATIONS_FALLOW_CAPTION,
+  ARCH_VIOLATIONS_NOT_CONFIGURED, EVIDENCE_SOURCE_FALLOW_PARTIAL, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED,
+  OVERVIEW_IMPORTS_ROW, RELATIONS_SCOPE_SHORT, RELATION_CYCLES_CAPTION, RELATION_CYCLES_NOT_REPORTED, RULE_NOT_EVALUATED_PARTIAL,
+  RULE_NOT_EVALUATED_REASON,
 } from '../../src/ui/inspector-copy';
 import type { BoundaryRule } from '../../src/ui/stores/ports/review-repository';
 import { fallowDoc, rawReport } from '../fixtures/fallow-fixture';
@@ -169,6 +170,66 @@ describe('cards (N18, N20)', () => {
     // never draw (the whole cycle is unmatched, N7), so they inflate "files" (2 + 2 = 4)
     // without inflating "groups" (still 1: only the barrel pair).
     expect(model.cards.find((c) => c.id === 'cycles')!.caption).toBe(RELATION_CYCLES_CAPTION(4, 1, 1));
+  });
+});
+
+/** JP5 (WP-03 Task 9 deferred minor): the with-boundaries 3.27.0 recording, trimmed of its
+ *  cycle category (a "trimmed writer", N2) — boundaries stay configured (1 reported
+ *  violation) but no cycle was ever reported. */
+describe('JP5: edges and the module views gate on ANY analysed edge category', () => {
+  const boundaryOnlyDoc = fallowDoc('relations-combined-3.27.0', (d) => {
+    delete d.check!.circular_dependencies;
+    delete d.check!.re_export_cycles;
+  });
+  const boundaryOnlyReport = buildEvidenceReport({
+    raw: rawReport(boundaryOnlyDoc), fileName: 'relations.json', importedAt: IMPORTED_AT, snapshotId: snapshot.snapshotId, stripPrefix: 'src/',
+  });
+  const boundaryOnlyRelations = relationModelFor(files, evidenceIndexFor(files, boundaryOnlyReport, snapshot.snapshotId));
+  const boundaryOnlyGraph = architectureGraphFor(files, boundaryOnlyRelations);
+
+  it('cycles were never reported, but boundaries are configured', () => {
+    expect(boundaryOnlyRelations.analysed).toBe(false);
+    expect(boundaryOnlyRelations.boundaries).toBe('configured');
+  });
+
+  it('notAnalysed is false (the boundary edge is evidenced); cyclesNotAnalysed stays true', () => {
+    const model = buildArchitectureModel(boundaryOnlyGraph, []);
+    expect(model.notAnalysed).toBe(false);
+    expect(model.cyclesNotAnalysed).toBe(true);
+    expect(model.edges).toHaveLength(1);
+    expect(model.edges[0]).toMatchObject({
+      from: 'ui', to: 'data', imports: { state: 'partial', value: 1, reason: RELATION_CYCLES_NOT_REPORTED },
+    });
+  });
+
+  it('the cycles card still reads not analysed (unchanged: the Cycles tab keeps the cycle-only gate)', () => {
+    const model = buildArchitectureModel(boundaryOnlyGraph, []);
+    expect(model.cards.find((c) => c.id === 'cycles')!.caption).toBe(ARCH_NOT_ANALYSED_NO_SECTION);
+  });
+
+  it('the evidenced-imports card is partial, with the edge count and RELATION_CYCLES_NOT_REPORTED', () => {
+    const model = buildArchitectureModel(boundaryOnlyGraph, []);
+    const card = model.cards.find((c) => c.id === 'evidenced')!;
+    expect(card.value).toMatchObject({ state: 'partial', value: 1, reason: RELATION_CYCLES_NOT_REPORTED });
+  });
+
+  it('a rule of yours with no evidenced crossing reads RULE_NOT_EVALUATED_PARTIAL, not FALLOW_NOT_ANALYSED', () => {
+    const [evaluation] = evaluateRules([rule('core', 'ui')], boundaryOnlyGraph);
+    expect(evaluation).toMatchObject({ status: 'not-evaluated', reason: RULE_NOT_EVALUATED_PARTIAL });
+  });
+
+  it('without a report, both gates stay not analysed, exactly as today', () => {
+    const model = buildArchitectureModel(noReportGraph, []);
+    expect(model.notAnalysed).toBe(true);
+    expect(model.cyclesNotAnalysed).toBe(true);
+  });
+
+  it('with a report that has no check section at all, both gates stay not analysed, exactly as today', () => {
+    const healthOnlyReport = reportFor(snapshot.snapshotId, 'health-3.27.0');
+    const healthRelations = relationModelFor(files, evidenceIndexFor(files, healthOnlyReport, snapshot.snapshotId));
+    const model = buildArchitectureModel(architectureGraphFor(files, healthRelations), []);
+    expect(model.notAnalysed).toBe(true);
+    expect(model.cyclesNotAnalysed).toBe(true);
   });
 });
 

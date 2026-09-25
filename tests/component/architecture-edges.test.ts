@@ -6,6 +6,7 @@ import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import '../mocks/obsidian';
 import ArchitectureScreen from '../../src/ui/screens/ArchitectureScreen.vue';
+import EdgeList from '../../src/ui/screens/architecture/EdgeList.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
@@ -14,8 +15,8 @@ import { computeLayout } from '../../src/domain/layout/layout';
 import type { CodebaseSnapshot } from '../../src/domain/model';
 import {
   ARCH_FALLOW_ZONES_NONE, ARCH_FALLOW_ZONES_TITLE, ARCH_FALLOW_ZONES_UNMATCHED, ARCH_TAB_EDGES, ARCH_TAB_MAP, ARCH_TAB_RULES,
-  EDGE_DIRECTION_RELATIVE, EDGE_LIST_HIDDEN, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, RELATION_MEMBER_UNMATCHED,
-  RELATIONS_SCOPE_NOTE, RELATIONS_STATIC_NOTE, RELATION_TYPE_UNKNOWN, UNRESOLVED_TITLE,
+  EDGE_DIRECTION_NO_MODULE, EDGE_DIRECTION_RELATIVE, EDGE_LIST_HIDDEN, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED,
+  RELATION_MEMBER_UNMATCHED, RELATIONS_SCOPE_NOTE, RELATIONS_STATIC_NOTE, RELATION_TYPE_UNKNOWN, UNRESOLVED_TITLE,
 } from '../../src/ui/inspector-copy';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
 import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson } from '../fixtures/relations-report';
@@ -44,6 +45,15 @@ function manyViolationsJson(): string {
   return JSON.stringify(raw);
 }
 
+/** JP5 (WP-03 Task 9 deferred minor): the recording trimmed of its cycle category — 1
+ *  reported boundary violation, no import or re-export cycle. */
+function boundaryOnlyJson(): string {
+  const raw = JSON.parse(relationsRecordingJson()) as { check: { circular_dependencies?: unknown; re_export_cycles?: unknown } };
+  delete raw.check.circular_dependencies;
+  delete raw.check.re_export_cycles;
+  return JSON.stringify(raw);
+}
+
 const mountArch = () => mount(ArchitectureScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn() } } });
 type Wrapper = ReturnType<typeof mountArch>;
 async function openTab(w: Wrapper, label: string): Promise<void> {
@@ -68,6 +78,27 @@ describe('Architecture: Edges (WP-03 N21)', () => {
     expect(table).toContainEqual(['ui/view.ts', 'data/db.ts', 'Boundary', '3', RELATION_TYPE_UNKNOWN]);
     expect(table).toContainEqual(['core/a.ts', 'core/b.ts', 'Cycle', '1', RELATION_TYPE_UNKNOWN]);
     expect(w.find('.ci-edge-list thead').text()).toContain('Source');
+    w.unmount();
+  });
+
+  it('WP-03 Task 9 deferred minor, pinned: the direction note names the selected module, or says none is selected', () => {
+    setup();
+    const relations = useReadModels().architecture.value.relations;
+    const props = { relations, notAnalysed: false, violating: new Set<string>(), violationsOnly: false };
+    const noModule = mount(EdgeList, { props: { ...props, selectedModule: null } });
+    expect(noModule.find('.ci-edge-list__direction-note').text()).toBe(EDGE_DIRECTION_NO_MODULE);
+    noModule.unmount();
+    const withModule = mount(EdgeList, { props: { ...props, selectedModule: 'ui' } });
+    expect(withModule.find('.ci-edge-list__direction-note').text()).toBe(EDGE_DIRECTION_RELATIVE('ui'));
+    withModule.unmount();
+  });
+
+  it('JP5: with boundaries configured but no cycle section, the Edges tab lists the boundary edge — never "not analysed"', async () => {
+    setup(RELATIONS_PATHS, { json: boundaryOnlyJson() });
+    const w = mountArch();
+    await openTab(w, ARCH_TAB_EDGES);
+    expect(w.find('[role="tabpanel"]').text()).not.toContain(FALLOW_NOT_ANALYSED);
+    expect(cells(w)).toEqual([['ui/view.ts', 'data/db.ts', 'Boundary', '3', RELATION_TYPE_UNKNOWN]]);
     w.unmount();
   });
 

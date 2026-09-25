@@ -12,7 +12,7 @@ import {
 import { unknown, type EvidenceState, type MetricValue, type Provenance } from '../evidence';
 import {
   EVIDENCE_SOURCE_FALLOW_PARTIAL, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED, FALLOW_NOT_ANALYSED_TITLE,
-  FALLOW_PROVENANCE_DETAIL, RELATION_FAN_NOT_SCORED,
+  FALLOW_PROVENANCE_DETAIL, RELATION_CYCLES_NOT_REPORTED, RELATION_FAN_NOT_SCORED,
 } from '../inspector-copy';
 import type { EvidenceIndex, EvidenceIndexState } from './evidence-index';
 import { findingFingerprint } from './findings';
@@ -251,6 +251,24 @@ export function relationBoundaryValue(model: RelationModel, n: number): MetricVa
   const provenance = model.boundaries === 'configured' ? provenanceCache.get(model) : undefined;
   if (!provenance) return unknown(FALLOW_NOT_ANALYSED, 'fallow');
   return { state: model.state === 'stale' ? 'stale' : 'collected', value: n, provenance };
+}
+
+/** JP5: the relation evidence state for a count that draws from EITHER edge category —
+ *  the Edges tab, Map and Matrix's "evidenced imports" card and a module edge's own
+ *  weight (`architecture.ts`'s `ModuleEdge.imports`). `relationValue` gates on the cycle
+ *  category alone (right for the cycle count itself, N18); this gates on "any edge
+ *  category analysed": the report's cycle category when it was reported, else boundaries
+ *  alone — real counted edges, but `partial`, since a report with boundaries configured
+ *  and no cycle section counts only its boundary violations, never the cycle hops it
+ *  never reported. */
+export function relationEdgesValue(model: RelationModel, n: number): MetricValue {
+  if (model.analysed) return relationValue(model, n);
+  if (model.boundaries !== 'configured') return unknown(FALLOW_NOT_ANALYSED, 'fallow');
+  const provenance = provenanceCache.get(model);
+  if (!provenance) return unknown(FALLOW_NOT_ANALYSED, 'fallow');
+  // JF22's precedence: stale beats partial.
+  if (model.state === 'stale') return { state: 'stale', value: n, provenance };
+  return { state: 'partial', value: n, provenance, reason: RELATION_CYCLES_NOT_REPORTED };
 }
 
 export interface RelationRowState { readonly state: EvidenceState; readonly source: string }

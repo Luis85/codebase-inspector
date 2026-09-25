@@ -37,6 +37,9 @@ export const ARCH_NOT_ANALYSED_NOTE = 'No fallow report is attached, so no impor
 export const ARCH_NOT_ANALYSED_NO_SECTION = 'The attached fallow report has no import cycle or boundary section, so no imports are shown.';
 export const ARCH_EDGES_OMITTED_NOTE = (n: number): string => `${n} evidenced imports go to modules not shown`;
 export const RULE_NOT_EVALUATED_PARTIAL = 'No complete import graph: fallow reports only cycle and boundary imports';
+/** JP5: the evidenced-imports card's (and a module edge's) reason when boundaries were
+ *  analysed but the report's cycle category was not — the count is real, but partial. */
+export const RELATION_CYCLES_NOT_REPORTED = "fallow's report has no cycle section, so only boundary-violation imports are counted.";
 /** The Overview Architecture-exceptions caption's own alternative to a formatted count. */
 export const ARCH_VIOLATIONS_NOT_CONFIGURED = 'boundaries not configured';
 export const OVERVIEW_IMPORTS_ROW = 'Import relations';

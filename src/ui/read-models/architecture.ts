@@ -10,7 +10,7 @@ import {
   FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_SHORT, RELATION_CARD_CYCLES, RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL,
   RULE_NOT_EVALUATED_REASON,
 } from '../inspector-copy';
-import { relationBoundaryValue, relationValue, type CycleView, type RelationModel } from './relations';
+import { relationBoundaryValue, relationEdgesValue, relationValue, type CycleView, type RelationModel } from './relations';
 import { byPriority, moduleLabel, moduleOf, type FileSummary } from './file-summaries';
 
 export const MAX_GRAPH_MODULES = 12;
@@ -38,12 +38,19 @@ export interface ArchitectureModel extends ArchitectureGraph {
   rules: readonly RuleEvaluation[];
   violatingEdgeKeys: ReadonlySet<string>;
   cards: readonly ArchitectureCard[];
-  /** True without a report, or when the report's check section never covered cycles
-   *  (`relations.analysed` is false) — the Map/Matrix/caption "not analysed" state. */
+  /** JP5: true without a report, or when NO edge category was analysed — neither the
+   *  report's cycle category nor its boundaries. The Map/Matrix/Edges "not analysed"
+   *  state, and the gate the evidenced/violations/rules cards share (they all describe
+   *  edges). `cyclesNotAnalysed` below is the narrower, cycle-only gate. */
   notAnalysed: boolean;
-  /** Final review #8: why, when `notAnalysed` — ARCH_NOT_ANALYSED_NOTE without a report,
-   *  ARCH_NOT_ANALYSED_NO_SECTION with one that has no check section. */
+  /** Final review #8: why, when `notAnalysed` (or `cyclesNotAnalysed`) — ARCH_NOT_ANALYSED_NOTE
+   *  without a report, ARCH_NOT_ANALYSED_NO_SECTION with one that has no check section. */
   notAnalysedNote: string;
+  /** JP5: true without a report, or when the report's OWN cycle category was never
+   *  analysed — unchanged from before this task's edge-category gate. The Cycles tab's
+   *  and the cycles card's own gate, since a cycle count means nothing without it, even
+   *  when boundaries alone leave `notAnalysed` false. */
+  cyclesNotAnalysed: boolean;
 }
 
 export const edgeKey = (from: string, to: string): string => `${from}->${to}`;
@@ -75,7 +82,7 @@ export function buildArchitectureGraph(files: readonly FileSummary[], relations:
   const edges: ModuleEdge[] = [];
   let omittedEdges = 0;
   for (const e of aggregated) {
-    if (shown.has(e.from) && shown.has(e.to)) edges.push({ from: e.from, to: e.to, meaning: 'evidenced-import', imports: relationValue(relations, e.count) });
+    if (shown.has(e.from) && shown.has(e.to)) edges.push({ from: e.from, to: e.to, meaning: 'evidenced-import', imports: relationEdgesValue(relations, e.count) });
     else omittedEdges += e.count;
   }
   return { allModules, modules, omittedModules: allModules.length - modules.length, edges, omittedEdges, relations };
@@ -126,6 +133,13 @@ function cycleNumbers(relations: RelationModel): { files: number; groups: number
   return { files: nodeIds.size, groups, reExports };
 }
 
+/** JP5: any edge category was analysed — the report's cycle category, or boundaries
+ *  configured. The gate `notAnalysed`, a rule's `not-evaluated` reason and a module edge's
+ *  own evidence state (`relationEdgesValue`) all share. */
+function edgesAnalysed(relations: RelationModel): boolean {
+  return relations.state !== 'none' && (relations.analysed || relations.boundaries === 'configured');
+}
+
 /** N23: a rule is `violation` when at least one matched evidenced file edge (aggregated to
  *  module level in `graph.edges`) goes from `rule.from` to `rule.to`; otherwise
  *  `not-evaluated`, in the reason order: out of the shown graph, then no report/not
@@ -142,7 +156,7 @@ export function evaluateRules(rules: readonly BoundaryRule[], graph: Architectur
     }
     const edge = byKey.get(edgeKey(rule.from, rule.to));
     if (edge) return { rule, status: 'violation', violatingImports: edge.imports, reason: null };
-    const reason = relations.state === 'none' || !relations.analysed ? FALLOW_NOT_ANALYSED : RULE_NOT_EVALUATED_PARTIAL;
+    const reason = edgesAnalysed(relations) ? RULE_NOT_EVALUATED_PARTIAL : FALLOW_NOT_ANALYSED;
     return { rule, status: 'not-evaluated', violatingImports: unknown(reason, 'fallow'), reason };
   });
 }
@@ -183,7 +197,11 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
   const matrix = graph.modules.map((row) => graph.modules.map((col): MatrixCell => ({
     from: row.name, to: col.name, edge: byKey.get(edgeKey(row.name, col.name)) ?? null,
   })));
-  const notAnalysed = graph.relations.state === 'none' || !graph.relations.analysed;
+  // JP5: notAnalysed gates on ANY edge category (cycles or boundaries) — the Edges tab,
+  // Map, Matrix and the evidenced/violations/rules cards. cyclesNotAnalysed keeps the
+  // narrower, cycle-only gate the Cycles tab and cycles card had before this ruling.
+  const notAnalysed = !edgesAnalysed(graph.relations);
+  const cyclesNotAnalysed = graph.relations.state === 'none' || !graph.relations.analysed;
   const notAnalysedNote = graph.relations.state === 'none' ? ARCH_NOT_ANALYSED_NOTE : ARCH_NOT_ANALYSED_NO_SECTION;
   const { files, groups, reExports } = cycleNumbers(graph.relations);
   const cards: ArchitectureCard[] = [
@@ -191,12 +209,13 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
       value: collected(graph.allModules.length, 'inventory'),
       caption: graph.omittedModules > 0 ? ARCH_MODULES_OMITTED_CAPTION(MAX_GRAPH_MODULES) : graph.modules.slice(0, 4).map((m) => m.label).join(' · ') },
     { id: 'evidenced', label: ARCH_CARD_EVIDENCED, icon: 'link', tone: 'accent',
-      value: relationValue(graph.relations, graph.relations.edges.length), caption: RELATIONS_SCOPE_SHORT },
+      value: relationEdgesValue(graph.relations, graph.relations.edges.length), caption: RELATIONS_SCOPE_SHORT },
     { id: 'cycles', label: RELATION_CARD_CYCLES, icon: 'refresh-cw', tone: 'danger',
       value: cyclesValue(graph.relations),
       // Fix round 1 #2: absent evidence is never rendered as 0 — a caption built from
-      // counts that could not be measured reads the not-analysed note instead.
-      caption: notAnalysed ? notAnalysedNote : RELATION_CYCLES_CAPTION(files, groups, reExports) },
+      // counts that could not be measured reads the not-analysed note instead. JP5: this
+      // card is cycle-specific, so it keeps the narrower cyclesNotAnalysed gate.
+      caption: cyclesNotAnalysed ? notAnalysedNote : RELATION_CYCLES_CAPTION(files, groups, reExports) },
     { id: 'violations', label: ARCH_CARD_VIOLATIONS, icon: 'alert-triangle', tone: 'warning',
       value: violationsValue(graph.relations),
       // PO1: fallow's own count needs no rule-count caption any more — it only ever
@@ -219,5 +238,5 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
     ...violating.map((e) => edgeKey(e.rule.from, e.rule.to)),
     ...graph.relations.edges.filter((e) => e.sources.includes('boundary')).map((e) => edgeKey(moduleOf(e.fromPath), moduleOf(e.toPath))),
   ]);
-  return { ...graph, matrix, rules: evaluations, violatingEdgeKeys, cards, notAnalysed, notAnalysedNote };
+  return { ...graph, matrix, rules: evaluations, violatingEdgeKeys, cards, notAnalysed, notAnalysedNote, cyclesNotAnalysed };
 }
