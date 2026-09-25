@@ -3,11 +3,12 @@
   finding list, filters, evidence bundle and note panels arrive in later tasks.
 -->
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useReadModels } from '../read-models/use-read-models';
 import { useCityStore } from '../stores/city-store';
 import { useInvestigationStore } from '../stores/investigation-store';
 import { useImportReport } from './use-import-report';
+import { reannounce } from '../kit/reannounce';
 import { INVESTIGATE_EYEBROW, INVESTIGATE_FINDING_GONE, INVESTIGATE_SUBTITLE, INVESTIGATE_TITLE } from '../inspector-copy';
 import PageHeader from '../kit/PageHeader.vue';
 import Callout from '../kit/Callout.vue';
@@ -19,15 +20,21 @@ const investigation = useInvestigationStore();
 const importReport = useImportReport();
 const { quality } = useReadModels();
 const report = computed(() => quality.value.evidence.report);
-const liveMessage = computed(() => (investigation.findingGone ? INVESTIGATE_FINDING_GONE : ''));
+const liveMessage = ref('');
 
 /** IN4/IN34: a re-import that no longer reports the selected fingerprint clears the
  *  selection and raises the gone notice. Task 11 replaces quality.value.byFingerprint with
- *  the investigation model's own map, which has the same keys. */
+ *  the investigation model's own map, which has the same keys. Global Constraints E17:
+ *  announce only the real outcome, through reannounce (a repeated gone finding is heard
+ *  again, as every other screen's live region does — SettingsScreen.vue, SourcesScreen.vue). */
 watch(() => {
   const fp = investigation.selectedFingerprint;
   return fp !== null && report.value !== null && !quality.value.byFingerprint.has(fp);
-}, (gone) => { if (gone) investigation.markGone(); }, { immediate: true });
+}, (gone) => {
+  if (!gone) return;
+  investigation.markGone();
+  void reannounce(liveMessage, INVESTIGATE_FINDING_GONE);
+}, { immediate: true });
 </script>
 
 <template>
