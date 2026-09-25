@@ -18,10 +18,15 @@ import type {
 } from '../../application/ports/investigation-notes-port';
 import { useEvidenceStore } from './evidence-store';
 
+// WP-04 Task 12 review, Important 1 (ruling E19): a finding's fingerprint never includes
+// its line, so a re-run that MOVES the line keeps the same fingerprint and the same
+// (now stale) window. `line` is the REQUEST's own line — the line the window was read
+// for — so a consumer can tell a ready result apart from the CURRENT row's line, never
+// trusting `fingerprint` alone to mean "this window still matches this line".
 export type PreviewState =
   | { readonly status: 'idle' }
   | { readonly status: 'loading'; readonly fingerprint: string }
-  | { readonly status: 'ready'; readonly fingerprint: string; readonly result: PreviewResult };
+  | { readonly status: 'ready'; readonly fingerprint: string; readonly line: number | null; readonly result: PreviewResult };
 
 const IDLE: PreviewState = { status: 'idle' };
 // Module scope (oxlint consistent-function-scoping): captures nothing.
@@ -132,7 +137,7 @@ export const useInvestigationStore = defineStore('investigation', () => {
     const token = previewToken;
     preview.value = { status: 'loading', fingerprint };
     const result = await readSafely(service, request);
-    if (token === previewToken) preview.value = { status: 'ready', fingerprint, result };
+    if (token === previewToken) preview.value = { status: 'ready', fingerprint, line: request.line, result };
   };
   const plan = (folder: string, baseName: string, rootPath: string | null): DestinationPlan | null =>
     (notesPort === null ? null : notesPort.plan(folder, baseName, rootPath));

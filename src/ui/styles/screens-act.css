@@ -41,10 +41,17 @@
   margin: 0; max-height: 28em; overflow: auto; border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small);
   padding: var(--ci-space-2) var(--ci-space-3); background: var(--ci-raised); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em);
 }
-:where(.codebase-inspector-root) .ci-source-preview__line[aria-current="true"] { background: var(--ci-tone-accent); color: var(--ci-on-accent, inherit); border-radius: 2px; }
+/* Fix round 1 (review Minor 5): --ci-on-accent is not a token this codebase defines (the
+   pairing for --ci-tone-accent is --ci-on-action, styles.css); a non-colour cue (the inset
+   border) means the highlight still reads for a viewer who cannot see the fill/text colour
+   at all. */
+:where(.codebase-inspector-root) .ci-source-preview__line[aria-current="true"] {
+  background: var(--ci-tone-accent); color: var(--ci-on-action); border-radius: 2px; box-shadow: inset 0 0 0 1px var(--ci-on-action);
+}
 :where(.codebase-inspector-root) .ci-source-preview__number {
   display: inline-block; width: 3.5em; padding-right: var(--ci-space-2); color: var(--ci-text-faint); text-align: right; user-select: none;
 }
+:where(.codebase-inspector-root) .ci-source-preview__open-error { margin: 0 0 var(--ci-space-2); color: var(--ci-tone-danger); }
 
 /* WP-04 Task 1: the Investigate screen (.ci-screen--investigate; layout rules arrive in Task 11). */
 

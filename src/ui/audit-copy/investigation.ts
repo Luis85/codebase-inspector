@@ -223,13 +223,25 @@ export const PREVIEW_RELOAD = 'Reload';
 export const PREVIEW_OPEN_IN_OBSIDIAN = 'Open in Obsidian';
 export const PREVIEW_LINE_LABEL = (line: number): string => `Reported line ${line}`;
 export const PREVIEW_CUT = '…';
+/** Fix round 1 (review Important 2, E40): Open in Obsidian's own failure line, a
+ *  `role="alert"` under the panel — never the shared reannounce live region, and never
+ *  shown on success (E17: announce only a real outcome). */
+export const PREVIEW_OPEN_FAILED = 'The note could not be opened.';
+/** Fix round 1 (review Minor 11): the no-line verdict's own words assume a real window of
+ *  lines to describe; over a file with none, "the first 41 lines are shown" would be a
+ *  claim about nothing. Shown instead of PREVIEW_STALE_LOCATION('no-line', …) whenever the
+ *  just-read file has zero lines. */
+export const PREVIEW_FILE_EMPTY = 'fallow reports no line for this finding, and the file is empty.';
 /** IPF13 PF-C10: delegates to UNCERTAINTY_LINE_STALE for every check but `no-line`, whose
  *  own sentence is never restated by UNCERTAINTY_LINE_STALE (which has no `no-line` case
- *  at all — a finding with no line is its own verdict, stale-location.ts). */
+ *  at all — a finding with no line is its own verdict, stale-location.ts). Fix round 1
+ *  (review Minor 8): `cause ?? 'unknown'`, never an `as` cast away from `null` — every
+ *  non-`no-line` verdict carries a real cause (stale-location.ts), but this reads the
+ *  type honestly instead of asserting it. */
 export const PREVIEW_STALE_LOCATION = (check: LocationCheck | 'no-line', cause: 'changed' | 'unknown' | null, line: number | null): string =>
   (check === 'no-line'
     ? 'fallow reports no line for this finding, so the first 41 lines are shown.'
-    : UNCERTAINTY_LINE_STALE(check, cause as 'changed' | 'unknown', line));
+    : UNCERTAINTY_LINE_STALE(check, cause ?? 'unknown', line));
 export const PREVIEW_UNAVAILABLE: Readonly<Record<PreviewUnavailable, string>> = {
   'no-binding': 'This codebase’s folder is not connected on this device, or it now points to another folder than the scan read.',
   'no-filesystem': 'Source preview needs the desktop app’s file access.',

@@ -9,7 +9,7 @@ import { computed, ref, watch } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
 import { useReadModels } from '../read-models/use-read-models';
 import {
-  DEFAULT_INVESTIGATION_FILTER, filterInvestigation, type InvestigationFilter,
+  DEFAULT_INVESTIGATION_FILTER, filterInvestigation, type InvestigationFilter, type InvestigationRow,
 } from '../read-models/investigation';
 import {
   evidenceBundleFor, locationInputsFor, previewRequestFor, uncertaintiesFor, checklistFor,
@@ -48,6 +48,10 @@ const filter = ref<InvestigationFilter>({ ...DEFAULT_INVESTIGATION_FILTER });
 const shown = ref(FINDINGS_PAGE);
 const reviewing = ref<string | null>(null);
 const addingWorkItem = ref(false);
+/** Fix round 1 (review Important 2, E40): Open in Obsidian's own busy/failed state — the
+ *  panel only reflects these, the async open and its guard live here. */
+const opening = ref(false);
+const openFailed = ref(false);
 
 const model = computed(() => investigation.value);
 const rows = computed(() => filterInvestigation(model.value.rows, filter.value));
@@ -55,13 +59,20 @@ const selectedRow = computed(() => (investigationStore.selectedFingerprint === n
   ? null : model.value.byFingerprint.get(investigationStore.selectedFingerprint) ?? null));
 const bundle = computed(() => (selectedRow.value ? evidenceBundleFor(selectedRow.value, model.value.evidence, files.value) : null));
 /** IN10: the highlight verdict, only once the CURRENT selection's preview has read ok —
- *  a stale or in-flight result for another row (mid-switch) never lends its verdict here. */
+ *  a stale or in-flight result for another row (mid-switch) never lends its verdict here.
+ *  Fix round 1 (review Important 1, ruling E19): a fingerprint never includes its line, so
+ *  a re-run can move the finding's line while keeping the same fingerprint AND the same
+ *  (now old) window. `state.line` is the line the WINDOW was read for; when it differs
+ *  from the row's CURRENT line, the read is not "for" this line at all, so the verdict is
+ *  null ("not checked") rather than computed against a window that may not even contain
+ *  it — Reload (which re-reads for the current line) is what recovers it. */
 const verdict = computed<LocationVerdict | null>(() => {
   const row = selectedRow.value;
   const snapshot = store.snapshot;
   const state = investigationStore.preview;
   if (row === null || snapshot === null) return null;
   if (state.status !== 'ready' || state.fingerprint !== row.fingerprint || state.result.status !== 'ok') return null;
+  if (state.line !== row.line) return null;
   return locationVerdict(locationInputsFor(row, snapshot, model.value.evidence, state.result.text));
 });
 const uncertainties = computed(() => (selectedRow.value && bundle.value ? uncertaintiesFor(selectedRow.value, bundle.value, verdict.value) : []));
@@ -111,14 +122,35 @@ watch(() => investigationStore.selectedFingerprint, (fp) => {
   if (i >= 0 && i >= shown.value) shown.value = Math.ceil((i + 1) / FINDINGS_PAGE) * FINDINGS_PAGE;
 }, { immediate: true });
 
-/** IN7/IN13 (IP39): the ONLY trigger for a preview read besides Reload — a selection
- *  change, never a list render or a re-import. `immediate` so a fingerprint opened before
- *  this screen mounted (a real entry point) still reads on first render. */
-watch(() => investigationStore.selectedFingerprint, (fp) => {
-  const row = fp === null ? null : model.value.byFingerprint.get(fp) ?? null;
+/** Fix round 1 (review item 12): the one place that reads the CURRENT selection's anchor —
+ *  shared by the read-trigger watch below and Reload, so the two can never drift apart on
+ *  what "read the selection" means. */
+function readSelected(row: InvestigationRow | null): void {
   const snapshot = store.snapshot;
   if (row !== null && snapshot !== null) void investigationStore.readPreview(row.fingerprint, previewRequestFor(row, snapshot));
+}
+
+/** IN7/IN13 (IP39): the ONLY trigger for a preview read besides Reload — a selection
+ *  change, never a list render or a re-import. `immediate` so a fingerprint opened before
+ *  this screen mounted (a real entry point) still reads on first render. Fix round 1
+ *  (review Important 13, ruling E20): a REMOUNT re-runs this `immediate` watch from a
+ *  fresh component instance even though `selectedFingerprint` never changed — `firstRun`
+ *  (THIS instance's own flag, reset on every mount) gates the guard to only that first,
+ *  remount-shaped invocation: when the store already holds a ready or loading read for the
+ *  SAME fingerprint, nothing more is read. A later, genuine re-entry (an actual selection
+ *  change) is never gated by it — IN13 always reads a real change. */
+let firstRun = true;
+watch(() => investigationStore.selectedFingerprint, (fp) => {
+  const row = fp === null ? null : model.value.byFingerprint.get(fp) ?? null;
+  const current = investigationStore.preview;
+  const remounted = firstRun && row !== null && current.status !== 'idle' && current.fingerprint === row.fingerprint;
+  firstRun = false;
+  if (!remounted) readSelected(row);
 }, { immediate: true });
+
+/** Fix round 1 (review Important 2): a stale Open in Obsidian failure never lingers onto
+ *  a later selection. */
+watch(() => investigationStore.selectedFingerprint, () => { openFailed.value = false; });
 
 function updateFilter(next: InvestigationFilter): void {
   filter.value = next;
@@ -135,16 +167,25 @@ function select(fingerprint: string): void {
 }
 
 /** IN11: Reload re-reads the CURRENT selection's anchor file (the panel itself guards a
- *  press while already loading, E40). */
+ *  press while already loading, E40). Always reads, even on a remount's stale window
+ *  (E20 only skips the automatic trigger, never an explicit Reload). */
 function reloadPreview(): void {
-  const row = selectedRow.value;
-  const snapshot = store.snapshot;
-  if (row !== null && snapshot !== null) void investigationStore.readPreview(row.fingerprint, previewRequestFor(row, snapshot));
+  readSelected(selectedRow.value);
 }
 
-function openInObsidian(): void {
+/** Fix round 1 (review Important 2, E40): the panel's own guard (aria-disabled +
+ *  `opening`) stops a double press reaching here at all; this is the second guard for a
+ *  press that somehow still does (a race, a programmatic call). `openFailed` shows the
+ *  panel's own role="alert" line on a `false` result; a `true` result announces nothing
+ *  (E17: only a real outcome, and opening a note is not itself news). */
+async function openInObsidian(): Promise<void> {
   const path = notePath.value;
-  if (path !== null) void investigationStore.openNote(path);
+  if (path === null || opening.value) return;
+  opening.value = true;
+  openFailed.value = false;
+  const ok = await investigationStore.openNote(path);
+  openFailed.value = !ok;
+  opening.value = false;
 }
 
 function openReview(): void {
@@ -240,6 +281,8 @@ async function workItemDone(message: string): Promise<void> {
               :state="investigationStore.preview"
               :verdict="verdict"
               :note-path="notePath"
+              :opening="opening"
+              :open-failed="openFailed"
               @reload="reloadPreview"
               @open-in-obsidian="openInObsidian"
             />

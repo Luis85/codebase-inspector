@@ -175,7 +175,7 @@ describe('investigation store: preview reads (IN13, IP39)', () => {
     const throwing: SourcePreview = { read: () => { throw new Error('sync boom'); } };
     store.setPorts(real, throwing);
     await store.readPreview('a', r1);
-    expect(store.preview).toEqual({ status: 'ready', fingerprint: 'a', result: { status: 'unavailable', reason: 'read-error' } });
+    expect(store.preview).toEqual({ status: 'ready', fingerprint: 'a', line: r1.line, result: { status: 'unavailable', reason: 'read-error' } });
   });
 
   it('a newer read wins whatever order the results arrive in', async () => {
@@ -187,7 +187,7 @@ describe('investigation store: preview reads (IN13, IP39)', () => {
     await flushPromises();
     preview.resolveNext(okOf(1), r1);
     await flushPromises();
-    expect(store.preview).toEqual({ status: 'ready', fingerprint: 'b', result: okOf(2) });
+    expect(store.preview).toEqual({ status: 'ready', fingerprint: 'b', line: r2.line, result: okOf(2) });
     expect(preview.requests).toHaveLength(2);
   });
 
@@ -209,7 +209,7 @@ describe('investigation store: preview reads (IN13, IP39)', () => {
     preview.resolveNext(okOf(1));
     await flushPromises();
     store.open('a');
-    expect(store.preview).toEqual({ status: 'ready', fingerprint: 'a', result: okOf(1) });
+    expect(store.preview).toEqual({ status: 'ready', fingerprint: 'a', line: r1.line, result: okOf(1) });
   });
 
   it('markGone and a codebase change reset the preview synchronously and drop a late result', async () => {
@@ -233,7 +233,7 @@ describe('investigation store: preview reads (IN13, IP39)', () => {
     const failing: SourcePreview = { read: () => Promise.reject(new Error('boom')) };
     store.setPorts(real, failing);
     await store.readPreview('a', r1);
-    expect(store.preview).toEqual({ status: 'ready', fingerprint: 'a', result: { status: 'unavailable', reason: 'read-error' } });
+    expect(store.preview).toEqual({ status: 'ready', fingerprint: 'a', line: r1.line, result: { status: 'unavailable', reason: 'read-error' } });
   });
 });
 
