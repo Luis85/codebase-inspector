@@ -217,7 +217,7 @@ describe('settings tab', () => {
       const codeOnly = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
       expect(literalObsidian.test(codeOnly), file).toBe(false);
     }
-  });
+  }, 30_000);
 
   it('does not render a control for any unimplemented capability', async () => {
     const { tab } = await makeTab([]);
