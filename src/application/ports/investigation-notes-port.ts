@@ -37,9 +37,9 @@ export interface RefreshNoteRequest {
   readonly path: string; readonly codebaseId: string; readonly block: string; readonly snapshotId: string; readonly sourcePath: string;
 }
 
-/** WP-04 E15: `{ status: 'partial' }` — the block was replaced but the frontmatter update
- *  failed, so the note DID change (E17: never reported as "nothing changed"). */
-export type RefreshNoteResult = 'refreshed' | 'markers-edited' | 'missing' | 'not-linked' | 'write-failed' | { readonly status: 'partial' };
+/** WP-04 E15/E17: `'partial'` — the block was replaced but the frontmatter update failed, so
+ *  the note DID change (never reported as "nothing changed"). */
+export type RefreshNoteResult = 'refreshed' | 'partial' | 'markers-edited' | 'missing' | 'not-linked' | 'write-failed';
 
 export interface InvestigationNotesPort {
   destination(codebaseId: string): Promise<NoteDestination>;

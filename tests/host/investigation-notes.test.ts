@@ -351,7 +351,7 @@ describe('refresh (IN31, IN32, IP8)', () => {
   it('WP-04 E15: a frontmatter write that fails after the block was replaced is partial, not write-failed', async () => {
     const { fake, notes } = await created();
     fake.app.fileManager.processFrontMatter = () => Promise.reject(new Error('locked'));
-    expect(await notes.refresh(refreshRequest())).toEqual({ status: 'partial' });
+    expect(await notes.refresh(refreshRequest())).toBe('partial');
     const after = split(fake.text(PATH) ?? '');
     expect(after.body).toContain(NEW_BLOCK);
     expect(after.frontmatter).toMatchObject({ snapshot_id: 's1', source_path: 'src/a.ts' });

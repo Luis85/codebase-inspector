@@ -194,7 +194,7 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
         frontmatter.snapshot_id = request.snapshotId;
         frontmatter.source_path = request.sourcePath;
       });
-    } catch { return { status: 'partial' }; }   // WP-04 E15: the block was already replaced
+    } catch { return 'partial'; }   // WP-04 E15: the block was already replaced
     return 'refreshed';
   }
 
