@@ -178,6 +178,29 @@ export function evidenceFactsFor(row: InvestigationRow, bundle: EvidenceBundle, 
   };
 }
 
+/** IN31 (IP25): what a refresh changes. `null` when the value is unchanged. */
+export interface RefreshChanges {
+  readonly snapshot: { readonly from: string; readonly to: string } | null;
+  readonly sourcePath: { readonly from: string; readonly to: string } | null;
+  readonly state: 'current' | 'stale' | 'not-reported';
+  readonly line: number | null;
+}
+
+const changeOf = (from: string, to: string): { readonly from: string; readonly to: string } | null => (from === to ? null : { from, to });
+
+/** IN31 (IP25): the snapshot and source-path changes, from the note's frontmatter to what
+ *  the refresh writes (`row` is the finding's current row, null when the report no longer
+ *  lists it: its source path stays, IN34), and the evidence state and line the new block
+ *  records. The note stores no line or state, so those are shown as they are now. */
+export function refreshChangesFor(link: NoteLink, row: InvestigationRow | null, evidence: EvidenceIndex, snapshotId: string): RefreshChanges {
+  return {
+    snapshot: changeOf(link.snapshotId, snapshotId),
+    sourcePath: row === null ? null : changeOf(link.sourcePath, row.anchorPath),
+    state: row === null ? 'not-reported' : evidence.state === 'stale' ? 'stale' : 'current',
+    line: row === null ? null : row.line,
+  };
+}
+
 /** IN34: a refreshed note for a finding the current report no longer lists — the block's
  *  own "Not reported by the current analysis" label carries that, never a fabricated
  *  location or severity here. Fix round 1 (review item 8): with no report attached at all,

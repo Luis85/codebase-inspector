@@ -298,3 +298,39 @@ export const NOTE_CREATED_EXCLUDED = (path: string, exclusion: string): string =
 /** IP26: a failed exclusion keeps the note and says so. */
 export const NOTE_EXCLUSION_FAILED = (path: string): string =>
   `Created the investigation note ${path}, but its folder could not be added to this codebase’s excluded paths, so the next scan includes it.`;
+
+// WP-04 Task 14 (IN31-IN36; IP25, E15, E17): the refresh dialog and the notes for findings
+// not in this report. IP25: the dialog says what the block WILL say (the note stores no old
+// line or state), and names the snapshot and source-path changes from the note's frontmatter.
+export const REFRESH_OPEN = 'Refresh evidence…';
+export const REFRESH_OPEN_LABEL = (path: string): string => `Refresh the evidence in ${path}`;
+export const REFRESH_TITLE = 'Refresh the evidence in this note';
+export const REFRESH_EXPLAIN = 'Only the generated evidence block changes. Your sections and the note’s status stay as they are.';
+export const REFRESH_SNAPSHOT = (from: string, to: string): string => `The snapshot changes from ${from} to ${to}.`;
+export const REFRESH_SOURCE_PATH = (from: string, to: string): string => `The source path changes from ${from} to ${to}.`;
+export const REFRESH_AFTER = 'After the refresh, the evidence block records:';
+/** The evidence state the block will record — the block's own words (NOTE_EVIDENCE_STATE_TEXT
+ *  and the vocabulary's `notReported`, IN34), never a second copy of them. */
+export const REFRESH_STATE: Readonly<Record<'current' | 'stale' | 'not-reported', string>> = {
+  current: NOTE_EVIDENCE_STATE_TEXT.current, stale: NOTE_EVIDENCE_STATE_TEXT.stale, 'not-reported': NOTE_VOCABULARY.labels.notReported,
+};
+/** The block's own line words (FINDING_LINE_TEXT, as NOTE_VOCABULARY.labels.line). */
+export const REFRESH_LINE = (line: number | null): string => FINDING_LINE_TEXT(line, null);
+export const REFRESH_CONFIRM = 'Refresh evidence';
+export const REFRESH_CANCEL = CANCEL;
+export const REFRESH_DONE = (path: string): string => `Refreshed the evidence in ${path}.`;
+/** E15/E17: the block WAS replaced, so this never says nothing changed. */
+export const REFRESH_PARTIAL = (path: string): string =>
+  `Refreshed the evidence in ${path}, but the note’s snapshot and source path fields could not be updated.`;
+export const REFRESH_MARKERS_EDITED = 'The note’s evidence markers were edited, moved or removed, so nothing was changed. Restore exactly one begin and one end marker line, or start a new note.';
+/** Refusals stay in the dialog's own role="alert" line (E17). */
+export const REFRESH_FAILED: Readonly<Record<'missing' | 'not-linked' | 'write-failed', string>> = {
+  missing: 'That note is not in the vault any more, so nothing was changed.',
+  'not-linked': 'That note is no longer linked to a finding of this codebase, so nothing was changed.',
+  'write-failed': 'The evidence could not be written to the note.',
+};
+export const NOTES_ORPHAN_TITLE = 'Notes for findings not in this report';
+export const NOTES_ORPHAN_TEXT = 'A changed analysis is not a finished task: these notes keep their status. Refresh one to record that the current analysis does not report its finding.';
+/** IN36: counted, never dropped. */
+export const NOTES_MALFORMED = (n: number): string =>
+  `${n} investigation ${n === 1 ? 'note' : 'notes'} could not be read: ${n === 1 ? 'its' : 'their'} frontmatter was changed.`;

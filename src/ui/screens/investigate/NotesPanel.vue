@@ -1,6 +1,6 @@
 <!--
-  WP-04 IN26, IN30 (IP24, IP38): the selected finding's linked notes — each with its
-  status and an Open button — and Create investigation note…. The notes arrive already
+  WP-04 IN26, IN30, IN31 (IP24, IP38): the selected finding's linked notes — each with its
+  status, an Open button and Refresh evidence… — and Create investigation note…. The notes arrive already
   sorted by path (noteIndexFor, IN30). Every value is interpolated text only (IN17). The
   screen owns the async open and its guard (the same split as SourcePreviewPanel's Open in
   Obsidian): this panel reflects `opening` and `openFailed` and guards its own presses
@@ -10,7 +10,8 @@
 <script setup lang="ts">
 import type { NoteLink } from '../../../application/investigation/note-index';
 import {
-  NOTE_CREATE_OPEN, NOTE_OPEN, NOTE_OPEN_FAILED, NOTE_OPEN_LABEL, NOTE_PANEL_NONE, NOTE_PANEL_TITLE, NOTE_STATUS,
+  NOTE_CREATE_OPEN, NOTE_OPEN, NOTE_OPEN_FAILED, NOTE_OPEN_LABEL, NOTE_PANEL_NONE, NOTE_PANEL_TITLE, NOTE_STATUS, REFRESH_OPEN,
+  REFRESH_OPEN_LABEL,
 } from '../../audit-copy/investigation';
 import Panel from '../../kit/Panel.vue';
 
@@ -19,9 +20,8 @@ const props = defineProps<{
   /** True while an Open is in flight; `openFailed` is the path whose last Open failed. */
   opening: boolean; openFailed: string | null;
 }>();
-// `refresh: [link: NoteLink]` arrives with Task 14's Refresh evidence button, which emits it
-// (declaring it before anything emits it is an `npm run analyze` finding).
-const emit = defineEmits<{ create: []; open: [path: string] }>();
+// Task 14 (IN31): each note's Refresh evidence… opens the refresh dialog for that note.
+const emit = defineEmits<{ create: []; open: [path: string]; refresh: [link: NoteLink] }>();
 
 function guardedCreate(): void {
   if (!props.createBlocked) emit('create');
@@ -69,6 +69,15 @@ function guardedOpen(path: string): void {
           @click="guardedOpen(link.path)"
         >
           {{ NOTE_OPEN }}
+        </button>
+        <button
+          type="button"
+          class="ci-notes-panel__refresh"
+          :data-path="link.path"
+          :aria-label="REFRESH_OPEN_LABEL(link.path)"
+          @click="emit('refresh', link)"
+        >
+          {{ REFRESH_OPEN }}
         </button>
         <p
           v-if="openFailed === link.path"

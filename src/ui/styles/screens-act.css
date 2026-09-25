@@ -5,6 +5,7 @@
 @container (max-width: 819px) {
   :where(.codebase-inspector-root) .ci-investigate__layout { grid-template-columns: minmax(0, 1fr); }
 }
+:where(.codebase-inspector-root) .ci-investigate__main,
 :where(.codebase-inspector-root) .ci-investigate__detail { display: flex; flex-direction: column; gap: var(--ci-space-4); }
 :where(.codebase-inspector-root) .ci-investigate-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-investigate-filters__query { flex: 1 1 14em; }
@@ -59,6 +60,21 @@
 :where(.codebase-inspector-root) .ci-notes-panel__path { flex: 1 1 12em; overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-notes-panel__status { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
 :where(.codebase-inspector-root) .ci-notes-panel__open-error { flex-basis: 100%; margin: 0; color: var(--ci-tone-danger); }
+/* WP-04 Task 14: the notes for findings not in this report, and the refresh dialog. */
+:where(.codebase-inspector-root) .ci-orphan-notes__list { display: grid; gap: var(--ci-space-2); margin: var(--ci-space-2) 0 0; padding: 0; list-style: none; }
+:where(.codebase-inspector-root) .ci-orphan-notes__item { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-orphan-notes__path { flex: 1 1 12em; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-orphan-notes__status { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-orphan-notes__open-error { flex-basis: 100%; margin: 0; color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-orphan-notes__malformed { color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-refresh-note { display: grid; gap: var(--ci-space-2); max-width: 34em; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-refresh-note h3,
+:where(.codebase-inspector-root) .ci-refresh-note p { margin: 0; }
+:where(.codebase-inspector-root) .ci-refresh-note ul { margin: 0; padding-left: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-refresh-note__explain,
+:where(.codebase-inspector-root) .ci-refresh-note__after-label { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-refresh-note__error { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-refresh-note__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); margin-top: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-create-note { display: grid; gap: var(--ci-space-2); max-width: 34em; overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-create-note h3,
 :where(.codebase-inspector-root) .ci-create-note p { margin: 0; }

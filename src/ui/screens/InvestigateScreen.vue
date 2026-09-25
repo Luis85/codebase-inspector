@@ -33,6 +33,9 @@ import NotesPanel from './investigate/NotesPanel.vue';
 import CreateNoteDialog from './investigate/CreateNoteDialog.vue';
 import { useInvestigationNotes } from './investigate/use-investigation-notes';
 import { useInvestigationPreview } from './investigate/use-investigation-preview';
+import { useNoteRefresh } from './investigate/use-note-refresh';
+import RefreshNoteDialog from './investigate/RefreshNoteDialog.vue';
+import OrphanNotesPanel from './investigate/OrphanNotesPanel.vue';
 import FindingReviewDialog from './quality/FindingReviewDialog.vue';
 import WorkItemEditor from './workbench/WorkItemEditor.vue';
 
@@ -59,6 +62,9 @@ const uncertainties = computed(() => (selectedRow.value && bundle.value ? uncert
 const checklist = computed(() => (selectedRow.value ? checklistFor(selectedRow.value.kind) : []));
 const { root, creating, createInput, opening: openingNote, openFailed: noteOpenFailed, openCreate, closeCreate, submitCreate, openLinked } =
   useInvestigationNotes({ row: selectedRow, bundle, uncertainties, live: liveMessage });
+/** IN31-IN34: Refresh evidence for a linked note or a note whose finding is not in this report. */
+const { refreshInput, openRefresh, closeRefresh, submitRefresh } = useNoteRefresh({ row: selectedRow, bundle, uncertainties, model, live: liveMessage });
+const showOrphans = computed(() => model.value.orphanNotes.length > 0 || model.value.malformedNotes > 0);
 const listCounts = computed(() => INVESTIGATE_COUNTS(model.value.rows.length, model.value.withNotes, model.value.orphanNotes.length, model.value.malformedNotes));
 const workDraft = computed(() => {
   const row = selectedRow.value;
@@ -173,25 +179,36 @@ async function workItemDone(message: string): Promise<void> {
         v-else
         class="ci-investigate__layout"
       >
-        <Panel
-          :title="INVESTIGATE_LIST_TITLE"
-          :subtitle="listCounts"
-        >
-          <InvestigationFilters
-            :filter="filter"
-            :rules="model.rules"
-            :severities="model.severities"
-            @update:filter="updateFilter"
-            @reset="resetFilters"
+        <div class="ci-investigate__main">
+          <Panel
+            :title="INVESTIGATE_LIST_TITLE"
+            :subtitle="listCounts"
+          >
+            <InvestigationFilters
+              :filter="filter"
+              :rules="model.rules"
+              :severities="model.severities"
+              @update:filter="updateFilter"
+              @reset="resetFilters"
+            />
+            <InvestigationList
+              :rows="rows"
+              :limit="shown"
+              :selected="investigationStore.selectedFingerprint"
+              @select="select"
+              @more="shown += FINDINGS_PAGE"
+            />
+          </Panel>
+          <OrphanNotesPanel
+            v-if="showOrphans"
+            :notes="model.orphanNotes"
+            :malformed="model.malformedNotes"
+            :opening="openingNote"
+            :open-failed="noteOpenFailed"
+            @open="openLinked"
+            @refresh="openRefresh"
           />
-          <InvestigationList
-            :rows="rows"
-            :limit="shown"
-            :selected="investigationStore.selectedFingerprint"
-            @select="select"
-            @more="shown += FINDINGS_PAGE"
-          />
-        </Panel>
+        </div>
         <div class="ci-investigate__detail">
           <template v-if="selectedRow && bundle">
             <EvidencePanel
@@ -222,6 +239,7 @@ async function workItemDone(message: string): Promise<void> {
               :open-failed="noteOpenFailed"
               @create="openCreate"
               @open="openLinked"
+              @refresh="openRefresh"
             />
           </template>
           <p
@@ -252,6 +270,12 @@ async function workItemDone(message: string): Promise<void> {
       v-bind="createInput"
       :submit="submitCreate"
       @close="closeCreate"
+    />
+    <RefreshNoteDialog
+      v-if="refreshInput"
+      v-bind="refreshInput"
+      :submit="submitRefresh"
+      @close="closeRefresh"
     />
   </div>
 </template>
