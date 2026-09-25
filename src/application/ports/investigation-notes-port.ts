@@ -1,7 +1,8 @@
 // WP-04 §3 (IP12): the one application port for investigation notes. Eight members: the
 // spec's five (list, create, refresh, open, subscribe) plus destination, plan and
 // sourceNotePath. `plan` validates and names WITHOUT writing (IN26, IN27); only `create`
-// and `refresh` write, and only inside the note folder (IN35). The host implementation is
+// and `refresh` write (IN35), and nothing is written outside the chosen notes folder, or to
+// an existing note whose frontmatter links it to this codebase. The host implementation is
 // src/host/investigation-notes.ts.
 import type { NoteFolderProblem, NoteNameProblem } from '../investigation/note-path';
 import type { NoteIdentity } from '../investigation/note-model';
@@ -36,7 +37,9 @@ export interface RefreshNoteRequest {
   readonly path: string; readonly codebaseId: string; readonly block: string; readonly snapshotId: string; readonly sourcePath: string;
 }
 
-export type RefreshNoteResult = 'refreshed' | 'markers-edited' | 'missing' | 'not-linked' | 'write-failed';
+/** WP-04 E15: `{ status: 'partial' }` — the block was replaced but the frontmatter update
+ *  failed, so the note DID change (E17: never reported as "nothing changed"). */
+export type RefreshNoteResult = 'refreshed' | 'markers-edited' | 'missing' | 'not-linked' | 'write-failed' | { readonly status: 'partial' };
 
 export interface InvestigationNotesPort {
   destination(codebaseId: string): Promise<NoteDestination>;

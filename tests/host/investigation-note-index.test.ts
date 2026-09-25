@@ -143,6 +143,31 @@ describe('createNoteIndexSource: rename and duplicate (IN33, Review Focus 5)', (
     expect(source.list('p1')).toBe(before);
   });
 
+  it('WP-04 E14: only the first resolved after start rebuilds from the whole vault', () => {
+    const fake = createFakeVault({ basePath: '/vault' });
+    started(fake);
+    expect(fake.calls.getMarkdownFiles).toBe(1);
+    fake.resolve();
+    expect(fake.calls.getMarkdownFiles).toBe(2);
+    fake.resolve();
+    fake.resolve();
+    expect(fake.calls.getMarkdownFiles).toBe(2);
+  });
+
+  it('a throwing listener does not stop the next one, nor reach the vault event', async () => {
+    const fake = createFakeVault({ basePath: '/vault' });
+    const source = createNoteIndexSource(fake.app, () => undefined);
+    const changed = nextChanged(fake);
+    await fake.app.vault.create('n.md', noteText());
+    await changed;
+    let heard = 0;
+    source.subscribe(() => { throw new Error('listener failed'); });
+    source.subscribe(() => { heard += 1; });
+    expect(() => { fake.userDelete('n.md'); }).not.toThrow();
+    expect(heard).toBe(1);
+    expect(pathsFor(source)).toEqual([]);
+  });
+
   it('an unsubscribed listener hears nothing', async () => {
     const fake = createFakeVault({ basePath: '/vault' });
     const source = createNoteIndexSource(fake.app, () => undefined);

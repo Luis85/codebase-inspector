@@ -37,7 +37,9 @@ import { parse, stringify } from 'yaml';
 // (not a getter/const primitive) so a test that specifically wants the `true` branch can
 // set `Platform.isDesktopApp = true` before a `vi.resetModules()` + dynamic import of
 // node-access.ts (whose `fs`/`fsPromises`/`nodePath` are computed once, at import time).
-export const Platform = { isDesktopApp: false, isWin: false, isMacOS: false };
+// WP-04 Task 9 (fix round 1): `isLinux` selects case-sensitive path containment in
+// src/host/investigation-notes.ts.
+export const Platform = { isDesktopApp: false, isWin: false, isMacOS: false, isLinux: false };
 
 export class Plugin {
   app: unknown;

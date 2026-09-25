@@ -2,14 +2,15 @@
 // code that writes vault notes. Every write is one of `vault.createFolder`, `vault.create`,
 // `vault.process` or `fileManager.processFrontMatter`, and each targets a path that `plan`
 // built from a validated vault-relative folder (IN19: never absolute, never `..`, never the
-// config folder) or an existing linked note — so nothing is written outside the notes
-// folder. The codebase root is written to only when that folder lies inside it, which the
-// create dialog shows and the user confirms (O7, IN29); the only profile change is the
-// exclusion that path adds through `ProfileStore.update`.
-import { FileSystemAdapter, TFile, TFolder, stringifyYaml } from 'obsidian';
+// config folder) or an existing linked note — so nothing is written outside the chosen
+// notes folder, or to an existing note whose frontmatter links it to this codebase. The
+// codebase root is written to only when that folder lies inside it, which the create dialog
+// shows and the user confirms (O7, IN29); the only profile change is the exclusion that
+// path adds through `ProfileStore.update`.
+import { FileSystemAdapter, Platform, TFile, TFolder, stringifyYaml } from 'obsidian';
 import type { App, EventRef } from 'obsidian';
 import { isPlainObject } from '../domain/plain-data';
-import { normalizeExclusion } from '../domain/path-safety';
+import { normalizeExclusion, normalizeRelativePath } from '../domain/path-safety';
 import { defaultNoteFolder, freeNoteName, validateNoteFolder, validateNoteName } from '../application/investigation/note-path';
 import { EVIDENCE_BEGIN, EVIDENCE_END, noteFrontmatter } from '../application/investigation/note-model';
 import { isEvidenceBlock, spliceEvidenceBlock } from '../application/investigation/evidence-block';
@@ -31,6 +32,23 @@ export interface InvestigationNotesDeps {
 
 // The smallest well-formed block: spliceEvidenceBlock refuses any block that is not one.
 const EMPTY_BLOCK = `${EVIDENCE_BEGIN}\n${EVIDENCE_END}`;
+
+// The same bound the index reads back (IP13): a longer or empty value would be malformed.
+const IDENTITY_MAX = 2048;
+
+// Windows and macOS default filesystems are case-insensitive; Linux is not. Read per call.
+function containment(): { caseSensitive: boolean } {
+  return { caseSensitive: Platform.isLinux };
+}
+
+function identityText(value: unknown): boolean {
+  return typeof value === 'string' && value.length > 0 && value.length <= IDENTITY_MAX;
+}
+
+// Defense in depth: the source path is a clean relative path, unchanged by normalising.
+function cleanSourcePath(sourcePath: string): boolean {
+  try { return normalizeRelativePath(sourcePath) === sourcePath; } catch { return false; }
+}
 
 function vaultBase(app: App): string | null {
   const adapter = app.vault.adapter;
@@ -82,7 +100,7 @@ function planDestination(app: App, folder: string, baseName: string, rootPath: s
   const fileName = freeNoteName(nameCheck.name, (candidate) => nameTaken(app, canonical.folder, canonical.node, candidate));
   if (fileName === null) return { status: 'no-free-name' };
   const base = vaultBase(app);
-  const inside = base === null || rootPath === null ? null : relativeInside(rootPath, joinRootPath(base, canonical.folder));
+  const inside = base === null || rootPath === null ? null : relativeInside(rootPath, joinRootPath(base, canonical.folder), containment());
   return {
     status: 'ok', folder: canonical.folder, fileName, path: `${canonical.folder}/${fileName}`,
     renamed: fileName !== `${nameCheck.name}.md`,
@@ -129,7 +147,12 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
     const plan = planDestination(app, request.folder, request.baseName, request.rootPath);
     if (plan.status !== 'ok') return { status: 'refused', reason: 'invalid' };
     if (plan.renamed || !isEvidenceBlockBody(request.body)) return { status: 'refused', reason: plan.renamed ? 'exists' : 'invalid' };
-    const text = `---\n${stringifyYaml(noteFrontmatter(request.identity, deps.clock.nowIso()))}---\n\n${request.body}`;
+    const frontmatter = noteFrontmatter(request.identity, deps.clock.nowIso());
+    // Every value written must read back as a linked note (IP13), never as malformed.
+    if (!cleanSourcePath(request.identity.sourcePath) || !Object.values(frontmatter).every(identityText)) {
+      return { status: 'refused', reason: 'invalid' };
+    }
+    const text = `---\n${stringifyYaml(frontmatter)}---\n\n${request.body}`;
     try {
       await ensureFolders(app, plan.folder);
       await app.vault.create(plan.path, text);   // never overwrites (IN27); a rejection is the race guard (IPF16)
@@ -147,6 +170,7 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
   async function refresh(request: RefreshNoteRequest): Promise<RefreshNoteResult> {
     // The splice refuses a CR in the block too; checked here so it is never read as edited markers.
     if (!isEvidenceBlock(request.block) || request.block.includes('\r')) return 'write-failed';
+    if (!cleanSourcePath(request.sourcePath) || !identityText(request.snapshotId)) return 'write-failed';
     const file = app.vault.getFileByPath(request.path);
     if (file === null) return 'missing';
     const record = readNoteFrontmatter(file.path, app.metadataCache.getFileCache(file)?.frontmatter);
@@ -161,14 +185,16 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
         state.refused = true;
         return data;
       });
-      if (state.refused) return 'markers-edited';
+    } catch { return 'write-failed'; }
+    if (state.refused) return 'markers-edited';
+    try {
       // IN32 (IP8): only these two keys change; every other value is kept.
       await app.fileManager.processFrontMatter(file, (frontmatter: unknown) => {
         if (!isPlainObject(frontmatter)) return;
         frontmatter.snapshot_id = request.snapshotId;
         frontmatter.source_path = request.sourcePath;
       });
-    } catch { return 'write-failed'; }
+    } catch { return { status: 'partial' }; }   // WP-04 E15: the block was already replaced
     return 'refreshed';
   }
 
@@ -192,7 +218,7 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
   function sourceNotePath(rootPath: string, relativePath: string): string | null {
     const base = vaultBase(app);
     if (base === null) return null;
-    const inVault = relativeInside(base, joinRootPath(rootPath, relativePath));
+    const inVault = relativeInside(base, joinRootPath(rootPath, relativePath), containment());
     if (inVault === null || inVault === '') return null;
     const file = app.vault.getFileByPath(inVault);
     return file !== null && file.extension === 'md' ? file.path : null;

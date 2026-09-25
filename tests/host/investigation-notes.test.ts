@@ -3,6 +3,7 @@
 // Windows host) and a case-sensitive one: plan, create, the race, the exclusion, refresh,
 // open, destination and sourceNotePath.
 import { describe, expect, it } from 'vitest';
+import { Platform } from 'obsidian';
 import { parseYaml, stringifyYaml } from '../mocks/obsidian';
 import { createFakeVault } from '../fixtures/fake-vault';
 import type { FakeVault, FakeVaultOptions } from '../fixtures/fake-vault';
@@ -38,6 +39,13 @@ function request(overrides: Partial<CreateNoteRequest> = {}): CreateNoteRequest 
 }
 
 const VAULTS: readonly (readonly [string, boolean])[] = [['case-insensitive', true], ['case-sensitive', false]];
+
+// Runs `read` with Obsidian's Platform.isLinux set, then restores it.
+function onPlatform<T>(isLinux: boolean, read: () => T): T {
+  const saved = Platform.isLinux;
+  Platform.isLinux = isLinux;
+  try { return read(); } finally { Platform.isLinux = saved; }
+}
 
 describe('plan (IN26, IN27, IP9)', () => {
   it('names the note in the folder when nothing is taken', async () => {
@@ -108,6 +116,11 @@ describe('plan: overlap with the codebase root (IN29, IP26)', () => {
     expect(notes.plan(folder, 'x', rootPath)).toMatchObject({ status: 'ok', overlapsRoot, rootRelativeFolder });
   });
 
+  it.each([[false, true, 'notes'], [true, false, null]] as const)('a root differing only in case, Platform.isLinux %s: overlapsRoot %s', async (isLinux, overlapsRoot, rootRelativeFolder) => {
+    const { notes } = await setup();
+    expect(onPlatform(isLinux, () => notes.plan('code/notes', 'x', '/vault/Code'))).toMatchObject({ overlapsRoot, rootRelativeFolder });
+  });
+
   it('a mobile vault (no base path) never overlaps', async () => {
     const { notes } = await setup({ basePath: null });
     expect(notes.plan('code/notes', 'x', '/vault/code')).toMatchObject({ status: 'ok', overlapsRoot: false, rootRelativeFolder: null });
@@ -161,6 +174,26 @@ describe('create (IN27, IN28)', () => {
     expect(await notes.create(request({ body: 'no markers' }))).toEqual({ status: 'refused', reason: 'invalid' });
     expect(await notes.create(request({ body: `${EVIDENCE_END}\n${EVIDENCE_BEGIN}\n` }))).toEqual({ status: 'refused', reason: 'invalid' });
     expect(writes()).toBe(0);
+  });
+
+  it.each([
+    ['a traversing source path', { sourcePath: '../a.ts' }],
+    ['an absolute source path', { sourcePath: '/etc/a.ts' }],
+    ['a backslash source path', { sourcePath: 'src\\a.ts' }],
+    ['an empty finding id', { findingId: '' }],
+    ['an empty codebase id', { codebaseId: '' }],
+    ['an over-long snapshot id', { snapshotId: 's'.repeat(2049) }],
+    ['a fingerprint over 2,048 characters', { sourcePath: 'a'.repeat(1024), findingId: 'f'.repeat(1024) }],
+  ] as const)('refuses an identity with %s as invalid, writing nothing', async (_label, overrides) => {
+    const { notes, writes } = await setup();
+    expect(await notes.create(request({ identity: { ...IDENTITY, ...overrides } }))).toEqual({ status: 'refused', reason: 'invalid' });
+    expect(writes()).toBe(0);
+  });
+
+  it('accepts identity values at the 2,048-character bound', async () => {
+    const { notes } = await setup();
+    const identity = { ...IDENTITY, sourcePath: 'a'.repeat(1023), findingId: 'f'.repeat(1024), snapshotId: 's'.repeat(2048) };
+    expect(await notes.create(request({ identity }))).toMatchObject({ status: 'created' });
   });
 
   it('a failed write is write-failed', async () => {
@@ -310,7 +343,32 @@ describe('refresh (IN31, IN32, IP8)', () => {
     const { frontmatter, body } = split(before ?? '');
     const { type: _type, ...untyped } = frontmatter;
     fake.userWrite(PATH, `---\n${stringifyYaml({ ...untyped, codebase_id: 'p1' })}---\n${body}`);
+    const untypedText = fake.text(PATH);
     expect(await notes.refresh(refreshRequest())).toBe('not-linked');
+    expect(fake.text(PATH)).toBe(untypedText);
+  });
+
+  it('WP-04 E15: a frontmatter write that fails after the block was replaced is partial, not write-failed', async () => {
+    const { fake, notes } = await created();
+    fake.app.fileManager.processFrontMatter = () => Promise.reject(new Error('locked'));
+    expect(await notes.refresh(refreshRequest())).toEqual({ status: 'partial' });
+    const after = split(fake.text(PATH) ?? '');
+    expect(after.body).toContain(NEW_BLOCK);
+    expect(after.frontmatter).toMatchObject({ snapshot_id: 's1', source_path: 'src/a.ts' });
+  });
+
+  it.each([
+    ['a traversing source path', { sourcePath: '../x.ts' }],
+    ['a backslash source path', { sourcePath: 'src\\b.ts' }],
+    ['an empty snapshot id', { snapshotId: '' }],
+    ['an over-long snapshot id', { snapshotId: 's'.repeat(2049) }],
+  ] as const)('%s is write-failed, nothing written', async (_label, overrides) => {
+    const { fake, notes, writes } = await created();
+    const before = fake.text(PATH);
+    const count = writes();
+    expect(await notes.refresh(refreshRequest(overrides))).toBe('write-failed');
+    expect(fake.text(PATH)).toBe(before);
+    expect(writes()).toBe(count);
   });
 
   it.each([
@@ -364,6 +422,11 @@ describe('sourceNotePath (IN12)', () => {
     expect((await withDocs()).sourceNotePath('/vault/docs', 'guide.md')).toBe('docs/guide.md');
     expect((await withDocs()).sourceNotePath('/vault', 'docs/guide.md')).toBe('docs/guide.md');
     expect((await withDocs({ basePath: 'C:\\v' })).sourceNotePath('C:\\v\\docs', 'guide.md')).toBe('docs/guide.md');
+  });
+
+  it.each([[false, 'docs/guide.md'], [true, null]] as const)('a root whose vault part differs in case, Platform.isLinux %s: %s', async (isLinux, expected) => {
+    const notes = await withDocs();
+    expect(onPlatform(isLinux, () => notes.sourceNotePath('/VAULT/docs', 'guide.md'))).toBe(expected);
   });
 
   it('refuses a code file, a root outside the vault, a mobile vault and a file the vault does not hold', async () => {
