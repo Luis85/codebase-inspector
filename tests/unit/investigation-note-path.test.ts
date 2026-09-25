@@ -7,6 +7,8 @@ const validFolder = (v: string) => validateNoteFolder(v, '.obsidian');
 
 // IPF1: NOTE_NAME_MAX, COLLISION_MAX and sanitizeNoteName are module-private. Sanitising is
 // reached through noteBaseName and validateNoteName, and every constant below is a literal.
+// The empty finding id and kind label in noteBaseName('', '', …) below exist only to reach
+// sanitising through a public function; they carry no meaning of their own here.
 describe('sanitising a note name (IN21)', () => {
   it('removes the forbidden characters and control characters, collapses whitespace', () => {
     expect(noteBaseName('ID', 'K', 'a\\b/c:d*e?f"g<h>i|j#k^l[m]n\u0000o   p')).toBe('ID K abcdefghijklmno p');
@@ -20,8 +22,21 @@ describe('sanitising a note name (IN21)', () => {
     expect(noteBaseName('', '', 'nul.backup')).toBe('nul_.backup');
     expect(noteBaseName('', '', 'console')).toBe('console');
   });
+  it('recognises the extended reserved list: COM0, CONIN$ and a superscript-digit variant (review round 1, finding 5)', () => {
+    const superscriptTwo = String.fromCodePoint(0xB2); // built from a code point, never a literal source char.
+    expect(noteBaseName('', '', 'COM0')).toBe('COM0_');
+    expect(noteBaseName('', '', 'CONIN$')).toBe('CONIN$_');
+    expect(noteBaseName('', '', `LPT${superscriptTwo}`)).toBe(`LPT${superscriptTwo}_`);
+  });
   it('cuts at 100 code points', () => {
     expect(Array.from(noteBaseName('', '', 'é'.repeat(150)))).toHaveLength(100);
+  });
+  it('keeps the reserved-name suffix within 100 code points and stays idempotent (review round 1, finding 4)', () => {
+    const hostile = `CON.${'x'.repeat(96)}`; // exactly 100 code points before sanitising
+    const once = noteBaseName('', '', hostile);
+    expect(Array.from(once).length).toBeLessThanOrEqual(100);
+    expect(noteBaseName('', '', once)).toBe(once); // sanitising through the public function is idempotent
+    expect(validateNoteFolder(defaultNoteFolder(hostile), '.obsidian').ok).toBe(true);
   });
 });
 

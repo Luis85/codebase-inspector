@@ -7,20 +7,47 @@ import { normalizeRelativePath } from '../../domain/path-safety';
 
 // IPF1: module-private — tests reach sanitising through noteBaseName and validateNoteName.
 const NOTE_NAME_MAX = 100;
-const NOTE_FOLDER_MAX = 200;
+// Task 8 imports NOTE_FOLDER_MAX for its zod shape, so it stays exported (not in IPF1's list).
+export const NOTE_FOLDER_MAX = 200;
 const COLLISION_MAX = 99;
 // IPF8: the longest possible suffix, ' (99)', reserved out of the 100-code-point budget.
 const SUFFIX_RESERVE = ' (99)'.length;
 const DEFAULT_ROOT = 'Codebase investigations';
 
-// eslint-disable-next-line no-control-regex -- detecting control characters is the point.
-const NAME_FORBIDDEN = /[\\/:*?"<>|#^[\]\u0000-\u001F\u007F-\u009F‎‏‪-‮⁦-⁩]/g;
-const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?=\.|$)/i;
+function codeRange(lo: number, hi: number): number[] {
+  const out: number[] = [];
+  for (let c = lo; c <= hi; c += 1) out.push(c);
+  return out;
+}
 
+// Review round 1, finding 1: every control and bidi/format code point is built from a NUMBER
+// here, never a literal or escape-text character in source — the module that strips these
+// characters out of a note name must not itself carry one as a raw source byte.
+const CONTROL_AND_BIDI_CODES = codeRange(0x00, 0x1F).concat(
+  codeRange(0x7F, 0x9F),
+  [0x200E, 0x200F, 0x202A, 0x202B, 0x202C, 0x202D, 0x202E, 0x2066, 0x2067, 0x2068, 0x2069],
+);
+const CONTROL_AND_BIDI_CHARS = CONTROL_AND_BIDI_CODES.map((c) => String.fromCharCode(c)).join('');
+const NAME_FORBIDDEN = new RegExp(`[\\\\/:*?"<>|#^[\\]${CONTROL_AND_BIDI_CHARS}]`, 'g');
+
+// Review round 1, finding 5: Microsoft's documented reserved device names — CON, PRN, AUX,
+// NUL, COM0-9, LPT0-9, the superscript-digit variants (COM/LPT followed by superscript 1, 2
+// or 3), and CONIN$/CONOUT$. The superscripts are built from code points for the same reason
+// as CONTROL_AND_BIDI_CHARS above.
+const SUPERSCRIPT_123 = [0xB9, 0xB2, 0xB3].map((c) => String.fromCharCode(c)).join('');
+const RESERVED = new RegExp(`^(con|prn|aux|nul|com[0-9${SUPERSCRIPT_123}]|lpt[0-9${SUPERSCRIPT_123}]|conin\\$|conout\\$)(?=\\.|$)`, 'i');
+
+// Review round 1, finding 4: the reserved-name suffix is applied to the UNCUT text, then the
+// cut and trailing-dot/space strip happen, then the reserved check runs again — otherwise a
+// name already at the 100-code-point cap (e.g. "CON." + 96 chars) grows to 101 code points
+// when the suffix lands after the cut. This keeps sanitizeNoteName(sanitizeNoteName(x)) ===
+// sanitizeNoteName(x) for every input, never just for the ones a test happens to try twice.
 function sanitizeNoteName(value: string): string {
   const cleaned = value.replace(NAME_FORBIDDEN, '').replace(/\s+/g, ' ').trim().replace(/^[.\s]+/, '');
-  const cut = Array.from(cleaned).slice(0, NOTE_NAME_MAX).join('');
-  return cut.replace(/[.\s]+$/, '').replace(RESERVED, '$1_');
+  const suffixed = cleaned.replace(RESERVED, '$1_');
+  const cut = Array.from(suffixed).slice(0, NOTE_NAME_MAX).join('');
+  const stripped = cut.replace(/[.\s]+$/, '');
+  return stripped.replace(RESERVED, '$1_');
 }
 
 export function noteBaseName(findingId: string, kindLabel: string, anchorName: string): string {
@@ -34,7 +61,9 @@ export function defaultNoteFolder(profileName: string): string {
 }
 
 export type NoteFolderProblem = 'empty' | 'not-relative' | 'too-long' | 'config-dir' | 'unsafe-name';
-export type NoteFolderCheck = { ok: true; folder: string } | { ok: false; problem: NoteFolderProblem };
+// Review round 1, finding 3: module-private — validateNoteFolder still exports the check
+// itself; an exported function may return a non-exported alias.
+type NoteFolderCheck = { ok: true; folder: string } | { ok: false; problem: NoteFolderProblem };
 
 export function validateNoteFolder(value: string, configDir: string): NoteFolderCheck {
   const trimmed = value.trim().replace(/\/+$/, '');
@@ -53,7 +82,8 @@ export function validateNoteFolder(value: string, configDir: string): NoteFolder
 }
 
 export type NoteNameProblem = 'empty' | 'too-long' | 'unsafe-name';
-export type NoteNameCheck = { ok: true; name: string } | { ok: false; problem: NoteNameProblem };
+// Review round 1, finding 3: module-private, for the same reason as NoteFolderCheck.
+type NoteNameCheck = { ok: true; name: string } | { ok: false; problem: NoteNameProblem };
 
 export function validateNoteName(value: string): NoteNameCheck {
   const trimmed = value.trim().replace(/\.md$/i, '');
