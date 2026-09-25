@@ -1,5 +1,37 @@
 /* WP-02 screens, Act area: Refactor workbench and Audit report (Part 4). */
 
+/* WP-04 Task 11: the Investigate screen — list, filters, evidence and uncertainty panels. */
+:where(.codebase-inspector-root) .ci-investigate__layout { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1fr) minmax(20em, 30em); align-items: start; }
+@container (max-width: 820px) {
+  :where(.codebase-inspector-root) .ci-investigate__layout { grid-template-columns: minmax(0, 1fr); }
+}
+:where(.codebase-inspector-root) .ci-investigate__detail { display: flex; flex-direction: column; gap: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-investigate-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-investigate-filters__query { flex: 1 1 14em; }
+:where(.codebase-inspector-root) .ci-investigate-list-wrap { display: flex; flex-direction: column; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-investigate-list { display: flex; flex-direction: column; gap: var(--ci-space-1); margin: 0; padding: 0; list-style: none; }
+:where(.codebase-inspector-root) button.ci-investigate-row {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); width: 100%; height: auto;
+  padding: var(--ci-space-2) var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small);
+  background: var(--ci-raised); color: var(--ci-text); text-align: left; white-space: normal; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-investigate-row:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) button.ci-investigate-row[aria-current="true"] { border-color: var(--ci-tone-accent); background: var(--ci-panel); }
+:where(.codebase-inspector-root) .ci-investigate-row__title { flex: 1 1 12em; font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-investigate-row__kind,
+:where(.codebase-inspector-root) .ci-investigate-row__location { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-investigate-row__notes { color: var(--ci-tone-accent); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-investigate-list__footer { display: flex; justify-content: center; }
+:where(.codebase-inspector-root) .ci-evidence-panel__chips { display: flex; gap: var(--ci-space-2); min-height: 1em; }
+:where(.codebase-inspector-root) .ci-evidence-panel__summary { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-evidence-panel__meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0 0 var(--ci-space-3); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-evidence-panel__meta dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-evidence-panel__meta dd { margin: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-evidence-panel__work-items { margin: 0; padding-left: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-evidence-panel__actions { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-uncertainty-panel__list,
+:where(.codebase-inspector-root) .ci-uncertainty-panel__checklist { display: grid; gap: var(--ci-space-2); margin: 0; padding-left: var(--ci-space-4); }
+
 /* WP-04 Task 1: the Investigate screen (.ci-screen--investigate; layout rules arrive in Task 11). */
 
 /* Part 4 Task 10: Refactor workbench and the Work-item editor. */

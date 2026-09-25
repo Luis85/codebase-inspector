@@ -5,7 +5,7 @@
 // INVESTIGATE_HOTSPOT_TITLE/_DETAIL, INVESTIGATE_MODULE_DETAIL, INVESTIGATE_FILE_TITLE,
 // INVESTIGATE_LARGEST_DETAIL (inspector-copy.ts) and INVESTIGATE_FILE_LABEL are untouched
 // and never redefined here.
-import type { FindingCategory } from '../../application/evidence/model';
+import type { EvidenceOrigin, FindingCategory } from '../../application/evidence/model';
 import type { NoteVocabulary } from '../../application/investigation/note-model';
 import type { NoteFolderProblem } from '../../application/investigation/note-path';
 import type { LocationCheck } from '../../application/investigation/stale-location';
@@ -166,3 +166,40 @@ export const CHECKLIST_BY_KIND: Readonly<Record<FindingCategory, readonly string
     'Check whether the import is generated or conditional.',
   ],
 };
+
+// WP-04 Task 11 (IN1-IN6, IN14-IN17): the Investigate screen's finding list, filters,
+// evidence bundle and uncertainty panels, and Add work item's pre-filled draft (IP22).
+export const INVESTIGATE_LIST_TITLE = 'Findings to investigate';
+export const INVESTIGATE_LIST_LABEL = 'Findings, most severe first';
+export const INVESTIGATE_FILTER_RULE = 'Rule';
+export const INVESTIGATE_ALL_RULES = 'All rules';
+export const INVESTIGATE_FILTER_NOTE = 'Note';
+export const INVESTIGATE_NOTE_ALL = 'With or without a note';
+export const INVESTIGATE_NOTE_WITH = 'Has a note';
+export const INVESTIGATE_NOTE_WITHOUT = 'No note';
+/** The list panel's own subtitle: the unfiltered totals, never a percentage or a score. */
+export const INVESTIGATE_COUNTS = (rows: number, withNotes: number, orphans: number, malformed: number): string => {
+  const parts = [`${rows} finding${rows === 1 ? '' : 's'}`, `${withNotes} with a note`];
+  if (orphans > 0) parts.push(`${orphans} orphaned`);
+  if (malformed > 0) parts.push(`${malformed} malformed`);
+  return parts.join(' · ');
+};
+export const INVESTIGATE_NONE_SELECTED = 'Select a finding to see its evidence.';
+export const INVESTIGATE_NOTES_CHIP = (n: number): string => `${n} ${n === 1 ? 'note' : 'notes'}`;
+export const INVESTIGATE_EVIDENCE_TITLE = 'Evidence';
+export const INVESTIGATE_UNCERTAINTY_TITLE = 'What this evidence cannot tell you';
+export const INVESTIGATE_CHECKLIST_TITLE = 'Suggested checks';
+export const INVESTIGATE_CHECKLIST_HINT = 'These seed a new note’s checklist. After that they are yours to edit.';
+/** IP22: Investigate's own pre-fill for WorkItemEditor's create mode. */
+export const INVESTIGATE_WORK_TITLE = (findingId: string, fileName: string): string => `Investigate ${findingId} in ${fileName}`;
+/** IP22/IN17: plain text only — no `[[`, `](` or `://` — so the draft can never open a link. */
+export const INVESTIGATE_WORK_NOTES = (kind: string, rule: string, path: string, line: string): string =>
+  `${kind} finding (${rule}) at ${path}, ${line}.`;
+// The evidence panel's own row labels not already carried by NOTE_VOCABULARY.labels.
+export const INVESTIGATE_ROW_ORIGIN = 'Origin';
+export const INVESTIGATE_ROW_ANALYSED = 'Analysed';
+export const INVESTIGATE_ROW_SNAPSHOT = 'Snapshot';
+export const INVESTIGATE_ROW_STATE = 'Evidence state';
+export const INVESTIGATE_ROW_DISPOSITION = 'Disposition';
+export const INVESTIGATE_ROW_WORK_ITEMS = 'Work items';
+export const INVESTIGATE_ORIGIN_TEXT: Readonly<Record<EvidenceOrigin, string>> = { imported: 'Imported report', collected: 'Collected run' };

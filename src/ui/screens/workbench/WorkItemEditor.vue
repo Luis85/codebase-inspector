@@ -21,7 +21,7 @@ import {
 import CiDialog from '../../kit/Dialog.vue';
 import WorkChecklist from './WorkChecklist.vue';
 
-const props = defineProps<{ itemId: string | null; newFile: FileSummary | null }>();
+const props = defineProps<{ itemId: string | null; newFile: FileSummary | null; draft?: { title: string; notes: string } | null }>();
 const emit = defineEmits<{ close: []; done: [message: string] }>();
 
 const PRIORITIES: readonly WorkPriority[] = ['high', 'medium', 'low'];
@@ -40,11 +40,11 @@ const base = useUniqueId('ci-work-editor');
 const existing = computed(() => (props.itemId === null ? null : review.workItems.find((w) => w.id === props.itemId) ?? null));
 const start = existing.value;
 
-const title = ref(start?.title ?? (props.newFile ? WORK_ITEM_TITLE(props.newFile.name) : ''));
+const title = ref(start?.title ?? props.draft?.title ?? (props.newFile ? WORK_ITEM_TITLE(props.newFile.name) : ''));
 const priority = ref<WorkPriority>(start?.priority ?? 'medium');
 const status = ref<WorkItemStatus>(start?.status ?? 'investigate');
 const intent = ref<WorkIntent>('refactor');
-const notes = ref(start?.notes ?? '');
+const notes = ref(start?.notes ?? props.draft?.notes ?? '');
 const checks = ref<[boolean, boolean, boolean]>(start ? [start.checks[0], start.checks[1], start.checks[2]] : [false, false, false]);
 const error = ref('');
 const confirming = ref(false);

@@ -1,5 +1,6 @@
 [
   "loads the plugin without errors and opens the inspector on its default route",
+  "renders the Investigate route in a real leaf",
   "vault.create rejects a path that already exists",
   "backslash escapes keep Obsidian syntax inert in reading and live-preview views",
   "the metadata cache reports notes changed by process and processFrontMatter",
