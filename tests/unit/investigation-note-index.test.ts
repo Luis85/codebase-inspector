@@ -31,6 +31,9 @@ describe('readNoteFrontmatter (IN33)', () => {
   it('keeps a non-string status as no status', () => {
     expect(readNoteFrontmatter('n.md', fm({ status: 3 }))).toMatchObject({ link: { status: null } });
   });
+  it('treats a cache with no frontmatter as not ours (undefined, distinct from null)', () => {
+    expect(readNoteFrontmatter('n.md', undefined)).toBeNull();
+  });
 });
 
 describe('applyNoteEvent and noteIndexFor', () => {
@@ -53,6 +56,19 @@ describe('applyNoteEvent and noteIndexFor', () => {
   it('unlinks a note whose frontmatter was edited away', () => {
     const edited = applyNoteEvent(base, { kind: 'changed', path: 'a.md', frontmatter: { type: 'note' } });
     expect(noteIndexFor(edited, 'p1').byFingerprint.get('src/a.ts#UN-00000001')!.map((l) => l.path)).toEqual(['b.md']);
+  });
+  it('follows a malformed -> valid -> malformed round trip at the same path', () => {
+    const step1 = applyNoteEvent(EMPTY, { kind: 'changed', path: 'r.md', frontmatter: fm({ finding_id: 1 }) });
+    expect(step1).not.toBe(EMPTY);
+    expect(noteIndexFor(step1, 'p1').malformed).toBe(1);
+    const step2 = applyNoteEvent(step1, { kind: 'changed', path: 'r.md', frontmatter: fm() });
+    expect(step2).not.toBe(step1);
+    const index2 = noteIndexFor(step2, 'p1');
+    expect(index2.malformed).toBe(0);
+    expect(index2.byFingerprint.get('src/a.ts#UN-00000001')!.map((l) => l.path)).toEqual(['r.md']);
+    const step3 = applyNoteEvent(step2, { kind: 'changed', path: 'r.md', frontmatter: fm({ finding_id: 1 }) });
+    expect(step3).not.toBe(step2);
+    expect(noteIndexFor(step3, 'p1').malformed).toBe(1);
   });
   it('returns the same map when nothing changed, so no listener fires', () => {
     expect(applyNoteEvent(base, { kind: 'changed', path: 'a.md', frontmatter: fm() })).toBe(base);
