@@ -167,11 +167,16 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
     return path === '' || resolveFolder(path) !== null;
   }
 
-  function isTaken(path: string): boolean {
+  // Fix round 2: `excludeFile` lets a caller (userRename) ask "is this path taken BY
+  // SOMEONE ELSE" -- without it, a case-only match always includes the file's own
+  // existing entry, so a case-only rename to itself (`note.md` -> `Note.md`, legitimate
+  // in real Obsidian) would wrongly read as a collision with itself.
+  function isTaken(path: string, excludeFile?: string): boolean {
     if (files.has(path) || folderObjects.has(path)) return true;
     if (!caseInsensitive) return false;
-    return findCaseInsensitiveKey(path, files.keys()) !== undefined
-      || findCaseInsensitiveKey(path, folderObjects.keys()) !== undefined;
+    const fileMatch = findCaseInsensitiveKey(path, files.keys());
+    if (fileMatch !== undefined && fileMatch !== excludeFile) return true;
+    return findCaseInsensitiveKey(path, folderObjects.keys()) !== undefined;
   }
 
   // Fix round 1 (WP-04 E12): the real metadata cache re-parses OFF the write, not
@@ -298,7 +303,7 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
     userRename(oldPath, newPath) {
       const record = files.get(oldPath);
       if (!record) throw new Error(`fake vault: no file at ${oldPath}`);
-      if (newPath !== oldPath && isTaken(newPath)) {
+      if (newPath !== oldPath && isTaken(newPath, oldPath)) {
         throw new Error(`fake vault: userRename destination already exists: ${newPath}`);
       }
       files.delete(oldPath);

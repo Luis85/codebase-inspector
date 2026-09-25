@@ -209,6 +209,34 @@ describe('createFakeVault: user-driven edits and listeners', () => {
     expect(fakeVault.text('new.md')).toBe('already here');
   });
 
+  // Fix round 2: a case-only rename of a file TO ITSELF is legitimate in real Obsidian
+  // (Windows/macOS case-insensitive disks let a user correct a name's case) and must not
+  // be mistaken for a collision against the file's own existing entry.
+  it('a case-only rename to itself succeeds (moves, keeps content, fires "rename")', async () => {
+    const fakeVault = createFakeVault();
+    await fakeVault.app.vault.create('note.md', 'hello');
+    const events: string[] = [];
+    fakeVault.app.vault.on('rename', () => { events.push('rename'); });
+
+    fakeVault.userRename('note.md', 'Note.md');
+
+    expect(events).toEqual(['rename']);
+    expect(fakeVault.text('Note.md')).toBe('hello');
+    expect(fakeVault.text('note.md')).toBeUndefined();
+    expect(fakeVault.paths()).toEqual(['Note.md']);
+  });
+
+  it('renaming onto a DIFFERENT existing file still throws, even when it differs only by case', async () => {
+    const fakeVault = createFakeVault();
+    await fakeVault.app.vault.create('old.md', 'old text');
+    await fakeVault.app.vault.create('New.md', 'already here');
+
+    expect(() => fakeVault.userRename('old.md', 'new.md')).toThrow();
+
+    expect(fakeVault.text('old.md')).toBe('old text');
+    expect(fakeVault.text('New.md')).toBe('already here');
+  });
+
   it('userDelete fires vault "delete"', async () => {
     const fakeVault = createFakeVault();
     await fakeVault.app.vault.create('note.md', 'hello');
