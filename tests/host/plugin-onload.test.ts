@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type MockInstance } from 'vitest';
 import CodebaseInspectorPlugin from '../../src/main';
 import { CITY_VIEW_TYPE } from '../../src/host/city-view';
 import { CodebaseInspectorSettingTab } from '../../src/host/settings-tab';
@@ -245,19 +245,38 @@ describe('the review registry (Part 6 Y11, Y17)', () => {
   });
 });
 
+/** A loaded plugin double over one in-memory data.json, with its settings tab's refresh spied (and stubbed). */
+async function loadedWithTab(): Promise<{ p: PluginDouble; refresh: MockInstance<CodebaseInspectorSettingTab['refresh']> }> {
+  const p = makePluginDouble();
+  let data: unknown = null;
+  Object.assign(p, {
+    loadData: vi.fn(() => Promise.resolve(data)),
+    saveData: vi.fn((next: unknown) => { data = JSON.parse(JSON.stringify(next)) as unknown; return Promise.resolve(); }),
+  });
+  p.onload();
+  const tab = p.addSettingTab.mock.calls[0]?.[0] as CodebaseInspectorSettingTab;
+  await tab.refresh();
+  return { p, refresh: vi.spyOn(tab, 'refresh').mockResolvedValue() };
+}
+
 // WP-04.2 NE9: onload watches data.json for the settings tab; onunload stops it.
 describe('the settings tab follows data.json writes while the plugin is loaded (WP-04.2 NE9)', () => {
+  // Every slice the tab shows: its profiles, their bindings, their fallow executables and their notes folders.
+  it.each(['profiles', 'bindings', 'analyzers', 'investigations'] as const)('a %s write refreshes the tab', async (key) => {
+    const { p, refresh } = await loadedWithTab();
+    await writePluginDataSlice(p, key, () => ({ written: key }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('a reviews write does not refresh the tab, which shows no review state', async () => {
+    const { p, refresh } = await loadedWithTab();
+    await writePluginDataSlice(p, 'reviews', () => ({ p1: { v: 1 } }));
+    await Promise.resolve();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
   it('a profile write refreshes the tab, and after onunload it no longer does', async () => {
-    const p = makePluginDouble();
-    let data: unknown = null;
-    Object.assign(p, {
-      loadData: vi.fn(() => Promise.resolve(data)),
-      saveData: vi.fn((next: unknown) => { data = JSON.parse(JSON.stringify(next)) as unknown; return Promise.resolve(); }),
-    });
-    p.onload();
-    const tab = p.addSettingTab.mock.calls[0]?.[0] as CodebaseInspectorSettingTab;
-    await tab.refresh();
-    const refresh = vi.spyOn(tab, 'refresh').mockResolvedValue();
+    const { p, refresh } = await loadedWithTab();
     await writePluginDataSlice(p, 'profiles', () => [{ profileId: 'p1' }]);
     expect(refresh).toHaveBeenCalledTimes(1);
     p.onunload();

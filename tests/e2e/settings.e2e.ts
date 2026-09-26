@@ -7,21 +7,16 @@ import { defaultNoteFolder } from '../../src/application/investigation/note-path
 import { exclusionInputReasons } from '../../src/domain/validator';
 import { NOTES_FOLDER_PROBLEM, NOTES_FOLDER_SETTING_NAME } from '../../src/ui/audit-copy/investigation';
 import { test } from './fixture';
-import { closeSettings, openPluginSettings, pluginData } from './host-probes';
+import { closeSettings, onlyProfile, openPluginSettings, pluginData, savedBindings, savedProfiles } from './host-probes';
 import type { NativeBrowser } from './session';
 import { copyProject } from './workspace-files';
 
-interface SavedProfile { profileId: string; name: string; bindingId: string | null; exclusions: string[] }
-interface SavedBinding { bindingId: string; rootPath: string }
-
 const LIST = '.modal.mod-settings .setting-group.mod-list';
 const SCOPE_MODAL = '.modal-container [data-field="acknowledge"]';
-const profilesOf = (data: Record<string, unknown>): SavedProfile[] => (data.profiles ?? []) as SavedProfile[];
-/** The one profile scan-codebase saved, read from data.json (main window). */
-async function onlyProfile(browser: NativeBrowser): Promise<SavedProfile> {
-  const saved = profilesOf(await pluginData(browser));
-  expect(saved).toHaveLength(1);
-  return saved[0]!;
+/** Observed: the profile page and its modals slide in, and their buttons are not interactable until they have. */
+async function clickWhenClickable(element: () => ReturnType<NativeBrowser['$']>): Promise<void> {
+  await expect.poll(() => element().isClickable()).toBe(true);
+  await element().click();
 }
 
 describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
@@ -34,7 +29,7 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     expect(await inspector.settingsProfileNames()).toEqual([]);
     await closeSettings(browser);
     await inspector.scanFolder('code');
-    const profile = await onlyProfile(browser);
+    const profile = onlyProfile(await pluginData(browser));
     await inspector.openCodebaseSettings(profile.name);
     const shown = inspector.settingsPage();
     // The page's first row is the name; then Excluded paths (the page's one textarea), the notes folder and Connect.
@@ -54,7 +49,7 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     expect(await inspector.settingsProfileNames()).toEqual([]);
     await closeSettings(browser);
     await inspector.scanFolder('code');
-    const profile = await onlyProfile(browser);
+    const profile = onlyProfile(await pluginData(browser));
     // No plugin reload: the tab follows a write it did not make.
     await openPluginSettings(browser);
     await expect.poll(() => inspector.settingsProfileNames()).toEqual([profile.name]);
@@ -66,7 +61,7 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     const configDir = await page.getConfigDir();
     await inspector.openCity();
     await inspector.scanFolder('code');
-    const profile = await onlyProfile(browser);
+    const profile = onlyProfile(await pluginData(browser));
     const folder = () => inspector.settingsRow(NOTES_FOLDER_SETTING_NAME).$('input');
     await inspector.openCodebaseSettings(profile.name);
     await inspector.editSetting(folder, `${configDir}/x`);
@@ -92,13 +87,13 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     // Positive control: an unchanged rescan asks nothing (a new snapshot, no scope modal).
     await inspector.rescan();
     expect(await browser.$(SCOPE_MODAL).isExisting()).toBe(false);
-    const profile = await onlyProfile(browser);
+    const profile = onlyProfile(await pluginData(browser));
     const excluded = () => inspector.settingsPage().$('textarea');
     const saved = [...profile.exclusions, 'dist2'];
     await inspector.openCodebaseSettings(profile.name);
     await inspector.editSetting(excluded, saved.join('\n'));
     await closeSettings(browser);
-    await expect.poll(async () => profilesOf(await pluginData(browser))[0]?.exclusions).toEqual(saved);
+    await expect.poll(async () => savedProfiles(await pluginData(browser))[0]?.exclusions).toEqual(saved);
     // Two refused lines, each with its reason in one Notice; the stored value unchanged and shown again. `dist*` is
     // refused only at this input boundary (M62: a stored record may hold it), `./dist` by the stored-record rules too.
     const refused = [...saved, './dist', 'dist*'];
@@ -110,7 +105,7 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     await expect.poll(async () => (await inspector.notices()).some((text) => text.includes(reason))).toBe(true);
     await expect.poll(() => excluded().getValue()).toBe(saved.join('\n'));
     await closeSettings(browser);
-    expect(profilesOf(await pluginData(browser))[0]?.exclusions).toEqual(saved);
+    expect(savedProfiles(await pluginData(browser))[0]?.exclusions).toEqual(saved);
     // The saved change is a new scope: scan-codebase asks for approval again.
     await inspector.activateCity();
     await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
@@ -121,31 +116,29 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     copyProject(page.getVaultPath(), 'code');
     await inspector.openCity();
     await inspector.scanFolder('code');
-    const profile = await onlyProfile(browser);
+    const profile = onlyProfile(await pluginData(browser));
     await inspector.openCodebaseSettings(profile.name);
     await inspector.connect('code', 'vault-folder');
     await closeSettings(browser);
     const bound = await pluginData(browser);
-    const bindings = (bound.bindings ?? []) as SavedBinding[];
+    const bindings = savedBindings(bound);
     expect(bindings).toHaveLength(1);
     expect(bindings[0]!.rootPath).toMatch(/[\\/]code$/u);
-    expect(profilesOf(bound)[0]?.bindingId).toBe(bindings[0]!.bindingId);
+    expect(savedProfiles(bound)[0]?.bindingId).toBe(bindings[0]!.bindingId);
     const clear = () => inspector.settingsPage().$('[data-action="clear-binding"]');
     const inModal = (action: string) => browser.$(`.modal-container [data-action="${action}"]`);
     // Clear binding asks first: Cancel keeps the binding.
     await inspector.openCodebaseSettings(profile.name);
-    await clear().click();
-    await expect.poll(() => inModal('cancel').isExisting()).toBe(true);
-    await inModal('cancel').click();
+    await clickWhenClickable(clear);
+    await clickWhenClickable(() => inModal('cancel'));
     await expect.poll(() => inModal('cancel').isExisting()).toBe(false);
     expect(await clear().isExisting()).toBe(true);
     await closeSettings(browser);
     expect((await pluginData(browser)).bindings).toEqual(bindings);
     // Confirming removes it, and the page offers Reconnect.
     await inspector.openCodebaseSettings(profile.name);
-    await clear().click();
-    await expect.poll(() => inModal('confirm-clear-binding').isExisting()).toBe(true);
-    await inModal('confirm-clear-binding').click();
+    await clickWhenClickable(clear);
+    await clickWhenClickable(() => inModal('confirm-clear-binding'));
     await expect.poll(() => inspector.settingsPage().$('[data-action="reconnect"]').isExisting()).toBe(true);
     await closeSettings(browser);
     await expect.poll(async () => (await pluginData(browser)).bindings).toEqual([]);

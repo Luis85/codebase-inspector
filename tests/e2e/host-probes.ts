@@ -146,6 +146,30 @@ export async function pluginData(browser: NativeBrowser): Promise<Record<string,
   return text === null ? {} : JSON.parse(text) as Record<string, unknown>;
 }
 
+/** A codebase profile as `data.json` stores it: the fields native tests read. */
+export interface SavedProfile { profileId: string; name: string; bindingId: string | null; exclusions: string[] }
+/** A root binding as `data.json` stores it. */
+export interface SavedBinding { bindingId: string; rootPath: string; machineId: string }
+
+/** `data.json`'s profiles, from a pluginData read (`[]` when none is saved). */
+export const savedProfiles = (data: Record<string, unknown>): SavedProfile[] => (data.profiles ?? []) as SavedProfile[];
+/** `data.json`'s bindings, from a pluginData read (`[]` when none is saved). */
+export const savedBindings = (data: Record<string, unknown>): SavedBinding[] => (data.bindings ?? []) as SavedBinding[];
+/** The one profile saved (scan-codebase made exactly one), from a pluginData read. */
+export function onlyProfile(data: Record<string, unknown>): SavedProfile {
+  const profiles = savedProfiles(data);
+  expect(profiles).toHaveLength(1);
+  return profiles[0]!;
+}
+
+/** The vault base path the plugin reads (`FileSystemAdapter.getBasePath()`, as investigation-notes.ts does), or null. */
+export function vaultBasePath(browser: NativeBrowser): Promise<string | null> {
+  return browser.executeObsidian(({ app, obsidian }) => {
+    const adapter = app.vault.adapter;
+    return adapter instanceof obsidian.FileSystemAdapter ? adapter.getBasePath() : null;
+  });
+}
+
 /** Disables and enables the plugin through the service. Probe b: this detaches every city leaf (each becomes an
  *  `empty` leaf) and re-enabling restores none. */
 export async function reloadPlugin(browser: NativeBrowser): Promise<void> {

@@ -13,7 +13,8 @@ type ErrorWindow = Window & { ciErrors?: string[] };
 
 export type InspectorPage = ReturnType<typeof createInspectorPage>;
 
-const hasClass = (name: string): string => `contains(concat(' ', normalize-space(@class), ' '), ' ${name} ')`;
+/** An XPath predicate: the context node's class list holds `name`. */
+export const hasClass = (name: string): string => `contains(concat(' ', normalize-space(@class), ' '), ' ${name} ')`;
 /** An XPath string literal for any text (concat() when it holds both quote kinds). */
 function xpathLiteral(text: string): string {
   if (!text.includes('"')) return `"${text}"`;
@@ -84,7 +85,10 @@ export function createInspectorPage(browser: NativeBrowser) {
   /** Connect or Reconnect on the open profile page. Observed (Task 2): the source modal opens in the SETTINGS
    *  window, where WebDriver already is; done when the modal is gone and the page offers Clear binding. */
   const bindFrom = async (action: 'connect' | 'reconnect', folder: string, mode: ConnectMode): Promise<void> => {
-    await settingsPage().$(`[data-action="${action}"]`).click();
+    // Observed: the profile page slides in, and its buttons are not interactable until it has.
+    const button = settingsPage().$(`[data-action="${action}"]`);
+    await expect.poll(() => button.isClickable()).toBe(true);
+    await button.click();
     await chooseSource(folder, mode);
     await expect.poll(() => inModal('[data-action="continue"]').isExisting()).toBe(false);
     await expect.poll(() => settingsPage().$('[data-action="clear-binding"]').isExisting()).toBe(true);
@@ -203,7 +207,7 @@ export function createInspectorPage(browser: NativeBrowser) {
     },
     /** Investigate → the row whose fingerprint (`<entity id>#<finding id>`) ends with the id. */
     async selectFinding(findingId: string): Promise<void> {
-      await navigate('Investigate');
+      await navigate(ROUTE_META.investigate.title);
       const row = root().$(`.ci-investigate-row[data-fingerprint$="#${findingId}"]`);
       await expect.poll(() => row.isExisting()).toBe(true);
       await row.click();

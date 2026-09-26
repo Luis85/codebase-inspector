@@ -20,13 +20,12 @@ import { INVESTIGATE_ORIGIN_TEXT, INVESTIGATE_ROW_ORIGIN } from '../../src/ui/au
 import { ROUTE_META } from '../../src/ui/routes';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
-import { closeSettings, commandAvailable, pluginData, rendered } from './host-probes';
+import { closeSettings, commandAvailable, onlyProfile, pluginData, rendered } from './host-probes';
 import { fallowBinary, fallowProcessCount } from './inspector-fallow';
 import type { InspectorPage } from './inspector';
 import type { NativeBrowser } from './session';
 import { copyProject, recordingFindingCount, writeSyntheticTree } from './workspace-files';
 
-interface SavedProfile { profileId: string; name: string }
 interface SavedAnalyzer { executablePath: string; trust: { version: string } | null }
 
 /** NPF8: the tree for cancel-fallow-analysis (an uncancelled run took about 11 s), and the shortest uncancelled run
@@ -39,13 +38,9 @@ const RUN_TIMEOUT = { timeout: 120_000 };
 const vaultHas = async (browser: NativeBrowser, path: string): Promise<boolean> =>
   Boolean(await browser.executeObsidian(({ app }, target) => app.vault.adapter.exists(target), path));
 
-/** The one profile scan-codebase saved, and this device's analyzer records, read from data.json (main window). */
-async function saved(browser: NativeBrowser): Promise<{ profile: SavedProfile; analyzers: Record<string, SavedAnalyzer> | undefined }> {
-  const data = await pluginData(browser);
-  const profiles = (data.profiles ?? []) as SavedProfile[];
-  expect(profiles).toHaveLength(1);
-  return { profile: profiles[0]!, analyzers: data.analyzers as Record<string, SavedAnalyzer> | undefined };
-}
+/** This device's analyzer records in a pluginData read (main window), by profile id; undefined before any trust. */
+const analyzersOf = (data: Record<string, unknown>): Record<string, SavedAnalyzer> | undefined =>
+  data.analyzers as Record<string, SavedAnalyzer> | undefined;
 
 /** Data & scans, where the fallow card and its run panel are. */
 async function openSources(inspector: InspectorPage): Promise<void> {
@@ -66,7 +61,7 @@ describe('the installed fallow run by command id in the real Obsidian host (WP-0
     await openSources(inspector);
     expect(await inspector.root().$('.ci-fallow-card__none').isExisting()).toBe(true);
     expect(await inspector.fallowFacts()).toBeNull();
-    expect((await saved(browser)).analyzers).toBeUndefined();
+    expect(analyzersOf(await pluginData(browser))).toBeUndefined();
     await inspector.activateCity();
     expect(await commandAvailable(browser, 'run-fallow-analysis')).toBe(true);
     expect(await commandAvailable(browser, 'cancel-fallow-analysis')).toBe(false);
@@ -78,8 +73,8 @@ describe('the installed fallow run by command id in the real Obsidian host (WP-0
     await inspector.trustAndRun();
     await expect.poll(() => inspector.fallowCollectedAt(), RUN_TIMEOUT).not.toBeNull();
     await expect.poll(() => commandAvailable(browser, 'cancel-fallow-analysis')).toBe(false);
-    const { profile, analyzers } = await saved(browser);
-    const version = analyzers?.[profile.profileId]?.trust?.version ?? null;
+    const ran = await pluginData(browser);
+    const version = analyzersOf(ran)?.[onlyProfile(ran).profileId]?.trust?.version ?? null;
     const card = { banner: await inspector.fallowBanner(), collectedAt: await inspector.fallowCollectedAt() };
 
     // Investigate lists the findings the recording's normaliser gives this project, every page shown.
@@ -165,8 +160,9 @@ describe('the installed fallow run by command id in the real Obsidian host (WP-0
     await expect.poll(() => vaultHas(browser, 'code/src/core/a.ts')).toBe(true);
     await inspector.openCity();
     await inspector.scanFolder('code');
-    const { profile, analyzers: before } = await saved(browser);
-    expect(before).toBeUndefined();
+    const scanned = await pluginData(browser);
+    const profile = onlyProfile(scanned);
+    expect(analyzersOf(scanned)).toBeUndefined();
     const description = async (): Promise<string> =>
       String(await inspector.settingsRow(SETTINGS_FALLOW_EXECUTABLE_NAME).$('.setting-item-description').getProperty('textContent')).trim();
 
@@ -180,7 +176,7 @@ describe('the installed fallow run by command id in the real Obsidian host (WP-0
     await inspector.trustAndRun();
     await expect.poll(() => inspector.fallowCollectedAt(), RUN_TIMEOUT).not.toBeNull();
     // Positive control: the trust wrote this codebase's executable and its trust to data.json.
-    const record = (await saved(browser)).analyzers?.[profile.profileId];
+    const record = analyzersOf(await pluginData(browser))?.[profile.profileId];
     expect(record?.executablePath).toBe(binary);
     const version = record?.trust?.version ?? '';
     expect(version).toMatch(/^\d+\.\d+\.\d+$/u);

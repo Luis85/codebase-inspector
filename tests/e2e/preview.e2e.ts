@@ -11,33 +11,18 @@ import { PREVIEW_UNAVAILABLE } from '../../src/ui/audit-copy/investigation';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import type { NativeContext } from './fixture';
-import { closeSettings, pluginData } from './host-probes';
+import { closeSettings, onlyProfile, pluginData, savedBindings, vaultBasePath } from './host-probes';
 import { storeSnapshot } from './cycle-note';
 import { CITY_VIEW_TYPE } from './session';
 import { RECORDING, copyProject, cycleFinding, recordingFindings, writeReport } from './workspace-files';
 
 type Browser = NativeContext['browser'];
-interface SavedProfile { profileId: string; name: string; bindingId: string | null }
-interface SavedBinding { bindingId: string; rootPath: string }
 /** One workspace leaf: Obsidian's own leaf id, its tab group's id, its view type and the vault path its view shows. */
 interface LeafFact { id: string; group: string; type: string; path: string | null }
 
 /** The Markdown file scenario 24 anchors a finding on, root-relative and as a vault path. */
 const GUIDE = 'docs/guide.md';
 const GUIDE_PATH = `code/${GUIDE}`;
-
-const saved = async (browser: Browser): Promise<{ profile: SavedProfile; bindings: SavedBinding[] }> => {
-  const data = await pluginData(browser);
-  const profiles = (data.profiles ?? []) as SavedProfile[];
-  expect(profiles).toHaveLength(1);
-  return { profile: profiles[0]!, bindings: (data.bindings ?? []) as SavedBinding[] };
-};
-
-/** The vault base path the plugin reads (`FileSystemAdapter.getBasePath()`). */
-const basePath = (browser: Browser): Promise<string | null> => browser.executeObsidian(({ app, obsidian }) => {
-  const adapter = app.vault.adapter;
-  return adapter instanceof obsidian.FileSystemAdapter ? adapter.getBasePath() : null;
-});
 
 /** Every workspace leaf, and which one is active. */
 const leaves = (browser: Browser): Promise<{ active: string | null; all: LeafFact[] }> => browser.executeObsidian(({ app, obsidian }) => {
@@ -101,7 +86,7 @@ describe('the source preview (WP-04.2 rows 23, 24)', () => {
     copyProject(page.getVaultPath(), 'code-copy');
     await expect.poll(() => browser.executeObsidian(({ app }) => app.vault.adapter.exists('code-copy/src/core/a.ts'))).toBe(true);
     const { id, line } = cycleFinding();
-    const base = await basePath(browser);
+    const base = await vaultBasePath(browser);
     if (base === null) throw new Error('the vault has no base path');
 
     // Scanned in vault-folder mode, then Connected in Settings to the same vault folder: the binding's root is the
@@ -109,13 +94,15 @@ describe('the source preview (WP-04.2 rows 23, 24)', () => {
     await inspector.openCity();
     await inspector.scanFolder('code');
     const scanned = await storeSnapshot(browser);
-    await inspector.openCodebaseSettings((await saved(browser)).profile.name);
+    const profile = onlyProfile(await pluginData(browser));
+    await inspector.openCodebaseSettings(profile.name);
     await inspector.connect('code', 'vault-folder');
     await closeSettings(browser);
-    const connected = await saved(browser);
-    expect(connected.bindings).toHaveLength(1);
-    const binding = connected.bindings[0]!;
-    expect(connected.profile.bindingId).toBe(binding.bindingId);
+    const connected = await pluginData(browser);
+    const bindings = savedBindings(connected);
+    expect(bindings).toHaveLength(1);
+    const binding = bindings[0]!;
+    expect(onlyProfile(connected).bindingId).toBe(binding.bindingId);
     expect(binding.rootPath).toBe(scanned.rootPath);
     expect(scanned.rootPath).toBe(join(base, 'code'));
 
@@ -127,20 +114,18 @@ describe('the source preview (WP-04.2 rows 23, 24)', () => {
     // Reconnect to code-copy: a live binding offers only Clear binding, which (confirmed) removes this device's record
     // and leaves the page offering Reconnect; Reconnect keeps the binding id and gives it the new root.
     // Observed: the profile page slides in, and its buttons are not interactable until it has.
-    await inspector.openCodebaseSettings(connected.profile.name);
+    await inspector.openCodebaseSettings(profile.name);
     const clear = inspector.settingsPage().$('[data-action="clear-binding"]');
     await expect.poll(() => clear.isClickable()).toBe(true);
     await clear.click();
     const confirm = browser.$('.modal-container [data-action="confirm-clear-binding"]');
     await expect.poll(() => confirm.isClickable()).toBe(true);
     await confirm.click();
-    const reconnect = inspector.settingsPage().$('[data-action="reconnect"]');
-    await expect.poll(() => reconnect.isClickable()).toBe(true);
     await inspector.reconnect('code-copy', 'vault-folder');
     await closeSettings(browser);
-    const reconnected = await saved(browser);
-    expect(reconnected.profile.bindingId).toBe(binding.bindingId);
-    expect(reconnected.bindings).toEqual([{ ...binding, rootPath: join(base, 'code-copy') }]);
+    const reconnected = await pluginData(browser);
+    expect(onlyProfile(reconnected).bindingId).toBe(binding.bindingId);
+    expect(savedBindings(reconnected)).toEqual([{ ...binding, rootPath: join(base, 'code-copy') }]);
     // WP-04.2 E14: nothing rescanned, so the snapshot still names code/.
     expect((await storeSnapshot(browser)).rootPath).toBe(scanned.rootPath);
 
@@ -151,7 +136,7 @@ describe('the source preview (WP-04.2 rows 23, 24)', () => {
     const words = String(await unavailable.getProperty('textContent')).trim();
     const highlighted = await inspector.highlightedLines();
     await writeEvidence(directory, 'changed-root', {
-      snapshotRoot: scanned.rootPath, connected: binding, reconnected: reconnected.bindings, unavailable: words, highlighted,
+      snapshotRoot: scanned.rootPath, connected: binding, reconnected: savedBindings(reconnected), unavailable: words, highlighted,
     });
     expect(words).toBe(PREVIEW_UNAVAILABLE['no-binding']);
     expect(highlighted).toEqual([]);

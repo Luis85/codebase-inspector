@@ -3,7 +3,7 @@
 // with a REAL temp directory and node-access.ts's own resolver, given the real Node modules (in this suite
 // Platform.isDesktopApp is false, so node-access.ts's own fs is null). The textual answer is never removed.
 import * as nodeFs from 'node:fs';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, rmdirSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, rmdirSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import * as nodePath from 'node:path';
 import { join } from 'node:path';
@@ -44,8 +44,11 @@ describe.runIf(WINDOWS)('an aliased codebase root (NE15; Windows only: junctions
     symlinkSync(join(vault, 'code'), link, 'junction');
   });
   afterAll(() => {
-    rmdirSync(link);   // the junction itself, never recursively into its target
-    rmSync(temp, { recursive: true, force: true });
+    try {
+      if (link !== '' && existsSync(link)) rmdirSync(link);   // the junction itself, never recursively into its target
+    } finally {
+      if (temp !== '') rmSync(temp, { recursive: true, force: true });
+    }
   });
 
   it('realPathOfNearest resolves the deepest existing ancestor and re-appends the rest', () => {

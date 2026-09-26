@@ -1,8 +1,8 @@
 // NE3: fixtures written at run time for native scenarios: the relations project copied into a session vault,
-// a synthetic source tree sized by probe g, a report crafted from the 3.27.0 recording, and a junction.
+// a synthetic source tree sized by probe g, and a report crafted from the 3.27.0 recording.
 // IP56: native files never import tests/fixtures/**; they only read its files from disk.
 import { createHash } from 'node:crypto';
-import { cpSync, mkdirSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
 import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
@@ -88,14 +88,4 @@ export function writeReport(to: string, edit: (raw: Record<string, unknown>) => 
   edit(raw);
   writeFileSync(to, JSON.stringify(raw));
   return to;
-}
-
-/** A directory junction at `link` naming `target` (no elevation needed); false when the system refuses it. */
-export function makeJunction(target: string, link: string): boolean {
-  try {
-    symlinkSync(target, link, 'junction');
-    return true;
-  } catch {
-    return false;
-  }
 }

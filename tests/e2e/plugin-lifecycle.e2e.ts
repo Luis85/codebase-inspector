@@ -16,15 +16,15 @@ import { ROUTE_META } from '../../src/ui/routes';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import {
-  closeSettings, leakedListeners, listenerCounts, liveIntervals, pluginData, reloadPlugin, trackIntervals, type ListenerCounts,
+  closeSettings, leakedListeners, listenerCounts, liveIntervals, onlyProfile, pluginData, reloadPlugin, savedBindings, savedProfiles,
+  trackIntervals, type ListenerCounts,
 } from './host-probes';
+import { hasClass } from './inspector';
 import { CITY_VIEW_TYPE, PLUGIN_ID, type NativeBrowser } from './session';
 import { RECORDING, copyProject, cycleFinding } from './workspace-files';
 
 type ProbeWindow = Window & { ciProbeRef?: EventRef; ciProbeInterval?: number };
 interface HostState { cityLeaves: number; leafTypes: string[]; roots: number; canvases: number; allCanvases: number }
-interface SavedProfile { profileId: string; name: string; bindingId: string | null }
-interface SavedBinding { bindingId: string; rootPath: string; machineId: string }
 interface SavedReviews { dispositions?: Record<string, unknown>[]; workItems?: Record<string, unknown>[] }
 
 /** plugin-data-binding-store.ts's MACHINE_ID_KEY (not exported): a storage key, not a word on screen. */
@@ -34,7 +34,6 @@ const NOTES_FOLDER = 'Research/notes';
 const DISPOSITION = 'acknowledged';
 /** The note index's four registerEvent listeners (investigation-note-index.ts), started by Investigate. */
 const NOTE_INDEX_EVENTS = ['metadataCache:changed', 'metadataCache:resolved', 'vault:delete', 'vault:rename'];
-const HAS_SETTING_ITEM = 'contains(concat(" ", normalize-space(@class), " "), " setting-item ")';
 
 /** Probe b plus the DOM: the city leaves, every leaf's view type, and the plugin's roots and canvases. */
 function hostState(browser: NativeBrowser): Promise<HostState> {
@@ -74,8 +73,6 @@ async function hostUnregisterCost(browser: NativeBrowser): Promise<{ leaves: num
 
 const machineId = (browser: NativeBrowser): Promise<unknown> =>
   browser.executeObsidian(({ app }, key): unknown => app.loadLocalStorage(key), MACHINE_ID_KEY);
-const profilesOf = (data: Record<string, unknown>): SavedProfile[] => (data.profiles ?? []) as SavedProfile[];
-const bindingsOf = (data: Record<string, unknown>): SavedBinding[] => (data.bindings ?? []) as SavedBinding[];
 const folderOf = (data: Record<string, unknown>, profileId: string): unknown =>
   (data.investigations as Record<string, { folder?: unknown }> | undefined)?.[profileId]?.folder;
 
@@ -157,15 +154,13 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
     const clearBinding = () => inspector.settingsPage().$('[data-action="clear-binding"]');
     /** The binding row's description (setting-definitions.ts shows the bound root there). */
     const bindingText = async (): Promise<string> =>
-      String(await clearBinding().$(`./ancestor::*[${HAS_SETTING_ITEM}][1]`).$('.setting-item-description').getProperty('textContent'));
+      String(await clearBinding().$(`./ancestor::*[${hasClass('setting-item')}][1]`).$('.setting-item-description').getProperty('textContent'));
 
     // The five writes, through the real UI: a profile (scan-codebase), the notes folder and a binding (Settings),
     // a disposition (the review dialog) and a work item (the work item editor).
     await inspector.openCity();
     await inspector.scanFolder('code');
-    const profiles = profilesOf(await pluginData(browser));
-    expect(profiles).toHaveLength(1);
-    const profile = profiles[0]!;
+    const profile = onlyProfile(await pluginData(browser));
     await inspector.openCodebaseSettings(profile.name);
     await inspector.editSetting(folder, NOTES_FOLDER);
     await closeSettings(browser);
@@ -185,10 +180,10 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
     const before = await pluginData(browser);
     const machine = await machineId(browser);
     // Positive control: every write reached data.json, and the binding is this device's.
-    const bindings = bindingsOf(before);
-    expect(profilesOf(before)).toHaveLength(1);
+    const bindings = savedBindings(before);
+    expect(savedProfiles(before)).toHaveLength(1);
     expect(bindings).toHaveLength(1);
-    expect(profilesOf(before)[0]?.bindingId).toBe(bindings[0]!.bindingId);
+    expect(savedProfiles(before)[0]?.bindingId).toBe(bindings[0]!.bindingId);
     expect(folderOf(before, profile.profileId)).toBe(NOTES_FOLDER);
     const reviews = (before.reviews as Record<string, SavedReviews> | undefined)?.[profile.profileId];
     expect(reviews?.dispositions).toHaveLength(1);
