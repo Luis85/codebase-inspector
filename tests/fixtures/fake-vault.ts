@@ -32,8 +32,17 @@ export interface FakeVault {
   userDelete(path: string): void;
   resolve(): void;
   raceNextCreate(path: string, text: string): void;
+  /** WP-04.2 NPF15 (PN2): marks `path` as present on disk but NOT in the vault's index, the way a folder or file
+   *  copied in through node:fs (never through the vault) sits until Obsidian's watcher indexes it. `adapter.stat`
+   *  answers it; `getAbstractFileByPath` still answers null until `createFolder`/`create` below it reconciles it
+   *  in, mirroring real Obsidian's recursive `mkdir`. */
+  diskOnly(path: string, type: 'file' | 'folder'): void;
   readonly opened: string[];
-  readonly calls: { getMarkdownFiles: number; create: number; createFolder: number; process: number; processFrontMatter: number };
+  readonly calls: {
+    getMarkdownFiles: number; create: number; createFolder: number; process: number; processFrontMatter: number;
+    /** WP-04.2 NPF15 (PN2): `adapter.stat` calls, so a test can assert an already-indexed segment took none. */
+    stat: number;
+  };
 }
 
 type Listener = (...args: unknown[]) => unknown;
@@ -154,9 +163,11 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
 
   const files = new Map<string, FileRecord>();
   const folderObjects = new Map<string, TFolder>();
+  // WP-04.2 NPF15 (PN2): present on disk, absent from the index, until reconcileFolder below indexes it.
+  const diskOnlyEntries = new Map<string, 'file' | 'folder'>();
   const pendingRaces = new Map<string, string>();
   const opened: string[] = [];
-  const calls = { getMarkdownFiles: 0, create: 0, createFolder: 0, process: 0, processFrontMatter: 0 };
+  const calls = { getMarkdownFiles: 0, create: 0, createFolder: 0, process: 0, processFrontMatter: 0, stat: 0 };
   let clock = 0;
   const nextTime = (): number => { clock += 1; return clock; };
 
@@ -172,20 +183,49 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
     return key === undefined ? null : (folderObjects.get(key) ?? null);
   }
 
-  function folderExists(path: string): boolean {
-    return path === '' || resolveFolder(path) !== null;
-  }
-
   // Fix round 2: `excludeFile` lets a caller (userRename) ask "is this path taken BY
   // SOMEONE ELSE" -- without it, a case-only match always includes the file's own
   // existing entry, so a case-only rename to itself (`note.md` -> `Note.md`, legitimate
   // in real Obsidian) would wrongly read as a collision with itself.
   function isTaken(path: string, excludeFile?: string): boolean {
-    if (files.has(path) || folderObjects.has(path)) return true;
+    if (files.has(path) || folderObjects.has(path) || diskOnlyEntries.has(path)) return true;
     if (!caseInsensitive) return false;
     const fileMatch = findCaseInsensitiveKey(path, files.keys());
     if (fileMatch !== undefined && fileMatch !== excludeFile) return true;
-    return findCaseInsensitiveKey(path, folderObjects.keys()) !== undefined;
+    if (findCaseInsensitiveKey(path, folderObjects.keys()) !== undefined) return true;
+    return findCaseInsensitiveKey(path, diskOnlyEntries.keys()) !== undefined;
+  }
+
+  // WP-04.2 NPF15 (PN2): the indexed folder at `path`, reconciling a disk-only one (and, recursively, its own
+  // disk-only ancestors) into the index first -- real Obsidian's `mkdir` is recursive and does the same, so a
+  // createFolder/create below a folder that only exists on disk indexes that folder as a side effect. A path
+  // that is neither indexed nor known to be on disk still answers null (createFolder/create keep refusing it,
+  // one segment at a time, IN28).
+  function reconcileFolder(path: string): TFolder | null {
+    const existing = resolveFolder(path);
+    if (existing) return existing;
+    if (diskOnlyEntries.get(path) !== 'folder') return null;
+    const { parent, name } = splitPath(path);
+    const parentFolder = reconcileFolder(parent);
+    if (!parentFolder) return null;
+    const folder = new TFolder();
+    folder.path = path; folder.name = name; folder.parent = parentFolder;
+    folderObjects.set(path, folder);
+    parentFolder.children.push(folder);
+    diskOnlyEntries.delete(path);
+    return folder;
+  }
+
+  // WP-04.2 NPF15 (PN2): mirrors real Obsidian's `DataAdapter.stat` (obsidian.d.ts:2027) closely enough for
+  // ensureFolders' own stat call -- a disk-only entry answers its declared type; an already-indexed one answers
+  // the type it was created as; anything else answers null.
+  async function stat(path: string): Promise<{ type: 'file' | 'folder' } | null> {
+    calls.stat += 1;
+    const diskType = diskOnlyEntries.get(path);
+    if (diskType) return { type: diskType };
+    if (files.has(path)) return { type: 'file' };
+    if (folderObjects.has(path)) return { type: 'folder' };
+    return null;
   }
 
   // Fix round 1 (WP-04 E12): the real metadata cache re-parses OFF the write, not
@@ -222,7 +262,7 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
     if (raceText !== undefined) { pendingRaces.delete(path); rawCreate(path, raceText); }
     if (isTaken(path)) throw new Error('File already exists.');
     const { parent } = splitPath(path);
-    if (!folderExists(parent)) throw new Error('Folder does not exist.');
+    if (!reconcileFolder(parent)) throw new Error('Folder does not exist.');
     return rawCreate(path, data);
   }
 
@@ -230,12 +270,13 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
     calls.createFolder += 1;
     if (isTaken(path)) throw new Error('Folder already exists.');
     const { parent, name } = splitPath(path);
-    if (!folderExists(parent)) throw new Error('Parent folder does not exist.');
+    const parentFolder = reconcileFolder(parent);
+    if (!parentFolder) throw new Error('Parent folder does not exist.');
     const folder = new TFolder();
     folder.path = path; folder.name = name;
-    folder.parent = resolveFolder(parent);
+    folder.parent = parentFolder;
     folderObjects.set(path, folder);
-    folder.parent?.children.push(folder);
+    parentFolder.children.push(folder);
     vaultEvents.trigger('create', folder);
     return folder;
   }
@@ -262,6 +303,10 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
   }
 
   const leaf = { openFile: (file: TFile): Promise<void> => { opened.push(file.path); return Promise.resolve(); } };
+
+  // WP-04.2 NPF15 (PN2): the mock adapter classes (tests/mocks/obsidian.ts) default `stat` to always-null;
+  // this fake overrides it on its own instance so it answers from the vault's own state instead.
+  Object.assign(adapter, { stat });
 
   const vault = {
     adapter,
@@ -339,6 +384,7 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
     },
     resolve() { metaEvents.trigger('resolved'); },
     raceNextCreate(path, text) { pendingRaces.set(path, text); },
+    diskOnly(path, type) { diskOnlyEntries.set(path, type); },
     opened,
     calls,
   };

@@ -298,7 +298,7 @@ describe('createFakeVault: call counts, opened paths and the full path list', ()
     if (!(fileA instanceof TFile)) throw new Error('expected a.md to exist as a file');
     await fakeVault.app.workspace.getLeaf(true).openFile(fileA);
 
-    expect(fakeVault.calls).toEqual({ getMarkdownFiles: 1, create: 3, createFolder: 1, process: 0, processFrontMatter: 0 });
+    expect(fakeVault.calls).toEqual({ getMarkdownFiles: 1, create: 3, createFolder: 1, process: 0, processFrontMatter: 0, stat: 0 });
     expect(fakeVault.paths()).toEqual(['a.md', 'b.md', 'c.txt']);
     expect(fakeVault.opened).toEqual(['a.md']);
   });

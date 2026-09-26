@@ -222,9 +222,14 @@ export class ButtonComponent {
 // check (obsidianmd/prefer-instanceof; spec 4.4) -- never a cast, because mobile
 // supplies a CapacitorAdapter instead (below). A real, minimal double: the entire
 // surface source-modal.ts depends on is `getBasePath()`.
+// WP-04.2 NPF15 (PN2): `stat` defaults to "nothing on disk" so a test double built on this class directly
+// (never through tests/fixtures/fake-vault.ts, which overrides it with the real answer) still gives
+// ensureFolders' unconditional `adapter.stat` call something to resolve, matching its old behaviour: never
+// found, so the caller falls through to `createFolder` exactly as before this method existed.
 export class FileSystemAdapter {
   constructor(private readonly basePath: string) {}
   getBasePath(): string { return this.basePath; }
+  stat(_normalizedPath: string): Promise<{ type: 'file' | 'folder' } | null> { return Promise.resolve(null); }
 }
 
 // Task 7: mobile's adapter (spec 4.4). Deliberately NOT a subclass of
@@ -235,6 +240,9 @@ export class CapacitorAdapter {
   getBasePath(): never {
     throw new Error('CapacitorAdapter has no getBasePath — mobile has no filesystem root.');
   }
+
+  // WP-04.2 NPF15 (PN2): see FileSystemAdapter.stat above.
+  stat(_normalizedPath: string): Promise<{ type: 'file' | 'folder' } | null> { return Promise.resolve(null); }
 }
 
 // Task 7: the three vault file/folder classes, exactly as the shipped obsidian.d.ts

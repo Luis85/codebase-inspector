@@ -123,7 +123,9 @@ function planDestination(app: App, folder: string, baseName: string, rootPath: s
   };
 }
 
-// IN28: one createFolder per missing segment, root first; an existing segment is used as is.
+// IN28: one createFolder per missing segment, root first; an existing segment is used as is. WP-04.2 NPF15 (PN2):
+// a folder on disk the vault has not indexed yet is used as is too — createFolder would refuse it ("Folder
+// already exists."), and the next createFolder or create below it indexes it. A file there still refuses.
 async function ensureFolders(app: App, folder: string): Promise<void> {
   const segments = folder.split('/');
   for (let i = 1; i <= segments.length; i += 1) {
@@ -131,6 +133,9 @@ async function ensureFolders(app: App, folder: string): Promise<void> {
     const existing = app.vault.getAbstractFileByPath(prefix);
     if (existing instanceof TFolder) continue;
     if (existing !== null) throw new Error(`not a folder: ${prefix}`);
+    const onDisk = await app.vault.adapter.stat(prefix);
+    if (onDisk?.type === 'folder') continue;
+    if (onDisk !== null) throw new Error(`not a folder: ${prefix}`);
     await app.vault.createFolder(prefix);
   }
 }

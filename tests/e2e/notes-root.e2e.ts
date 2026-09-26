@@ -12,7 +12,7 @@ import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import type { NativeContext } from './fixture';
 import { closeSettings, onlyProfile, pluginData, reloadPlugin, savedBindings, vaultBasePath } from './host-probes';
-import { RECORDING } from './workspace-files';
+import { RECORDING, copyProject, cycleFinding } from './workspace-files';
 import { cycleSelected, storeSnapshot } from './cycle-note';
 import { writeEvidence } from './diagnostics';
 
@@ -113,4 +113,34 @@ describe('notes inside the codebase root (WP-04.2 rows 20, 22)', () => {
     await inspector.createNoteIn('code/notes', true);
     await expect.poll(async () => onlyProfile(await pluginData(browser)).exclusions).toEqual([...exclusions, 'notes']);
   }, 300_000);
+});
+
+// WP-04.2 Task 1 (NPF15, P2, PN2): `code/` copied straight through node:fs (never `indexedCycle`'s
+// createFolder), so the vault's watcher never indexes it before the note is created.
+describe('a note folder Obsidian has not indexed yet (WP-04.2 NPF15, P2)', () => {
+  test('creates a note in a folder that exists on disk before Obsidian has indexed it', async ({ native }) => {
+    const { browser, page, inspector, directory } = native;
+    copyProject(page.getVaultPath(), 'code');
+
+    // Positive control: on disk, but not in the vault's index (NPF15).
+    const control = await browser.executeObsidian(async ({ app }) => ({
+      onDisk: await app.vault.adapter.exists('code'), indexed: app.vault.getAbstractFileByPath('code'),
+    }));
+    expect(control.onDisk).toBe(true);
+    expect(control.indexed).toBeNull();
+
+    const { id } = cycleFinding();
+    await inspector.openCity();
+    await inspector.scanFolder('code');
+    await inspector.importReport(RECORDING);
+    await inspector.selectFinding(id);
+
+    const path = await inspector.createNoteIn('code/notes', true);
+    expect(path.startsWith('code/notes/')).toBe(true);
+    expect(await inspector.notePaths()).toContain(path);
+
+    const indexedAfter = await browser.executeObsidian(({ app, obsidian }) => app.vault.getAbstractFileByPath('code') instanceof obsidian.TFolder);
+    await writeEvidence(directory, 'unindexed-folder', { control, path, indexedAfter });
+    expect(indexedAfter).toBe(true);
+  });
 });

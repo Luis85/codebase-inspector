@@ -34,5 +34,6 @@
   "draws the city in dark and light themes and recolours on css-change without rebuilding",
   "restores the city leaf's route after an app restart without scanning",
   "code spans keep %%, $ and == inert in reading and live-preview views",
-  "email addresses stay inert after noteText escaping"
+  "email addresses stay inert after noteText escaping",
+  "creates a note in a folder that exists on disk before Obsidian has indexed it"
 ]
