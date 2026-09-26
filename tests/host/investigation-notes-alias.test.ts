@@ -98,9 +98,14 @@ describe('the resolver only adds an overlap (NE15)', () => {
     ['resolves nothing', (): string | null => null],
     ['resolves every path somewhere unrelated', (path: string): string | null => `/unrelated${path}`],
   ] as const)('a textual overlap stays when the resolver %s', async (_label, realPath) => {
-    const { notes } = await notesOn('/vault', realPath);
+    const { fake, notes } = await notesOn('/vault', realPath);
     expect(notes.plan('code/notes', 'x', '/vault/code')).toMatchObject({ status: 'ok', overlapsRoot: true, rootRelativeFolder: 'notes' });
     expect(notes.plan('Notes', 'x', '/vault/code')).toMatchObject({ status: 'ok', overlapsRoot: false, rootRelativeFolder: null });
+    // T8: sourceNotePath only ADDS an overlap too — a plain vault note is still found by its textual answer,
+    // whatever the resolver would say about it.
+    await fake.app.vault.createFolder('docs');
+    await fake.app.vault.create('docs/guide.md', '# guide');
+    expect(notes.sourceNotePath('/vault/docs', 'guide.md')).toBe('docs/guide.md');
   });
 
   it('realPathOfNearest answers null where there is no Node filesystem', () => {
@@ -108,15 +113,52 @@ describe('the resolver only adds an overlap (NE15)', () => {
   });
 });
 
+describe('the alias check resolves each root once per session (WP-04.2 E20, P1, PP3)', () => {
+  it('sourceNotePath resolves the root and the vault base once across many calls, and nothing else', async () => {
+    const counts = new Map<string, number>();
+    const realPath = (path: string): string | null => {
+      counts.set(path, (counts.get(path) ?? 0) + 1);
+      return path === '/alias/root' ? '/vault/code' : path;
+    };
+    const { fake, notes } = await notesOn('/vault', realPath);
+    await fake.app.vault.createFolder('code');
+    for (let i = 0; i < 5; i += 1) {
+      await fake.app.vault.create(`code/n${i}.md`, `# n${i}`);
+      expect(notes.sourceNotePath('/alias/root', `n${i}.md`)).toBe(`code/n${i}.md`);
+    }
+    expect(counts).toEqual(new Map([['/alias/root', 1], ['/vault', 1]]));
+  });
+
+  it('plan resolves the root once across two calls, and each target folder fresh (a folder made mid-session)', async () => {
+    const rootCalls: string[] = [];
+    const targetCalls: string[] = [];
+    const realPath = (path: string): string | null => {
+      if (path === '/alias/root') rootCalls.push(path); else targetCalls.push(path);
+      return path === '/alias/root' ? '/vault/code' : path;
+    };
+    const { fake, notes } = await notesOn('/vault', realPath);
+    await fake.app.vault.createFolder('code');
+    await fake.app.vault.createFolder('code/first');
+    expect(notes.plan('code/first', 'x', '/alias/root')).toMatchObject({ status: 'ok', overlapsRoot: true, rootRelativeFolder: 'first' });
+    // A folder made only after the first plan() call, mid-session — still seen because the target is fresh.
+    await fake.app.vault.createFolder('code/second');
+    expect(notes.plan('code/second', 'x', '/alias/root')).toMatchObject({ status: 'ok', overlapsRoot: true, rootRelativeFolder: 'second' });
+    expect(rootCalls).toEqual(['/alias/root']);
+    expect(targetCalls).toEqual(['/vault/code/first', '/vault/code/second']);
+  });
+});
+
 // Fix round 1: realPathOfNearest's own rules with injected fake modules (POSIX paths, so this runs on every platform).
 // On the fake disk `/`, `/real` and `/alias` exist, and `/alias` is an alias of `/real`; every other path is missing.
 describe('realPathOfNearest with fake modules (NE15)', () => {
   const EXISTING: Record<string, string> = { '/': '/', '/real': '/real', '/alias': '/real' };
-  /** A fake `realpathSync.native`: `errors` names paths that fail with another code; a missing path is ENOENT. */
-  const fakeResolver = (errors: Record<string, string> = {}) => (path: string): string | null => realPathOfNearest(path, {
+  /** A fake `realpathSync.native`: `errors` names paths that fail with another code; a missing path is ENOENT.
+   *  `calls`, when given, counts every invocation (E20: a UNC path must make zero). */
+  const fakeResolver = (errors: Record<string, string> = {}, calls?: { native: number }) => (path: string): string | null => realPathOfNearest(path, {
     fs: {
       realpathSync: {
         native: (p: string): string => {
+          if (calls !== undefined) calls.native += 1;
           const code = errors[p] ?? (p in EXISTING ? undefined : 'ENOENT');
           if (code !== undefined) throw Object.assign(new Error(`${code}: ${p}`), { code });
           return EXISTING[p]!;
@@ -124,6 +166,14 @@ describe('realPathOfNearest with fake modules (NE15)', () => {
       },
     },
     path: nodePath.posix,
+  });
+
+  it('a UNC or `//`-prefixed path answers null without calling realpathSync.native (E20)', () => {
+    const calls = { native: 0 };
+    const resolve = fakeResolver({}, calls);
+    expect(resolve('\\\\host\\share\\code')).toBeNull();
+    expect(resolve('//host/share/code')).toBeNull();
+    expect(calls.native).toBe(0);
   });
 
   it.each(['EACCES', 'ENOTDIR'])('an error other than a missing segment (%s) answers null, never an ancestor', (code) => {

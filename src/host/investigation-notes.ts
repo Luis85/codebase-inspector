@@ -33,6 +33,11 @@ export interface InvestigationNotesDeps {
 }
 
 type RealPath = (path: string) => string | null;
+/** A per-session memo of one path's filesystem form (WP-04.2 PN1): resolved through `RealPath` on the first
+ *  call, replayed after that. */
+type Memo = (path: string) => string | null;
+/** The lazy pair `insideOf` compares in filesystem form once the textual check finds no relation. */
+interface Resolved { container(): string | null; target(): string | null }
 
 // The smallest well-formed block: spliceEvidenceBlock refuses any block that is not one.
 const EMPTY_BLOCK = `${EVIDENCE_BEGIN}\n${EVIDENCE_END}`;
@@ -45,14 +50,16 @@ function containment(): { caseSensitive: boolean } {
   return { caseSensitive: Platform.isLinux };
 }
 
-// IN12, IN29: `path` relative to `container` (relativeInside), or null. When the text finds no relation, both are
-// compared again in their filesystem form (NE15: a junction or an 8.3 name names one folder two ways), and the relative
-// path comes from that matching pair. It only ever adds a relation: a textual one is never re-checked.
-function insideOf(container: string, path: string, realPath: RealPath | undefined): string | null {
+// IN12, IN29 (WP-04.2 PN1): `path` relative to `container` (relativeInside), or null. When the text finds no
+// relation, both sides are compared again in their filesystem form (NE15: a junction or an 8.3 name names one
+// folder two ways), read lazily through `resolved`'s `container()`/`target()`, and the relative path comes from
+// that matching pair. It only ever adds a relation: a textual one is never re-checked. A scanned file is reached
+// without following links (WP-01 §4.4), so resolving the root alone gives the same answer as resolving every file.
+function insideOf(container: string, path: string, resolved: Resolved | undefined): string | null {
   const textual = relativeInside(container, path, containment());
-  if (textual !== null || realPath === undefined) return textual;
-  const realContainer = realPath(container);
-  const realTarget = realPath(path);
+  if (textual !== null || resolved === undefined) return textual;
+  const realContainer = resolved.container();
+  const realTarget = resolved.target();
   return realContainer === null || realTarget === null ? null : relativeInside(realContainer, realTarget, containment());
 }
 
@@ -105,7 +112,18 @@ function nameTaken(app: App, folder: string, node: TFolder | null, fileName: str
   return node !== null && node.children.some((c) => lower(c.name) === lower(fileName));
 }
 
-function planDestination(app: App, folder: string, baseName: string, rootPath: string | null, realPath: RealPath | undefined): DestinationPlan {
+// WP-04.2 PN1: the root is resolved through `memo` (once per session per root); the target folder is resolved
+// fresh on every call (local cost about 1 ms), so a folder made mid-session is still seen.
+function overlapWithRoot(rootPath: string | null, folder: string, base: string | null, realPath: RealPath | undefined, memo: Memo): string | null {
+  if (base === null || rootPath === null) return null;
+  const target = joinRootPath(base, folder);
+  const resolved: Resolved | undefined = realPath === undefined ? undefined : { container: () => memo(rootPath), target: () => realPath(target) };
+  return insideOf(rootPath, target, resolved);
+}
+
+function planDestination(
+  app: App, folder: string, baseName: string, rootPath: string | null, realPath: RealPath | undefined, memo: Memo,
+): DestinationPlan {
   const folderCheck = validateNoteFolder(folder, app.vault.configDir);
   if (!folderCheck.ok) return { status: 'invalid-folder', problem: folderCheck.problem };
   const nameCheck = validateNoteName(baseName);
@@ -115,7 +133,7 @@ function planDestination(app: App, folder: string, baseName: string, rootPath: s
   const fileName = freeNoteName(nameCheck.name, (candidate) => nameTaken(app, canonical.folder, canonical.node, candidate));
   if (fileName === null) return { status: 'no-free-name' };
   const base = vaultBase(app);
-  const inside = base === null || rootPath === null ? null : insideOf(rootPath, joinRootPath(base, canonical.folder), realPath);
+  const inside = overlapWithRoot(rootPath, canonical.folder, base, realPath, memo);
   return {
     status: 'ok', folder: canonical.folder, fileName, path: `${canonical.folder}/${fileName}`,
     renamed: fileName !== `${nameCheck.name}.md`,
@@ -162,9 +180,20 @@ async function addExclusion(profiles: ProfileStore, profileId: string, folder: s
 
 export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps): InvestigationNotesPort {
   const index = createNoteIndexSource(app, deps.registerEvent);   // inert until list or subscribe
+  // WP-04.2 PN1 (PP3): one session-scoped memo of a path's filesystem form, keyed by the path string. The plugin
+  // registers no listener that could invalidate an entry, so a root's answer holds until the plugin reloads —
+  // fail-safe, since a stale answer only ever falls back to the textual one (low risk, spec §7).
+  const seen = new Map<string, string | null>();
+  function memo(path: string): string | null {
+    const cached = seen.get(path);
+    if (cached !== undefined) return cached;
+    const value = deps.realPath === undefined ? null : deps.realPath(path);
+    seen.set(path, value);
+    return value;
+  }
 
   async function create(request: CreateNoteRequest): Promise<CreateNoteResult> {
-    const plan = planDestination(app, request.folder, request.baseName, request.rootPath, deps.realPath);
+    const plan = planDestination(app, request.folder, request.baseName, request.rootPath, deps.realPath, memo);
     if (plan.status !== 'ok') return { status: 'refused', reason: 'invalid' };
     if (plan.renamed || !isEvidenceBlockBody(request.body)) return { status: 'refused', reason: plan.renamed ? 'exists' : 'invalid' };
     const frontmatter = noteFrontmatter(request.identity, deps.clock.nowIso());
@@ -234,11 +263,20 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
     return true;
   }
 
-  // IN12: only a `.md` file the vault itself holds, under the vault base path.
+  // IN12: only a `.md` file the vault itself holds, under the vault base path. WP-04.2 PN1: the root is resolved
+  // through `memo` and the relative path re-appended, rather than resolving the joined target directly.
   function sourceNotePath(rootPath: string, relativePath: string): string | null {
     const base = vaultBase(app);
     if (base === null) return null;
-    const inVault = insideOf(base, joinRootPath(rootPath, relativePath), deps.realPath);
+    const target = joinRootPath(rootPath, relativePath);
+    const resolved: Resolved | undefined = deps.realPath === undefined ? undefined : {
+      container: () => memo(base),
+      target: (): string | null => {
+        const root = memo(rootPath);
+        return root === null ? null : joinRootPath(root, relativePath);
+      },
+    };
+    const inVault = insideOf(base, target, resolved);
     if (inVault === null || inVault === '') return null;
     const file = app.vault.getFileByPath(inVault);
     return file !== null && file.extension === 'md' ? file.path : null;
@@ -246,7 +284,7 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
 
   return {
     destination,
-    plan: (folder, baseName, rootPath) => planDestination(app, folder, baseName, rootPath, deps.realPath),
+    plan: (folder, baseName, rootPath) => planDestination(app, folder, baseName, rootPath, deps.realPath, memo),
     list: (codebaseId) => index.list(codebaseId),
     create,
     refresh,

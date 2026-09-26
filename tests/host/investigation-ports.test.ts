@@ -36,6 +36,14 @@ vi.mock('../../src/adapters/filesystem/node-source-filesystem', () => ({
   },
 }));
 
+// E13, PP4: a fast pin on the services wiring `realPath` through to createInvestigationNotes
+// (investigation-services.ts:45), which the fast suite otherwise never notices — its own
+// resolver always answers null (Platform.isDesktopApp is false). `/alias` maps to the vault's
+// `code/`; every other path resolves to itself.
+vi.mock('../../src/adapters/filesystem/node-access', () => ({
+  realPathOfNearest: (path: string): string | null => (path === '/alias' ? '/vault/code' : path),
+}));
+
 const REQUEST: PreviewRequest = { codebaseId: 'p1', expectedRoot: '/fake-root', relativePath: 'a.ts', maxFileBytes: 1_000_000, line: 1 };
 
 /** A notes port holding one index per codebase, which the test changes; it counts its live
@@ -172,5 +180,10 @@ describe('createInvestigationServices (IP12, IP14)', () => {
     nodeFs.port = null;
     const { built } = await services();
     expect(await built.preview.read(REQUEST)).toEqual({ status: 'unavailable', reason: 'no-filesystem' });
+  });
+
+  it('E13: wires realPathOfNearest through to the notes port, so an aliased root still overlaps', async () => {
+    const { built } = await services();
+    expect(built.notes.plan('code/notes', 'x', '/alias')).toMatchObject({ status: 'ok', overlapsRoot: true, rootRelativeFolder: 'notes' });
   });
 });
