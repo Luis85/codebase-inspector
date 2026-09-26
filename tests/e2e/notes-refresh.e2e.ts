@@ -13,14 +13,11 @@ import { REFRESH_DONE, REFRESH_MARKERS_EDITED, REFRESH_PARTIAL } from '../../src
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import type { NativeContext } from './fixture';
-import { CITY_VIEW_TYPE } from './session';
 import { RECORDING, cycleFinding, hashTree } from './workspace-files';
-import { noteForCycle } from './cycle-note';
+import { noteForCycle, storeSnapshot } from './cycle-note';
 
 type Browser = NativeContext['browser'];
 type PatchWindow = Window & { ciFrontMatterCalls?: number };
-/** What the city leaf's own Pinia city store holds (CityView's `cityStore`, private in TypeScript, read at runtime). */
-interface StoreSnapshot { snapshotId: string; files: string[] }
 
 /** The note after its (single) end marker line: the person's sections. */
 const afterEnd = (text: string): string => text.slice(text.indexOf(`${EVIDENCE_END}\n`) + EVIDENCE_END.length + 1);
@@ -28,15 +25,6 @@ const afterEnd = (text: string): string => text.slice(text.indexOf(`${EVIDENCE_E
 const blockOf = (text: string): string => text.slice(text.indexOf(EVIDENCE_BEGIN), text.indexOf(EVIDENCE_END));
 const endMarkerLines = (text: string): number => text.split('\n').filter((line) => line === EVIDENCE_END).length;
 const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8').digest('hex');
-
-/** The snapshot the city leaf shows, from the leaf's own city store: its id and its file entities' root-relative paths. */
-const storeSnapshot = (browser: Browser): Promise<StoreSnapshot> => browser.executeObsidian(({ app }, type): StoreSnapshot => {
-  type Entity = { kind: string; path: string };
-  const view = app.workspace.getLeavesOfType(type)[0]?.view as unknown as { cityStore?: { snapshot: { snapshotId: string; entities: Entity[] } | null } } | undefined;
-  const snapshot = view?.cityStore?.snapshot;
-  if (!snapshot) throw new Error('the city leaf holds no snapshot');
-  return { snapshotId: snapshot.snapshotId, files: snapshot.entities.filter((e) => e.kind === 'file').map((e) => e.path).sort() };
-}, CITY_VIEW_TYPE);
 
 /** NPF11: an own property that shadows FileManager's method, rejects ONE call and removes itself in the page's own
  *  `finally`, so the next call reaches Obsidian's method again. Counts its calls. */

@@ -51,7 +51,12 @@ export interface NodeFsPromisesLike {
   open(path: string, flags: 'r'): Promise<NodeFileHandleLike>;
 }
 
-export interface NodeFsLike {
+/** WP-04.2 NE15: the synchronous real path node-access.ts's realPathOfNearest resolves with. */
+export interface NodeRealPathLike {
+  realpathSync: { native(path: string): string };
+}
+
+export interface NodeFsLike extends NodeRealPathLike {
   promises: NodeFsPromisesLike;
 }
 
@@ -59,6 +64,9 @@ export interface NodePathLike {
   resolve(...segments: string[]): string;
   join(...segments: string[]): string;
   relative(from: string, to: string): string;
+  /** WP-04.2 NE15: realPathOfNearest's walk up to the nearest existing ancestor. */
+  dirname(path: string): string;
+  basename(path: string): string;
   sep: string;
 }
 

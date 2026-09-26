@@ -28,7 +28,11 @@ import { createNoteIndexSource } from './investigation-note-index';
 export interface InvestigationNotesDeps {
   readonly folders: InvestigationFolderStore; readonly profiles: ProfileStore; readonly clock: Clock;
   readonly registerEvent: (ref: EventRef) => void;
+  /** WP-04.2 NE15: a path's filesystem form, or null (node-access's realPathOfNearest in the host). Absent: text only. */
+  readonly realPath?: RealPath;
 }
+
+type RealPath = (path: string) => string | null;
 
 // The smallest well-formed block: spliceEvidenceBlock refuses any block that is not one.
 const EMPTY_BLOCK = `${EVIDENCE_BEGIN}\n${EVIDENCE_END}`;
@@ -39,6 +43,17 @@ const IDENTITY_MAX = 2048;
 // Windows and macOS default filesystems are case-insensitive; Linux is not. Read per call.
 function containment(): { caseSensitive: boolean } {
   return { caseSensitive: Platform.isLinux };
+}
+
+// IN12, IN29: `path` relative to `container` (relativeInside), or null. When the text finds no relation, both are
+// compared again in their filesystem form (NE15: a junction or an 8.3 name names one folder two ways), and the relative
+// path comes from that matching pair. It only ever adds a relation: a textual one is never re-checked.
+function insideOf(container: string, path: string, realPath: RealPath | undefined): string | null {
+  const textual = relativeInside(container, path, containment());
+  if (textual !== null || realPath === undefined) return textual;
+  const realContainer = realPath(container);
+  const realTarget = realPath(path);
+  return realContainer === null || realTarget === null ? null : relativeInside(realContainer, realTarget, containment());
 }
 
 function identityText(value: unknown): boolean {
@@ -90,7 +105,7 @@ function nameTaken(app: App, folder: string, node: TFolder | null, fileName: str
   return node !== null && node.children.some((c) => lower(c.name) === lower(fileName));
 }
 
-function planDestination(app: App, folder: string, baseName: string, rootPath: string | null): DestinationPlan {
+function planDestination(app: App, folder: string, baseName: string, rootPath: string | null, realPath: RealPath | undefined): DestinationPlan {
   const folderCheck = validateNoteFolder(folder, app.vault.configDir);
   if (!folderCheck.ok) return { status: 'invalid-folder', problem: folderCheck.problem };
   const nameCheck = validateNoteName(baseName);
@@ -100,7 +115,7 @@ function planDestination(app: App, folder: string, baseName: string, rootPath: s
   const fileName = freeNoteName(nameCheck.name, (candidate) => nameTaken(app, canonical.folder, canonical.node, candidate));
   if (fileName === null) return { status: 'no-free-name' };
   const base = vaultBase(app);
-  const inside = base === null || rootPath === null ? null : relativeInside(rootPath, joinRootPath(base, canonical.folder), containment());
+  const inside = base === null || rootPath === null ? null : insideOf(rootPath, joinRootPath(base, canonical.folder), realPath);
   return {
     status: 'ok', folder: canonical.folder, fileName, path: `${canonical.folder}/${fileName}`,
     renamed: fileName !== `${nameCheck.name}.md`,
@@ -144,7 +159,7 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
   const index = createNoteIndexSource(app, deps.registerEvent);   // inert until list or subscribe
 
   async function create(request: CreateNoteRequest): Promise<CreateNoteResult> {
-    const plan = planDestination(app, request.folder, request.baseName, request.rootPath);
+    const plan = planDestination(app, request.folder, request.baseName, request.rootPath, deps.realPath);
     if (plan.status !== 'ok') return { status: 'refused', reason: 'invalid' };
     if (plan.renamed || !isEvidenceBlockBody(request.body)) return { status: 'refused', reason: plan.renamed ? 'exists' : 'invalid' };
     const frontmatter = noteFrontmatter(request.identity, deps.clock.nowIso());
@@ -218,7 +233,7 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
   function sourceNotePath(rootPath: string, relativePath: string): string | null {
     const base = vaultBase(app);
     if (base === null) return null;
-    const inVault = relativeInside(base, joinRootPath(rootPath, relativePath), containment());
+    const inVault = insideOf(base, joinRootPath(rootPath, relativePath), deps.realPath);
     if (inVault === null || inVault === '') return null;
     const file = app.vault.getFileByPath(inVault);
     return file !== null && file.extension === 'md' ? file.path : null;
@@ -226,7 +241,7 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
 
   return {
     destination,
-    plan: (folder, baseName, rootPath) => planDestination(app, folder, baseName, rootPath),
+    plan: (folder, baseName, rootPath) => planDestination(app, folder, baseName, rootPath, deps.realPath),
     list: (codebaseId) => index.list(codebaseId),
     create,
     refresh,

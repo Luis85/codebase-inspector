@@ -6,6 +6,7 @@
 // is built per read and is null where there is no Node filesystem.
 import { Platform } from 'obsidian';
 import type { Plugin } from 'obsidian';
+import { realPathOfNearest } from '../adapters/filesystem/node-access';
 import { createNodeSourceFileSystem } from '../adapters/filesystem/node-source-filesystem';
 import type { InvestigationFolderStore } from '../adapters/storage/plugin-data-investigation-store';
 import { createSourcePreview, type SourcePreview } from '../application/investigation/source-preview';
@@ -41,6 +42,7 @@ export function createInvestigationServices(plugin: Plugin, deps: InvestigationS
     notes: createInvestigationNotes(plugin.app, {
       folders: deps.folders, profiles: deps.profileStore, clock: deps.clock,
       registerEvent: (ref) => { plugin.registerEvent(ref); },
+      realPath: (path) => realPathOfNearest(path),   // NE15; null where there is no Node filesystem
     }),
     // Windows and macOS default filesystems are case-insensitive; Linux is not (the same
     // signal investigation-notes.ts uses for its own containment).

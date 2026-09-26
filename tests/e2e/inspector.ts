@@ -108,6 +108,30 @@ export function createInspectorPage(browser: NativeBrowser) {
     await expect.poll(() => snapshotIdOf(browser), { timeout: 60_000 }).not.toBe(before);
     await expect.poll(() => snapshotIdOf(browser)).not.toBeNull();
   };
+  /** The scope modal (it must open): the acknowledgement, then Scan once it is enabled. */
+  const approveScope = async (): Promise<void> => {
+    const acknowledge = inModal('[data-field="acknowledge"]');
+    await expect.poll(() => acknowledge.isExisting()).toBe(true);
+    await acknowledge.click();
+    const scan = inModal('[data-action="confirm-scan"]');
+    await expect.poll(() => scan.isEnabled()).toBe(true);
+    await scan.click();
+  };
+  /** The create dialog's folder field, its exclusion checkbox and the path it plans (O7, IN26, IP26). */
+  const createFolder = () => root().$('.ci-create-note__folder');
+  const excludeBox = () => root().$('.ci-create-note__exclude input[type="checkbox"]');
+  /** Create investigation note… with `folder` typed over the default (WP-04.2 E2's keys, so `input` fires as a
+   *  person's typing does); done when the dialog plans a path in that folder. Returns that path. */
+  const openCreateNote = async (folder: string): Promise<string> => {
+    await root().$('.ci-notes-panel__create').click();
+    await expect.poll(() => createFolder().isClickable()).toBe(true);
+    await createFolder().click();
+    await browser.keys([Key.Ctrl, 'a']);
+    await createFolder().addValue(folder);
+    const shown = root().$('.ci-create-note__path');
+    await expect.poll(async () => (await shown.isExisting()) && (await textOf(shown)).trim().startsWith(`${folder}/`)).toBe(true);
+    return (await textOf(shown)).trim();
+  };
   return {
     ...createFallowSteps(browser, root, navigate),
     root,
@@ -119,17 +143,22 @@ export function createInspectorPage(browser: NativeBrowser) {
     navigate,
     activateCity,
     snapshotId: () => snapshotIdOf(browser),
-    /** WP-04 Task 16: `scan-codebase` as a user answers it — the source modal in vault-folder
-     *  mode, then the scope modal's acknowledgement and Scan. */
-    async scanFolder(folder: string): Promise<void> {
+    /** WP-04 Task 16: `scan-codebase` as a user answers it — the source modal (in vault-folder mode unless
+     *  `mode` says otherwise), then the scope modal's acknowledgement and Scan. */
+    async scanFolder(folder: string, mode: ConnectMode = 'vault-folder'): Promise<void> {
       const before = await snapshotIdOf(browser);
       await activateCity();
       await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
-      await chooseSource(folder, 'vault-folder');
-      await inModal('[data-field="acknowledge"]').click();
-      const scan = inModal('[data-action="confirm-scan"]');
-      await expect.poll(() => scan.isEnabled()).toBe(true);
-      await scan.click();
+      await chooseSource(folder, mode);
+      await approveScope();
+      await scanned(before);
+    },
+    /** `scan-codebase` after the scope changed (M57): the scope modal must open, and is approved. */
+    async rescanApproving(): Promise<void> {
+      const before = await snapshotIdOf(browser);
+      await activateCity();
+      await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
+      await approveScope();
       await scanned(before);
     },
     /** `scan-codebase` again: a refresh against the stored scope, with no modal (a new snapshot id). */
@@ -186,6 +215,28 @@ export function createInspectorPage(browser: NativeBrowser) {
       const shown = root().$('.ci-create-note__path');
       await expect.poll(() => shown.isExisting()).toBe(true);
       const path = (await textOf(shown)).trim();
+      await root().$('.ci-create-note__confirm').click();
+      await expect.poll(() => root().$(`.ci-notes-panel__open[data-path="${path}"]`).isExisting()).toBe(true);
+      return path;
+    },
+    openCreateNote,
+    /** With the create dialog open: whether it offers the in-root exclusion (its checkbox, IP26). */
+    overlapOffered: (): Promise<boolean> => excludeBox().isExisting(),
+    /** The create dialog's Cancel; done when it has closed. */
+    async cancelCreateNote(): Promise<void> {
+      await root().$('.ci-create-note__cancel').click();
+      await expect.poll(() => root().$('.ci-create-note').isExisting()).toBe(false);
+    },
+    /** A note in `folder` inside the root (the dialog must offer the exclusion), with its checkbox left checked
+     *  (`exclude`) or unchecked; returns the created note's vault path once the notes panel lists it. */
+    async createNoteIn(folder: string, exclude: boolean): Promise<string> {
+      const path = await openCreateNote(folder);
+      await expect.poll(() => excludeBox().isExisting()).toBe(true);
+      expect(await excludeBox().isSelected()).toBe(true);   // IN26: checked whenever it appears
+      if (!exclude) {
+        await excludeBox().click();
+        await expect.poll(() => excludeBox().isSelected()).toBe(false);
+      }
       await root().$('.ci-create-note__confirm').click();
       await expect.poll(() => root().$(`.ci-notes-panel__open[data-path="${path}"]`).isExisting()).toBe(true);
       return path;
