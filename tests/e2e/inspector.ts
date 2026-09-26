@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { expect } from 'vitest';
 import { Key } from 'webdriverio';
-import { openPluginSettings } from './host-probes';
+import { commandAvailable, openPluginSettings } from './host-probes';
 import { decodePng, type Png } from './png';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
 
@@ -128,6 +128,13 @@ export function createInspectorPage(browser: NativeBrowser) {
       await activateCity();
       await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
       await scanned(before);
+    },
+    /** `scan-codebase` against the stored scope (no modal), returning once the run has started: NPF8, neither cancel
+     *  command is available right after the start, so this waits for `cancel-scan`'s own checkCallback to answer true. */
+    async startScanNoWait(): Promise<void> {
+      await activateCity();
+      await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
+      await expect.poll(() => commandAvailable(browser, 'cancel-scan')).toBe(true);
     },
     /** Data & scans' import dialog (the `import-analysis-report` command), its file input and Attach. */
     async importReport(absolutePath: string): Promise<void> {

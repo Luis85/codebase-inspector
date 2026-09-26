@@ -15,5 +15,8 @@
   "an excluded-paths change is saved, a refused one names its reason, and the next scan asks for approval",
   "Connect binds a codebase to a vault folder and Clear binding asks before removing it",
   "unloading the plugin releases its views, events and timers",
-  "keeps profiles, bindings, the notes folder, dispositions and work items across a plugin reload"
+  "keeps profiles, bindings, the notes folder, dispositions and work items across a plugin reload",
+  "open-city and the ribbon icon each open a new city tab",
+  "cancel-scan stops a running scan and is refused when no scan runs",
+  "import-analysis-report attaches a real report file and is refused without a snapshot"
 ]
