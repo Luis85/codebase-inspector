@@ -52,3 +52,11 @@ export function scriptedSourcePreview(): ScriptedSourcePreview {
     },
   };
 }
+
+/** IPF11: every read resolves immediately with the same fixed `result` — unlike
+ *  `scriptedSourcePreview` above, nothing holds it open for a later `resolveNext`. Task
+ *  17's harness captures render from a script with no test driving the read, so a preview
+ *  that stays pending would photograph a permanent "loading" state. */
+export function fixedSourcePreview(result: PreviewResult): SourcePreview {
+  return { read: () => Promise.resolve(result) };
+}

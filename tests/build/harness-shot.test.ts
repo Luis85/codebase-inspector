@@ -164,6 +164,35 @@ describe('harness-shot SHOTS', () => {
       expect(shot?.viewport?.height ?? 0, id).toBeGreaterThanOrEqual(2000);
     }
   });
+
+  // WP-04 Task 17 (IN40): the Investigate screen, in both schemes, narrow, stale and the
+  // create dialog — screen=s05 (IP36), the tall viewport checked directly against the live
+  // harness (the detail column runs past the standard fold).
+  it('captures the WP-04 Investigate states: both schemes, narrow, stale and the create dialog', () => {
+    for (const theme of ['dark', 'light']) {
+      const q = shotQuery(`wp04-investigate-${theme}`);
+      expect(q.get('screen'), theme).toBe('s05');
+      expect(q.get('theme'), theme).toBe(theme);
+      expect(q.get('route'), theme).toBe('investigate');
+      expect(q.get('report'), theme).toBe('demo');
+      expect(q.get('investigate'), theme).toBe('demo');
+    }
+    const narrow = shotQuery('wp04-investigate-narrow-dark');
+    expect(narrow.get('width')).toBe('700');
+    expect(narrow.get('investigate')).toBe('demo');
+    expect(shotQuery('wp04-investigate-stale-dark').get('investigate')).toBe('stale');
+    expect(shotQuery('wp04-investigate-create-dialog-dark').get('investigate')).toBe('create');
+    for (const id of ['wp04-investigate-stale-dark', 'wp04-investigate-create-dialog-dark']) {
+      expect(shotQuery(id).get('route'), id).toBe('investigate');
+      expect(shotQuery(id).get('report'), id).toBe('demo');
+    }
+    const narrowShot = SHOTS.find((s) => s.id === 'wp04-investigate-narrow-dark');
+    expect(narrowShot?.viewport).toEqual({ width: 760, height: 1600 });
+    for (const id of ['wp04-investigate-dark', 'wp04-investigate-light', 'wp04-investigate-stale-dark', 'wp04-investigate-create-dialog-dark']) {
+      const shot = SHOTS.find((s) => s.id === id);
+      expect(shot?.viewport, id).toEqual({ width: 1280, height: 1400 });
+    }
+  });
 });
 
 describe('chromium resolution', () => {

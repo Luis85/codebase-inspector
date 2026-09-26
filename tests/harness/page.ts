@@ -18,6 +18,9 @@
 //   ?analysis=running|failed|collected  seed the scripted fallow run (sources)
 //   ?relations=cycle   highlight the selected file's first highlightable cycle (city,
 //                      with report=demo and a select= that names a cycle member)
+//   ?investigate=demo|stale|create  seed the Investigate screen's notes port and a fixed
+//                      preview (route=investigate, with report=demo); 'create' also opens
+//                      the create-note dialog
 //
 // `installObsidianDomExtensions` is called FIRST, before any other import runs its own
 // top-level code: the harness page has no Obsidian, and the REAL renderer reads
@@ -75,4 +78,6 @@ void mountHarness(leaf, {
   ...(params.get('fallow') === 'installed' ? { fallow: 'installed' as const } : {}),
   ...(['running', 'failed', 'collected'].includes(params.get('analysis') ?? '') ? { analysis: params.get('analysis') as 'running' | 'failed' | 'collected' } : {}),
   ...(params.get('relations') === 'cycle' ? { relations: 'cycle' as const } : {}),
+  ...(['demo', 'stale', 'create'].includes(params.get('investigate') ?? '')
+    ? { investigate: params.get('investigate') as 'demo' | 'stale' | 'create' } : {}),
 });

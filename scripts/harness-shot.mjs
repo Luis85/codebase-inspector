@@ -211,6 +211,22 @@ export const SHOTS = [
   { id: 'wp03-architecture-cycles-dark', query: '?screen=s05&theme=dark&route=architecture&report=demo&tab=cycles' },
   { id: 'wp03-architecture-edges-dark', query: '?screen=s05&theme=dark&route=architecture&report=demo&tab=edges' },
   { id: 'wp03-architecture-rules-dark', query: '?screen=s05&theme=dark&route=architecture&report=demo&tab=rules' },
+  // WP-04 Task 17 (IN40): the Investigate screen — the finding list and the detail column
+  // (evidence, source preview, uncertainties, notes), the stale-location notice with no
+  // exact highlight (IN10), and the create dialog's final vault path and Exclude checkbox
+  // (IN26/IN29). The detail column is tall, checked directly against the live harness (the
+  // same reason wp02-sources-fallow-dark above uses a taller-than-VIEWPORT capture).
+  { id: 'wp04-investigate-dark', query: '?screen=s05&theme=dark&route=investigate&report=demo&investigate=demo', viewport: { width: 1280, height: 1400 } },
+  { id: 'wp04-investigate-light', query: '?screen=s05&theme=light&route=investigate&report=demo&investigate=demo', viewport: { width: 1280, height: 1400 } },
+  {
+    id: 'wp04-investigate-narrow-dark', query: '?screen=s05&theme=dark&route=investigate&report=demo&investigate=demo&width=700',
+    viewport: { width: 760, height: 1600 },
+  },
+  { id: 'wp04-investigate-stale-dark', query: '?screen=s05&theme=dark&route=investigate&report=demo&investigate=stale', viewport: { width: 1280, height: 1400 } },
+  {
+    id: 'wp04-investigate-create-dialog-dark', query: '?screen=s05&theme=dark&route=investigate&report=demo&investigate=create',
+    viewport: { width: 1280, height: 1400 },
+  },
 ];
 
 async function main() {

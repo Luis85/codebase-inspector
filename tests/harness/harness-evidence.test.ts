@@ -14,16 +14,36 @@ import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evid
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { evidenceIndexFor } from '../../src/ui/read-models/evidence-index';
 import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
+import { buildQualityModel } from '../../src/ui/read-models/findings';
+import { buildInvestigationModel } from '../../src/ui/read-models/investigation';
+import { previewRequestFor, locationInputsFor } from '../../src/ui/read-models/investigation-evidence';
 import { relationModelFor } from '../../src/ui/read-models/relations';
+import { EMPTY_NOTE_INDEX } from '../../src/application/investigation/note-index';
+import { locationVerdict } from '../../src/application/investigation/stale-location';
 import { ALL_ANALYSED, SYNTHETIC_VERSION } from '../fixtures/evidence-report';
 import { FALLOW_RUN_ARGS } from '../../src/application/analysis/fallow-invocation';
 import { fallowRunBannerOf } from '../../src/ui/read-models/fallow-run';
 import {
   DEMO_FALLOW_FILE_NAME, DEMO_UNMATCHED_PATH, HARNESS_SYNTHETIC_FOOTER, HARNESS_BINDING,
-  completedAnalysisState, demoCollectedReport, demoEvidenceReport, demoFallowReportText, demoRelationsAnchorPath, demoRunReview,
-  failedAnalysisState, filePathsOf, openFailureLog, runningAnalysisState,
+  completedAnalysisState, demoCollectedReport, demoEvidenceReport, demoFallowReportText, demoInvestigation,
+  demoRelationsAnchorPath, demoRunReview, failedAnalysisState, filePathsOf, openFailureLog, runningAnalysisState,
 } from './seed';
 import { harnessSnapshot } from './fixture';
+import type { CodebaseSnapshot } from '../../src/domain/model';
+import type { InvestigationRow } from '../../src/ui/read-models/investigation';
+import type { EvidenceIndex } from '../../src/ui/read-models/evidence-index';
+
+// WP-04 Task 17: the same read-model pipeline `demoInvestigation` itself builds its row
+// from — so a test that pins "the first finding" can never silently drift from what the
+// real Investigate screen would show first.
+function firstRow(snapshot: CodebaseSnapshot): { row: InvestigationRow; evidence: EvidenceIndex } {
+  const files = fileSummariesFor(snapshot);
+  const evidence = evidenceIndexFor(files, demoEvidenceReport(snapshot), snapshot.snapshotId);
+  const model = buildInvestigationModel(buildQualityModel(files, evidence, []), EMPTY_NOTE_INDEX);
+  const row = model.rows[0];
+  if (row === undefined) throw new Error('unreachable: the demo report always has findings');
+  return { row, evidence };
+}
 
 describe('the harness fallow report (?report=demo)', () => {
   it('is a combined schema-12 fallow 3.27.0 report that the real reader accepts', () => {
@@ -145,6 +165,42 @@ describe('the harness fallow run (?fallow=installed, ?analysis=…, Part 7 Z42)'
     if (state.status !== 'completed') throw new Error('unreachable: completedAnalysisState always returns status "completed"');
     expect(state.matchedFindings).toBe(index.matchedFindings);
     expect(state.matchedFiles).toBe(index.matchedFiles);
+  });
+
+  it('demoInvestigation lists one linked note (on the first finding) and one orphan for the harness codebase', () => {
+    const snapshot = harnessSnapshot();
+    const { row } = firstRow(snapshot);
+    const { notes, fingerprint } = demoInvestigation(snapshot, 'demo');
+    expect(fingerprint).toBe(row.fingerprint);
+    const index = notes.list(snapshot.repositoryId);
+    // The vault holds two notes; the raw index groups every well-formed one by its own
+    // fingerprint (orphan-ness is a model-level concept, checked separately below).
+    const links = Array.from(index.byFingerprint.values()).flat();
+    expect(links).toHaveLength(2);
+    expect(index.malformed).toBe(0);
+    const onFirstFinding = index.byFingerprint.get(`${row.anchorPath}#${row.id}`) ?? [];
+    expect(onFirstFinding).toHaveLength(1);
+    expect(onFirstFinding[0]?.status).toBe('in progress');
+    const model = buildInvestigationModel(buildQualityModel(fileSummariesFor(snapshot), evidenceIndexFor(fileSummariesFor(snapshot), demoEvidenceReport(snapshot), snapshot.snapshotId), []), index);
+    expect(model.orphanNotes).toHaveLength(1);
+  });
+
+  it('demoInvestigation gives an exact locationVerdict for demo and a size failure for stale', async () => {
+    const snapshot = harnessSnapshot();
+    const { row, evidence } = firstRow(snapshot);
+
+    const demo = demoInvestigation(snapshot, 'demo');
+    const demoResult = await demo.preview.read(previewRequestFor(row, snapshot));
+    if (demoResult.status !== 'ok') throw new Error('unreachable: the fixed preview always reads ok');
+    const demoVerdict = locationVerdict(locationInputsFor(row, snapshot, evidence, demoResult.text));
+    expect(demoVerdict.exact).toBe(true);
+
+    const stale = demoInvestigation(snapshot, 'stale');
+    const staleResult = await stale.preview.read(previewRequestFor(row, snapshot));
+    if (staleResult.status !== 'ok') throw new Error('unreachable: the fixed preview always reads ok');
+    const staleVerdict = locationVerdict(locationInputsFor(row, snapshot, evidence, staleResult.text));
+    expect(staleVerdict.exact).toBe(false);
+    if (!staleVerdict.exact) expect(staleVerdict.failed).toBe('size');
   });
 
   it('Polish H5: the failed-run shot opens its error output, and refuses to capture without one', () => {

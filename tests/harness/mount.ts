@@ -13,12 +13,13 @@ import { useRunStore } from '../../src/ui/stores/run-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useLensStore } from '../../src/ui/stores/lens-store';
 import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
+import { useInvestigationStore } from '../../src/ui/stores/investigation-store';
 import { createFakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
 import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
 import {
   DEMO_FALLOW_FILE_NAME, HARNESS_BINDING, cancellingLifecycle, completedAnalysisState, demoCollectedReport,
-  demoEvidenceReport, demoFallowReportText, demoImportJson, demoRunReview, failedAnalysisState, openFailureLog,
-  runningAnalysisState, runningLifecycle, seedDemoItems,
+  demoEvidenceReport, demoFallowReportText, demoImportJson, demoInvestigation, demoRunReview, failedAnalysisState,
+  openFailureLog, runningAnalysisState, runningLifecycle, seedDemoItems,
 } from './seed';
 import { harnessLayout, harnessSnapshot } from './fixture';
 import { HARNESS_THEME_EVENT } from './theme';
@@ -43,6 +44,9 @@ export interface HarnessOptions {
   /** WP-03 N38: highlight the selected file's first highlightable cycle (city, with
    *  report=demo and a selection that is a cycle member). */
   relations?: 'cycle';
+  /** WP-04 IN40 (IP36): seed the Investigate screen's notes port and preview (route=
+   *  investigate, with report=demo); 'create' also opens the create-note dialog. */
+  investigate?: 'demo' | 'stale' | 'create';
 }
 
 export async function mountHarness(root: HTMLElement, options: HarnessOptions): Promise<void> {
@@ -166,6 +170,11 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
   }
 
   const route = options.route ?? 'city';
+  // IN40: a broken capture page-errors rather than silently ignoring `investigate=` (the
+  // `fallow=` precedent below already throws on its own missing prerequisites).
+  if (options.investigate && (route !== 'investigate' || options.report !== 'demo')) {
+    throw new Error('harness: investigate= needs route=investigate and report=demo');
+  }
   store.navigate(route);
   if (options.relations === 'cycle') {
     // WP-03 N38: a headless capture cannot click, so the harness clicks the city
@@ -251,6 +260,24 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
       fallowAnalysis.next.run = { kind: 'review', review: demoRunReview(snapshot), reason: 'untrusted' };
       useAnalysisStore().requestRun();
       await until(() => root.querySelector('.ci-fallow-installed__trust') !== null);
+    }
+    if (options.investigate) {
+      // IN40 (IP36): the fake vault's own port and a fixed preview, bound and selected
+      // AFTER the report so `notes.list`/`readPreview` see the already-bound codebase
+      // (IP37); `create` also opens the create dialog, the same way a real Create press
+      // would (IPF12's own class).
+      const snapshot = store.snapshot;
+      if (!snapshot) throw new Error('harness: investigate= found no snapshot');
+      const { notes, preview, fingerprint } = demoInvestigation(snapshot, options.investigate);
+      const investigation = useInvestigationStore();
+      investigation.setPorts(notes, preview);
+      investigation.open(fingerprint);
+      await nextTick();
+      if (options.investigate === 'create') {
+        root.querySelector<HTMLElement>('.ci-notes-panel__create')?.click();
+        await until(() => root.querySelector('.ci-dialog') !== null);
+        await nextTick();
+      }
     }
     document.body.dataset.ciHarnessReady = 'true';
     return;

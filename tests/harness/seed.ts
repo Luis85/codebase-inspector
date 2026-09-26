@@ -17,6 +17,25 @@ import type { AnalysisRunState } from '../../src/application/analysis/analysis-s
 import type { AnalyzerBindingRead } from '../../src/application/analysis/analyzer-record';
 import type { RunReview } from '../../src/application/analysis/fallow-analysis-service';
 import { HARNESS_EXECUTABLE, fakeRunReview } from '../fixtures/fake-fallow-analysis';
+// WP-04 Task 17 (IN40; IP36, IPF11): the Investigate harness seed.
+import { createFakeVault } from '../fixtures/fake-vault';
+import { createFakeInvestigationFolders } from '../fixtures/fake-investigation-folders';
+import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
+import { createFixedClock } from '../fixtures/clock';
+import { fixedSourcePreview } from '../fixtures/fake-investigation';
+import { stringifyYaml } from '../mocks/obsidian';
+import { createInvestigationNotes } from '../../src/host/investigation-notes';
+import { EVIDENCE_BEGIN, EVIDENCE_END, noteFrontmatter, renderNoteBody } from '../../src/application/investigation/note-model';
+import { defaultNoteFolder, noteBaseName } from '../../src/application/investigation/note-path';
+import { EMPTY_NOTE_INDEX } from '../../src/application/investigation/note-index';
+import type { PreviewLine, PreviewResult, SourcePreview } from '../../src/application/investigation/source-preview';
+import type { InvestigationNotesPort } from '../../src/application/ports/investigation-notes-port';
+import { buildQualityModel } from '../../src/ui/read-models/findings';
+import { buildInvestigationModel } from '../../src/ui/read-models/investigation';
+import {
+  checklistFor, evidenceBundleFor, evidenceFactsFor, noteIdentityFor, uncertaintiesFor,
+} from '../../src/ui/read-models/investigation-evidence';
+import { FINDING_KIND_LABEL, NOTE_VOCABULARY } from '../../src/ui/inspector-copy';
 
 const AT = new Date('2026-09-17T12:00:00Z');
 
@@ -193,4 +212,105 @@ export function openFailureLog(root: ParentNode): void {
   const log = root.querySelector('details.ci-fallow-run__log');
   if (log === null) throw new Error('harness: analysis=failed rendered no error output');
   log.setAttribute('open', '');
+}
+
+// WP-04 Task 17 (IN40; IP36, IPF11): `?investigate=demo|stale|create` — the Investigate
+// screen's own notes port (a fake vault) and a fixed source preview.
+const INVESTIGATION_PROFILE_NAME = 'Harness City';
+/** Anchored on none of the demo report's ten files (DEMO_FILE_INDEXES), so a note here can
+ *  never be claimed by any row's portable fingerprint — a real "finding the report does not
+ *  hold" (IN34), the same shape Orphan notes covers. */
+const ORPHAN_SOURCE_PATH = 'dir-0/file-0.ts';
+const PREVIEW_WINDOW = 41;
+
+function observedMetric(snapshot: CodebaseSnapshot, entityId: EntityId, metricId: 'byte-size' | 'physical-lines'): number {
+  const obs = snapshot.observations.find((o) => o.entityId === entityId && o.measurement.metricId === metricId);
+  return obs !== undefined && obs.status === 'measured' ? (obs.value ?? 0) : 0;
+}
+
+/** 41 plausible TypeScript lines around `targetLine` — a fixed window, never the real
+ *  windowing algorithm (this preview is scripted, IP36), but internally consistent: the
+ *  target line is always one of the 41. */
+function previewLines(targetLine: number, title: string): readonly PreviewLine[] {
+  const lines: PreviewLine[] = [];
+  for (let n = 1; n <= PREVIEW_WINDOW; n += 1) {
+    const text = n === targetLine ? `export function reviewMe(): number { // ${title}`
+      : n === targetLine + 1 ? '  return computeScore(this.nodes);'
+        : n % 4 === 0 ? `  // checkpoint ${n}`
+          : `  const value${n} = helper(${n});`;
+    lines.push({ number: n, text, cut: false });
+  }
+  return lines;
+}
+
+/** IN40 (IP36, IPF11): the fake vault's own port — one linked note on the report's first
+ *  finding (status "in progress"), one orphan note for a finding the report does not hold —
+ *  and a fixed preview whose size and line count equal the anchor's real observations
+ *  (`stale`: the size is one byte off, so the location check fails on `size` before it ever
+ *  reads the line). The row is built through the SAME read models the real screen uses
+ *  (fileSummariesFor, evidenceIndexFor, buildQualityModel, buildInvestigationModel), so "the
+ *  first finding" can never silently drift from what InvestigateScreen itself shows first.
+ *  The fake vault's own base path IS the codebase root, so the create dialog's default
+ *  folder overlaps it and shows the Exclude checkbox (IN26/IN29). */
+export function demoInvestigation(
+  snapshot: CodebaseSnapshot, mode: 'demo' | 'stale' | 'create',
+): { notes: InvestigationNotesPort; preview: SourcePreview; fingerprint: string } {
+  const report = demoEvidenceReport(snapshot);
+  const files = fileSummariesFor(snapshot);
+  const evidence = evidenceIndexFor(files, report, snapshot.snapshotId);
+  const quality = buildQualityModel(files, evidence, []);
+  const model = buildInvestigationModel(quality, EMPTY_NOTE_INDEX);
+  const row = model.rows[0];
+  if (row === undefined) throw new Error('harness: investigate= needs at least one finding');
+  const bundle = evidenceBundleFor(row, evidence, files);
+  if (bundle === null) throw new Error('harness: investigate= found no evidence bundle');
+
+  const vault = createFakeVault({ basePath: snapshot.scope.rootPath });
+  const clock = createFixedClock(AT.toISOString());
+  const profiles = createFakeProfileStoreHarness();
+  void profiles.writeRaw({
+    profiles: [{
+      profileId: snapshot.repositoryId, name: INVESTIGATION_PROFILE_NAME, bindingId: null,
+      exclusions: [], maxFileBytes: snapshot.scope.maxFileBytes,
+    }],
+  });
+  const notes = createInvestigationNotes(vault.app, {
+    folders: createFakeInvestigationFolders(), profiles: profiles.store, clock, registerEvent: () => {},
+  });
+
+  const identity = noteIdentityFor(row, snapshot.repositoryId, snapshot.snapshotId);
+  const uncertainties = uncertaintiesFor(row, bundle, null);
+  const body = renderNoteBody(evidenceFactsFor(row, bundle, uncertainties), checklistFor(row.kind), NOTE_VOCABULARY);
+  const folder = defaultNoteFolder('');
+  const fileName = `${noteBaseName(row.id, FINDING_KIND_LABEL[row.kind], row.file.name)}.md`;
+  // The fake vault's own create()/createFolder() run their whole body synchronously (no
+  // internal await, unlike the host port's own create(), which the void below never waits
+  // for) — this function returns synchronously, so the files must exist before it does.
+  void vault.app.vault.createFolder(folder);
+  void vault.app.vault.create(
+    `${folder}/${fileName}`,
+    `---\n${stringifyYaml({ ...noteFrontmatter(identity, clock.nowIso()), status: 'in progress' })}---\n\n${body}`,
+  );
+  const orphanIdentity = {
+    codebaseId: snapshot.repositoryId, sourcePath: ORPHAN_SOURCE_PATH, snapshotId: snapshot.snapshotId, findingId: 'orphan-finding',
+  };
+  void vault.app.vault.create(
+    `${folder}/Orphan note.md`,
+    `---\n${stringifyYaml(noteFrontmatter(orphanIdentity, clock.nowIso()))}---\n\n${EVIDENCE_BEGIN}\n${EVIDENCE_END}\n`,
+  );
+
+  const line = row.line ?? 1;
+  const observedBytes = observedMetric(snapshot, row.file.id, 'byte-size');
+  const observedLines = observedMetric(snapshot, row.file.id, 'physical-lines');
+  const result: PreviewResult = {
+    status: 'ok',
+    text: {
+      lines: previewLines(line, row.title),
+      lineCount: observedLines,
+      size: mode === 'stale' ? observedBytes + 1 : observedBytes,
+      mtimeMs: AT.getTime() - 60_000,
+      readAt: AT.toISOString(),
+    },
+  };
+  return { notes, preview: fixedSourcePreview(result), fingerprint: row.fingerprint };
 }
