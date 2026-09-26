@@ -45,11 +45,11 @@ function guardedAddWorkItem(): void {
 
 <template>
   <Panel :title="INVESTIGATE_EVIDENCE_TITLE">
-    <p class="ci-evidence-panel__chips">
-      <ProvenanceBadge
-        v-if="bundle.state === 'stale'"
-        state="stale"
-      />
+    <p
+      v-if="bundle.state === 'stale'"
+      class="ci-evidence-panel__chips"
+    >
+      <ProvenanceBadge state="stale" />
     </p>
     <p class="ci-evidence-panel__summary">
       {{ row.title }}

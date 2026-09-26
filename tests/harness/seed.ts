@@ -228,9 +228,12 @@ function observedMetric(snapshot: CodebaseSnapshot, entityId: EntityId, metricId
   return obs !== undefined && obs.status === 'measured' ? (obs.value ?? 0) : 0;
 }
 
-/** 41 plausible TypeScript lines around `targetLine` — a fixed window, never the real
- *  windowing algorithm (this preview is scripted, IP36), but internally consistent: the
- *  target line is always one of the 41. */
+/** 41 plausible TypeScript lines, always numbered 1..PREVIEW_WINDOW — the window is NOT
+ *  centred on `targetLine` (this preview is scripted, IP36, never the real windowing
+ *  algorithm, which would centre it and clip at the file's edges). It starts at line 1
+ *  regardless of where `targetLine` falls, so the caller must keep `targetLine` at or
+ *  under PREVIEW_WINDOW — true for the demo report's own first finding, whose line is
+ *  near the top of its file. */
 function previewLines(targetLine: number, title: string): readonly PreviewLine[] {
   const lines: PreviewLine[] = [];
   for (let n = 1; n <= PREVIEW_WINDOW; n += 1) {

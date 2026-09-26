@@ -109,6 +109,25 @@ describe('Evidence panel (WP-04 IN14)', () => {
     expect(w.text()).toContain(UNCERTAINTY_REPORT_STALE);
     w.unmount();
   });
+
+  // Task 17 review, fix round 1: the chips paragraph rendered unconditionally with only a
+  // conditional child, so a current bundle (no badge) left an empty <p> — a visible gap
+  // above the summary line the captures showed. It exists only when it has something to show.
+  it('the chips paragraph is absent for a current bundle and present for a stale one', async () => {
+    await withReport(4);
+    await select('unused-exports');
+    const current = mountScreen();
+    await nextTick();
+    expect(current.find('.ci-evidence-panel__chips').exists()).toBe(false);
+    current.unmount();
+
+    await withReport(4, { snapshotId: 'a-different-snapshot' });
+    await select('unused-exports');
+    const stale = mountScreen();
+    await nextTick();
+    expect(stale.find('.ci-evidence-panel__chips').exists()).toBe(true);
+    stale.unmount();
+  });
 });
 
 describe('Uncertainty and checklist panels (WP-04 IN15/IN16)', () => {
