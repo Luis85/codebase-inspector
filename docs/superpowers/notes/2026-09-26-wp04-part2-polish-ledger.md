@@ -51,3 +51,53 @@ This ledger records every ruling made while planning and executing the WP-04 Par
 | PP13 | **Ruling (T3):** scenario 2's post-reload RED is a second recorded mutation (`listDispositions` returning `[]`), with no change to the test beyond T4 and T5. — No `data.json` read happens at `onload`, so no write-side mutation can reach past the reload. The read side is where a reload loses data. — None. |
 | PP14 | **Ruling:** the spec, this plan and this ledger are committed together before Task 1, and the controller stops for the owner's approval there. Execution rulings are transcribed into this ledger in Task 9's evidence commit. — The brief's Phase 1 stop. — None. |
 | PP15 | **Ruling:** the native finish runs `npm run test:e2e` on the baseline 1.13.4, then once with `OBSIDIAN_VERSION=latest`, with `FALLOW_BIN` set to the owner's path and no `fallow.exe` running (E11). A failure on latest is a failure of this pass (NP20). — Carries Part 2's O4. — Low: a new Obsidian release between the runs can turn latest red; that is reported, never retried. |
+
+## Pre-flight scan
+
+The scan ran on 2026-09-26 at `2a770a1`, which differs from `9644c08` only by these three documents.
+
+**Line counts:** re-measured with `wc -l`, and all match the plan's table. The plan's own Size table is the record.
+
+**Consumes names:** grepped, and all found:
+- `DataAdapter.stat(normalizedPath): Promise<Stat | null>` (`obsidian.d.ts:2027`);
+- `sameRoot` (`root-path.ts:47`);
+- `resolveFindings` (`resolve-findings.ts:10`);
+- `FINDINGS_PAGE` (`findings.ts:40`);
+- `FINDING_STATUS_LABEL` (`audit-copy/quality.ts:46`) and `FINDING_DIALOG_REASON` (`:87`, rendered at `EvidencePanel.vue:83`);
+- `ROUTE_META` (`routes.ts:12`);
+- `openScopeModal` and `ScopeSubject.resolvedRoot` (`src/host/modals/scope-modal.ts:21–23, 208`);
+- `writeReport` (`workspace-files.ts:86`);
+- `setTimeLimit` (`fallow-analysis-service.ts:308`: it writes through `store.setTimeoutSeconds` unless the profile was purged or the value is invalid), and `this.analysis` (`main.ts:78`);
+- `listDispositions` (`plugin-data-review-repository.ts:238`);
+- `@more` (`InvestigateScreen.vue:199`) and `.ci-finding-dialog__save-dismissal` (`FindingReviewDialog.vue:251`).
+
+None of the new names exists yet (`groupOrder` in the config, `diskOnly`, `boundRoot`, `renderWhenIdle`).
+
+| Row | Tasks | Produces ↔ consumes / self-consistency | Finding |
+|---|---|---|---|
+| 1 | 1 ↔ 2 | Both edit `investigation-notes.ts`. Task 1 changes `ensureFolders`; Task 2 changes `insideOf`, `planDestination`, `sourceNotePath` and `createInvestigationNotes`. | Sequential and disjoint functions. Consistent. |
+| 2 | 1 ↔ 7 | Both edit `notes-root.e2e.ts`: Task 1 adds scenario 37, Task 7 changes scenario 22's timeout. | Sequential. Consistent. |
+| 3 | 3 ↔ 4 | Scenario 39 (Task 3) drives Settings Connect and Clear binding. Task 4 changes when `settings-tab.ts` re-renders (PN4). | Scenario 39 is built on pre-PN4 rendering. Task 4 must re-run it with `settings.e2e.ts`, and Task 9's full gate re-runs everything. **Rework (PQ-R1):** Task 4's native run adds `commands.e2e.ts -t "scan-codebase after a Reconnect"`. |
+| 4 | 3 ↔ 8 | Both edit `commands.e2e.ts`: Task 3 adds scenario 39, and Task 8 replaces the count helper in scenario 7. | Sequential. Consistent. |
+| 5 | 7 ↔ 8 | Both edit `inspector.ts` and `workspace-files.ts`: Task 7 changes `reviewFinding` and `evidence()`, and Task 8 replaces `recordingFindingCount`. | Disjoint members. Consistent. |
+| 6 | 5 ↔ 9 | `harness-shot` shows the Task 5 CSS. | Consistent. |
+| 7 | 6 ↔ 9 | Task 6 adds one node-layer test file and one support module; Task 9 refreshes the counts. | Consistent (PP10). |
+| T1 | 1 | The fake's disk-only parent must accept a child `createFolder` or `create`, as Obsidian's recursive `mkdir` does. | Consistent. |
+| T2 | 2 | The lazy `{ container, target }` resolutions against "resolved only when the textual check fails". | Consistent. |
+| T3 | 3 | Step 3 names the scope modal at `src/host/scope-modal.ts`. | **Correction (PQ1):** it is `src/host/modals/scope-modal.ts`. |
+| T3b | 3 | `sameRoot`'s `caseSensitive`. PN5 says `Platform.isLinux`; the source modal uses `!Platform.isWin` (`source-modal.ts:189`). | **Ruling (PQ2)** below. |
+| T4 | 4 | Step 1's watched write. `setTimeLimit` writes `analyzers` for any unpurged profile with a valid value. | Consistent; the first choice is usable. |
+| T5 | 5 | The pin and the CSS name the same declaration. | Consistent. |
+| T6 | 6 | `groupOrder` exists in Vitest 5.0.1's types; whether every project must set it is checked in Step 2. | Consistent. |
+| T7 | 7 | The second finding must be open, because `.ci-finding-dialog__acknowledge` exists only while the status is `open` (`FindingReviewDialog.vue:275`), and `reviewFinding` polls it first. | Consistent: the plan says "still open". |
+| T8 | 8 | Both RED mutations are named, and the controls come first. | Consistent. |
+| T9 | 9 | "Verified 40 executed … all 40", because every native case is a required one (Part 2: 36/36). | Consistent. |
+
+0 blocking, 1 rework (PQ-R1), 1 correction (PQ1) and 1 ruling (PQ2).
+
+## Pre-flight rulings
+
+| # | Ruling |
+|---|---|
+| PQ1 | **Ruling:** Task 3 reads the scope modal at `src/host/modals/scope-modal.ts`. PQ-R1 is carried into Task 4's dispatch: its native run adds scenario 39. — Both are facts: the plan's path, and a cross-task dependency its Files list missed. — None. |
+| PQ2 | **Ruling:** E14's root comparison uses `sameRoot(…, { caseSensitive: Platform.isLinux })`, as PN5 states, not the source modal's `!Platform.isWin`. — The investigation code and the preview already use `Platform.isLinux` (`investigation-notes.ts:44–46`, `investigation-services.ts:49`), and macOS's default filesystem is case-insensitive. The source modal's stricter macOS rule is a containment check on a new selection, not a comparison of two roots. — Low: on a case-sensitive macOS volume, two roots that differ only in case would read as one, so no approval would be asked. |
