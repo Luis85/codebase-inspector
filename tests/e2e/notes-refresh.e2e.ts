@@ -14,14 +14,13 @@ import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import type { NativeContext } from './fixture';
 import { CITY_VIEW_TYPE } from './session';
-import { RECORDING, copyProject, cycleFinding, hashTree } from './workspace-files';
+import { RECORDING, cycleFinding, hashTree } from './workspace-files';
+import { noteForCycle } from './cycle-note';
 
 type Browser = NativeContext['browser'];
 type PatchWindow = Window & { ciFrontMatterCalls?: number };
 /** What the city leaf's own Pinia city store holds (CityView's `cityStore`, private in TypeScript, read at runtime). */
 interface StoreSnapshot { snapshotId: string; files: string[] }
-
-const CYCLE_ANCHOR = 'src/core/a.ts';
 
 /** The note after its (single) end marker line: the person's sections. */
 const afterEnd = (text: string): string => text.slice(text.indexOf(`${EVIDENCE_END}\n`) + EVIDENCE_END.length + 1);
@@ -33,8 +32,8 @@ const sha256 = (text: string): string => createHash('sha256').update(text, 'utf8
 /** The snapshot the city leaf shows, from the leaf's own city store: its id and its file entities' root-relative paths. */
 const storeSnapshot = (browser: Browser): Promise<StoreSnapshot> => browser.executeObsidian(({ app }, type): StoreSnapshot => {
   type Entity = { kind: string; path: string };
-  const view = app.workspace.getLeavesOfType(type)[0]?.view as unknown as { cityStore?: { snapshot: { snapshotId: string; entities: Entity[] } | null } };
-  const snapshot = view.cityStore?.snapshot;
+  const view = app.workspace.getLeavesOfType(type)[0]?.view as unknown as { cityStore?: { snapshot: { snapshotId: string; entities: Entity[] } | null } } | undefined;
+  const snapshot = view?.cityStore?.snapshot;
   if (!snapshot) throw new Error('the city leaf holds no snapshot');
   return { snapshotId: snapshot.snapshotId, files: snapshot.entities.filter((e) => e.kind === 'file').map((e) => e.path).sort() };
 }, CITY_VIEW_TYPE);
@@ -60,21 +59,6 @@ const restoreFrontMatter = (browser: Browser): Promise<boolean> => browser.execu
   delete (app.fileManager as { processFrontMatter?: unknown }).processFrontMatter;
   return Object.prototype.hasOwnProperty.call(app.fileManager, 'processFrontMatter');
 });
-
-/** The spine's start: `code/` scanned through the plugin's own modals, the recording imported, the import cycle selected
- *  and a note created for it, linked through Obsidian's own metadata cache. */
-async function noteForCycle({ browser, page, inspector }: NativeContext): Promise<{ path: string; fingerprint: string; snapshot: string | null }> {
-  copyProject(page.getVaultPath(), 'code');
-  await expect.poll(() => browser.executeObsidian(({ app }) => app.vault.adapter.exists('code/src/core/a.ts'))).toBe(true);
-  const fingerprint = `${CYCLE_ANCHOR}#${cycleFinding().id}`;
-  await inspector.openCity();
-  await inspector.scanFolder('code');
-  await inspector.importReport(RECORDING);
-  await inspector.selectFinding(cycleFinding().id);
-  const path = await inspector.createNote();
-  await expect.poll(() => inspector.cachedFingerprint(path)).toBe(fingerprint);
-  return { path, fingerprint, snapshot: await inspector.snapshotId() };
-}
 
 /** A rescan against the stored scope, the recording again and the same finding: returns the new snapshot id. */
 async function rescanAndReimport({ inspector }: NativeContext): Promise<string | null> {

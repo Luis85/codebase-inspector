@@ -9,7 +9,8 @@ import { buildEvidenceReport } from '../../src/application/evidence/normalize-fa
 
 export const RECORDING = resolve('tests/fixtures/fallow/relations-combined-3.27.0.json');
 const RELATIONS_PROJECT = resolve('tests/fixtures/fallow/relations-project');
-const CYCLE_ANCHOR = 'src/core/a.ts';
+/** The file the recording's import cycle is anchored on (its finding fingerprint is `<anchor>#<finding id>`). */
+export const CYCLE_ANCHOR = 'src/core/a.ts';
 /** Files per leaf folder of the synthetic tree, and folders per level (MAX_DIRECT_SUBDISTRICTS is 20). */
 const FILES_PER_FOLDER = 25;
 const FOLDERS_PER_LEVEL = 20;

@@ -12,9 +12,9 @@ import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import type { NativeContext } from './fixture';
 import { PLUGIN_ID } from './session';
-import { RECORDING, copyProject, cycleFinding } from './workspace-files';
+import { RECORDING, cycleFinding } from './workspace-files';
+import { noteForCycle } from './cycle-note';
 
-const CYCLE_ANCHOR = 'src/core/a.ts';
 interface RenameEvent { path: string; oldPath: string; folder: boolean }
 type ProbeWindow = Window & { ciRenames?: RenameEvent[]; ciRenameRef?: EventRef };
 interface CacheEntry { exists: boolean; indexed: boolean; hasFingerprint: boolean }
@@ -26,22 +26,6 @@ const cacheEntry = (browser: NativeContext['browser'], path: string): Promise<Ca
   const cache = file === null ? null : app.metadataCache.getFileCache(file);
   return { exists: file !== null, indexed: cache !== null, hasFingerprint: cache?.frontmatter?.finding_fingerprint !== undefined };
 }, path);
-
-/** The spine's start: `code/` scanned through the plugin's own modals, the recording imported, the import cycle
- *  selected and a note created for it, linked through Obsidian's own metadata cache. Returns its path and fingerprint. */
-async function noteForCycle({ browser, page, inspector }: NativeContext): Promise<{ path: string; fingerprint: string }> {
-  copyProject(page.getVaultPath(), 'code');
-  await expect.poll(() => browser.executeObsidian(({ app }) => app.vault.adapter.exists('code/src/core/a.ts'))).toBe(true);
-  const { id } = cycleFinding();
-  const fingerprint = `${CYCLE_ANCHOR}#${id}`;
-  await inspector.openCity();
-  await inspector.scanFolder('code');
-  await inspector.importReport(RECORDING);
-  await inspector.selectFinding(id);
-  const path = await inspector.createNote();
-  await expect.poll(() => inspector.cachedFingerprint(path)).toBe(fingerprint);
-  return { path, fingerprint };
-}
 
 describe('the note index in the real vault (WP-04.2 rows 16–17)', () => {
   test('the note index follows a folder move and ignores an unrelated note', async ({ native }) => {

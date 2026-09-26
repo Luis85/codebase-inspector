@@ -12,9 +12,8 @@ import { join, resolve } from 'node:path';
 import { describe, expect } from 'vitest';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
-import { RECORDING, cycleFinding, hashTree } from './workspace-files';
+import { CYCLE_ANCHOR, RECORDING, cycleFinding, hashTree } from './workspace-files';
 
-const CYCLE_ANCHOR = 'src/core/a.ts';
 const BEGIN_MARKER = '<!-- codebase-inspector:evidence:begin -->';
 const END_MARKER = '<!-- codebase-inspector:evidence:end -->';
 
