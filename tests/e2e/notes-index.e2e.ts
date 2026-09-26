@@ -101,5 +101,5 @@ describe('the note index in the real vault (WP-04.2 rows 16–17)', () => {
     await expect.poll(() => inspector.notePaths()).toEqual([moved]);
     await writeEvidence(directory, 'relinked', { path, moved, listed: await inspector.notePaths() });
     expect(await inspector.cachedFingerprint(moved)).toBe(fingerprint);
-  }, 240_000);
+  });
 });

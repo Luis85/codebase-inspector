@@ -28,7 +28,8 @@ export function listenerCounts(browser: NativeBrowser): Promise<ListenerCounts> 
       const table = (events as { _?: unknown })._;
       if (typeof table !== 'object' || table === null) throw new Error(`${source} has no Events listener table`);
       for (const [name, listeners] of Object.entries(table as Record<string, unknown>)) {
-        if (Array.isArray(listeners)) out[`${source}:${name}`] = listeners.length;
+        if (!Array.isArray(listeners)) throw new Error(`${source}:${name} is not a listener array`);
+        out[`${source}:${name}`] = listeners.length;
       }
     }
     return out;
@@ -104,8 +105,8 @@ export async function openPluginSettings(browser: NativeBrowser): Promise<void> 
     return setting.activeTab?.id ?? null;
   }, PLUGIN_ID);
   if (tab !== PLUGIN_ID) throw new Error(`the settings opened on ${String(tab)}, not ${PLUGIN_ID}`);
-  await expect.poll(() => handleWhere(browser, hasSettings)).not.toBeNull();
-  const handle = await handleWhere(browser, hasSettings);
+  let handle: string | null = null;
+  await expect.poll(async () => (handle = await handleWhere(browser, hasSettings))).not.toBeNull();
   if (handle === null) throw new Error('the settings window vanished');
   await browser.switchToWindow(handle);
 }

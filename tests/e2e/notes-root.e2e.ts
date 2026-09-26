@@ -112,7 +112,7 @@ describe('notes inside the codebase root (WP-04.2 rows 20, 22)', () => {
     const exclusions = onlyProfile(await pluginData(browser)).exclusions;
     await inspector.createNoteIn('code/notes', true);
     await expect.poll(async () => onlyProfile(await pluginData(browser)).exclusions).toEqual([...exclusions, 'notes']);
-  }, 300_000);
+  });
 });
 
 // WP-04.2 Task 1 (NPF15, P2, PN2): `code/` copied straight through node:fs (never `indexedCycle`'s

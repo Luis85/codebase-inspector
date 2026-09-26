@@ -10,7 +10,7 @@
 import type { EventRef } from 'obsidian';
 import { describe, expect } from 'vitest';
 import { INVESTIGATE_ROW_DISPOSITION, INVESTIGATE_WORK_ITEM_LINE, NOTES_FOLDER_SETTING_NAME } from '../../src/ui/audit-copy/investigation';
-import { FINDING_STATUS_LABEL } from '../../src/ui/audit-copy/quality';
+import { FINDING_DIALOG_REASON, FINDING_STATUS_LABEL } from '../../src/ui/audit-copy/quality';
 import { WORK_ITEM_STATUS_LABEL } from '../../src/ui/inspector-copy';
 import { ROUTE_META } from '../../src/ui/routes';
 import { writeEvidence } from './diagnostics';
@@ -32,6 +32,9 @@ const MACHINE_ID_KEY = 'codebase-inspector:machine-id';
 const NOTES_FOLDER = 'Research/notes';
 /** FindingReviewDialog.vue's Acknowledge decision. */
 const DISPOSITION = 'acknowledged';
+/** T4: a second, still-open finding from the 3.27.0 recording — never the cycle — so scenario 2 also exercises
+ *  Dismiss (a reason, saved and read back) alongside Acknowledge: unused-exports on src/barrel/x.ts. */
+const SECOND_FINDING = 'UN-07f110ff';
 /** The note index's four registerEvent listeners (investigation-note-index.ts), started by Investigate. */
 const NOTE_INDEX_EVENTS = ['metadataCache:changed', 'metadataCache:resolved', 'vault:delete', 'vault:rename'];
 
@@ -88,6 +91,17 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
       delete win.ciProbeRef;
     });
     expect(leakedListeners(control, await listenerCounts(browser))).toEqual([]);
+
+    // Negative control (T2/E4): a non-array entry in a listener table must fail closed (a thrown, named error),
+    // never be silently skipped and undercounted the way the positive control above would hide it.
+    await browser.executeObsidian(({ app }) => { (app.vault as unknown as { _: Record<string, unknown> })._['ci-probe'] = {}; });
+    try {
+      await expect(listenerCounts(browser)).rejects.toThrow('vault:ci-probe');
+    } finally {
+      await browser.executeObsidian(({ app }) => { delete (app.vault as unknown as { _: Record<string, unknown> })._['ci-probe']; });
+    }
+    // listenerCounts works again once the planted entry is gone.
+    await expect(listenerCounts(browser)).resolves.toBeTruthy();
 
     copyProject(page.getVaultPath(), 'code');
     // The baseline, taken with the plugin disabled.
@@ -177,6 +191,10 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
     await expect.poll(async () => (await inspector.evidence()).workItems).toEqual([workLine]);
     expect((await inspector.evidence()).rows[INVESTIGATE_ROW_DISPOSITION]).toBe(FINDING_STATUS_LABEL[DISPOSITION]);
 
+    // T4: a second, still-open finding is dismissed too, with a reason, so the dismissal path is exercised too.
+    await inspector.selectFinding(SECOND_FINDING);
+    await inspector.reviewFinding('dismissed');
+
     const before = await pluginData(browser);
     const machine = await machineId(browser);
     // Positive control: every write reached data.json, and the binding is this device's.
@@ -186,8 +204,10 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
     expect(savedProfiles(before)[0]?.bindingId).toBe(bindings[0]!.bindingId);
     expect(folderOf(before, profile.profileId)).toBe(NOTES_FOLDER);
     const reviews = (before.reviews as Record<string, SavedReviews> | undefined)?.[profile.profileId];
-    expect(reviews?.dispositions).toHaveLength(1);
+    expect(reviews?.dispositions).toHaveLength(2);
     expect(reviews?.dispositions?.[0]).toMatchObject({ status: DISPOSITION });
+    // T4: the second finding's own record, before the reload (plugin-data-review-repository.ts's stored shape).
+    expect(reviews?.dispositions?.[1]).toMatchObject({ status: 'dismissed', reason: 'native e2e' });
     expect(reviews?.workItems).toHaveLength(1);
     expect(reviews?.workItems?.[0]).toMatchObject({ title, status: 'investigate' });
     expect(typeof machine === 'string' && machine.length > 0).toBe(true);
@@ -213,5 +233,8 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
     await inspector.selectFinding(id);
     await expect.poll(async () => (await inspector.evidence()).workItems).toEqual([workLine]);
     expect((await inspector.evidence()).rows[INVESTIGATE_ROW_DISPOSITION]).toBe(FINDING_STATUS_LABEL[DISPOSITION]);
-  }, 300_000);
+    // T4: the second finding's dismissal, and its reason, also survived the reload.
+    await inspector.selectFinding(SECOND_FINDING);
+    expect((await inspector.evidence()).rows[FINDING_DIALOG_REASON]).toBe('native e2e');
+  });
 });

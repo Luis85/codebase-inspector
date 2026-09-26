@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { expect } from 'vitest';
 import { Key } from 'webdriverio';
+import { FINDING_STATUS_LABEL } from '../../src/ui/audit-copy/quality';
 import { ROUTE_META } from '../../src/ui/routes';
 import { commandAvailable, openPluginSettings } from './host-probes';
 import { createFallowSteps } from './inspector-fallow';
@@ -10,6 +11,7 @@ import { decodePng, type Png } from './png';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
 
 type ErrorWindow = Window & { ciErrors?: string[] };
+type ReviewDisposition = Exclude<keyof typeof FINDING_STATUS_LABEL, 'open'>; // T4: the dialog's two decisions.
 
 export type InspectorPage = ReturnType<typeof createInspectorPage>;
 
@@ -249,19 +251,17 @@ export function createInspectorPage(browser: NativeBrowser) {
      *  `acknowledged` is the Acknowledge toggle, which saves on press; `dismissed` is Dismiss, a reason and Save),
      *  then Close. Waits for the store to accept decisions (the toggle is not aria-disabled, E40) and for the
      *  dialog's status chip to show the decision. */
-    async reviewFinding(disposition: string): Promise<void> {
+    async reviewFinding(disposition: ReviewDisposition): Promise<void> {
       await root().$('.ci-evidence-panel__review').click();
       const dialog = root().$('.ci-finding-dialog');
       await expect.poll(() => dialog.isExisting()).toBe(true);
       await expect.poll(() => dialog.$('.ci-finding-dialog__acknowledge').getAttribute('aria-disabled')).toBe('false');
       if (disposition === 'acknowledged') {
         await dialog.$('.ci-finding-dialog__acknowledge').click();
-      } else if (disposition === 'dismissed') {
+      } else {
         await dialog.$('.ci-finding-dialog__dismiss').click();
         await dialog.$('.ci-finding-dialog__dismissal textarea').addValue('native e2e');
         await dialog.$('.ci-finding-dialog__save-dismissal').click();
-      } else {
-        throw new Error(`the review dialog has no control for ${disposition}`);
       }
       await expect.poll(() => dialog.$(`.ci-chip--status-${disposition}`).isExisting()).toBe(true);
       await dialog.$('.ci-finding-dialog__close').click();
@@ -284,8 +284,11 @@ export function createInspectorPage(browser: NativeBrowser) {
       await expect.poll(() => meta.isExisting()).toBe(true);
       const terms = await meta.$$('dt').map(trimmedText);
       const values = await meta.$$('dd').map(trimmedText);
+      if (terms.length !== values.length || new Set(terms).size !== terms.length) {
+        throw new Error(`the evidence panel shows ${terms.length} labels and ${values.length} values, or a repeated label`);
+      }
       const workItems = await root().$$('.ci-evidence-panel__work-items li').map(trimmedText);
-      return { rows: Object.fromEntries(terms.map((term, i) => [term, values[i] ?? ''])), workItems };
+      return { rows: Object.fromEntries(terms.map((term, i) => [term, values[i]!])), workItems };
     },
     /** Refresh evidence… on the note at `path` → Refresh evidence; waits for the dialog to close. */
     async refreshNote(path: string): Promise<void> {
