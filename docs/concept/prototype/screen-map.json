@@ -1,0 +1,122 @@
+[
+  {
+    "route": "city",
+    "title": "Code city",
+    "group": "Explore",
+    "goal": "Build a spatial mental model and select the next file to investigate.",
+    "screenshotDark": "screenshots/city-dark.png",
+    "screenshotLight": "screenshots/city-light.png"
+  },
+  {
+    "route": "overview",
+    "title": "Overview",
+    "group": "Explore",
+    "goal": "Understand independent health signals and decide where to inspect next.",
+    "screenshotDark": "screenshots/overview-dark.png",
+    "screenshotLight": "screenshots/overview-light.png"
+  },
+  {
+    "route": "architecture",
+    "title": "Architecture",
+    "group": "Explore",
+    "goal": "Compare observed dependencies with explicitly intended boundaries.",
+    "screenshotDark": "screenshots/architecture-dark.png",
+    "screenshotLight": "screenshots/architecture-light.png"
+  },
+  {
+    "route": "hotspots",
+    "title": "Hotspots",
+    "group": "Explore",
+    "goal": "Prioritize investigation using transparent raw measurements.",
+    "screenshotDark": "screenshots/hotspots-dark.png",
+    "screenshotLight": "screenshots/hotspots-light.png"
+  },
+  {
+    "route": "quality",
+    "title": "Code quality",
+    "group": "Audit",
+    "goal": "Triage static findings with evidence, location, and a recorded disposition.",
+    "screenshotDark": "screenshots/quality-dark.png",
+    "screenshotLight": "screenshots/quality-light.png"
+  },
+  {
+    "route": "tests",
+    "title": "Test confidence",
+    "group": "Audit",
+    "goal": "Assess where tested execution is missing and keep assertion strength distinct from coverage.",
+    "screenshotDark": "screenshots/tests-dark.png",
+    "screenshotLight": "screenshots/tests-light.png"
+  },
+  {
+    "route": "dependencies",
+    "title": "Dependencies",
+    "group": "Audit",
+    "goal": "Inspect external package inventory separately from internal module architecture.",
+    "screenshotDark": "screenshots/dependencies-dark.png",
+    "screenshotLight": "screenshots/dependencies-light.png"
+  },
+  {
+    "route": "security",
+    "title": "Security",
+    "group": "Audit",
+    "goal": "Review possible issues without presenting an unverified exploitability verdict.",
+    "screenshotDark": "screenshots/security-dark.png",
+    "screenshotLight": "screenshots/security-light.png"
+  },
+  {
+    "route": "evolution",
+    "title": "Evolution",
+    "group": "Audit",
+    "goal": "Understand trends and change relationships rather than judging one snapshot.",
+    "screenshotDark": "screenshots/evolution-dark.png",
+    "screenshotLight": "screenshots/evolution-light.png"
+  },
+  {
+    "route": "ownership",
+    "title": "Ownership",
+    "group": "Audit",
+    "goal": "Plan continuity and knowledge sharing at module/team level.",
+    "screenshotDark": "screenshots/ownership-dark.png",
+    "screenshotLight": "screenshots/ownership-light.png"
+  },
+  {
+    "route": "workbench",
+    "title": "Refactor workbench",
+    "group": "Act",
+    "goal": "Convert evidence into scoped, verifiable improvement work.",
+    "screenshotDark": "screenshots/workbench-dark.png",
+    "screenshotLight": "screenshots/workbench-light.png"
+  },
+  {
+    "route": "report",
+    "title": "Audit report",
+    "group": "Act",
+    "goal": "Communicate scope, evidence, limitations and proposed work clearly.",
+    "screenshotDark": "screenshots/report-dark.png",
+    "screenshotLight": "screenshots/report-light.png"
+  },
+  {
+    "route": "sources",
+    "title": "Data & scans",
+    "group": "Configure",
+    "goal": "Make source scope and provider provenance explicit before interpretation.",
+    "screenshotDark": "screenshots/sources-dark.png",
+    "screenshotLight": "screenshots/sources-light.png"
+  },
+  {
+    "route": "settings",
+    "title": "Settings",
+    "group": "Configure",
+    "goal": "Adjust real preview preferences while keeping production policies explicit.",
+    "screenshotDark": "screenshots/settings-dark.png",
+    "screenshotLight": "screenshots/settings-light.png"
+  },
+  {
+    "route": "file",
+    "title": "File detail",
+    "group": "Cross-cutting",
+    "goal": "Follow a selected file from metrics to source context, evidence and planned changes.",
+    "screenshotDark": "screenshots/file-dark.png",
+    "screenshotLight": "screenshots/file-light.png"
+  }
+]

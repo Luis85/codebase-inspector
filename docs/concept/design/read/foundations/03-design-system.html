@@ -1,0 +1,131 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Visual system, layout, and theme contract</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../foundations/03-design-system.md">Markdown source</a></header><main><h1>Visual system, layout, and theme contract</h1>
+<h2>Layout tokens</h2>
+<p>Use a 4 px spacing grid: 4, 8, 12, 16, 20, 24, 32. Default component radius 6 px; modal 10 px; compact status badge 4 px. Prefer borders and spacing over layered shadows. Shadows belong primarily to popovers and temporary drawers.</p>
+<p>At a sufficiently wide <strong>leaf</strong>, use: compact toolbar → optional shipped-mode strip → optional status/filter strip → file list + canvas + inspector → snapshot footer. The host sidebar width is not part of the plugin’s responsive calculation.</p>
+<table>
+<thead>
+<tr>
+<th>Element</th>
+<th>Default</th>
+<th>Constraint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Toolbar</td>
+<td>52–60 px high</td>
+<td>Wrap to two rows if required; never overlap source/search</td>
+</tr>
+<tr>
+<td>File list</td>
+<td>192–224 px</td>
+<td>Collapsible; optional resize 168–320 px</td>
+</tr>
+<tr>
+<td>Inspector</td>
+<td>278–320 px</td>
+<td>Wrap long paths; collapse into drawer before canvas is squeezed</td>
+</tr>
+<tr>
+<td>Canvas</td>
+<td>Remaining space</td>
+<td>Minimum useful width around 420 px before compact mode</td>
+</tr>
+<tr>
+<td>Footer</td>
+<td>About 30 px</td>
+<td>Can wrap; never the only place an important failure is reported</td>
+</tr>
+<tr>
+<td>Icon button</td>
+<td>32 × 32 px</td>
+<td>Larger 36/40 px where practical; visible focus</td>
+</tr>
+<tr>
+<td>Normal input/button</td>
+<td>32–36 px</td>
+<td>Preserve accessible target area at increased text size</td>
+</tr>
+<tr>
+<td>Modal</td>
+<td>About 590 px</td>
+<td><code>max-width: calc(100% - 32px)</code>; internal scrolling</td>
+</tr>
+<tr>
+<td>Composer</td>
+<td>About 740 px</td>
+<td>Two columns only when enough space is available</td>
+</tr>
+</tbody>
+</table>
+<p>These are design defaults, not fixed pixel promises under every host theme or font scale. Use container queries or observed leaf dimensions; do not use the desktop-window width as a proxy for leaf width.</p>
+<h2>Typography</h2>
+<p>Use Obsidian’s interface font and font-size variables. Normal body/control target 13–14 px, readable secondary text 12 px, section label 11–12 px, page title 22–26 px. Source paths use the host monospace font. Avoid all-caps except short low-frequency category labels. Secondary copy must remain readable; do not use faint text as a shortcut for de-emphasis.</p>
+<p>The screen mockups are a fixed-size review composition. Their small captions and host chrome are not an instruction to make important product copy 9 px. At host zoom/text scaling, content reflows and panel widths adapt.</p>
+<h2>Obsidian theme mapping</h2>
+<p>Production values resolve from host semantic CSS variables. The color documentation distinguishes semantic surfaces/text from theme-owned base colors and documents the user’s configurable accent [S2]. Do not overwrite Obsidian’s base palette or <code>body</code> selectors.</p>
+<table>
+<thead>
+<tr>
+<th>Inspector token</th>
+<th>Host semantic source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--ci-surface</code></td>
+<td><code>--background-primary</code></td>
+</tr>
+<tr>
+<td><code>--ci-panel</code></td>
+<td><code>--background-secondary</code></td>
+</tr>
+<tr>
+<td><code>--ci-raised</code></td>
+<td><code>--background-primary-alt</code></td>
+</tr>
+<tr>
+<td><code>--ci-border</code></td>
+<td><code>--background-modifier-border</code></td>
+</tr>
+<tr>
+<td><code>--ci-text</code></td>
+<td><code>--text-normal</code></td>
+</tr>
+<tr>
+<td><code>--ci-text-muted</code></td>
+<td><code>--text-muted</code></td>
+</tr>
+<tr>
+<td><code>--ci-action</code></td>
+<td><code>--interactive-accent</code></td>
+</tr>
+<tr>
+<td><code>--ci-on-action</code></td>
+<td><code>--text-on-accent</code> with actual host contrast validation</td>
+</tr>
+<tr>
+<td><code>--ci-focus</code></td>
+<td><code>--background-modifier-border-focus</code>, falling back to accent</td>
+</tr>
+<tr>
+<td><code>--ci-error</code></td>
+<td><code>--text-error</code></td>
+</tr>
+<tr>
+<td><code>--ci-warning</code></td>
+<td><code>--text-warning</code></td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="../../components/design-tokens.css">token CSS</a> and <a href="../../components/design-tokens.json">token JSON</a>. The theme reference palettes in the prototype are illustrative only. Production must not import the prototype’s global CSS.</p>
+<h2>City styling</h2>
+<p>Ground/district surfaces derive from host neutral surfaces. Category colors are moderately saturated: TypeScript blue, Vue teal, test code purple; production categories are extensible through a category registry. Category is not severity. Categorical colors never imply health.</p>
+<p>A selected building receives a high-contrast outline plus a locator marker. A changed building in comparison uses a dashed outline and change badge; it must not look identical to selection. Unknown evidence uses a hatch/mark plus explicit text in the HTML equivalent. Do not rely on red versus green alone.</p>
+<p>Lighting should support shape, not change metric interpretation. Disable costly shadows/postprocessing by default. Height is a visual mapping; exact numbers are always in the inspector. Limit labels to districts, a bounded visible subset, and the active selection. Never create a DOM tooltip or label for every file regardless of visibility.</p>
+<p>Theme changes must recolor materials and labels without discarding file selection, changing layout, or restarting the scan. Resolve styles in the view’s owning window. GPU color parsing must accept the actual resolved CSS color representation; do not assume every host variable is a hex literal. The current Obsidian palette documentation includes OKLCH/color-mix guidance [S2].</p>
+<h2>Iconography and motion</h2>
+<p>Use the host’s supported icons in production. Pair icons with labels for uncommon actions. Tooltip text explains an icon; accessible names must exist independently of hover.</p>
+<p>Do not auto-orbit. Suggested focus transition: 160–220 ms with reduced-motion mode making it immediate. Hover should not move geometry. Scan activity is indeterminate until a real denominator exists. A user should be able to stop camera motion and cancel active work.</p>
+<p>References: [S2], [S3], [S5–S9] in the <a href="../sources/sources.html">source register</a>.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

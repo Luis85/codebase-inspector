@@ -1,0 +1,213 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Codebase Inspector — UI/UX design package</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../index.html">Codebase Inspector / Design library</a> · <a href="../README.md">Markdown source</a></header><main><h1>Codebase Inspector — UI/UX design package</h1>
+<p>An Obsidian-native, incrementally implementable design for a Three.js codebase city, evidence inspection, and Markdown investigations.</p>
+<p><strong>Start with <a href="../index.html">the visual design library</a>.</strong> Extract the complete package first, then open <code>index.html</code>. The gallery links each mockup to its screen specification and review scenario. No hosted service or installation is required for the design assets.</p>
+<h2>Included</h2>
+<p><strong>28 numbered screen mockups with 28 matching Markdown specifications</strong>, <strong>4 annotated concept/interaction boards</strong>, an optional image-generated visual exploration, a local click-through review prototype, <strong>27 component contracts</strong>, semantic token CSS/JSON, information architecture, user flows, camera/selection/keyboard rules, evidence-state and recovery definitions, accessibility and responsive guidance, microcopy, a note template, <strong>23 use-case PBIs</strong>, an agent implementation prompt, and validation materials.</p>
+<p>The numbers, files, findings, report excerpts, and dates shown in the screens are synthetic. These are proposed designs, not screenshots of a working Obsidian plugin or an analysis of your repository. The prototype uses an SVG stand-in for the production Three.js renderer and simulated workflows. <a href="validation/validation-status.html">Validation status</a> distinguishes completed asset checks from unperformed host and usability testing.</p>
+<h2>Read in this order</h2>
+<ol>
+<li><a href="foundations/01-design-brief.html">Design brief</a>, <a href="foundations/02-information-architecture.html">information architecture</a>, and <a href="handoff/package-map.html">package map</a>.</li>
+<li><a href="foundations/03-design-system.html">Visual system</a>, <a href="components/component-library.html">component library</a>, <a href="interactions/01-core-interactions.html">interaction contract</a>, and <a href="foundations/04-accessibility-and-responsive.html">accessibility</a>.</li>
+<li>The numbered screens for the package being implemented, then <a href="handoff/ui-backlog.html">UI backlog</a> and <a href="handoff/agent-implementation-prompt.html">agent prompt</a>.</li>
+</ol>
+<h2>First delivery boundary</h2>
+<p><strong>WP-01 covers S01–S13 and S23.</strong> It includes source selection, scope review, cancellable real inventory, structural city, selection, search, top view, native themes/settings, narrow leaves, and HTML fallback. It does not need fallow, dependencies, findings, note creation, or an overview dashboard to be useful.</p>
+<p>Later-release controls are shown only in later-release screens. Do not implement their navigation as empty placeholders in the first release.</p>
+<h2>Concept boards</h2>
+<ul>
+<li><a href="../concepts/01-native-city-dark-light.png">01 — Native city, dark/light</a></li>
+<li><a href="../concepts/02-interaction-and-investigation.png">02 — Interaction and investigation</a></li>
+<li><a href="../concepts/03-responsive-and-recovery.png">03 — Responsive and recovery states</a></li>
+<li><a href="../concepts/04-component-and-evidence-semantics.png">04 — Components and evidence semantics</a></li>
+</ul>
+<p>The <a href="../concepts/00-visual-exploration.png">optional image-generated exploration</a> conveys an early visual direction. Its decorative branding, sidebar/menu, broad “Phase 1” labels, and simplified copy are <strong>not authoritative</strong>. The numbered screens and written contracts supersede those elements. Do not implement that board literally.</p>
+<h2>Screen catalogue</h2>
+<table>
+<thead>
+<tr>
+<th>Screen</th>
+<th>Package</th>
+<th>Specification</th>
+<th>Mockup</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S01 — Welcome and first run</td>
+<td>WP-01</td>
+<td><a href="screens/s01-welcome.html">Spec</a></td>
+<td><a href="../mockups/s01-welcome.png">PNG</a></td>
+</tr>
+<tr>
+<td>S02 — Choose a codebase source</td>
+<td>WP-01</td>
+<td><a href="screens/s02-source.html">Spec</a></td>
+<td><a href="../mockups/s02-source.png">PNG</a></td>
+</tr>
+<tr>
+<td>S03 — Review scope and read access</td>
+<td>WP-01</td>
+<td><a href="screens/s03-scope.html">Spec</a></td>
+<td><a href="../mockups/s03-scope.png">PNG</a></td>
+</tr>
+<tr>
+<td>S04 — Scan progress and cancellation</td>
+<td>WP-01</td>
+<td><a href="screens/s04-scanning.html">Spec</a></td>
+<td><a href="../mockups/s04-scanning.png">PNG</a></td>
+</tr>
+<tr>
+<td>S05 — Structural city — dark</td>
+<td>WP-01</td>
+<td><a href="screens/s05-city.html">Spec</a></td>
+<td><a href="../mockups/s05-city.png">PNG</a></td>
+</tr>
+<tr>
+<td>S06 — Structural city — light</td>
+<td>WP-01</td>
+<td><a href="screens/s06-city-light.html">Spec</a></td>
+<td><a href="../mockups/s06-city-light.png">PNG</a></td>
+</tr>
+<tr>
+<td>S07 — File selection and inspector</td>
+<td>WP-01</td>
+<td><a href="screens/s07-selected.html">Spec</a></td>
+<td><a href="../mockups/s07-selected.png">PNG</a></td>
+</tr>
+<tr>
+<td>S08 — Search and filtered context</td>
+<td>WP-01</td>
+<td><a href="screens/s08-search.html">Spec</a></td>
+<td><a href="../mockups/s08-search.png">PNG</a></td>
+</tr>
+<tr>
+<td>S09 — Top-down orientation</td>
+<td>WP-01</td>
+<td><a href="screens/s09-top.html">Spec</a></td>
+<td><a href="../mockups/s09-top.png">PNG</a></td>
+</tr>
+<tr>
+<td>S10 — Narrow leaf and inspector drawer</td>
+<td>WP-01</td>
+<td><a href="screens/s10-narrow.html">Spec</a></td>
+<td><a href="../mockups/s10-narrow.png">PNG</a></td>
+</tr>
+<tr>
+<td>S11 — Accessible list and 3D fallback</td>
+<td>WP-01</td>
+<td><a href="screens/s11-fallback.html">Spec</a></td>
+<td><a href="../mockups/s11-fallback.png">PNG</a></td>
+</tr>
+<tr>
+<td>S12 — Cancelled scan with previous snapshot</td>
+<td>WP-01</td>
+<td><a href="screens/s12-cancelled.html">Spec</a></td>
+<td><a href="../mockups/s12-cancelled.png">PNG</a></td>
+</tr>
+<tr>
+<td>S13 — Native settings and profiles</td>
+<td>WP-01</td>
+<td><a href="screens/s13-settings.html">Spec</a></td>
+<td><a href="../mockups/s13-settings.png">PNG</a></td>
+</tr>
+<tr>
+<td>S14 — Connect fallow evidence</td>
+<td>WP-02</td>
+<td><a href="screens/s14-provider.html">Spec</a></td>
+<td><a href="../mockups/s14-provider.png">PNG</a></td>
+</tr>
+<tr>
+<td>S15 — Fallow findings lens</td>
+<td>WP-02</td>
+<td><a href="screens/s15-findings.html">Spec</a></td>
+<td><a href="../mockups/s15-findings.png">PNG</a></td>
+</tr>
+<tr>
+<td>S16 — Dependency neighborhood</td>
+<td>WP-03</td>
+<td><a href="screens/s16-dependencies.html">Spec</a></td>
+<td><a href="../mockups/s16-dependencies.png">PNG</a></td>
+</tr>
+<tr>
+<td>S17 — Finding investigation workbench</td>
+<td>WP-04</td>
+<td><a href="screens/s17-workbench.html">Spec</a></td>
+<td><a href="../mockups/s17-workbench.png">PNG</a></td>
+</tr>
+<tr>
+<td>S18 — Create investigation note</td>
+<td>WP-04</td>
+<td><a href="screens/s18-note.html">Spec</a></td>
+<td><a href="../mockups/s18-note.png">PNG</a></td>
+</tr>
+<tr>
+<td>S19 — Compare compatible snapshots</td>
+<td>WP-05</td>
+<td><a href="screens/s19-compare.html">Spec</a></td>
+<td><a href="../mockups/s19-compare.png">PNG</a></td>
+</tr>
+<tr>
+<td>S20 — Coverage with unknown evidence</td>
+<td>WP-06</td>
+<td><a href="screens/s20-coverage.html">Spec</a></td>
+<td><a href="../mockups/s20-coverage.png">PNG</a></td>
+</tr>
+<tr>
+<td>S21 — Explainable overview</td>
+<td>WP-09</td>
+<td><a href="screens/s21-overview.html">Spec</a></td>
+<td><a href="../mockups/s21-overview.png">PNG</a></td>
+</tr>
+<tr>
+<td>S22 — Provider failure and retained evidence</td>
+<td>WP-02</td>
+<td><a href="screens/s22-failure.html">Spec</a></td>
+<td><a href="../mockups/s22-failure.png">PNG</a></td>
+</tr>
+<tr>
+<td>S23 — No matching files</td>
+<td>WP-01</td>
+<td><a href="screens/s23-no-results.html">Spec</a></td>
+<td><a href="../mockups/s23-no-results.png">PNG</a></td>
+</tr>
+<tr>
+<td>S24 — Investigation note and focused city</td>
+<td>WP-11</td>
+<td><a href="screens/s24-embed.html">Spec</a></td>
+<td><a href="../mockups/s24-embed.png">PNG</a></td>
+</tr>
+<tr>
+<td>S25 — Diagnostics and security evidence</td>
+<td>WP-07</td>
+<td><a href="screens/s25-security.html">Spec</a></td>
+<td><a href="../mockups/s25-security.png">PNG</a></td>
+</tr>
+<tr>
+<td>S26 — Bundle contribution</td>
+<td>WP-08</td>
+<td><a href="screens/s26-bundle.html">Spec</a></td>
+<td><a href="../mockups/s26-bundle.png">PNG</a></td>
+</tr>
+<tr>
+<td>S27 — CI artifacts and explicit watch</td>
+<td>WP-10</td>
+<td><a href="screens/s27-artifacts.html">Spec</a></td>
+<td><a href="../mockups/s27-artifacts.png">PNG</a></td>
+</tr>
+<tr>
+<td>S28 — Runtime observation window</td>
+<td>WP-12</td>
+<td><a href="screens/s28-runtime.html">Spec</a></td>
+<td><a href="../mockups/s28-runtime.png">PNG</a></td>
+</tr>
+</tbody>
+</table>
+<h2>Shared contracts and implementation support</h2>
+<p><a href="flows/user-flows.html">User flows</a> · <a href="interactions/02-states-and-recovery.html">State and recovery model</a> · <a href="interactions/03-evidence-and-visual-encoding.html">Evidence/visual encoding</a> · <a href="interactions/04-microcopy.html">Microcopy</a> · <a href="../components/component-contracts.json">Component contract JSON</a> · <a href="../components/design-tokens.css">Token CSS</a> · <a href="../components/design-tokens.json">Token JSON</a> · <a href="templates/investigation-note.html">Investigation-note template</a></p>
+<p><a href="validation/usability-plan.html">Usability study plan</a> · <a href="../validation/acceptance-tests.feature">Acceptance scenarios</a> · <a href="validation/design-review-checklist.html">Review checklist</a> · <a href="sources/sources.html">Source register</a></p>
+<h2>Design authority and open decisions</h2>
+<p>Safety/evidence/accessibility contracts take precedence over images; screen specs take precedence over simplified prototype behavior. Actual Three.js/fallow/Obsidian versions, final performance budgets, production component API names, exact reference scales at very large repository sizes, and user-tested breakpoints remain implementation decisions to validate.</p>
+<p>The selected direction is a <strong>proposed baseline</strong>, not a claim that user research has approved it. Keep English UI, Obsidian-native themes and workspace, independent leaf state, explicit source/execution authority, and absence of invented health/deletion scores as fixed constraints unless deliberately revisited.</p>
+<h2>Files and formats</h2>
+<p>All Markdown specs embed their matching screenshot with a relative path. The package also contains HTML reading copies, PNG mockups, local SVG city source illustrations, editable HTML/CSS/JS review sources, and JSON registries. No Figma source file, font files, compiled plugin, production source code, or external runtime asset dependency is included.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

@@ -1,0 +1,380 @@
+// The full CityRendererPort (task 10). The interface does not change — it was frozen
+// in task 2 (spec 4.2). This file is the composition root: it owns the WebGL surface,
+// the scene and the lights, and wires together render-scheduler.ts (when a frame
+// happens), camera-rig.ts (where the camera is), instanced-city.ts (what is drawn and
+// which instance is which entity), picking.ts (what a pointer means), label-overlay.ts
+// (district names as real DOM text) and disposal.ts (giving the GPU everything back).
+//
+// THE PORT NEVER THROWS. WebGL2 unavailability, context-creation failure and
+// initialization failure are reported through onEvent as `unavailable`, and an aborted
+// or superseded setLayout RESOLVES without applying rather than rejecting. The view
+// always mounts and always has a surface.
+//
+// NO restored event and NO self-healing (spec 4.2): on a lost context this file only
+// reports `unavailable{context-lost}` — the VIEW disposes and reconstructs.
+// debugLoseContext() exists for instrumentation; there is no restore partner.
+//
+// Named imports only, never `import * as THREE` (spec 3.2). No bare `window`,
+// `document`, `requestAnimationFrame`, `setInterval`, `ResizeObserver`,
+// `IntersectionObserver` or DOM `instanceof` anywhere in src/visualization/.
+import {
+  Color, Raycaster, Scene, Timer, Vector2, WebGLRenderer,
+} from 'three';
+import type { Object3D } from 'three';
+import type { CameraBookmark } from '../domain/model';
+import type { LayoutResult } from '../domain/layout/types';
+import type {
+  CityPalette, CityRendererPort, CreateCityRenderer, EntityId, RelationArc, RendererDiagnostics,
+} from './renderer-port';
+import { createScheduler } from './render-scheduler';
+import { createCameraRig, ORBIT_RADIANS_PER_CSS_PX } from './camera-rig';
+import { buildCity, districtRadius, lotRadius, type CityMeshes } from './instanced-city';
+import { createPicking, type CanvasPoint } from './picking';
+import { createLabelOverlay } from './label-overlay';
+import { disposeObject3D, disposeRenderer } from './disposal';
+import { createSceneLights } from './scene-lighting';
+import { makeInertPort } from './inert-port';
+import { createRelationArcs } from './relation-arcs';
+
+// LIGHTING constants/setup live in scene-lighting.ts (task 6 fix round 1 — this file
+// was at the 400-line cap and the district-focus fix needed room). Re-exported so
+// tests/unit/visualization-rules.test.ts's existing `await import('.../city-renderer')`
+// keeps resolving them without needing to know they moved.
+export { AMBIENT_BASE, DIRECTIONAL_BASE, SUN_DIRECTION } from './scene-lighting';
+
+const MAX_PIXEL_RATIO = 2;
+const FOCUS_CONTEXT = 3;                // how much room a focused lot keeps around it
+
+export const createCityRenderer: CreateCityRenderer = (mountEl, win, onEvent) => {
+  let canvas: HTMLCanvasElement;
+  let context: RenderingContext | null;
+  try {
+    canvas = win.document.createElement('canvas');   // injected window, never bare document
+    canvas.setAttribute('aria-hidden', 'true');      // never tabbable — the view owns focus
+    // Block, not the default inline: an inline canvas sits on a text baseline and
+    // leaves a descender gap inside a stage sized to it exactly, which shows up as a
+    // scrollbar the view never asked for.
+    canvas.setCssStyles({ display: 'block' });
+    context = canvas.getContext('webgl2');
+  } catch {
+    // getContext itself refused: the platform cannot give us a WebGL2 surface at all.
+    onEvent({ type: 'unavailable', reason: 'unsupported' });
+    return makeInertPort();
+  }
+  if (!context) {
+    onEvent({ type: 'unavailable', reason: 'unsupported' });
+    return makeInertPort();
+  }
+
+  let threeRenderer: WebGLRenderer;
+  try {
+    threeRenderer = new WebGLRenderer({ canvas, context, antialias: true });
+  } catch {
+    // A context exists but Three could not initialise against it — a different failure
+    // from "this platform has no WebGL2", and the view distinguishes them.
+    onEvent({ type: 'unavailable', reason: 'initialization-failed' });
+    return makeInertPort();
+  }
+  mountEl.appendChild(canvas);
+
+  const scene = new Scene();
+  const { ambient, sun } = createSceneLights();
+  scene.add(ambient, sun);
+
+  // WP-03 N28/N29: an overlay only, so it is created once, added to the scene once,
+  // and never touched by picking (spec 4.2's `pickTargets` stays FILE LOTS ONLY).
+  const arcs = createRelationArcs();
+  scene.add(arcs.root);
+
+  let city: CityMeshes | null = null;
+  let layout: LayoutResult | null = null;
+  let palette: CityPalette | null = null;
+  let selection: EntityId | null = null;
+  let filter: ReadonlySet<EntityId> | null = null;
+  let reported: ReadonlySet<EntityId> | null = null;   // Part 6 Y40: re-applied to every new city
+  let labelsVisible = true;
+  let cssWidth = 0;
+  let cssHeight = 0;
+  let paused = false;
+  let contextLost = false;
+  let disposed = false;
+  let hasFitted = false;
+  let lastFrameMs = 0;
+  let latestGeneration = 0;
+
+  const rig = createCameraRig({
+    bounds: { min: [-1, 0, -1], max: [1, 1, 1] },
+    onChanged: () => {
+      // The EVENT, kept separate from the setCamera COMMAND so host synchronisation
+      // does not loop (spec 4.2).
+      onEvent({ type: 'camera-changed', camera: rig.getCamera() });
+      scheduler.invalidate();
+    },
+  });
+
+  /** Phase 2c, I1: the one flag object, hoisted so the three picking handlers below
+   *  cannot drift apart and no allocation happens per pointer event. */
+  const CONTINUOUS = { continuous: true } as const;
+
+  const overlay = createLabelOverlay(mountEl);
+  const timer = new Timer();          // r183 deprecated Clock; Timer is core since r179
+  const raycaster = new Raycaster();
+  const ndc = new Vector2();
+
+  function draw(): void {
+    if (disposed || contextLost || paused || cssWidth <= 0 || cssHeight <= 0) return;
+    timer.update();
+    const stillMoving = rig.advance(timer.getDelta() * 1000);
+    overlay.update(rig.camera, cssWidth, cssHeight);
+    const started = Date.now();
+    threeRenderer.render(scene, rig.camera);
+    lastFrameMs = Date.now() - started;
+    // The ONLY thing that keeps frames coming, and it stops the frame the tween ends:
+    // there is no inertia and no idle animation (acceptance criterion 2).
+    if (stillMoving) scheduler.invalidate();
+  }
+
+  const scheduler = createScheduler(win, draw);
+
+  function isActive(): boolean { return !disposed && !paused && !contextLost; }
+
+  function hitTest(point: CanvasPoint): EntityId | null {
+    if (!city || cssWidth <= 0 || cssHeight <= 0) return null;
+    // Raycasting reads matrixWorld, which only the render pass would otherwise
+    // refresh — and a pick can happen before any frame has drawn.
+    scene.updateMatrixWorld();
+    ndc.set((point.x / cssWidth) * 2 - 1, -(point.y / cssHeight) * 2 + 1);
+    raycaster.setFromCamera(ndc, rig.camera);
+    // FILE LOTS ONLY: never labels, ground planes, district borders or overlays.
+    const hits = raycaster.intersectObjects(city.pickTargets as Object3D[], false);
+    for (const hit of hits) {
+      if (hit.instanceId === undefined) continue;
+      const entity = city.entityAt(hit.object, hit.instanceId);
+      if (entity !== null) return entity;      // the batch-and-instance to entity map
+    }
+    return null;
+  }
+
+  const picking = createPicking({
+    win, canvas, hitTest, isActive,
+    onPick: (entityId) => {
+      if (layout) onEvent({ type: 'entity-picked', entityId, snapshotId: layout.snapshotId });
+    },
+    onHover: (entityId, position) => {
+      if (layout) onEvent({ type: 'hover-changed', entityId, snapshotId: layout.snapshotId, position });
+    },
+    // Phase 2c, I1: CONTINUOUS. These three are the only call sites in the codebase
+    // that know the delta was produced by picking, i.e. at pointer rate -- a drag
+    // delivers one per pointermove, ~60-1000 a second, and a wheel burst the same.
+    // `nudgeCamera` below (the dock and the keyboard) is discrete and keeps the tween.
+    // The flag is the rig's own; it never crosses the frozen 4.2 port boundary.
+    onOrbit: (dx, dy) => {
+      rig.nudge({ orbit: [-dx * ORBIT_RADIANS_PER_CSS_PX, -dy * ORBIT_RADIANS_PER_CSS_PX] }, CONTINUOUS);
+    },
+    onPan: (dx, dy) => { rig.nudge({ pan: [dx, dy] }, CONTINUOUS); },
+    onZoom: (factor) => { rig.nudge({ zoomFactor: factor }, CONTINUOUS); },
+  });
+
+  function handleContextLost(): void {
+    // Reported once, and never after dispose(): the view reacts to `unavailable` by
+    // disposing and nulling its handle, so a late event re-enters that path against a
+    // renderer that is already gone. There is no restore partner either way.
+    if (contextLost || disposed) return;
+    contextLost = true;
+    scheduler.setContextLost(true);
+    onEvent({ type: 'unavailable', reason: 'context-lost' });
+  }
+
+  const onContextLost = (event: Event): void => {
+    event.preventDefault();             // suppress the browser's own recovery UI
+    handleContextLost();
+  };
+  canvas.addEventListener('webglcontextlost', onContextLost);
+
+  function swapCity(next: CityMeshes | null, source: LayoutResult): void {
+    city?.dispose();
+    scene.remove(...scene.children.filter((child) => child.name === 'city-root'));
+    city = next;
+    layout = source;
+    arcs.setLots(next ? source.lots : null);
+    if (!next) return;
+    next.root.name = 'city-root';
+    scene.add(next.root);
+    next.setReported(reported);          // before setColors, so the first paint is already the lens
+    if (palette) next.setColors(palette);
+    next.setFilter(filter);
+    next.setSelection(selection);
+    // CityDistrict is frozen (no fileCount field) — derived here and passed alongside.
+    const fileCounts = new Map<EntityId, number>();
+    for (const lot of source.lots) fileCounts.set(lot.directoryId, (fileCounts.get(lot.directoryId) ?? 0) + 1);
+    overlay.setDistricts(source.districts, fileCounts);
+    if (palette) overlay.setColors(palette);
+    rig.setBounds(source.bounds);
+    if (!hasFitted) { hasFitted = true; rig.fit(); }    // the FIRST layout frames itself
+    scheduler.invalidate();
+  }
+
+  const port: CityRendererPort = {
+    async setLayout(next, opts): Promise<void> {
+      if (opts.signal.aborted || disposed) return;     // resolves without applying
+      latestGeneration = Math.max(latestGeneration, opts.generation);
+      const superseded = (): boolean =>
+        disposed || opts.signal.aborted || opts.generation < latestGeneration;
+      // buildCity yields to the host between chunks — the task-S spike measured a
+      // 160 ms click-handler violation from building a city synchronously. The
+      // supersession check therefore sits AFTER a real await point, inside that loop
+      // and again here, which is the only place it can do anything at all.
+      const built = await buildCity(next, { win, superseded });
+      if (!built) return;
+      if (superseded()) { built.dispose(); return; }
+      swapCity(built, next);
+    },
+
+    setColors(next: CityPalette): void {
+      // Re-supplies EVERY colour the scene draws. Never moves a building, changes the
+      // camera or clears selection/filter state (spec 4.4).
+      palette = next;
+      threeRenderer.setClearColor(new Color(next.background));
+      city?.setColors(next);
+      overlay.setColors(next);
+      arcs.setColors(next);
+      scheduler.invalidate();
+    },
+
+    setSelection(entityId: EntityId | null): void {
+      selection = entityId;
+      city?.setSelection(entityId);
+      scheduler.invalidate();
+    },
+
+    setFilter(matching: ReadonlySet<EntityId> | null): void {
+      filter = matching;               // null = unfiltered, empty = no matches
+      city?.setFilter(matching);
+      scheduler.invalidate();
+    },
+
+    // Part 6 Y40: recolour only. Kept here as well as on the city, so a set sent before the
+    // first layout, or before a rebuilt city lands, is applied by swapCity.
+    setReported(ids: ReadonlySet<EntityId> | null): void {
+      reported = ids;
+      city?.setReported(ids);
+      scheduler.invalidate();
+    },
+
+    setLabels(visible: boolean): void {
+      labelsVisible = visible;
+      overlay.setVisible(visible);
+      scheduler.invalidate();
+    },
+
+    // WP-03 N28: an overlay only. arcs.ts itself keeps the arcs across setLots/setColors
+    // and drops one whose end is not a lot of the current layout, so there is nothing
+    // else to cache here.
+    setRelations(list: readonly RelationArc[] | null): void {
+      arcs.setArcs(list);
+      scheduler.invalidate();
+    },
+
+    setCameraMode(mode: '3d' | 'top'): void { rig.setCameraMode(mode); },
+    setMotion(mode: 'standard' | 'reduced'): void { rig.setMotion(mode); scheduler.invalidate(); },
+    getCamera: () => rig.getCamera(),
+    setCamera(bookmark: CameraBookmark): void { rig.setCamera(bookmark); scheduler.invalidate(); },
+    nudgeCamera(delta): void { rig.nudge(delta); },
+
+    // Task 6 fix round 1: completes the frozen `focus(entityId)` contract for a
+    // DIRECTORY id, which CodebaseFileList.vue's group-focus button (C07's
+    // `directoryFocusRequested`) now sends here. A lot is tried first — unchanged
+    // behaviour, unchanged framing, for every existing FILE caller (CameraControls'
+    // own Focus-on-selection, FileInspector's) — and only when no lot matches is the
+    // id tried as a district's own directoryId, framing on the district's ground
+    // extent (districtRadius) rather than a lot's dimensions. Neither id space
+    // overlaps the other (entity-id.ts's NUL-joined identity encodes `kind`), so this
+    // can never pick the wrong one.
+    focus(entityId: EntityId): void {
+      const lot = city?.lotOf(entityId);
+      if (lot) { rig.focusOn(lot.center, lotRadius(lot) * FOCUS_CONTEXT); return; }
+      const district = city?.districtOf(entityId);
+      if (district) rig.focusOn(district.center, districtRadius(district) * FOCUS_CONTEXT);
+    },
+
+    fit(): void { hasFitted = true; rig.fit(); },
+
+    resize(width: number, height: number, pixelRatio: number): void {
+      if (width <= 0 || height <= 0) return;        // hidden leaves cost nothing
+      cssWidth = width;
+      cssHeight = height;
+      threeRenderer.setPixelRatio(Math.min(pixelRatio, MAX_PIXEL_RATIO));  // EVERY call
+      // updateStyle TRUE, unlike task 3's minimal renderer: setSize(w, h, false)
+      // resizes only the drawing buffer, leaving the canvas's CSS size at its
+      // intrinsic attribute size — which at devicePixelRatio 2 is twice the box the
+      // view measured. The VIEW owns deciding the size; applying it to our own canvas
+      // is ours.
+      threeRenderer.setSize(width, height, true);
+      rig.setViewportSize(width, height);           // resize NEVER implies fit
+      scheduler.invalidate();
+    },
+
+    pause(): void { paused = true; scheduler.setSuspended(true); },
+    resume(): void { paused = false; scheduler.setSuspended(false); scheduler.invalidate(); },
+
+    dispose(): void {
+      if (disposed) return;                          // idempotent
+      disposed = true;
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      scheduler.dispose();
+      picking.dispose();
+      overlay.dispose();
+      arcs.dispose();
+      city?.dispose();
+      city = null;
+      disposeObject3D(scene);        // the lights, and anything else left in the graph
+      rig.dispose();
+      disposeRenderer(threeRenderer);
+      canvas.remove();
+    },
+
+    getDiagnostics(): RendererDiagnostics {
+      const info = threeRenderer.info;
+      return {
+        geometries: info.memory.geometries,
+        textures: info.memory.textures,
+        programs: info.programs?.length ?? 0,
+        drawCalls: info.render.calls,
+        instanceCount: city?.instanceCount ?? 0,
+        lastFrameMs,
+        contextLost,
+      };
+    },
+
+    debugLoseContext(): void {
+      // Instrumentation, and the port never throws (spec 4.2) — no carve-out. Called
+      // after dispose() or against an already-degraded context, getContext()/
+      // getExtension() can throw; a no-op is the correct outcome, not a crash.
+      try {
+        threeRenderer.getContext().getExtension('WEBGL_lose_context')?.loseContext();
+      } catch {
+        // Already gone or unavailable — nothing to lose.
+      }
+      // Reported directly as well as through the extension: loseContext() delivers its
+      // event asynchronously (and not at all where the extension is missing), and this
+      // path is instrumentation whose whole purpose is to be observable. handleContextLost
+      // reports once, so the real event arriving afterwards is a no-op.
+      handleContextLost();
+    },
+  };
+
+  overlay.setVisible(labelsVisible);
+
+  // Dev-only fixture path (never shipped — see ./dev-fixture.ts's own comment for the
+  // dead-code-elimination mechanism: import.meta.env.DEV is a Vite-injected
+  // compile-time constant, `false` in every production build, so this whole branch is
+  // stripped from dist/main.js). Not a rendered control; nothing in the UI toggles it.
+  if (import.meta.env.DEV && win.localStorage.getItem('codebase-inspector:dev-fixture') === '1') {
+    void import('./dev-fixture').then(({ devFixtureLayout }) => {
+      const controller = new AbortController();
+      return port.setLayout(devFixtureLayout(), { generation: 0, signal: controller.signal });
+    });
+  }
+
+  return port;
+};

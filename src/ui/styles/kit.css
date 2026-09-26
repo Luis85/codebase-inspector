@@ -1,0 +1,306 @@
+/* WP-02 token extension. Same bridge rules as styles.css: alias Obsidian variables, never
+   redefine them. Data-viz tones are the only plugin-owned colours. */
+:where(.codebase-inspector-root) {
+  --ci-tone-accent: var(--interactive-accent);
+  --ci-tone-success: var(--color-green, #5fb98a);
+  --ci-tone-warning: var(--color-orange, #d99a5b);
+  --ci-tone-danger: var(--color-red, #d9707a);
+  --ci-sample: var(--color-yellow, #c9a44a);
+  --ci-font-mono: var(--font-monospace);
+  --ci-text-faint: var(--text-faint);
+  --ci-radius-card: 8px;
+  --ci-nav-width: 220px;
+  /* Part 5 V17, contrast decision #4 (option B): plugin-owned DERIVED tokens. They mix
+     host variables and redefine none (spec 4.4). The fills move the accent and the error
+     colour toward the accent's inverted text colour until text on them reaches 4.5:1
+     (measured 6.11/5.04 and 5.10/6.11 dark/light at 80 %). Hover moves further, never
+     back, so pointing at a button cannot drop it under the threshold. --ci-hover is a
+     neutral hover surface that can be seen (--ci-raised measured 1.03/1.04). */
+  --ci-action-fill: color-mix(in srgb, var(--interactive-accent) 80%, var(--text-on-accent-inverted, black));
+  --ci-action-fill-hover: color-mix(in srgb, var(--interactive-accent) 72%, var(--text-on-accent-inverted, black));
+  --ci-danger-fill: color-mix(in srgb, var(--background-modifier-error) 80%, var(--text-on-accent-inverted, black));
+  --ci-danger-fill-hover: color-mix(in srgb, var(--background-modifier-error) 72%, var(--text-on-accent-inverted, black));
+  --ci-hover: color-mix(in srgb, var(--ci-text) 10%, var(--ci-panel));
+  /* WP-03 N32: relation-arc colours (host aliases with fallbacks, the T32 rule). The
+     Relations list's direction glyphs and a small swatch use the same tokens as the
+     arcs, so text and arcs agree. */
+  --ci-relation-out: var(--color-cyan, #53b8c4);
+  --ci-relation-in: var(--color-orange, #d99a5b);
+  --ci-relation-cycle: var(--color-red, #d9707a);
+}
+/* E40: press-to-disable buttons stay focusable (aria-disabled + a guarded handler), so one
+   shared rule gives every one of them the pending/added look. */
+:where(.codebase-inspector-root) button[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
+:where(.codebase-inspector-root) .ci-icon { display: inline-flex; width: 16px; height: 16px; color: currentColor; }
+:where(.codebase-inspector-root) .ci-icon svg { width: 16px; height: 16px; }
+
+:where(.codebase-inspector-root) .ci-provenance {
+  display: inline-flex; align-items: center; padding: 1px var(--ci-space-2);
+  border-radius: var(--ci-radius-small); border: 1px solid currentColor;
+  font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--ci-text-muted);
+}
+:where(.codebase-inspector-root) .ci-provenance--sample { color: var(--ci-sample); }
+:where(.codebase-inspector-root) .ci-provenance--stale,
+:where(.codebase-inspector-root) .ci-provenance--partial { color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-provenance--failed { color: var(--ci-error); }
+
+:where(.codebase-inspector-root) .ci-callout {
+  display: flex; align-items: flex-start; gap: var(--ci-space-3);
+  padding: var(--ci-space-4); border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-card); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-callout--warning { border-color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-callout__body { flex: 1 1 auto; }
+:where(.codebase-inspector-root) .ci-callout__title { margin: 0; font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-callout__text { margin: var(--ci-space-1) 0 0; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-callout__badge {
+  align-self: center; padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small);
+  border: 1px solid var(--ci-sample); color: var(--ci-sample);
+  font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.06em;
+}
+
+:where(.codebase-inspector-root) .ci-page-header {
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--ci-space-4);
+}
+:where(.codebase-inspector-root) .ci-page-header__eyebrow {
+  margin: 0; font-size: var(--font-ui-smaller, 0.8em); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ci-action); font-weight: var(--font-semibold);
+}
+:where(.codebase-inspector-root) .ci-page-header__title { margin: var(--ci-space-2) 0 0; font-size: 1.6em; }
+/* Part 5 V7: a focus target after navigation, never a control: no ring (like .ci-shell:focus). */
+:where(.codebase-inspector-root) .ci-page-header__title:focus { outline: none; }
+:where(.codebase-inspector-root) .ci-page-header__subtitle { margin: var(--ci-space-2) 0 0; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-page-header__actions { display: flex; gap: var(--ci-space-2); }
+
+:where(.codebase-inspector-root) .ci-panel {
+  display: flex; flex-direction: column; min-width: 0;
+  border: 1px solid var(--ci-border); border-radius: var(--ci-radius-card); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-panel__header {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: var(--ci-space-3);
+  padding: var(--ci-space-4); border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-panel__title { margin: 0; font-size: 1.05em; }
+:where(.codebase-inspector-root) .ci-panel__subtitle { margin: var(--ci-space-1) 0 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-panel__body { padding: var(--ci-space-4); min-width: 0; }
+:where(.codebase-inspector-root) .ci-panel__footnote {
+  margin: 0; padding: var(--ci-space-3) var(--ci-space-4); border-top: 1px solid var(--ci-border);
+  color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em);
+}
+
+:where(.codebase-inspector-root) .ci-metric-card {
+  display: flex; flex-direction: column; gap: var(--ci-space-2); min-width: 0;
+  padding: var(--ci-space-4); border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-card); background: var(--ci-panel);
+  --ci-card-tone: var(--ci-tone-accent);
+}
+:where(.codebase-inspector-root) .ci-metric-card--success { --ci-card-tone: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-metric-card--warning { --ci-card-tone: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-metric-card--danger { --ci-card-tone: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-metric-card__label { display: flex; align-items: center; gap: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-metric-card__row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-metric-card__value { margin: 0; font-size: 2em; font-weight: var(--font-semibold); color: var(--ci-card-tone); }
+:where(.codebase-inspector-root) .ci-metric-card__unit { font-size: 0.5em; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-metric-card__caption,
+:where(.codebase-inspector-root) .ci-metric-card__reason { margin: 0; color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-sparkline { width: 80px; height: 28px; stroke: var(--ci-card-tone, var(--ci-tone-accent)); stroke-width: 1.5; }
+
+:where(.codebase-inspector-root) .ci-table { width: 100%; border-collapse: collapse; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-table th {
+  text-align: left; padding: var(--ci-space-2) var(--ci-space-3); color: var(--ci-text-muted);
+  font-size: var(--font-ui-smaller, 0.8em); letter-spacing: 0.08em; text-transform: uppercase;
+  border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-table td { padding: var(--ci-space-3); border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-table__num { text-align: right; font-variant-numeric: tabular-nums; }
+:where(.codebase-inspector-root) button.ci-table__sort {
+  all: unset; cursor: pointer; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+}
+:where(.codebase-inspector-root) .ci-table__row { cursor: pointer; }
+:where(.codebase-inspector-root) .ci-table__row:hover,
+:where(.codebase-inspector-root) .ci-table__row:focus-visible { background: var(--ci-hover); }
+/* E28/E45: a non-interactive row (LicenseTable) has nothing to activate. */
+:where(.codebase-inspector-root) .ci-table__row--static { cursor: default; }
+:where(.codebase-inspector-root) .ci-table__row--static:hover,
+:where(.codebase-inspector-root) .ci-table__row--static:focus-visible { background: none; }
+
+/* Part 3 Task 15: the first/last axis labels sit on the viewBox edge, so the svg must not
+ * clip them; in a narrow panel the 600-unit viewBox shrinks its text, so the container
+ * query raises the SVG font size to keep axis labels readable. */
+:where(.codebase-inspector-root) .ci-line-chart { margin: 0; container-type: inline-size; }
+:where(.codebase-inspector-root) .ci-line-chart svg { width: 100%; height: auto; overflow: visible; }
+:where(.codebase-inspector-root) .ci-line-chart__grid line { stroke: var(--ci-border); stroke-dasharray: 3 4; }
+:where(.codebase-inspector-root) .ci-line-chart__grid text { fill: var(--ci-text-faint); font-size: 11px; }
+@container (max-width: 599px) { :where(.codebase-inspector-root) .ci-line-chart__grid text { font-size: 13px; } }
+@container (max-width: 479px) { :where(.codebase-inspector-root) .ci-line-chart__grid text { font-size: 18px; } }
+:where(.codebase-inspector-root) .ci-line-chart__line { stroke-width: 2; }
+:where(.codebase-inspector-root) .ci-line-chart__line--success { stroke: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-line-chart__line--accent { stroke: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-line-chart__line--warning { stroke: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-line-chart__line--danger { stroke: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-line-chart__legend { display: flex; gap: var(--ci-space-4); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-line-chart__key::before {
+  content: ''; display: inline-block; width: 10px; height: 6px; margin-right: var(--ci-space-1); border-radius: 2px;
+}
+:where(.codebase-inspector-root) .ci-line-chart__key--success::before { background: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-line-chart__key--accent::before { background: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-line-chart__key--warning::before { background: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-line-chart__key--danger::before { background: var(--ci-tone-danger); }
+
+/* Part 3 Task 12: BarChart. E13: bars use the accent tone, never Obsidian's variable directly. */
+:where(.codebase-inspector-root) .ci-bar-chart { margin: 0; }
+:where(.codebase-inspector-root) .ci-bar-chart svg { inline-size: 100%; block-size: auto; }
+:where(.codebase-inspector-root) .ci-bar-chart__grid line { stroke: var(--ci-border); stroke-dasharray: 3 3; }
+:where(.codebase-inspector-root) .ci-bar-chart__grid text,
+:where(.codebase-inspector-root) .ci-bar-chart__label { fill: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-bar-chart__bar { fill: color-mix(in srgb, var(--ci-tone-accent) 70%, transparent); }
+
+:where(.codebase-inspector-root) .ci-dialog__backdrop {
+  position: absolute; inset: 0; z-index: 40; display: flex; justify-content: center; align-items: flex-start;
+  padding-top: 12vh; background: var(--background-modifier-cover);
+}
+:where(.codebase-inspector-root) .ci-dialog {
+  width: min(560px, calc(100% - 32px)); max-height: 70%; overflow: auto;
+  border: 1px solid var(--ci-border); border-radius: var(--ci-radius-modal);
+  background: var(--ci-surface); box-shadow: var(--shadow-l);
+}
+
+/* Part 2: tabs (kit/Tabs.vue). */
+:where(.codebase-inspector-root) .ci-tabs__bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ci-space-3);
+  padding-bottom: var(--ci-space-3); border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-tabs__list {
+  display: inline-flex; gap: var(--ci-space-1); padding: var(--ci-space-1);
+  border: 1px solid var(--ci-border); border-radius: var(--ci-radius-control);
+}
+:where(.codebase-inspector-root) button.ci-tabs__tab {
+  height: auto; padding: var(--ci-space-1) var(--ci-space-3); border: none; box-shadow: none;
+  background: transparent; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em);
+}
+:where(.codebase-inspector-root) button.ci-tabs__tab[aria-selected="true"] { background: var(--ci-raised); color: var(--ci-text); }
+:where(.codebase-inspector-root) .ci-tabs__panel { padding-top: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-facts {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0;
+}
+:where(.codebase-inspector-root) .ci-facts dt { color: var(--ci-text-muted); display: flex; gap: var(--ci-space-2); align-items: center; }
+:where(.codebase-inspector-root) .ci-facts dd { margin: 0; overflow-wrap: anywhere; }
+
+/* Part 3 Task 9: MeterList. An unknown value draws no fill, so it never reads as 0. */
+:where(.codebase-inspector-root) .ci-meters { display: flex; flex-direction: column; gap: var(--ci-space-3); list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-meter {
+  display: grid; grid-template-columns: minmax(6em, 1fr) minmax(0, 2fr) max-content; align-items: center; gap: var(--ci-space-3);
+  font-size: var(--font-ui-small, 0.9em);
+}
+:where(.codebase-inspector-root) .ci-meter__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(.codebase-inspector-root) .ci-meter__track { block-size: 6px; border-radius: var(--ci-radius-small); background: var(--ci-border); overflow: hidden; }
+:where(.codebase-inspector-root) .ci-meter__fill { block-size: 100%; border-radius: var(--ci-radius-small); background: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-meter__fill--success { background: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-meter__fill--warning { background: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-meter__fill--danger { background: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-meter__fill--accent { background: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-meter__value { display: inline-flex; align-items: center; gap: var(--ci-space-2); color: var(--ci-text-muted); font-variant-numeric: tabular-nums; }
+
+/* E55: shared looks that screens used to borrow from each other. X12: .ci-note keeps
+   the old .ci-hotspots__note margin/colour/size (zero visual change); .ci-selected-strip
+   takes the old .ci-hotspots__selected declarations verbatim, not the brief's muted/small look. */
+:where(.codebase-inspector-root) .ci-note { margin: var(--ci-space-2) 0 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-3); color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-empty__title { margin: 0; color: var(--ci-text); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-selected-strip { display: flex; align-items: center; justify-content: space-between; gap: var(--ci-space-3); margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-screen__cards { display: grid; gap: var(--ci-space-4); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+:where(.codebase-inspector-root) .ci-screen__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+@container (max-width: 900px) {
+  :where(.codebase-inspector-root) .ci-screen__grid { grid-template-columns: minmax(0, 1fr); }
+}
+:where(.codebase-inspector-root) .ci-chip {
+  display: inline-flex; align-items: center; padding: 2px var(--ci-space-2); border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-small); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em);
+}
+:where(.codebase-inspector-root) .ci-chip--sample { border-color: var(--ci-sample); color: var(--ci-sample); }
+:where(.codebase-inspector-root) .ci-chip--danger { border-color: var(--ci-tone-danger); color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-chip--warning { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-chip--success { border-color: var(--ci-tone-success); color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-chip--unknown { border-color: var(--ci-border); color: var(--ci-text-faint); }
+
+/* Part 5 V20/V21: looks more than one screen uses, moved here with their bodies unchanged. */
+/* The screen root (was screens.css). */
+:where(.codebase-inspector-root) .ci-screen {
+  display: flex; flex-direction: column; gap: var(--ci-space-5);
+  padding: var(--ci-space-6); box-sizing: border-box; min-width: 0;
+}
+/* Severity pill and reference id (were .ci-finding__severity* and .ci-finding__id, screens-explore.css). */
+:where(.codebase-inspector-root) .ci-severity { padding: 1px var(--ci-space-2); border-radius: var(--ci-radius-small); font-size: var(--font-ui-smaller, 0.8em); font-weight: var(--font-semibold); }
+/* Part 6 Y35 (R6): fallow's own severities. Critical keeps the old high fill; high and moderate are borders; unrated is muted. */
+:where(.codebase-inspector-root) .ci-severity--critical { color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent); }
+:where(.codebase-inspector-root) .ci-severity--high { color: var(--ci-tone-danger); border: 1px solid var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-severity--moderate { color: var(--ci-tone-warning); border: 1px solid var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-severity--unrated { color: var(--ci-text-muted); border: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-ref-id { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
+/* Band legend under a chart (was .ci-scatter__legend / .ci-scatter__key*, screens-explore.css). */
+:where(.codebase-inspector-root) .ci-band-legend { display: flex; flex-wrap: wrap; gap: var(--ci-space-4); margin-top: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-band-legend__key::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: var(--ci-space-1); border-radius: 50%; background: var(--ci-text-faint); }
+:where(.codebase-inspector-root) .ci-band-legend__key--low::before { background: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-band-legend__key--mid::before { background: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-band-legend__key--high::before { background: var(--ci-tone-success); }
+/* A file name over its path (was screens.css). */
+:where(.codebase-inspector-root) .ci-file-cell { display: flex; flex-direction: column; }
+:where(.codebase-inspector-root) .ci-file-cell__name { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-file-cell__path { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
+/* Priority score (was screens.css). Task 11: a tint, not Obsidian's `--background-modifier-error`
+   — that token is the solid `--color-red`, the same colour as the text, so the score was unreadable. */
+:where(.codebase-inspector-root) .ci-priority {
+  padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small); white-space: nowrap;
+  color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent);
+}
+
+/* Part 5 V17 (option B). Obsidian paints button.mod-cta and button.mod-warning at (0,1,1)
+   and their hovers at (0,2,1). These tie them and win on order (a plugin's styles load
+   after app.css), and a snippet scoped to the root still beats them (host-cascade rule). */
+:where(.codebase-inspector-root) button.mod-cta { background-color: var(--ci-action-fill); }
+:where(.codebase-inspector-root) button.mod-cta:hover { background-color: var(--ci-action-fill-hover); }
+:where(.codebase-inspector-root) button.mod-warning { background-color: var(--ci-danger-fill); }
+:where(.codebase-inspector-root) button.mod-warning:hover { background-color: var(--ci-danger-fill-hover); }
+/* The WP-01 controls in styles.css that paint --ci-on-action on --ci-action, and its hovers
+   that painted --ci-raised: the same selectors, overridden here, never edited there. */
+:where(.codebase-inspector-root) button.ci-welcome__action,
+:where(.codebase-inspector-root) button.ci-file-list__row--selected,
+:where(.codebase-inspector-root) button.ci-file-list__row--selected:hover { background: var(--ci-action-fill); }
+:where(.codebase-inspector-root) button.ci-welcome__action:hover { background: var(--ci-action-fill-hover); }
+:where(.codebase-inspector-root) button.ci-app__mode-toggle:hover,
+:where(.codebase-inspector-root) button.ci-selection-notice__reveal:hover,
+:where(.codebase-inspector-root) button.ci-selection-notice__clear:hover,
+:where(.codebase-inspector-root) button.ci-app__drawer-close:hover,
+:where(.codebase-inspector-root) button.ci-toolbar__scan:hover,
+:where(.codebase-inspector-root) button.ci-file-list__group-focus:hover,
+:where(.codebase-inspector-root) .ci-camera-controls button:hover { background: var(--ci-hover); }
+
+/* Part 6 Y32 (C13): EvidenceBadge, text first; the stale state is in its words too. */
+:where(.codebase-inspector-root) .ci-evidence-badge {
+  display: inline-flex; align-items: center; padding: 1px var(--ci-space-2);
+  border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small);
+  color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); overflow-wrap: anywhere;
+}
+:where(.codebase-inspector-root) .ci-evidence-badge--stale { border-color: var(--ci-warning); color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-evidence-badge--collected { border-color: var(--ci-tone-success); }
+/* Part 6 Y35: NotAnalysed, the kit's empty state with its one action. */
+:where(.codebase-inspector-root) .ci-not-analysed { padding: var(--ci-space-4) 0; }
+:where(.codebase-inspector-root) .ci-not-analysed .ci-note { margin: 0; }
+/* WP-03 N14: FindingRelatedRow's "Also involves" row, shared by the finding dialog on
+   both Code quality and File detail. */
+:where(.codebase-inspector-root) .ci-finding-dialog__related { display: grid; gap: var(--ci-space-2); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-finding-dialog__related-label { margin: 0; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-finding-dialog__related ul { margin: 0; padding-left: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-finding-dialog__cycle-path { overflow-wrap: anywhere; color: var(--ci-text-muted); }
+
+/* WP-04 Task 15 (IP32/IP33): the city inspector's Findings section, beside .ci-city-relations. */
+:where(.codebase-inspector-root) .ci-city-findings { margin-top: var(--ci-space-4); padding-top: var(--ci-space-3); border-top: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-city-findings__title { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0 0 var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-city-findings__list { list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-city-findings__row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2);
+  padding: var(--ci-space-2) 0; border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-city-findings__text { flex: 1 1 auto; min-width: 0; }
+:where(.codebase-inspector-root) .ci-city-findings__via { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }

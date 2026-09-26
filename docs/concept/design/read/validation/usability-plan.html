@@ -1,0 +1,74 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Usability validation plan</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../validation/usability-plan.md">Markdown source</a></header><main><h1>Usability validation plan</h1>
+<h2>Study status and purpose</h2>
+<p>This is a proposed moderated study, not a completed study. Validate whether the city improves orientation, whether evidence is understood correctly, and whether Obsidian integration avoids unnecessary friction. Do not collect background telemetry: the community-plugin policies prohibit client-side telemetry [S4]. Use explicit, consent-based research sessions and deliberately shared observations instead.</p>
+<p>Recruit approximately 5–6 representative participants for a formative round: maintainers, a technical lead, a new contributor, and at least one keyboard-first participant. This is a pragmatic study size, not a claim of statistical representativeness. Use participants’ own nonconfidential repositories or a provided fixture with known structure.</p>
+<h2>Tasks and observation questions</h2>
+<table>
+<thead>
+<tr>
+<th>Task</th>
+<th>Scenario</th>
+<th>Success evidence</th>
+<th>What to observe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>U01</td>
+<td>Open plugin and select an external codebase</td>
+<td>Correct root, understood scope, explicit start</td>
+<td>Do users expect code copying or automatic script execution?</td>
+</tr>
+<tr>
+<td>U02</td>
+<td>Find city-layout.ts and report its physical lines</td>
+<td>Correct file and exact value</td>
+<td>Do they confuse building height with complexity?</td>
+</tr>
+<tr>
+<td>U03</td>
+<td>Find a file without touching the city</td>
+<td>Search/list route completed</td>
+<td>Is 3D a helpful option or an obstacle?</td>
+</tr>
+<tr>
+<td>U04</td>
+<td>Explain a no-finding file and a measured-zero coverage file</td>
+<td>Correct distinction from unknown evidence</td>
+<td>Does absence look like quality or safety?</td>
+</tr>
+<tr>
+<td>U05</td>
+<td>Cancel a scan and identify which snapshot is shown</td>
+<td>Retained snapshot/time correctly identified</td>
+<td>Does cancellation appear destructive or ambiguous?</td>
+</tr>
+<tr>
+<td>U06</td>
+<td>Create an investigation note</td>
+<td>Correct vault destination and content</td>
+<td>Do they mistake note writing for a source edit?</td>
+</tr>
+<tr>
+<td>U07</td>
+<td>Inspect a one-hop dependency</td>
+<td>Correct importer → imported explanation</td>
+<td>Do arcs imply runtime execution to them?</td>
+</tr>
+<tr>
+<td>U08</td>
+<td>Use narrow leaf, light theme, and list fallback</td>
+<td>Same task outcomes without lost context</td>
+<td>Focus, contrast, overflow and panel discoverability</td>
+</tr>
+</tbody>
+</table>
+<h2>Measures</h2>
+<p>Task completion (independent/assisted/failed), time-on-task, wrong-root attempts, mistaken evidence interpretations, recovery steps, unnecessary camera movement, and participant explanation in their own words. Time targets are not set from invented benchmarks; first establish a baseline with current file-navigation practices.</p>
+<p>Suggested gate for first release: no participant interprets inventory as executing project code; core tasks can be completed without camera gestures; all critical data-meaning errors are resolved before broad release. This is a safety/comprehension gate, not a measured result.</p>
+<h2>Session protocol</h2>
+<p>Introduce the task without teaching the interface. Obtain permission for any recording or shared source content. Ask the participant to narrate goals and expectations; avoid directing them to the intended button. Record observation versus interpretation separately. After tasks, ask what a tall building, gray/hatching, “not observed,” and a provider failure mean. These questions expose misleading visual semantics.</p>
+<p>Use sanitized logs and fixture references. Do not collect secrets or assume research consent authorizes storing code. Summarize issues with screen ID, observed behavior, task impact, evidence, hypothesis, change, and retest result.</p>
+<h2>Follow-up round</h2>
+<p>Retest revised first-run, unknown-evidence, narrow-leaf, and cancellation flows. Compare completion and comprehension to the baseline; do not use enthusiasm for the 3D aesthetic as a substitute for task performance.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

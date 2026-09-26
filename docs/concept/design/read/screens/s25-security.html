@@ -1,0 +1,51 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>S25 — Diagnostics and security evidence</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../screens/s25-security.md">Markdown source</a></header><main><h1>S25 — Diagnostics and security evidence</h1>
+<p><img src="../../mockups/s25-security.png" alt="Diagnostics and security evidence — synthetic design fixture" /></p>
+<p><a href="../../prototype/index.html?screen=S25">Open review scenario</a> · <a href="../components/component-library.html">Component library</a> · <a href="../interactions/01-core-interactions.html">Interaction contract</a></p>
+<h2>Outcome and release boundary</h2>
+<p>Separate package advisories from source diagnostics and exploitability claims.</p>
+<p><strong>Delivery:</strong> WP-07. Later capability; do not expose before its implementation package. The grey bottom caption and the optional review-harness controls are not production interface. The host chrome is an illustrative context, not a pixel-perfect specification of Obsidian itself.</p>
+<h2>Entry and preconditions</h2>
+<p>Supported diagnostics/security reports have been imported.</p>
+<h2>Layout zones</h2>
+<ol>
+<li>Separate report families. 2. Original rule/advisory IDs. 3. Exact source or package targets. 4. Attribution and limits.</li>
+</ol>
+<p>In production, panel sizes follow the leaf-container rules. The screenshot is a reference composition rather than a fixed resolution requirement. All long paths remain available as accessible text.</p>
+<h2>User interactions</h2>
+<table>
+<thead>
+<tr>
+<th>Trigger</th>
+<th>Expected behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Select record</td>
+<td>Open matching location or package identity, not arbitrary source heat.</td>
+</tr>
+<tr>
+<td>Inspect severity</td>
+<td>Show provider-native severity and provenance.</td>
+</tr>
+<tr>
+<td>Create investigation</td>
+<td>Document uncertainty and verification.</td>
+</tr>
+</tbody>
+</table>
+<h2>States, errors, and edge cases</h2>
+<p>Duplicate reports; overlapping IDs; conflicting severities; untrusted URLs/HTML; nonexistent source mapping.</p>
+<p>Use the <a href="../interactions/02-states-and-recovery.html">state catalogue</a> and <a href="../interactions/04-microcopy.html">microcopy</a>. Operational failure, missing observations, and quality findings are not the same state.</p>
+<h2>Components and data</h2>
+<p><strong>Components:</strong> C13, C14, C19, C25. See the <a href="../../components/component-contracts.json">component contract registry</a>.</p>
+<p><strong>Data consumed:</strong> Provider/rule/fingerprint, exact package version where applicable, source location, native severity, observation scope.</p>
+<p>Components emit intents; the application validates and performs work. Neither the renderer nor a report artifact obtains authority to read paths, execute commands, or write notes.</p>
+<h2>Keyboard, accessibility, and focus</h2>
+<p>Required actions are reachable through normal labeled HTML controls. Do not depend on hover, color, dragging, double-click, or a canvas-only route. Modal steps contain focus and return it to the opener; nonmodal inspector drawers do not pretend to be modal. Obsidian-wide shortcuts are not hijacked. See <a href="../foundations/04-accessibility-and-responsive.html">accessibility and responsive rules</a>.</p>
+<h2>Acceptance checks</h2>
+<p>An advisory never automatically marks all files vulnerable. Report content is escaped and cannot execute or open arbitrary paths.</p>
+<p>Verify this screen in light/dark host themes, at increased text size, and in a narrow leaf. Confirm late asynchronous results cannot publish to another profile/view. Preserve the distinction between validated observations and the synthetic fixture shown here.</p>
+<h2>Prototype limits</h2>
+<p>The review prototype uses an SVG city stand-in and simulated in-memory workflows. It does not scan, run fallow, validate real reports, write notes, execute inside Obsidian, or implement every production edge case. The written contracts are normative for implementation; the prototype is for discussing hierarchy, flow, and states.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

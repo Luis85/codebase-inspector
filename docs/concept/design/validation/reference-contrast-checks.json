@@ -1,0 +1,47 @@
+{
+  "scope": "Six reference-palette text pairs only. Not full-screen, graph, custom-theme, or host conformance testing.",
+  "pairs": [
+    {
+      "pair": "Dark normal",
+      "foreground": "#ecebf0",
+      "background": "#232326",
+      "contrastRatio": 13.216,
+      "normalText4_5": true
+    },
+    {
+      "pair": "Dark secondary",
+      "foreground": "#b2b0bd",
+      "background": "#232326",
+      "contrastRatio": 7.342,
+      "normalText4_5": true
+    },
+    {
+      "pair": "Dark primary button",
+      "foreground": "#ffffff",
+      "background": "#7653ba",
+      "contrastRatio": 5.65,
+      "normalText4_5": true
+    },
+    {
+      "pair": "Light normal",
+      "foreground": "#282631",
+      "background": "#fcfcfd",
+      "contrastRatio": 14.507,
+      "normalText4_5": true
+    },
+    {
+      "pair": "Light secondary",
+      "foreground": "#666171",
+      "background": "#fcfcfd",
+      "contrastRatio": 5.83,
+      "normalText4_5": true
+    },
+    {
+      "pair": "Light primary button",
+      "foreground": "#ffffff",
+      "background": "#7251b5",
+      "contrastRatio": 5.899,
+      "normalText4_5": true
+    }
+  ]
+}

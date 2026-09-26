@@ -1,0 +1,178 @@
+/* WP-02 screens, Act area: Refactor workbench and Audit report (Part 4). */
+
+/* WP-04 Task 11: the Investigate screen — list, filters, evidence and uncertainty panels. */
+:where(.codebase-inspector-root) .ci-investigate__layout { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1fr) minmax(20em, 30em); align-items: start; }
+@container (max-width: 819px) {
+  :where(.codebase-inspector-root) .ci-investigate__layout { grid-template-columns: minmax(0, 1fr); }
+}
+:where(.codebase-inspector-root) .ci-investigate__main,
+:where(.codebase-inspector-root) .ci-investigate__detail { display: flex; flex-direction: column; gap: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-investigate-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-investigate-filters__query { flex: 1 1 14em; }
+:where(.codebase-inspector-root) .ci-investigate-list-wrap { display: flex; flex-direction: column; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-investigate-list { display: flex; flex-direction: column; gap: var(--ci-space-1); margin: 0; padding: 0; list-style: none; }
+:where(.codebase-inspector-root) button.ci-investigate-row {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); width: 100%; height: auto;
+  padding: var(--ci-space-2) var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small);
+  background: var(--ci-raised); color: var(--ci-text); text-align: left; white-space: normal; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-investigate-row:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) button.ci-investigate-row[aria-current="true"] { border-color: var(--ci-tone-accent); background: var(--ci-panel); }
+:where(.codebase-inspector-root) .ci-investigate-row__title { flex: 1 1 12em; font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-investigate-row__kind,
+:where(.codebase-inspector-root) .ci-investigate-row__location { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-investigate-row__notes { color: var(--ci-tone-accent); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-investigate-list__footer { display: flex; justify-content: center; }
+:where(.codebase-inspector-root) .ci-evidence-panel__chips { display: flex; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-evidence-panel__summary { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-evidence-panel__meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0 0 var(--ci-space-3); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-evidence-panel__meta dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-evidence-panel__meta dd { margin: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-evidence-panel__work-items { margin: 0; padding-left: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-evidence-panel__actions { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-uncertainty-panel__list,
+:where(.codebase-inspector-root) .ci-uncertainty-panel__checklist { display: grid; gap: var(--ci-space-2); margin: 0; padding-left: var(--ci-space-4); }
+
+/* WP-04 Task 12: the source preview panel. IPF6: never `display: block` on
+   .ci-source-preview__line — the newline inside each line's own span is what breaks the
+   line, not the layout. */
+:where(.codebase-inspector-root) .ci-source-preview__actions { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-source-preview__read-at { margin: 0 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-source-preview__text {
+  margin: 0; max-height: 28em; overflow: auto; border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small);
+  padding: var(--ci-space-2) var(--ci-space-3); background: var(--ci-raised); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em);
+}
+/* Fix round 1 (review Minor 5): --ci-on-accent is not a token this codebase defines (the
+   pairing for --ci-tone-accent is --ci-on-action, styles.css); a non-colour cue (the inset
+   border) means the highlight still reads for a viewer who cannot see the fill/text colour
+   at all. */
+:where(.codebase-inspector-root) .ci-source-preview__line[aria-current="true"] {
+  background: var(--ci-tone-accent); color: var(--ci-on-action); border-radius: 2px; box-shadow: inset 0 0 0 1px var(--ci-on-action);
+}
+:where(.codebase-inspector-root) .ci-source-preview__number {
+  display: inline-block; width: 3.5em; padding-right: var(--ci-space-2); color: var(--ci-text-faint); text-align: right; user-select: none;
+}
+:where(.codebase-inspector-root) .ci-source-preview__open-error { margin: 0 0 var(--ci-space-2); color: var(--ci-tone-danger); }
+
+/* WP-04 Task 13: the notes panel and the create-note dialog. */
+:where(.codebase-inspector-root) .ci-notes-panel__list { display: grid; gap: var(--ci-space-2); margin: 0; padding: 0; list-style: none; }
+:where(.codebase-inspector-root) .ci-notes-panel__item { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-notes-panel__path { flex: 1 1 12em; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-notes-panel__status { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-notes-panel__open-error { flex-basis: 100%; margin: 0; color: var(--ci-tone-danger); }
+/* WP-04 Task 14: the notes for findings not in this report, and the refresh dialog. */
+:where(.codebase-inspector-root) .ci-orphan-notes__list { display: grid; gap: var(--ci-space-2); margin: var(--ci-space-2) 0 0; padding: 0; list-style: none; }
+:where(.codebase-inspector-root) .ci-orphan-notes__item { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-orphan-notes__path { flex: 1 1 12em; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-orphan-notes__status { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-orphan-notes__open-error { flex-basis: 100%; margin: 0; color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-orphan-notes__malformed { color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-refresh-note { display: grid; gap: var(--ci-space-2); max-width: 34em; padding: var(--ci-space-4); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-refresh-note h3,
+:where(.codebase-inspector-root) .ci-refresh-note p { margin: 0; }
+:where(.codebase-inspector-root) .ci-refresh-note ul { margin: 0; padding-left: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-refresh-note__explain,
+:where(.codebase-inspector-root) .ci-refresh-note__after-label { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-refresh-note__error { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-refresh-note__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); margin-top: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-create-note { display: grid; gap: var(--ci-space-2); max-width: 34em; padding: var(--ci-space-4); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-create-note h3,
+:where(.codebase-inspector-root) .ci-create-note p { margin: 0; }
+:where(.codebase-inspector-root) .ci-create-note__label { font-size: var(--font-ui-small, 0.9em); font-weight: var(--font-medium, 500); }
+:where(.codebase-inspector-root) .ci-create-note__name-row { display: flex; align-items: center; gap: var(--ci-space-1); }
+:where(.codebase-inspector-root) .ci-create-note__name { flex: 1 1 auto; min-width: 0; }
+:where(.codebase-inspector-root) .ci-create-note__suffix { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-create-note__plan { display: grid; gap: var(--ci-space-1); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-create-note__path-label { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-create-note__problem,
+:where(.codebase-inspector-root) .ci-create-note__destination-failed,
+:where(.codebase-inspector-root) .ci-create-note__error { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-create-note__renamed,
+:where(.codebase-inspector-root) .ci-create-note__overlap,
+:where(.codebase-inspector-root) .ci-create-note__root { color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-create-note__exclude { display: flex; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-create-note__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); margin-top: var(--ci-space-2); }
+
+/* WP-04 Task 1: the Investigate screen (.ci-screen--investigate; layout rules arrive in Task 11). */
+
+/* Part 4 Task 10: Refactor workbench and the Work-item editor. */
+:where(.codebase-inspector-root) .ci-workbench__toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-3);
+  padding: var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-card); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-workbench__filter { flex: 0 1 18em; }
+:where(.codebase-inspector-root) .ci-workbench__views { display: inline-flex; gap: var(--ci-space-1); margin-left: auto; }
+:where(.codebase-inspector-root) .ci-workbench__view[aria-pressed="true"] { background: var(--ci-raised); color: var(--ci-text); font-weight: var(--font-semibold); box-shadow: inset 0 -2px 0 var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-workbench__new-hint { margin-top: calc(-1 * var(--ci-space-3)); }
+:where(.codebase-inspector-root) .ci-work-board { display: grid; gap: var(--ci-space-4); grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@container (max-width: 900px) {
+  :where(.codebase-inspector-root) .ci-work-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (max-width: 560px) {
+  :where(.codebase-inspector-root) .ci-work-board { grid-template-columns: minmax(0, 1fr); }
+}
+:where(.codebase-inspector-root) .ci-work-board__column {
+  display: flex; flex-direction: column; gap: var(--ci-space-3); min-height: 12em;
+  padding: var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-card); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-work-board__heading { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-work-board__count { margin-left: auto; color: var(--ci-text-faint); font-weight: normal; }
+:where(.codebase-inspector-root) .ci-work-board__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-work-board__column--investigate .ci-work-board__dot { background: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-work-board__column--verified .ci-work-board__dot { background: var(--ci-tone-success); }
+:where(.codebase-inspector-root) button.ci-work-card {
+  display: flex; flex-direction: column; align-items: stretch; gap: var(--ci-space-2); width: 100%; height: auto;
+  padding: var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small);
+  background: var(--ci-raised); box-shadow: none; color: var(--ci-text); text-align: left; white-space: normal; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-work-card:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-work-card__head, :where(.codebase-inspector-root) .ci-work-card__meta { display: flex; justify-content: space-between; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-work-card__id { color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-work-card__title { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-work-card__target, :where(.codebase-inspector-root) .ci-work-card__meta { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-chip--priority-high { border-color: var(--ci-tone-danger); color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-chip--priority-medium { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-chip--priority-low { border-color: var(--ci-border); color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-work-editor { display: grid; gap: var(--ci-space-2); padding: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-work-editor__header h3 { margin: 0; }
+:where(.codebase-inspector-root) .ci-work-editor__grid { display: grid; gap: var(--ci-space-3); grid-template-columns: repeat(2, minmax(0, 1fr)); margin: var(--ci-space-2) 0; }
+:where(.codebase-inspector-root) .ci-work-editor__field { display: flex; flex-direction: column; gap: var(--ci-space-1); }
+:where(.codebase-inspector-root) .ci-work-editor__label { color: var(--ci-text); font-size: var(--font-ui-small, 0.9em); font-weight: var(--font-medium, 500); }
+:where(.codebase-inspector-root) .ci-work-editor__target { overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-work-editor__notes { min-height: 6em; resize: vertical; }
+:where(.codebase-inspector-root) .ci-work-editor__checks { display: grid; gap: var(--ci-space-2); margin: var(--ci-space-2) 0 0; padding: 0; border: none; }
+:where(.codebase-inspector-root) .ci-work-editor__checks legend { margin-bottom: var(--ci-space-2); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-work-editor__check { display: flex; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-work-editor__error { margin: 0; color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-work-editor__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-work-editor__confirm-text { flex: 1 1 auto; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-work-editor__spacer { flex: 1 1 auto; }
+
+/* Part 4 Task 11: Audit report. */
+:where(.codebase-inspector-root) .ci-report { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1fr) minmax(14em, 18em); align-items: start; }
+@container (max-width: 900px) {
+  :where(.codebase-inspector-root) .ci-report { grid-template-columns: minmax(0, 1fr); }
+}
+:where(.codebase-inspector-root) .ci-report-paper {
+  display: flex; flex-direction: column; gap: var(--ci-space-4); padding: var(--ci-space-6);
+  border: 1px solid var(--ci-border); border-radius: var(--ci-radius-card); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-report-paper__kicker { display: flex; justify-content: space-between; align-items: center; color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); letter-spacing: 0.08em; text-transform: uppercase; }
+:where(.codebase-inspector-root) .ci-report-paper__title { margin: 0; font-size: var(--font-ui-large, 1.15em); }
+:where(.codebase-inspector-root) .ci-report-paper__facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0; padding-bottom: var(--ci-space-4); border-bottom: 1px solid var(--ci-border); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-report-paper__facts dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-report-paper__facts dd { margin: 0; }
+:where(.codebase-inspector-root) .ci-report-paper__section { display: flex; flex-direction: column; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-report-paper__section-title,
+:where(.codebase-inspector-root) .ci-report-paper__section-title--fixed { margin: 0; font-size: var(--font-ui-medium, 1em); }
+:where(.codebase-inspector-root) .ci-report-paper__subtitle { margin: var(--ci-space-2) 0 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-report-paper__metrics,
+:where(.codebase-inspector-root) .ci-report-paper__plan { display: grid; gap: var(--ci-space-2); margin: 0; padding-left: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-report-paper__metrics li,
+:where(.codebase-inspector-root) .ci-report-paper__plan li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-report-paper__note { margin: 0; white-space: pre-wrap; }
+:where(.codebase-inspector-root) .ci-report-contents { display: flex; flex-direction: column; gap: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-report-contents__check { display: flex; align-items: center; gap: var(--ci-space-2); padding: var(--ci-space-1) 0; }
+:where(.codebase-inspector-root) .ci-report-contents__note { width: 100%; min-height: 8em; resize: vertical; }
+:where(.codebase-inspector-root) .ci-report-contents__apply { width: 100%; margin-top: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-report-contents__error { margin: var(--ci-space-2) 0 0; color: var(--ci-tone-danger); }

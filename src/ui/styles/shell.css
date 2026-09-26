@@ -1,0 +1,130 @@
+/* WP-02 shell. The leaf root stays the size container WP-01 declared; the content area is
+   ALSO a size container, so the city's existing unnamed @container rules (styles.css)
+   resolve against the space the city really has once the nav column is inline. */
+:where(.codebase-inspector-root) .ci-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+}
+/* The inspector owns its whole leaf: the shell's own top bar replaces Obsidian's view
+   header, and the shell runs edge to edge. Scoped by view type (CITY_VIEW_TYPE in
+   src/host/city-view.ts, pinned by tests/unit/leaf-chrome.test.ts) so no other pane
+   changes. (0,3,0) beats Obsidian's `.workspace-leaf-content .view-content` (0,2,0).
+   The tab header keeps close and its context menu. */
+.workspace-leaf-content[data-type="codebase-inspector-city"] > .view-header {
+  display: none;
+}
+.workspace-leaf-content[data-type="codebase-inspector-city"] > .view-content {
+  padding: 0;
+}
+/* Focusable only as the Dialog's focus-restore fallback (tabindex="-1"); never tabbable. */
+:where(.codebase-inspector-root) .ci-shell:focus { outline: none; }
+/* Part 5 V7: <main> is focused only when the new screen has no page title; never a control. */
+:where(.codebase-inspector-root) .ci-shell__content:focus { outline: none; }
+:where(.codebase-inspector-root) .ci-shell--nav-inline { grid-template-columns: var(--ci-nav-width) minmax(0, 1fr); }
+:where(.codebase-inspector-root) .ci-shell__nav { display: none; }
+:where(.codebase-inspector-root) .ci-shell--nav-inline .ci-shell__nav { display: flex; grid-row: 1 / span 2; }
+:where(.codebase-inspector-root) .ci-shell--nav-open .ci-shell__nav {
+  display: flex; position: absolute; inset: 0 auto 0 0; z-index: 30;
+  width: min(280px, 85%); box-shadow: var(--shadow-l);
+}
+:where(.codebase-inspector-root) .ci-shell__topbar { grid-column: -2 / -1; }
+:where(.codebase-inspector-root) .ci-shell__content {
+  grid-column: -2 / -1; min-height: 0; min-width: 0; overflow: auto;
+  container-type: inline-size;
+}
+
+:where(.codebase-inspector-root) .ci-nav {
+  flex-direction: column; gap: var(--ci-space-1); min-height: 0; overflow-y: auto;
+  padding: var(--ci-space-3); border-right: 1px solid var(--ci-border); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-nav__head { display: flex; align-items: center; gap: var(--ci-space-2); padding-bottom: var(--ci-space-3); border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-nav__section { display: flex; flex-direction: column; gap: 2px; margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-nav__group {
+  margin: 0 0 var(--ci-space-1); padding-inline: var(--ci-space-2);
+  font-size: var(--font-ui-smaller, 0.8em); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ci-text-faint);
+}
+:where(.codebase-inspector-root) .ci-nav__footer { margin-top: auto; display: flex; flex-direction: column; gap: 2px; padding-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) button.ci-nav__item,
+:where(.codebase-inspector-root) button.ci-nav__workspace {
+  display: flex; align-items: center; gap: var(--ci-space-2); width: 100%;
+  min-height: var(--ci-control-min); padding: 0 var(--ci-space-2);
+  border: none; border-radius: var(--ci-radius-control); background: transparent; box-shadow: none;
+  color: var(--ci-text-muted); cursor: pointer; text-align: left; justify-content: flex-start;
+}
+:where(.codebase-inspector-root) button.ci-nav__workspace { color: var(--ci-text); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) button.ci-nav__item:hover { background: var(--ci-hover); color: var(--ci-text); }
+:where(.codebase-inspector-root) button.ci-nav__item[aria-current="page"] { background: var(--ci-raised); color: var(--ci-action); }
+:where(.codebase-inspector-root) .ci-nav__label { flex: 1 1 auto; }
+:where(.codebase-inspector-root) .ci-nav__badge {
+  padding: 0 var(--ci-space-2); border-radius: var(--ci-radius-small);
+  background: var(--ci-surface); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em);
+}
+
+:where(.codebase-inspector-root) .ci-topbar {
+  display: flex; align-items: center; gap: var(--ci-space-3);
+  padding: var(--ci-space-2) var(--ci-space-4); border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-shell--nav-inline button.ci-topbar__menu { display: none; }
+:where(.codebase-inspector-root) .ci-topbar__crumbs { display: flex; gap: var(--ci-space-2); flex: 1 1 auto; min-width: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); white-space: nowrap; overflow: hidden; }
+:where(.codebase-inspector-root) .ci-topbar__crumbs [aria-current="page"] { color: var(--ci-text); }
+:where(.codebase-inspector-root) button.ci-topbar__search {
+  display: flex; align-items: center; gap: var(--ci-space-2); min-height: var(--ci-control-min);
+  padding: 0 var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-control);
+  background: var(--ci-surface); box-shadow: none; color: var(--ci-text-muted); cursor: pointer;
+}
+:where(.codebase-inspector-root) .ci-topbar__search kbd { font-size: var(--font-ui-smaller, 0.8em); }
+
+:where(.codebase-inspector-root) .ci-snapshot-selector select { min-height: var(--ci-control-min); }
+:where(.codebase-inspector-root) .ci-palette { display: flex; flex-direction: column; }
+:where(.codebase-inspector-root) .ci-palette__input { margin: var(--ci-space-3); width: calc(100% - 2 * var(--ci-space-3)); }
+:where(.codebase-inspector-root) .ci-palette__list { list-style: none; margin: 0; padding: 0 0 var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-palette__item {
+  display: flex; align-items: center; gap: var(--ci-space-2); padding: var(--ci-space-2) var(--ci-space-4); cursor: pointer;
+}
+:where(.codebase-inspector-root) .ci-palette__item[aria-selected="true"] { background: var(--ci-raised); }
+:where(.codebase-inspector-root) .ci-palette__detail { margin-left: auto; color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-palette__empty { margin: 0; padding: var(--ci-space-4); color: var(--ci-text-muted); }
+
+/* Part 2 (A12): the scrim under an open drawer; a click on it closes the drawer. */
+:where(.codebase-inspector-root) .ci-shell__scrim { position: absolute; inset: 0; z-index: 29; background: var(--background-modifier-cover); }
+/* Part 2 (A11): the shell-level sample badge. */
+:where(.codebase-inspector-root) .ci-topbar__sample { flex: none; }
+
+/* Part 4 W5: compact density tightens rows and card padding only; nothing is hidden. The
+   city screen is excluded (fix round 1, Important): screens.css's `.ci-screen--city { gap:
+   0 }` is a stage layout rule, not spacing, and this selector's higher specificity would
+   otherwise win over it and loosen the city stage under compact density. */
+:where(.codebase-inspector-root) .ci-shell--compact .ci-table td { padding-top: var(--ci-space-1); padding-bottom: var(--ci-space-1); }
+:where(.codebase-inspector-root) .ci-shell--compact .ci-metric-card { padding: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-shell--compact .ci-screen:not(.ci-screen--city) { gap: var(--ci-space-3); }
+
+/* Part 5 V6: Cancel scan sits beside Scan in the city toolbar and takes the same skin
+   (styles.css `button.ci-toolbar__scan`, M113): `button` raises the rule to (0,1,1) so it
+   ties Obsidian's `button:not(.clickable-icon)` and wins on order, and box-shadow is
+   cleared so the host's input shadow does not paint under the border. No `cursor` here:
+   kit.css's shared `button[aria-disabled="true"]` rule (E54) owns the blocked look. */
+:where(.codebase-inspector-root) button.ci-toolbar__cancel {
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-3);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  white-space: nowrap;
+}
+:where(.codebase-inspector-root) button.ci-toolbar__cancel:hover { background: var(--ci-hover); }
+/* One more always-present control: let the toolbar wrap in a narrow leaf instead of
+   overflowing it (the WP-01 rule in styles.css sets only display, alignment and gap). */
+:where(.codebase-inspector-root) .ci-app__toolbar { flex-wrap: wrap; }
+
+/* Part 6 Y40: the findings-lens select, rendered only while this codebase has evidence. The
+   visible label is the select's accessible name (WCAG 2.5.3). */
+:where(.codebase-inspector-root) .ci-toolbar__lens-field { display: inline-flex; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-toolbar__lens-label {
+  color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); white-space: nowrap;
+}
+:where(.codebase-inspector-root) select.ci-toolbar__lens { min-height: var(--ci-control-min); }

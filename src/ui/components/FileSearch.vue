@@ -1,0 +1,172 @@
+<!--
+  C06 — the search field over the current snapshot's file paths. Owns its own
+  ~150 ms debounce (the typed text shows immediately; the store's `query` — and
+  therefore the DIM-in-place filter — commits after the debounce) and its own "/"
+  reachability (spec 5.2: only while this view owns focus and the event target is
+  not itself editable). Escape clears a non-empty query and keeps focus in the
+  field — never blurs it, never a second layer of Escape handling; that chain lives
+  in escape-intent.ts and is reused here rather than re-implemented. Enter flushes the
+  debounce and selects the first match (spec 5.2, Phase 2 fix wave I4).
+-->
+<script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useCityStore } from '../stores/city-store';
+import { escapeIntent } from '../interaction/escape-intent';
+import { shouldFocusSearchShortcut } from '../interaction/keymap';
+
+const PLACEHOLDER = 'Search files or paths…';
+const DEBOUNCE_MS = 150;
+const EDITABLE_TAGS = new Set(['INPUT', 'TEXTAREA', 'SELECT']);
+
+const store = useCityStore();
+const rootEl = ref<HTMLElement | null>(null);
+const inputEl = ref<HTMLInputElement | null>(null);
+const draft = ref(store.query);
+// Phase 2 fix wave, C2 (Critical): `draft` used to be read ONCE, here, and
+// `city-view.ts` mounts this tree BEFORE it seeds a restored CityViewState into the
+// store — so a query restored from workspace.json filtered the city while this field
+// sat visibly EMPTY, and `onKeydown` gates Escape on `draft`, so Escape could not
+// clear it either. The field must always show the filter that is actually in force,
+// whoever set it (a restore, or the shell-level Escape chain's own `setQuery('')`).
+// Not a two-way binding: typing still goes draft -> debounce -> store, and this
+// watcher is a no-op for the store write that debounce itself makes.
+watch(() => store.query, (query) => { draft.value = query; });
+let composing = false;
+let debounceHandle: number | null = null;
+
+// Phase 2 fix wave, I9 (spec 4.4's cross-window rule, now enforced by
+// `no-restricted-globals` in eslint.config.mjs): the debounce used to call the BARE
+// `setTimeout`/`clearTimeout`, which resolve against the window this module was
+// loaded in rather than the one this field is currently displayed in. Timers share
+// the plugin's one JS realm, so unlike a bare `document` this was not a live defect
+// -- but it was the last residue of the shape that has cost this branch three fix
+// rounds, and the rule that now forbids it cannot make an exception for "this one is
+// harmless". `rootEl.value.win` is the same injected-Window discipline every other
+// listener in this file already uses; with no root element there is nothing mounted
+// to debounce into, and the early return is that case, not a fallback to a global.
+function timerWin(): Window | null {
+  return rootEl.value?.win ?? null;
+}
+
+function clearPending(): void {
+  const win = timerWin();
+  if (debounceHandle !== null && win) win.clearTimeout(debounceHandle);
+  debounceHandle = null;
+}
+
+function commit(value: string): void {
+  clearPending();
+  const win = timerWin();
+  if (!win) return;
+  debounceHandle = win.setTimeout(() => { store.setQuery(value); }, DEBOUNCE_MS);
+}
+
+function onInput(event: Event): void {
+  const value = (event.target as HTMLInputElement).value;
+  draft.value = value;
+  commit(value);
+}
+
+/** Phase 2 fix wave, I4 (Important): spec 5.2's "Enter selects the first match in
+ *  deterministic order without moving the camera. Enter with no matches is a no-op."
+ *  `confirmSearch()` implemented all of that and had NO production caller anywhere in
+ *  `src/` -- this handler returned immediately for every key but Escape, so pressing
+ *  Enter after typing did nothing at all. The pending debounce is FLUSHED first
+ *  (cancelled, then committed synchronously): Enter acts on the text the user can see
+ *  in the field, never on whatever the store happened to hold ~150 ms ago.
+ *  Ctrl/Meta/Alt are left alone so a same-key host shortcut is never shadowed, and
+ *  composition is suppressed for the same reason Escape is. */
+function confirmFromDraft(): void {
+  clearPending();
+  store.setQuery(draft.value);
+  store.confirmSearch();
+}
+
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Enter') {
+    if (composing || event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+    event.preventDefault();
+    confirmFromDraft();
+    return;
+  }
+  if (event.key !== 'Escape') return;
+  const intent = escapeIntent({ inSearch: true, query: draft.value, composing });
+  if (intent === 'clear-query') {
+    event.preventDefault();
+    clearPending();
+    draft.value = '';
+    store.setQuery('');
+    // Focus is left exactly where it is — no blur(), no focus() call.
+  }
+}
+
+function onCompositionStart(): void { composing = true; }
+function onCompositionEnd(): void { composing = false; }
+
+// Task 9 fix round 1, item 5 (Important, spec 4.4's cross-window rule): a bare
+// `target instanceof HTMLElement` checks against THIS window's HTMLElement
+// constructor — after a pop-out, the active element in that OTHER window is an
+// instance of ITS OWN HTMLElement, so this always returned false there, "/"
+// stole focus while the user was typing a slash into another field, and
+// isEditable's whole reason to exist quietly stopped working. `node.instanceOf`
+// (Obsidian's cross-window-capable replacement, spec 4.4) fixes it structurally.
+function isEditable(target: Element | null): boolean {
+  if (!target?.instanceOf(HTMLElement)) return false;
+  return EDITABLE_TAGS.has(target.tagName) || target.isContentEditable;
+}
+
+/** "/" focuses this field from anywhere else in the view (spec 5.2). Listens on
+ *  this element's OWN window/document (never a bare global — cross-window rule,
+ *  spec 4.4), and treats "this view owns focus" as "the active element is inside
+ *  the same `.codebase-inspector-root` ancestor this field lives under" — the one
+ *  DOM landmark every view (and every standalone component-test root) already has. */
+function onGlobalKeydown(event: KeyboardEvent): void {
+  const root = rootEl.value;
+  if (!root) return;
+  const doc = root.doc;
+  const viewRoot = root.closest('.codebase-inspector-root') ?? root;
+  const owns = Boolean(viewRoot.contains(doc.activeElement));
+  const fires = shouldFocusSearchShortcut(
+    { key: event.key, ctrlKey: event.ctrlKey, metaKey: event.metaKey, altKey: event.altKey },
+    { viewOwnsFocus: owns, targetIsEditable: isEditable(doc.activeElement) },
+  );
+  if (!fires) return;
+  event.preventDefault();
+  inputEl.value?.focus();
+}
+
+// No bare-global fallback (item 5): if `rootEl` never mounted, this simply
+// never attaches a listener, rather than reaching for the wrong window's
+// `document`.
+let listenerDoc: Document | null = null;
+onMounted(() => {
+  listenerDoc = rootEl.value?.doc ?? null;
+  listenerDoc?.addEventListener('keydown', onGlobalKeydown);
+});
+onBeforeUnmount(() => {
+  clearPending();
+  listenerDoc?.removeEventListener('keydown', onGlobalKeydown);
+});
+
+defineExpose({ focusInput: () => inputEl.value?.focus() });
+</script>
+
+<template>
+  <div
+    ref="rootEl"
+    class="ci-search"
+  >
+    <input
+      ref="inputEl"
+      type="text"
+      class="ci-search__input"
+      :placeholder="PLACEHOLDER"
+      :value="draft"
+      aria-label="Search files or paths"
+      @input="onInput"
+      @keydown="onKeydown"
+      @compositionstart="onCompositionStart"
+      @compositionend="onCompositionEnd"
+    >
+  </div>
+</template>

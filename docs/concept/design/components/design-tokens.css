@@ -1,0 +1,31 @@
+/* Production token bridge only: do not import prototype/styles.css into Obsidian. */
+:where(.codebase-inspector-root) {
+  --ci-surface: var(--background-primary);
+  --ci-panel: var(--background-secondary);
+  --ci-raised: var(--background-primary-alt);
+  --ci-border: var(--background-modifier-border);
+  --ci-text: var(--text-normal);
+  --ci-text-muted: var(--text-muted);
+  --ci-action: var(--interactive-accent);
+  --ci-on-action: var(--text-on-accent);
+  --ci-focus: var(--background-modifier-border-focus, var(--interactive-accent));
+  --ci-error: var(--text-error);
+  --ci-warning: var(--text-warning);
+  --ci-space-1: 4px; --ci-space-2: 8px; --ci-space-3: 12px;
+  --ci-space-4: 16px; --ci-space-5: 20px; --ci-space-6: 24px;
+  --ci-radius-small: 4px; --ci-radius-control: 6px; --ci-radius-modal: 10px;
+  --ci-control-min: 32px;
+  --ci-focus-duration: 180ms;
+  color: var(--ci-text);
+  background: var(--ci-surface);
+  font-family: var(--font-interface);
+  container-type: inline-size;
+}
+:where(.codebase-inspector-root) :focus-visible {
+  outline: 2px solid var(--ci-focus);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.codebase-inspector-root) { --ci-focus-duration: 0ms; }
+}
+/* Resolve palette values in the owning document and validate actual contrast. */

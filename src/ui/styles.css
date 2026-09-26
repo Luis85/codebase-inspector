@@ -1,0 +1,805 @@
+/* Token bridge. Never targets body, :root, .workspace, .theme-dark or .theme-light,
+   and never redefines a --background-*, --text-* or --interactive-* variable. */
+:where(.codebase-inspector-root) {
+  --ci-surface: var(--background-primary);
+  --ci-panel: var(--background-secondary);
+  --ci-raised: var(--background-primary-alt);
+  --ci-border: var(--background-modifier-border);
+  --ci-text: var(--text-normal);
+  --ci-text-muted: var(--text-muted);
+  --ci-action: var(--interactive-accent);
+  /* Item 4 sweep: the accent's own hover, aliased the same way --ci-action is. Aliasing an
+     --interactive-* variable into a --ci-* name is what this bridge is for; spec 4.4
+     forbids REDEFINING one, which this does not do. */
+  --ci-action-hover: var(--interactive-accent-hover);
+  --ci-on-action: var(--text-on-accent);
+  --ci-focus: var(--background-modifier-border-focus, var(--interactive-accent));
+  --ci-error: var(--text-error);
+  --ci-warning: var(--text-warning);
+  --ci-space-1: 4px; --ci-space-2: 8px; --ci-space-3: 12px;
+  --ci-space-4: 16px; --ci-space-5: 20px; --ci-space-6: 24px;
+  --ci-radius-small: 4px; --ci-radius-control: 6px; --ci-radius-modal: 10px;
+  --ci-control-min: 32px;
+  --ci-focus-duration: 180ms;
+  color: var(--ci-text);
+  background: var(--ci-surface);
+  font-family: var(--font-interface);
+  container-type: inline-size;
+}
+:where(.codebase-inspector-root) :focus-visible {
+  outline: 2px solid var(--ci-focus);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.codebase-inspector-root) { --ci-focus-duration: 0ms; }
+}
+
+/* Ruling A1 (task-3-context.md, confirmed task-9-context.md §2): the ten
+   --ci-cat-* custom properties are the ONE plugin-owned palette, declared as CSS
+   custom properties, never hex constants in the renderer (task-9-brief.md's own
+   "Three.js hazard"). They cross into WebGL only through cssColorToSrgbBytes
+   (src/visualization/color.ts), never through `new Color(...)` +
+   convertSRGBToLinear(). One member per CATEGORY_IDS entry (src/domain/classify.ts) —
+   the closed, ten-member vocabulary; adding an eleventh is a spec 4.1 contract
+   change, not a styling one. */
+:where(.codebase-inspector-root) {
+  --ci-cat-typescript: #4a86c8;
+  --ci-cat-javascript: #d1a944;
+  --ci-cat-vue: #3fa06e;
+  --ci-cat-test: #b25ec9;
+  --ci-cat-style: #d9707a;
+  --ci-cat-markup: #7a8fa8;
+  --ci-cat-config: #8a8f98;
+  --ci-cat-docs: #6fa8c9;
+  --ci-cat-asset: #c98f5e;
+  --ci-cat-other: #9a9a9a;
+}
+
+/* Visually hidden but still reachable by assistive tech — used for the viewport's
+   help description and the polite/assertive announcement region. */
+:where(.codebase-inspector-root) .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* --- C01 shell layout ------------------------------------------------------- */
+:where(.codebase-inspector-root) .ci-app {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ci-space-3);
+  padding: var(--ci-space-4);
+  box-sizing: border-box;
+  /* Checkpoint #3 defects 5 and 6, ONE declaration. This was `min-height: 100%`, and
+     `min-height` NEVER makes a height DEFINITE -- the fact this branch established
+     during the ResizeObserver-ratchet work about the stage, equally true of the list the
+     whole time. With an indefinite height here, `.ci-app__body`'s row flex line takes its
+     cross size from its TALLEST ITEM instead of its container: 1,087 file-list rows fixed
+     at 30px each by Obsidian's own `button { height: var(--input-height) }` made the line
+     ~32,610px, `.ci-app__list`'s `overflow-y: auto` never received a constrained box so
+     it never scrolled, and the stage was stretched to the same ~32,500px and handed it
+     unclamped to `setSize()`. The DOM labels then landed at `cssHeight / 2` ~= 16,250px
+     while the GL drawing buffer clamped at 16384 -- labels in the middle, city at the top.
+     `height: 100%` resolves because Obsidian's own `.workspace-leaf-content .view-content`
+     is `height: 100%` inside a definite-height flex column (verified in the shipped
+     obsidian.asar), so our containing block's height is definite. Pinned by
+     tests/component/stage-height.test.ts. */
+  height: 100%;
+}
+:where(.codebase-inspector-root) .ci-app__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--ci-space-2);
+}
+/* Item 4 sweep. `button` added for the specificity rule stated at .ci-file-list__row:
+   (0,1,0) -> (0,1,1), which is what `button:not(.clickable-icon)` computes, so our
+   `background` and `color` finally apply instead of `--interactive-normal`. `box-shadow`
+   is declared for the first time because that same rule also paints `--input-shadow`
+   underneath our own border. This class is ALSO the Files drawer opener
+   (App.vue: `class="ci-app__mode-toggle ci-app__drawer-opener"`). */
+:where(.codebase-inspector-root) button.ci-app__mode-toggle {
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-3);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+/* Our background now ties Obsidian's `button:hover` (0,1,1) and beats it on document
+   order, so without this the control would have no hover affordance at all. */
+:where(.codebase-inspector-root) button.ci-app__mode-toggle:hover {
+  background: var(--ci-raised);
+}
+/* Phase 2c, I4: COPY-30, the filter-hidden-selection explanation (spec 5.2). Task 9
+   (F13): a `<div>` wrapping the explanation and its own two real controls now,
+   never a single `<p>` of unpressable prose. */
+:where(.codebase-inspector-root) .ci-app__selection-notice {
+  margin: 0;
+  padding: var(--ci-space-2) var(--ci-space-3);
+  border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-control);
+  background: var(--ci-panel);
+  color: var(--ci-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ci-space-2);
+}
+:where(.codebase-inspector-root) .ci-app__selection-notice-text {
+  margin: 0;
+  flex: 1 1 auto;
+}
+:where(.codebase-inspector-root) .ci-selection-notice__actions {
+  display: flex;
+  gap: var(--ci-space-2);
+  flex: 0 0 auto;
+}
+/* M113 -- same recipe as `.ci-file-list__group-focus`: `button.ci-selection-notice__*`
+   is (0,1,1), tying Obsidian's own `button:not(.clickable-icon)` and winning on
+   document order, and still losing to a root-scoped user snippet at (0,2,0). */
+:where(.codebase-inspector-root) button.ci-selection-notice__reveal,
+:where(.codebase-inspector-root) button.ci-selection-notice__clear {
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-2);
+  border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-control);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  font-size: 0.85em;
+  cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-selection-notice__reveal:hover,
+:where(.codebase-inspector-root) button.ci-selection-notice__clear:hover {
+  background: var(--ci-raised);
+}
+:where(.codebase-inspector-root) .ci-app__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ci-space-3);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+:where(.codebase-inspector-root) .ci-app__stage-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ci-space-2);
+  flex: 1 1 auto;
+  min-height: 0;
+  /* Phase 2c, B1/B2: a flex item's default `min-width: auto` is its CONTENT minimum,
+     so without this the stage column refuses to shrink below whatever the canvas and
+     the camera dock happen to measure, and the row overflows the leaf instead of
+     giving the stage the width the budget allocated it. */
+  min-width: 0;
+}
+/* Task 9 fix round 1, item 7: .ci-app__list-wrapper carries the drawer's own
+   open/close chrome (App.vue) around CodebaseFileList; the container-query
+   sizing that used to target .ci-app__list directly now targets this wrapper
+   instead, so the drawer button and the list scroll together as one unit. */
+:where(.codebase-inspector-root) .ci-app__list-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+:where(.codebase-inspector-root) .ci-app__list {
+  min-height: 0;
+  overflow-y: auto;
+}
+/* Item 4 sweep -- same rule, same two reasons. (The `display: none` copy of this selector
+   inside the >=820px container query stays at (0,1,0): it only has to beat
+   `button { display: inline-flex }`, which is (0,0,1).) */
+:where(.codebase-inspector-root) button.ci-app__drawer-close {
+  align-self: flex-end;
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-3);
+  margin: var(--ci-space-2);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-app__drawer-close:hover {
+  background: var(--ci-raised);
+}
+/* One collapse threshold at 820 CSS px, measured on the leaf via container
+   queries (spec 5.2), provisional and contested (re-check at checkpoint #3). At
+   or above it: list + canvas + inspector side by side. Below it: canvas-first;
+   list and inspector become full overlays, ONE AT A TIME (item 7 — App.vue's
+   own `filesDrawerOpen` state and the mutual-exclusivity watcher are what
+   enforce that; this stylesheet only ever shows what App.vue tells it to). */
+@container (min-width: 820px) {
+  :where(.codebase-inspector-root) .ci-app__body {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  /* Phase 2c, B1 (ruling M105) and B2. These two panels used to be
+     `flex: 0 0 260px` / `flex: 0 0 280px` -- immovable at EVERY width, with no
+     `max-width` and no `min-width` anywhere in this file. Two consequences, both real:
+
+     B1: their fixed 540 px combined was never reconciled with the 820 px threshold
+     above. `320 + 260 + 280 + 24 + 32 + 2 = 918`, so between 820 and 917 the app
+     classified the leaf as wide while the stage fell to 222-319 px the moment the
+     inspector opened -- which every canvas pick does -- and CityViewport disposed the
+     renderer and showed COPY-14. A user clicked a building in an 850 px pane and the
+     city vanished. tests/unit/layout-budget.test.ts now pins the arithmetic, reading
+     these very declarations, so the band cannot be reopened by changing a width here.
+
+     B2: fixed pixels against an unbounded viewport is the proportions complaint. The
+     city got 35% of the leaf at 918 px and 76% at 2510 px. A clamped percentage basis
+     gives the panels a RANGE instead of a point: they yield near the threshold (down
+     to the minimum the budget allows) and grow with the viewport, but stop at a cap,
+     because a file list wider than ~320 px is wasted space where the city uses every
+     pixel it is given.
+
+     The minimum is declared explicitly rather than left to `min-width: auto`: a
+     definite floor is both what the budget needs and what removes the content-based
+     flex-blowout risk on the list's long unbroken paths. */
+  :where(.codebase-inspector-root) .ci-app__list-wrapper {
+    flex: 0 1 clamp(180px, 18%, 320px);
+    min-width: 180px;
+  }
+  /* No drawer concept at all above the threshold. */
+  :where(.codebase-inspector-root) .ci-app__drawer-opener,
+  :where(.codebase-inspector-root) .ci-app__drawer-close {
+    display: none;
+  }
+  :where(.codebase-inspector-root) .ci-inspector {
+    flex: 0 1 clamp(200px, 20%, 360px);
+    min-width: 200px;
+  }
+}
+@container (max-width: 819px) {
+  :where(.codebase-inspector-root) .ci-app__list-wrapper {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: var(--ci-surface);
+    display: none;
+  }
+  :where(.codebase-inspector-root) .ci-app__list-wrapper--open {
+    display: flex;
+  }
+  :where(.codebase-inspector-root) .ci-inspector {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: var(--ci-surface);
+    overflow-y: auto;
+  }
+}
+
+/* --- Toolbar scan (C02) ------------------------------------------------------- */
+/* Task 5 (F7). M113: `button` added for the same reason as `.ci-app__mode-toggle`
+   above -- ties Obsidian's own `button` rule at (0,1,1) instead of losing to it, so
+   our `background`/`color`/`box-shadow` apply instead of `--interactive-normal`. */
+:where(.codebase-inspector-root) button.ci-toolbar__scan {
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-3);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+/* Raising the base rule to (0,1,1) also ties Obsidian's own `button:hover` -- without
+   this explicit copy the control would have no hover affordance at all, exactly the
+   defect three other controls on this branch already shipped (M113's own warning). */
+:where(.codebase-inspector-root) button.ci-toolbar__scan:hover {
+  background: var(--ci-raised);
+}
+:where(.codebase-inspector-root) button.ci-toolbar__scan:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* --- FileSearch (C06) -------------------------------------------------------- */
+:where(.codebase-inspector-root) .ci-search__input {
+  width: 100%;
+  min-height: var(--ci-control-min);
+  box-sizing: border-box;
+  padding-inline: var(--ci-space-3);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  color: var(--ci-text);
+}
+
+/* --- CodebaseFileList (C07) -------------------------------------------------- */
+/* Task 6 (F9): the panel's own name and count. A plain heading, not sticky -- it lives
+   inside the same scrolling box as the groups below it (`.ci-app__list`'s own
+   `overflow-y: auto`, C01 shell layout, untouched by this section) rather than adding a
+   second flex/scroll boundary that could reopen the height-chain hazard the C01 section's
+   own comment documents. */
+:where(.codebase-inspector-root) .ci-file-list__header {
+  padding: var(--ci-space-2) var(--ci-space-3);
+  border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-file-list__title {
+  margin: 0;
+  font-size: 0.95em;
+  font-weight: 600;
+  color: var(--ci-text);
+}
+/* Task 6: one district's own heading -- C07's `grouping` input. `.ci-file-list__group`
+   itself carries no box styling beyond separating one district from the next; the row
+   list inside it keeps the existing `.ci-file-list__rows` treatment unchanged. */
+:where(.codebase-inspector-root) .ci-file-list__group {
+  border-top: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-file-list__group:first-of-type {
+  border-top: none;
+}
+:where(.codebase-inspector-root) .ci-file-list__group-heading {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ci-space-2);
+  padding: var(--ci-space-2) var(--ci-space-3);
+}
+:where(.codebase-inspector-root) .ci-file-list__group-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;   /* a short DISPLAY NAME (districts.ts), never a path */
+}
+:where(.codebase-inspector-root) .ci-file-list__group-count {
+  flex: 1 1 auto;
+  color: var(--ci-text-muted);
+  font-size: 0.85em;
+}
+/* M113 -- same recipe as `.ci-file-list__row` below: `button.ci-file-list__group-focus`
+   is (0,1,1), tying Obsidian's own `button:not(.clickable-icon)` and winning on document
+   order, and still losing to a root-scoped user snippet at (0,2,0). Modelled on
+   `.ci-app__drawer-close` (border + background + box-shadow: none + its own :hover),
+   the existing plugin-skinned-button shape, rather than inventing a second one. */
+:where(.codebase-inspector-root) button.ci-file-list__group-focus {
+  flex: 0 0 auto;
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-2);
+  border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-control);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  font-size: 0.85em;
+  cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-file-list__group-focus:hover {
+  background: var(--ci-raised);
+}
+:where(.codebase-inspector-root) .ci-file-list__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Checkpoint #3 item 4 -- THE SPECIFICITY RULE, stated once here and pinned by
+   tests/unit/host-cascade.test.ts.
+
+   `:where()` contributes ZERO specificity, deliberately: spec 4.4 says so, and it is what
+   lets a user's own snippet override us without `!important`. It also meant this rule
+   computed at (0,1,0) while the shipped obsidian.asar styles our native <button> rows at
+
+     button                      { height: var(--input-height); white-space: nowrap;
+                                   display: inline-flex; justify-content: center; }   (0,0,1)
+     button:not(.clickable-icon) { background-color: var(--interactive-normal);
+                                   box-shadow: var(--input-shadow); }                 (0,1,1)
+
+   with `--input-height: 30px`. So `overflow-wrap: anywhere` was INERT (nothing overrode
+   `white-space: nowrap`, which suppresses wrapping outright), `text-align: left` was dead
+   (a flex container places its text by `justify-content`, which centred an unshrinkable
+   line and clipped it at BOTH ends), every row was pinned to 30px -- feeding defects 5/6
+   their 32,610px -- and the selected row's highlight never painted.
+
+   The rule: keep the `:where()` scope, and raise a rule that must beat an Obsidian default
+   ONLY by adding the same element TYPE selector Obsidian's own rule uses -- `button` here
+   -- never a second class and never an id. That is exactly (0,1,1): equal to
+   `button:not(.clickable-icon)` and resolved our way because a plugin's styles.css is
+   appended after app.css, and still strictly below `.codebase-inspector-root
+   .ci-file-list__row` (0,2,0), the way a user scopes a snippet to a plugin view. NO
+   specificity exists strictly between those two, so this is the only choice that both
+   beats the host and loses to the user. Against a bare type selector (0,0,1) -- height,
+   white-space, display -- a class already wins and nothing needed raising: the properties
+   simply had to be declared. */
+:where(.codebase-inspector-root) button.ci-file-list__row {
+  width: 100%;
+  /* Task 6 (F4): a flex item's (the <li>'s) default `min-width: auto` is its CONTENT
+     minimum -- the same B1/B2 rule `.ci-app__stage-column` states above -- and B3 used
+     to satisfy it as a SIDE EFFECT of `overflow-wrap: anywhere` (a run with no break
+     opportunity anywhere has no floor at all). `word-break: keep-all` below reintroduces
+     a real floor (one unbroken path segment's width), so it is declared explicitly here
+     instead of leaned on implicitly. */
+  min-width: 0;
+  /* Undoes `display: inline-flex` + `justify-content: center`, which is what turned a long
+     path into one unshrinkable centred flex item overflowing both ends. As a block box the
+     path is ordinary inline content again, so `text-align` and `overflow-wrap` both apply. */
+  display: block;
+  /* Undoes `white-space: nowrap`. Without this the line below does nothing at all. */
+  white-space: normal;
+  /* Task 6 (F4): replaces Phase 2c's `overflow-wrap: anywhere`, which broke a path
+     ANYWHERE it ran out of room -- including mid-word, inside one filename with no
+     separator at all (the user's own capture: `GeometrySidecarVie` / `w.ts`). `normal`
+     plus `keep-all` never breaks inside a run of non-space characters; the row's own
+     `<wbr>` after each `/` (CodebaseFileListGroup.vue's `wrapSegments`) is what supplies
+     the actual break opportunities, so a path still wraps at every directory boundary --
+     just never inside one. A single path segment (typically a filename) longer than the
+     column can overflow rather than break mid-word; `min-width: 0` above keeps that a
+     local, contained overflow rather than a repeat of B3's flex-blowout. The committed
+     harness fixture's own paths (`dir-0/file-96.ts`) are too short to ever wrap even
+     with the Files drawer opened, so `s10-narrow-dark.png` does not show this by
+     itself -- see task-6-report.md for the standalone confirmation against F4's own
+     real path. */
+  overflow-wrap: normal;
+  word-break: keep-all;
+  /* Undoes `height: var(--input-height)`, so a wrapped row is as tall as its own content
+     instead of 30px with the rest clipped. */
+  height: auto;
+  text-align: left;
+  padding: var(--ci-space-2) var(--ci-space-3);
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ci-text);
+  cursor: pointer;
+  border-radius: var(--ci-radius-small);
+}
+/* Obsidian's `button:hover` is (0,1,1) inside `@media (hover: hover)`, and the row's own
+   `background: transparent` above now ties it and wins on document order -- which would
+   leave the list with no hover affordance at all. This restores one, and it is the only
+   rule here that goes past (0,2,0): overriding a hover state means writing a hover
+   selector, so a user snippet still reaches it on equal terms. */
+:where(.codebase-inspector-root) button.ci-file-list__row:hover {
+  background: var(--ci-panel);
+}
+/* The `--selected:hover` pair is not redundant: the hover rule above is (0,2,1) and would
+   otherwise repaint a SELECTED row on hover, losing the very highlight this restores. */
+:where(.codebase-inspector-root) button.ci-file-list__row--selected,
+:where(.codebase-inspector-root) button.ci-file-list__row--selected:hover {
+  background: var(--ci-action);
+  color: var(--ci-on-action);
+}
+:where(.codebase-inspector-root) .ci-file-list__row--dimmed {
+  opacity: 0.4;
+}
+:where(.codebase-inspector-root) .ci-file-list__empty {
+  color: var(--ci-text-muted);
+  padding: var(--ci-space-3);
+}
+
+/* --- CityHeader (Task 7, F8/P3) ------------------------------------------------ */
+/* A fixed-height row in `.ci-app__stage-column`'s column flex (App.vue): no
+   `flex-grow`/`flex-shrink`, so it never competes with CityViewport's
+   `flex: 1 1 auto; min-height: 0` for the column's leftover space -- the exact
+   defect the stage-height chain (tests/component/stage-height.test.ts) exists to
+   keep from happening again. Cross-axis `align-items: stretch` (the column's own
+   default) is what gives it the column's full width with no explicit width here. */
+:where(.codebase-inspector-root) .ci-city-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ci-space-3);
+  flex: 0 0 auto;
+}
+:where(.codebase-inspector-root) .ci-city-header__text {
+  min-width: 0;
+}
+/* foundations/03's "section label 11-12 px" band, reused for the eyebrow -- the
+   short, low-frequency category label the same doc's all-caps exception is for.
+   The capitalisation is applied here, in CSS, rather than baked into the string in
+   copy.ts, so a screen reader still hears ordinary words. */
+:where(.codebase-inspector-root) .ci-city-header__eyebrow {
+  margin: 0;
+  font-size: var(--font-ui-smaller, 0.8em);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ci-text-muted);
+}
+/* Deliberately NOT foundations/03's 22-26 px "page title" band -- task-7-brief.md
+   step 3 is explicit that this is a section title inside a leaf, and the mockup's
+   own (larger) caption size is not an instruction (foundations/03: "not an
+   instruction to make important product copy 9 px", read the other direction).
+   Sized one step above the panel titles this view already ships
+   (`.ci-inspector__title`/`.ci-file-list__title`, both 1em) since this title names
+   the city those panels sit ALONGSIDE, matching the <h2>-over-<h3> outline the
+   template comment explains. */
+:where(.codebase-inspector-root) .ci-city-header__title {
+  margin: var(--ci-space-1) 0 0;
+  font-size: 1.2em;
+  font-weight: 600;
+}
+/* foundations/03's "readable secondary text 12 px" band. */
+:where(.codebase-inspector-root) .ci-city-header__subtitle {
+  margin: var(--ci-space-1) 0 0;
+  font-size: var(--font-ui-small, 0.85em);
+  color: var(--ci-text-muted);
+}
+/* Layout tokens: "compact status badge 4 px" radius. Not a button (see the
+   template's own comment) -- no M113 recipe, no PLUGIN_SKINNED_BUTTONS entry. */
+:where(.codebase-inspector-root) .ci-city-header__badge {
+  flex: 0 0 auto;
+  padding: var(--ci-space-1) var(--ci-space-2);
+  border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-small);
+  background: var(--ci-panel);
+  color: var(--ci-text-muted);
+  font-size: var(--font-ui-smaller, 0.8em);
+  white-space: nowrap;
+}
+
+/* --- CityViewport (C08) ------------------------------------------------------ */
+:where(.codebase-inspector-root) .ci-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 240px;
+}
+:where(.codebase-inspector-root) .ci-viewport__stage {
+  /* The renderer appends its canvas AND its district-label overlay here, and the
+     overlay is `position: absolute; inset: 0`. Without this, that resolves against
+     `.ci-viewport` instead and every label is off by this element's own border. */
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  border-radius: var(--ci-radius-modal);
+  background: var(--ci-panel);
+  border: 1px solid var(--ci-border);
+  box-sizing: border-box;
+}
+
+/* District labels: real DOM text over the canvas (src/visualization/label-overlay.ts),
+   so they scale with Obsidian's font size and the 200% browser-zoom check instead of
+   being baked into a texture. Their COLOUR is set at runtime from CityPalette.labelText
+   on the overlay root and inherited here, so it must not be declared — everything that
+   makes them legible over an arbitrary district colour must be. */
+/* Fix round 1, CRITICAL: the UA stylesheet's hidden-attribute rule sets `display: none`
+   as a UA-origin declaration, and an author rule that declares `display` on the SAME
+   element beats it on cascade ORIGIN alone, whatever specificity either side carries —
+   so this rule, bare, made `record.el.hidden = true` a no-op in a real browser
+   (confirmed against the pinned Chromium: computed `display` stayed `flex` with
+   `hidden` set), silently disabling both M103's density budget and this task's own
+   collision rule. The `:not([hidden])` guard below fixes it by never asserting
+   `display` at all while the attribute is present, so the UA default applies
+   unopposed — narrower than a sheet-wide hidden-attribute guard, and correct without
+   `!important`, which nothing else in this file uses (the comment two rules up
+   explains why: it is what lets a user's own snippet override us). This raises the
+   selector to two classes' worth of specificity; harmless here, since nothing in
+   Obsidian's own app.css competes for a class inside our own aria-hidden overlay, and
+   it still only TIES a scoped user snippet at that same level rather than beating it —
+   a tie a later user snippet's own source position resolves in their favour, as it
+   already must for every other rule in this file (see tests/unit/host-cascade.test.ts,
+   which is where this guard's own regression test lives, not here — inline CSS
+   examples in this comment are written without brace pairs on purpose, so a
+   comment-blind text scan over this sheet cannot mistake prose for a second rule). */
+:where(.codebase-inspector-root) .ci-city-labels__label:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: var(--ci-space-1) var(--ci-space-2);
+  border-radius: var(--ci-radius-small);
+  /* The chip's own ground. `--ci-panel` over an arbitrary district colour, with the
+     border carrying the edge — foundations/03 prefers borders and spacing over
+     layered shadows, and a shadow here would sit on the canvas's compositing path. */
+  background: var(--ci-panel);
+  border: 1px solid var(--ci-border);
+  font-size: var(--font-ui-smaller, 0.8em);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow:
+    0 0 3px var(--ci-surface),
+    0 1px 2px var(--ci-surface);
+}
+:where(.codebase-inspector-root) .ci-city-labels__count {
+  font-weight: 400;
+  opacity: 0.75;
+}
+:where(.codebase-inspector-root) .ci-viewport__notice {
+  position: absolute;
+  inset: auto var(--ci-space-3) var(--ci-space-3) var(--ci-space-3);
+  margin: 0;
+  color: var(--ci-warning);
+  background: var(--ci-surface);
+  padding: var(--ci-space-2);
+  border-radius: var(--ci-radius-small);
+}
+
+/* --- CameraControls (C09) ---------------------------------------------------- */
+:where(.codebase-inspector-root) .ci-camera-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--ci-space-1);
+}
+/* Task 10 (F5): overlaid on the canvas instead of a full-width row beneath it --
+   CityStage.vue composes this INSIDE CityViewport's own `.ci-viewport`
+   (`position: relative`, see that section below), which is what this anchors
+   against. `pointer-events: none` on the CONTAINER, `auto` back on each button
+   (below) -- foundations/04's picking hazard: an overlay box that swallowed a
+   pointer aimed at a building behind it would defeat raycasting from entirely
+   outside Three, and tests/component/picking.test.ts exists to catch exactly this
+   class of regression. */
+:where(.codebase-inspector-root) .ci-camera-controls--overlay {
+  position: absolute;
+  inset: auto var(--ci-space-3) var(--ci-space-3) auto;
+  pointer-events: none;
+}
+/* The two button groups: the six STEP controls (disclosure, collapsible) above the
+   five always-visible primaries plus the disclosure toggle. Both wrap and
+   right-align independently, so an expanded steps row never drags the primaries
+   row wider than the primaries themselves need. */
+:where(.codebase-inspector-root) .ci-camera-controls__primary,
+:where(.codebase-inspector-root) .ci-camera-controls__steps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--ci-space-1);
+}
+/* Item 4 sweep. This one was ALREADY `<class> <type>` = (0,1,1) and already winning its
+   background -- it is where the recipe came from. Two things were still missing: the
+   `box-shadow` that stops `--input-shadow` painting under our border, and a hover rule,
+   because beating `button:hover` on order had silently cost these buttons their hover
+   affordance long before this round. Task 10: also covers the new disclosure toggle
+   (`.ci-camera-controls__more`) -- a plain `<button>` inside `.ci-camera-controls` like
+   every other one here, so it needs no selector of its own in this rule or in
+   tests/unit/host-cascade.test.ts's PLUGIN_SKINNED_BUTTONS sweep. */
+:where(.codebase-inspector-root) .ci-camera-controls button {
+  min-height: var(--ci-control-min);
+  min-width: var(--ci-control-min);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  cursor: pointer;
+  /* The container above is `pointer-events: none`; each button opts back in, so the
+     overlay never intercepts a pointer aimed at a building past its own edges. */
+  pointer-events: auto;
+}
+:where(.codebase-inspector-root) .ci-camera-controls button:hover {
+  background: var(--ci-raised);
+}
+
+/* --- FileInspector (C10) ------------------------------------------------------ */
+:where(.codebase-inspector-root) .ci-inspector {
+  border: 1px solid var(--ci-border);
+  border-radius: var(--ci-radius-modal);
+  background: var(--ci-panel);
+  padding: var(--ci-space-3);
+  box-sizing: border-box;
+}
+:where(.codebase-inspector-root) .ci-inspector__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+:where(.codebase-inspector-root) .ci-inspector__title {
+  margin: 0;
+  font-size: 1em;
+}
+/* Task 9 (F12, C10, foundations/04): "Preserve the full path through wrapping...
+   Do not expose crucial content only in an ellipsis tooltip." `overflow-wrap: anywhere`
+   and NO `text-overflow`/`white-space: nowrap` -- the opposite of an ellipsis, on
+   purpose; see host-cascade.test.ts for the analogous `.ci-file-list__row` fight this
+   element does not have (it is a bare `<p>`, not a native `<button>`, so no Obsidian
+   default contests `white-space` here). */
+:where(.codebase-inspector-root) .ci-inspector__path {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-monospace, monospace);
+  font-size: 0.9em;
+}
+/* C10: "Keep exact raw values and scope." */
+:where(.codebase-inspector-root) .ci-inspector__scope {
+  margin: var(--ci-space-1) 0 0;
+  color: var(--ci-text-muted);
+  font-size: 0.85em;
+}
+:where(.codebase-inspector-root) .ci-inspector__measurements {
+  margin: var(--ci-space-2) 0;
+}
+:where(.codebase-inspector-root) .ci-inspector__actions {
+  display: flex;
+  gap: var(--ci-space-2);
+}
+:where(.codebase-inspector-root) .ci-inspector__fallback input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* --- MetricLegend (C11) -------------------------------------------------------- */
+:where(.codebase-inspector-root) .ci-legend__swatches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ci-space-2);
+}
+:where(.codebase-inspector-root) .ci-legend__entry {
+  display: flex;
+  align-items: center;
+  gap: var(--ci-space-1);
+  font-size: 0.85em;
+}
+:where(.codebase-inspector-root) .ci-legend__swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--ci-radius-small);
+  border: 1px solid var(--ci-border);
+}
+/* Task 8: the equal-lot / selection-outline / unknown-marker statements. Same
+   muted, compact treatment as the scale-name line above them -- these explain the
+   city's visual language, not a data value, so nothing here should read as more
+   important than the scale line itself. */
+:where(.codebase-inspector-root) .ci-legend__encoding {
+  margin-top: var(--ci-space-1);
+}
+:where(.codebase-inspector-root) .ci-legend__encoding p {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--ci-text-muted);
+}
+
+/* --- SnapshotStatus (C12) / StatusBanner (C16) / EmptyState (C17) -------------- */
+:where(.codebase-inspector-root) .ci-snapshot-status,
+:where(.codebase-inspector-root) .ci-status-banner {
+  margin: 0;
+  color: var(--ci-text-muted);
+}
+/* Task 8: the age line stays exactly as ci-snapshot-status looked before this task
+   (no color/margin change -- docs/superpowers/notes/2026-09-17-wp01-limitations.md
+   records that the two safety claims deliberately inherit the muted token with no
+   CSS of their own, to stay out of ruling M113's specificity fight; this preserves
+   that by not touching color here either). <details>/<summary> get only the spacing
+   they need to sit under the age line -- no color override for the same reason. */
+:where(.codebase-inspector-root) .ci-snapshot-status__age {
+  margin: 0;
+}
+:where(.codebase-inspector-root) .ci-snapshot-status__details {
+  margin-top: var(--ci-space-1);
+  font-size: 0.85em;
+}
+:where(.codebase-inspector-root) .ci-snapshot-status__details p {
+  margin: var(--ci-space-1) 0 0;
+}
+:where(.codebase-inspector-root) .ci-empty-state {
+  padding: var(--ci-space-4);
+}
+:where(.codebase-inspector-root) .ci-empty-state__copy {
+  margin: 0;
+}
+
+/* Task 9 fix round 1 (deferred Minor 14, re-checked): the task-3 welcome-shell
+   rules ARE now dead — App.vue's real C01 layout uses .ci-app/.ci-empty-state
+   instead — except .ci-welcome__action below, kept deliberately: it is the
+   exact selector tests/host/city-view.test.ts (task 8, unmodified this task)
+   still uses to find the "Select a codebase" button. Deleted the rest. */
+/* Item 4 sweep, and the most visible of the four: this is the COPY-02 primary call to
+   action and it declares the ACCENT, which `button:not(.clickable-icon)` repainted
+   `--interactive-normal` -- so the one primary button in the view rendered as an ordinary
+   grey one. Hover uses the accent's own hover token rather than --ci-raised: a primary
+   action must not drop to a neutral surface under the pointer. */
+:where(.codebase-inspector-root) button.ci-welcome__action {
+  align-self: flex-start;
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-4);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-action);
+  box-shadow: none;
+  color: var(--ci-on-action);
+  cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-welcome__action:hover {
+  background: var(--ci-action-hover);
+}

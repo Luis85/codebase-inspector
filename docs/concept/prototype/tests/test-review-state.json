@@ -1,0 +1,116 @@
+{
+  "schema": "codebase-inspector.review-state.v1",
+  "kind": "prototype",
+  "state": {
+    "theme": "dark",
+    "density": "comfortable",
+    "reduced": false,
+    "contrast": false,
+    "connections": true,
+    "selected": "editor-0",
+    "snapshot": "current",
+    "tasks": [
+      {
+        "id": "RF-001",
+        "title": "Separate cost calculation from persistence",
+        "file": "domain-0",
+        "status": "Planned",
+        "priority": "High",
+        "owner": "Core systems",
+        "notes": "Confirm the three Domain → Storage imports. Introduce a port and cover rounding behavior before extracting the adapter.",
+        "checklist": [
+          false,
+          false,
+          false
+        ]
+      },
+      {
+        "id": "RF-002",
+        "title": "Add regression tests for selection changes",
+        "file": "editor-1",
+        "status": "Planned",
+        "priority": "High",
+        "owner": "Experience",
+        "notes": "Characterize multi-select, undo and keyboard behavior before changing the selection manager.",
+        "checklist": [
+          true,
+          false,
+          false
+        ]
+      },
+      {
+        "id": "RF-003",
+        "title": "Retire unused legacy helpers",
+        "file": "shared-23",
+        "status": "In progress",
+        "priority": "Medium",
+        "owner": "Core systems",
+        "notes": "Verify all configured entry points and dynamic references before removing exports.",
+        "checklist": [
+          true,
+          true,
+          false
+        ]
+      },
+      {
+        "id": "RF-004",
+        "title": "Document the vault persistence boundary",
+        "file": "storage-0",
+        "status": "Verified",
+        "priority": "Medium",
+        "owner": "Platform",
+        "notes": "Architecture decision recorded and dependency rule added to the illustrative baseline.",
+        "checklist": [
+          true,
+          true,
+          true
+        ]
+      },
+      {
+        "id": "RF-005",
+        "title": "QA test: protect the cost boundary",
+        "priority": "Medium",
+        "status": "Verified",
+        "owner": "Experience",
+        "file": "editor-0",
+        "notes": "Evidence: 19 max. cognitive complexity; 29 commits / 90d; 73% branch coverage. Validate the cause and define the smallest safe change.",
+        "checklist": [
+          true,
+          true,
+          true
+        ]
+      }
+    ],
+    "issueStatus": {
+      "CX-domain-0": "Open",
+      "CX-editor-1": "Dismissed",
+      "CX-editor-1-reason": "Intentional public API in the fixture.",
+      "demo-secret": "Fixture"
+    },
+    "sourceName": "sample-workspace",
+    "sourceType": "Vault directory",
+    "sourcePath": "projects/sample-codebase",
+    "settingsTab": "appearance",
+    "threshold": 65,
+    "includeReport": {
+      "summary": true,
+      "architecture": true,
+      "hotspots": true,
+      "security": false,
+      "plan": true
+    },
+    "notes": "QA note: review the persistence boundary.",
+    "scanState": "complete",
+    "customRules": [
+      {
+        "id": "USR-001",
+        "title": "Shared must not import Assets",
+        "from": "shared",
+        "to": "assets",
+        "status": "Passing",
+        "count": 0,
+        "detail": "Shared utilities stay independent."
+      }
+    ]
+  }
+}

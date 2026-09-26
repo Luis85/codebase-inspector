@@ -1,0 +1,233 @@
+/* WP-02 screens, Explore area: Architecture, Hotspots, File detail (moved from screens.css, E55). */
+/* Part 2: Architecture. */
+:where(.codebase-inspector-root) .ci-architecture__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr); align-items: start; }
+@container (max-width: 900px) {
+  :where(.codebase-inspector-root) .ci-architecture__grid { grid-template-columns: minmax(0, 1fr); }
+}
+:where(.codebase-inspector-root) .ci-architecture__inspectors { display: flex; flex-direction: column; gap: var(--ci-space-4); min-width: 0; }
+:where(.codebase-inspector-root) .ci-architecture__toggle { display: inline-flex; align-items: center; gap: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-architecture__note { margin: var(--ci-space-3) 0 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-module-map { margin: 0; }
+:where(.codebase-inspector-root) .ci-module-map__eyebrow {
+  display: flex; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-2);
+  color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.08em;
+}
+:where(.codebase-inspector-root) .ci-module-map__canvas { position: relative; aspect-ratio: 720 / 420; min-height: 260px; }
+:where(.codebase-inspector-root) .ci-module-map__edges { position: absolute; inset: 0; width: 100%; height: 100%; }
+:where(.codebase-inspector-root) .ci-module-map__edge { stroke: var(--ci-text-faint); stroke-width: 1.2; opacity: 0.55; }
+:where(.codebase-inspector-root) .ci-module-map__edge--active { opacity: 1; stroke: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-module-map__edge--violation { stroke: var(--ci-tone-danger); stroke-dasharray: 5 4; opacity: 1; }
+:where(.codebase-inspector-root) .ci-module-map__arrow { fill: var(--ci-text-faint); }
+:where(.codebase-inspector-root) .ci-module-map__arrow--violation { fill: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) button.ci-module-map__node {
+  position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: flex-start;
+  gap: 2px; height: auto; min-width: 7.5em; padding: var(--ci-space-2) var(--ci-space-3);
+  border: 1px solid var(--ci-border); border-left: 3px solid var(--ci-tone-accent); border-radius: var(--ci-radius-card);
+  background: var(--ci-panel); box-shadow: none; color: var(--ci-text); text-align: left; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-module-map__node--selected { border-color: var(--ci-tone-accent); background: var(--ci-raised); }
+:where(.codebase-inspector-root) .ci-module-map__name { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-module-map__meta { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-matrix__scroll { overflow-x: auto; }
+:where(.codebase-inspector-root) .ci-matrix { border-collapse: separate; border-spacing: 4px; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-matrix th { color: var(--ci-text-muted); font-weight: normal; text-align: center; padding: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-matrix tbody th { text-align: left; }
+:where(.codebase-inspector-root) .ci-matrix__td { min-width: 3.5em; height: 2.75em; text-align: center; border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); color: var(--ci-text-faint); }
+:where(.codebase-inspector-root) button.ci-matrix__cell {
+  width: 100%; height: 100%; min-height: 2.5em; border: none; box-shadow: none; border-radius: var(--ci-radius-small);
+  color: var(--ci-text); font-family: var(--ci-font-mono); cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-matrix__cell--l1 { background: color-mix(in srgb, var(--ci-tone-accent) 18%, transparent); }
+:where(.codebase-inspector-root) button.ci-matrix__cell--l2 { background: color-mix(in srgb, var(--ci-tone-accent) 32%, transparent); }
+:where(.codebase-inspector-root) button.ci-matrix__cell--l3 { background: color-mix(in srgb, var(--ci-tone-accent) 48%, transparent); }
+:where(.codebase-inspector-root) button.ci-matrix__cell--l4 { background: color-mix(in srgb, var(--ci-tone-accent) 64%, transparent); }
+:where(.codebase-inspector-root) button.ci-matrix__cell--violation { outline: 2px dashed var(--ci-tone-danger); outline-offset: -2px; }
+:where(.codebase-inspector-root) button.ci-matrix__cell--dimmed { opacity: 0.3; }
+:where(.codebase-inspector-root) button.ci-matrix__cell--selected { box-shadow: 0 0 0 2px var(--ci-focus); }
+:where(.codebase-inspector-root) .ci-module-inspector__heading { margin: var(--ci-space-4) 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.06em; }
+:where(.codebase-inspector-root) .ci-module-inspector__files { list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) button.ci-module-inspector__file {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--ci-space-3); width: 100%; height: auto;
+  padding: var(--ci-space-2) 0; border: none; border-radius: 0; box-shadow: none; background: transparent;
+  color: var(--ci-text); text-align: left; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-module-inspector__file:hover { background: var(--ci-hover); }
+:where(.codebase-inspector-root) .ci-rule-table__empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-3); color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-rule-table__show { margin-inline-end: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-rule-status { font-weight: var(--font-semibold); margin-right: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-rule-status--violation { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-rule-status--not-evaluated { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-boundary__id { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; }
+:where(.codebase-inspector-root) .ci-boundary__rule { margin: var(--ci-space-3) 0 var(--ci-space-1); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-boundary__rationale,
+:where(.codebase-inspector-root) .ci-boundary__empty { margin: 0; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-boundary__count { display: flex; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-rule-editor { display: flex; flex-direction: column; gap: var(--ci-space-2); min-width: min(26em, 80vw); padding: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-rule-editor__title { margin: 0; }
+:where(.codebase-inspector-root) .ci-rule-editor__hint { margin: 0 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-rule-editor__error { margin: 0; color: var(--ci-error); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-rule-editor__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); margin-top: var(--ci-space-3); }
+/* WP-03 N21/N24: the selected cycle on the Map (the violating-edge style, reused), the Cycles
+   and Edges tabs, the cycle inspector and "Configured in fallow". */
+:where(.codebase-inspector-root) .ci-module-map__edge--cycle { stroke: var(--ci-tone-danger); stroke-dasharray: 5 4; opacity: 1; }
+:where(.codebase-inspector-root) button.ci-module-map__node--cycle { border-left-color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-cycle-list { list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-cycle-list__row { display: flex; flex-direction: column; gap: var(--ci-space-2); padding: var(--ci-space-3) 0; border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-cycle-list__row--selected { background: var(--ci-raised); }
+:where(.codebase-inspector-root) button.ci-cycle-list__select {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); width: 100%; height: auto; padding: var(--ci-space-2);
+  border: none; border-radius: var(--ci-radius-small); box-shadow: none; background: transparent; color: var(--ci-text);
+  text-align: left; white-space: normal; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-cycle-list__select:hover { background: var(--ci-hover); }
+:where(.codebase-inspector-root) button.ci-cycle-list__select:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-cycle-list__kind { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-cycle-list__count { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-cycle-list__path { flex-basis: 100%; font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-cycle-list__members { margin: 0; padding-inline-start: var(--ci-space-4); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-cycle-list__member code { overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-cycle-list__unmatched { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-cycle-list__actions { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); padding-inline-start: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-edge-list { display: flex; flex-direction: column; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-edge-list__filters { display: flex; flex-wrap: wrap; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-edge-list__filter { display: inline-flex; align-items: center; gap: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) button.ci-edge-list__from {
+  height: auto; padding: 0; border: none; box-shadow: none; background: transparent; color: var(--ci-action);
+  font-family: var(--ci-font-mono); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-edge-list__from:hover { text-decoration: underline; }
+:where(.codebase-inspector-root) button.ci-edge-list__from:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-edge-list__hidden { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-edge-list__heading { margin: 0 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.06em; }
+:where(.codebase-inspector-root) .ci-edge-list__unresolved-list { margin: 0; padding-inline-start: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-edge-list__unresolved-list code { overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-edge-list__unmatched { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-architecture__fallow { margin-top: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-architecture__fallow-unmatched-list { margin: 0; padding-inline-start: var(--ci-space-4); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-architecture__fallow-missing { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-edge-list__direction-note { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-architecture__cycle-path { margin: 0; font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-file-relations__list { list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-file-relations__row { border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) button.ci-file-relations__select {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); width: 100%;
+  padding: var(--ci-space-2) 0; border: none; background: transparent; text-align: left; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-file-relations__select:hover { background: var(--ci-hover); }
+:where(.codebase-inspector-root) button.ci-file-relations__select:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-file-relations__direction { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-file-relations__path { font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-file-relations__source { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-file-relations__hidden { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-file-relations__heading { margin: var(--ci-space-3) 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.06em; }
+:where(.codebase-inspector-root) .ci-file-relations__cycles { margin: 0; padding-inline-start: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-file-relations__cycles code { overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-file-relations__fan-out { display: flex; justify-content: space-between; gap: var(--ci-space-2); margin: var(--ci-space-3) 0 0; }
+:where(.codebase-inspector-root) .ci-file-relations__fan-out-label { color: var(--ci-text-muted); }
+/* WP-03 N30/N32: the city inspector's Relations section. Glyphs and the swatch use the arc tokens. */
+:where(.codebase-inspector-root) .ci-city-relations { margin-top: var(--ci-space-4); padding-top: var(--ci-space-3); border-top: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-city-relations__title { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0 0 var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-city-relations__controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-2); }
+/* WP-03 E23 fix round 1: the group's own buttons wrap onto a second line within the
+   segmented control itself, never past the inspector's edge — flex-wrap on the parent
+   `.ci-city-relations__controls` (below) lets the WHOLE group drop to its own line, but
+   does nothing for a group (Direction: Both/Outgoing/Incoming) that is itself wider than
+   the inspector at the 1280px capture width. */
+:where(.codebase-inspector-root) .ci-city-relations__segmented { display: inline-flex; flex-wrap: wrap; padding: 2px; border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); background: var(--ci-panel); }
+:where(.codebase-inspector-root) .ci-city-relations__segmented button { border: 1px solid transparent; background: transparent; box-shadow: none; color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-city-relations__segmented button[aria-pressed="true"] { border-color: var(--ci-border); background: var(--ci-raised); color: var(--ci-text); }
+:where(.codebase-inspector-root) .ci-city-relations__arcs { display: inline-flex; align-items: center; gap: var(--ci-space-1); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-city-relations__list { list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-city-relations__row { border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) button.ci-city-relations__select {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); width: 100%; height: auto;
+  padding: var(--ci-space-2) 0; border: none; box-shadow: none; background: transparent; color: var(--ci-text); text-align: left; white-space: normal; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-city-relations__select:hover { background: var(--ci-hover); }
+:where(.codebase-inspector-root) button.ci-city-relations__select:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-city-relations__glyph { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-city-relations__glyph--out { color: var(--ci-relation-out); }
+:where(.codebase-inspector-root) .ci-city-relations__glyph--in { color: var(--ci-relation-in); }
+:where(.codebase-inspector-root) .ci-city-relations__path { flex: 1 1 0; min-width: 0; font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-city-relations__source,
+:where(.codebase-inspector-root) .ci-city-relations__hop,
+:where(.codebase-inspector-root) .ci-city-relations__kind { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-city-relations__hidden { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-city-relations__heading { margin: var(--ci-space-3) 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.06em; }
+:where(.codebase-inspector-root) .ci-city-relations__cycles { display: grid; gap: var(--ci-space-2); list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-city-relations__cycle { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-city-relations__cycle code { overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-city-relations__highlight { display: inline-flex; align-items: center; gap: var(--ci-space-1); }
+:where(.codebase-inspector-root) .ci-city-relations__highlight[aria-pressed="true"] { border-color: var(--ci-relation-cycle); }
+:where(.codebase-inspector-root) .ci-city-relations__swatch { display: inline-block; inline-size: 10px; block-size: 3px; border-radius: 2px; background: var(--ci-relation-cycle); }
+
+/* Part 2: Hotspots. */
+:where(.codebase-inspector-root) .ci-hotspots__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }
+@container (max-width: 900px) {
+  :where(.codebase-inspector-root) .ci-hotspots__grid { grid-template-columns: minmax(0, 1fr); }
+}
+:where(.codebase-inspector-root) .ci-scatter { margin: 0; }
+:where(.codebase-inspector-root) .ci-scatter svg { width: 100%; height: auto; display: block; }
+:where(.codebase-inspector-root) .ci-scatter__grid line { stroke: var(--ci-border); stroke-dasharray: 3 4; }
+:where(.codebase-inspector-root) .ci-scatter__grid text { fill: var(--ci-text-faint); font-size: 11px; }
+:where(.codebase-inspector-root) .ci-scatter__quadrant { fill: var(--ci-raised); }
+:where(.codebase-inspector-root) .ci-scatter__quadrant-label { fill: var(--ci-tone-danger); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+:where(.codebase-inspector-root) .ci-scatter__dot { stroke: var(--ci-surface); stroke-width: 1; opacity: 0.85; cursor: pointer; }
+:where(.codebase-inspector-root) .ci-scatter__dot--low { fill: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-scatter__dot--mid { fill: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-scatter__dot--high { fill: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-scatter__dot--unknown { fill: var(--ci-text-faint); }
+:where(.codebase-inspector-root) .ci-scatter__dot--ring { fill: none; stroke-width: 1.5; }
+:where(.codebase-inspector-root) .ci-scatter__dot--ring.ci-scatter__dot--low { stroke: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-scatter__dot--ring.ci-scatter__dot--mid { stroke: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-scatter__dot--ring.ci-scatter__dot--high { stroke: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-scatter__dot--ring.ci-scatter__dot--unknown { stroke: var(--ci-text-faint); }
+:where(.codebase-inspector-root) .ci-scatter__dot--selected { stroke: var(--ci-text); stroke-width: 2.5; opacity: 1; }
+:where(.codebase-inspector-root) .ci-scatter__dot:focus-visible { outline: 2px solid var(--ci-focus); }
+:where(.codebase-inspector-root) .ci-shortlist { list-style: none; margin: calc(-1 * var(--ci-space-4)); padding: 0; }
+:where(.codebase-inspector-root) .ci-shortlist li + li { border-top: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) button.ci-shortlist__item {
+  display: flex; align-items: flex-start; gap: var(--ci-space-3); width: 100%; height: auto; padding: var(--ci-space-4);
+  border: none; border-radius: 0; box-shadow: none; background: transparent; color: var(--ci-text); text-align: left; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-shortlist__item:hover { background: var(--ci-hover); }
+:where(.codebase-inspector-root) .ci-shortlist__rank { color: var(--ci-text-faint); font-family: var(--ci-font-mono); }
+:where(.codebase-inspector-root) .ci-shortlist__text { display: flex; flex-direction: column; flex: 1 1 auto; white-space: normal; }
+:where(.codebase-inspector-root) .ci-shortlist__name { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-shortlist__detail { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-hotspot-table__toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ci-space-3); margin-bottom: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-hotspot-table__note { color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-hotspot-table__more { margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-formula { display: flex; flex-direction: column; gap: var(--ci-space-3); max-width: 36em; padding: var(--ci-space-4); }
+:where(.codebase-inspector-root) .ci-formula__title { margin: 0; }
+:where(.codebase-inspector-root) .ci-formula__code { font-family: var(--ci-font-mono); white-space: normal; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-formula__actions { display: flex; justify-content: flex-end; }
+
+/* Part 2: File detail. */
+:where(.codebase-inspector-root) .ci-file-detail__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; }
+@container (max-width: 900px) {
+  :where(.codebase-inspector-root) .ci-file-detail__grid { grid-template-columns: minmax(0, 1fr); }
+}
+:where(.codebase-inspector-root) .ci-file-header__chips { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); list-style: none; margin: var(--ci-space-3) 0 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-source-context code { font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-source-context__reason { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-source-context__note { margin: var(--ci-space-4) 0 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-source-context__message { min-height: 1em; margin: var(--ci-space-2) 0 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-findings { list-style: none; margin: 0 0 var(--ci-space-4); padding: 0; }
+/* Part 5 V20: File detail's own finding card (was .ci-finding*); the severity pill and the id are kit classes. */
+:where(.codebase-inspector-root) .ci-file-finding { padding: var(--ci-space-3) 0; border-bottom: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-file-finding__head { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; }
+:where(.codebase-inspector-root) .ci-file-finding__title { margin: var(--ci-space-2) 0 var(--ci-space-1); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-file-finding__meta { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+/* WP-03 N12/J14: FINDING_VIA_RELATED, under a finding shown through a related file. */
+:where(.codebase-inspector-root) .ci-file-finding__via { display: block; margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) button.ci-file-finding__review {
+  display: block; width: 100%; height: auto; padding: 0; border: none; border-radius: 0; box-shadow: none;
+  background: transparent; color: var(--ci-text); font: inherit; text-align: left; white-space: normal; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-file-finding__review:hover { background: var(--ci-hover); }
+:where(.codebase-inspector-root) button.ci-file-finding__review:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
+:where(.codebase-inspector-root) .ci-file-finding__review .ci-file-finding__title { display: block; }
+:where(.codebase-inspector-root) .ci-work-items { list-style: none; margin: 0; padding: 0; }
+:where(.codebase-inspector-root) .ci-work-items li { display: flex; justify-content: space-between; align-items: center; gap: var(--ci-space-3); padding: var(--ci-space-2) 0; border-bottom: 1px solid var(--ci-border); }
+

@@ -1,0 +1,75 @@
+/* WP-02 screens (the shared .ci-screen base is in kit.css, Part 5 V21). The city screen is a flex column holding its PageHeader, the unchanged
+   `.ci-app` and the summary cards (Task 10). `.ci-app`'s own `height: 100%` (styles.css,
+   pinned by stage-height.test.ts) is overridden only inside this screen: the stage keeps
+   the full leaf height, floored at 420px, and never shrinks to share it with the header
+   and cards, which go below the fold — `.ci-shell__content` scrolls. The height stays
+   DEFINITE (a `height`, not only a `min-height` over `height: auto`): an auto height
+   would size the stage row by the file list again, stage-height.test.ts's defect 5.
+   Pinned by tests/unit/city-stage-floor.test.ts. */
+:where(.codebase-inspector-root) .ci-screen--city { height: 100%; padding: 0; gap: 0; }
+:where(.codebase-inspector-root) .ci-screen--city > .ci-app { flex: none; min-height: 420px; height: max(420px, 100%); }
+
+/* Task 9: the Overview screen. Shared cards/grid/empty looks moved to kit.css (E55). */
+
+:where(.codebase-inspector-root) .ci-investigations { list-style: none; margin: calc(-1 * var(--ci-space-4)); padding: 0; }
+:where(.codebase-inspector-root) .ci-investigations li + li { border-top: 1px solid var(--ci-border); }
+:where(.codebase-inspector-root) button.ci-investigation {
+  display: flex; align-items: flex-start; gap: var(--ci-space-3); width: 100%; height: auto;
+  padding: var(--ci-space-4); border: none; border-radius: 0; background: transparent; box-shadow: none;
+  color: var(--ci-text); text-align: left; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-investigation:hover { background: var(--ci-hover); }
+:where(.codebase-inspector-root) .ci-investigation__text { display: flex; flex-direction: column; gap: var(--ci-space-1); flex: 1 1 auto; white-space: normal; }
+:where(.codebase-inspector-root) .ci-investigation__title { font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-investigation__detail { color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+
+:where(.codebase-inspector-root) .ci-evidence-coverage { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-3) var(--ci-space-4); margin: 0; }
+:where(.codebase-inspector-root) .ci-evidence-coverage dt { color: var(--ci-text); }
+:where(.codebase-inspector-root) .ci-evidence-coverage dd { display: flex; align-items: center; gap: var(--ci-space-3); margin: 0; }
+:where(.codebase-inspector-root) .ci-evidence-coverage__bar { flex: 1 1 auto; height: 6px; border-radius: 3px; background: var(--ci-border); }
+:where(.codebase-inspector-root) .ci-evidence-coverage__bar--collected { background: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-evidence-coverage__bar--partial { background: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-evidence-coverage__bar--sample { background: var(--ci-sample); opacity: 0.7; }
+
+/* Task 10: the City screen's own PageHeader and summary cards. */
+:where(.codebase-inspector-root) .ci-city-screen__header { padding: var(--ci-space-5) var(--ci-space-6) 0; }
+:where(.codebase-inspector-root) .ci-city-summary {
+  display: grid; gap: var(--ci-space-3); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  padding: 0 var(--ci-space-4) var(--ci-space-4);
+}
+:where(.codebase-inspector-root) button.ci-city-summary__card {
+  display: flex; align-items: center; gap: var(--ci-space-3); height: auto;
+  padding: var(--ci-space-4); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-card);
+  background: var(--ci-panel); box-shadow: none; color: var(--ci-text); text-align: left; cursor: pointer;
+}
+:where(.codebase-inspector-root) button.ci-city-summary__card:hover { background: var(--ci-hover); }
+:where(.codebase-inspector-root) .ci-city-summary__value { font-size: 1.5em; font-weight: var(--font-semibold); color: var(--ci-action); }
+:where(.codebase-inspector-root) .ci-city-summary__text { display: flex; flex-direction: column; flex: 1 1 auto; white-space: normal; }
+:where(.codebase-inspector-root) .ci-city-summary__title { display: flex; gap: var(--ci-space-2); align-items: center; font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-city-summary__caption { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+
+/* Part 6 Y40: the findings lens — the heading over the viewport (city/LensHeading.vue), the
+   legend rows (MetricLegend.vue) and the list-mode Reported column (CodebaseFileList). The
+   "no finding" swatch is --ci-text-muted, the token theme-bridge.ts reads into
+   CityPalette.unavailable, so the legend and the city agree in every theme. */
+:where(.codebase-inspector-root) .ci-city-lens {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ci-space-3);
+  flex: 0 0 auto; padding: var(--ci-space-2) 0;
+}
+:where(.codebase-inspector-root) .ci-city-lens__text { min-width: 0; }
+:where(.codebase-inspector-root) .ci-city-lens__eyebrow {
+  margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em);
+  font-weight: var(--font-semibold); letter-spacing: 0.06em; text-transform: uppercase;
+}
+:where(.codebase-inspector-root) .ci-city-lens__title { margin: var(--ci-space-1) 0 0; font-size: 1.1em; font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-city-lens__subtitle { margin: var(--ci-space-1) 0 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-city-lens__stale { margin: var(--ci-space-1) 0 0; color: var(--ci-warning); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-legend__swatch-group { display: inline-flex; gap: 2px; }
+:where(.codebase-inspector-root) .ci-legend__swatch--none { background: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-file-list__reported,
+:where(.codebase-inspector-root) .ci-file-list__reported-head {
+  float: right; margin-left: var(--ci-space-2); color: var(--ci-text-muted); font-variant-numeric: tabular-nums;
+}
+:where(.codebase-inspector-root) .ci-file-list__reported-head { font-size: var(--font-ui-smaller, 0.8em); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) button.ci-file-list__row--selected .ci-file-list__reported { color: inherit; }
+

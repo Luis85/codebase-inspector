@@ -1,0 +1,113 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Interaction specification</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../interactions/01-core-interactions.md">Markdown source</a></header><main><h1>Interaction specification</h1>
+<h2>The navigation model</h2>
+<p>A single click <strong>selects</strong>. Focus/frame is a deliberate secondary action. Selection alone must not make the camera jump. Double-click may focus as a convenience, but every double-click and drag action has an explicit control alternative.</p>
+<p>Selection, hover, camera target, directory focus, query, and panel visibility are separate states. Closing a panel is not clearing selection. Recoloring a lens is not a new scan. Filtering is not changing the snapshot. Source authorization is not a presentation preference.</p>
+<h2>Pointer and camera contract</h2>
+<table>
+<thead>
+<tr>
+<th>Input / control</th>
+<th>Result</th>
+<th>Recovery and caveat</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hover building, about 200 ms</td>
+<td>Short path/category/value tooltip</td>
+<td>No camera or selection change; dismiss on leave/Escape</td>
+</tr>
+<tr>
+<td>Primary click, movement ≤5 CSS px</td>
+<td>Select nearest visible building</td>
+<td>Sync list and inspector; full path accessible</td>
+</tr>
+<tr>
+<td>Primary drag, movement &gt;5 CSS px</td>
+<td>Orbit around current target</td>
+<td>Never interpret release as a selection</td>
+</tr>
+<tr>
+<td>Right drag or modified-primary drag</td>
+<td>Pan</td>
+<td>Do not open a conflicting context menu after a drag</td>
+</tr>
+<tr>
+<td>Wheel over focused/engaged canvas</td>
+<td>Dolly</td>
+<td>Bound zoom; let text/list scrolling remain normal</td>
+</tr>
+<tr>
+<td>Double-click building</td>
+<td>Select and frame building neighborhood</td>
+<td>Same action as Focus; reduced-motion alternative</td>
+</tr>
+<tr>
+<td>Fit button</td>
+<td>Frame current visible scope</td>
+<td>Does not clear selected file, query, or provider</td>
+</tr>
+<tr>
+<td>Focus in city</td>
+<td>Frame selected file with surrounding context</td>
+<td>Does not isolate/delete other files</td>
+</tr>
+<tr>
+<td>Top button</td>
+<td>Switch to top-down camera</td>
+<td>Remember previous 3D camera so toggle back restores it</td>
+</tr>
+<tr>
+<td>Zoom + / −</td>
+<td>Step distance by a documented bounded factor</td>
+<td>Single-pointer alternative to wheel/pinch</td>
+</tr>
+<tr>
+<td>Direction/rotate step controls in help</td>
+<td>Move camera by bounded steps</td>
+<td>Single-pointer alternative to dragging</td>
+</tr>
+<tr>
+<td>Click empty city space</td>
+<td>Clear selection only if explicitly documented</td>
+<td>Prefer no-op in initial release; provide Clear selection</td>
+</tr>
+<tr>
+<td>File list item</td>
+<td>Select matching file</td>
+<td>Do not automatically focus camera on each arrow/navigation move</td>
+</tr>
+<tr>
+<td>Relative-path copy</td>
+<td>Copy codebase-relative path</td>
+<td>Announce success; failure exposes selectable text</td>
+</tr>
+<tr>
+<td>Source-opening action</td>
+<td>Request supported viewer/editor target</td>
+<td>No shell-built command string; invalid/unbound path explains next step</td>
+</tr>
+</tbody>
+</table>
+<p>Three.js OrbitControls supplies orbit/dolly/pan primitives and configurable controls [S10]. Configure and test them rather than assuming default global keyboard behavior is suitable inside Obsidian. Never attach keyboard listeners to the global window for inactive leaves.</p>
+<p>Thresholds and timings are proposed interaction constants to test with mouse, trackpad, pen, and assistive input. Do not tie the drag threshold to device pixels.</p>
+<h2>Keyboard contract</h2>
+<p>All required actions are normal focusable controls. Do not assign global shortcuts by default that conflict with Obsidian. Register commands so users may choose hotkeys.</p>
+<p>While the canvas region itself has focus, optional local keys may be: <code>F</code> Fit, <code>T</code> Top/3D, <code>+</code>/<code>-</code> zoom, arrow keys pan, Shift+arrows rotate, Enter focus selection. <code>/</code> focuses file search only when the inspector workspace owns focus and the target is not a text input. These are proposals, not host-wide bindings.</p>
+<p>Escape resolves the topmost transient state: modal or popover → camera interaction/help → nonmodal drawer → query/selection only when the corresponding control owns focus. One press performs one action. Do not clear a Markdown editor’s state or interfere with IME composition. With a dirty note composer, Escape offers Keep editing / Discard draft rather than silently losing work.</p>
+<p>For ordinary list buttons, use native Tab navigation. If replacing them with a virtualized composite tree/list, implement its full documented keyboard pattern, stable accessible names, active-descendant/roving-focus semantics, and offscreen selection recovery. Do not add <code>role=tree</code> to an incomplete implementation.</p>
+<h2>Search and filters</h2>
+<p>Search scope is included file paths, not every symbol, finding, or source text in WP-01. Do not label it “Search everything.” Case-insensitive path substring matching is an acceptable first implementation; ranking can prefer exact basename, basename prefix, path substring, then fuzzy results if implemented.</p>
+<p>Debounce around 120–180 ms for large inventories, but keep input immediate. Update match count, dim nonmatches in place, and offer “Focus results” explicitly. Do not rebuild layout from the filtered set by default. No-results state says “0 of 144 files match,” not “Your codebase is empty.” Clearing search restores the same geometry and camera unless the user deliberately focused another scope.</p>
+<p>A filter-hidden selection remains known. Explain “Selected file is outside these filters” and offer Reveal or Clear selection. Do not silently replace it with the first matching file. In the prototype, the review fixture implements simple matching and visual emphasis, not the full production focus/virtualization model.</p>
+<h2>Selection synchronization</h2>
+<p>Publish <code>selection.changed</code> with <code>viewId</code>, <code>profileId</code>, <code>snapshotId</code>, <code>entityId</code>, and origin (<code>city</code>, <code>file-list</code>, <code>finding</code>, <code>link</code>). The UI resolves details once from the normalized snapshot. Do not bounce events in a list↔canvas loop. Camera focus uses a separate <code>camera.focusRequested</code> intent.</p>
+<p>Immutable snapshot replacement reconciles selection by entity ID. A missing file becomes a descriptive state with its old path, not a new random selection. New provider results update only compatible observations. A late job for another profile cannot overwrite the active view.</p>
+<h2>Source and scan controls</h2>
+<p>Source selection validates path existence, readable directory, supported adapter, and normalized resolved root before scope review. If validation fails, retain the typed value and place the error next to that field. Default consent is unchecked. Scan begins only through the explicit action after review. Editing the root invalidates the prior review.</p>
+<p>The first click on Scan while idle enters review or a clearly authorized operation path. During a scan, show Cancel rather than starting duplicate jobs. A cancelled partial result does not replace the last complete snapshot. A completed scan swaps the snapshot atomically after validation and labels any skipped/unreadable scope. Reopening a tab may show retained evidence but does not start work.</p>
+<h2>Provider and note actions</h2>
+<p>Import report → validate envelope/schema/version/scope/path mapping → show provenance → attach compatible evidence. Never execute report-specified commands. Installed analyzer → inspect executable/version/arguments/root/side effects → explicit approval → cancellable run. The community-plugin policy forbids installing/updating dependencies from the plugin [S4].</p>
+<p>Create investigation note → confirm destination and content → create through Vault API → report actual result → offer Open note. Never announce success before write completion. A collision offers a distinct new name, explicit append, or cancel; no silent overwrite. A recovered draft remains editable after failure.</p>
+<p>The UI does not offer “Delete unused code,” “Fix all,” or a fabricated probability of safe deletion.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>
