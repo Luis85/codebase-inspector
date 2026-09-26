@@ -42,7 +42,11 @@ export default defineConfig({
                 // scripts/chromium.mjs as plain source — no DOM, no Vue mount — so it
                 // belongs beside unit/contracts/integration/host, not the jsdom project.
                 include: ['tests/{unit,contracts,integration,host,build}/**/*.test.ts'],
-                exclude: JSDOM_HOST_TESTS } },
+                // fallow-no-freeze.test.ts (Task 6, Z38, O2) runs in the 'node-serial'
+                // project below instead, alone and after every group-0 project, so its
+                // 50 ms budget is measured on an otherwise idle worker pool.
+                exclude: [...JSDOM_HOST_TESTS, 'tests/integration/fallow-no-freeze.test.ts'],
+                sequence: { groupOrder: 0 } } },
       { resolve: { alias: { obsidian: obsidianMock } },
         plugins: [vue()],
         test: { name: 'jsdom', environment: 'jsdom',
@@ -64,7 +68,20 @@ export default defineConfig({
                 // NO project and silently never run -- the quietest possible way to lose a test.
                 include: ['tests/component/**/*.test.ts', 'tests/acceptance/**/*.{test,steps}.ts',
                           'tests/benchmarks/**/*.test.ts', 'tests/harness/**/*.test.ts',
-                          ...JSDOM_HOST_TESTS] } },
+                          ...JSDOM_HOST_TESTS],
+                sequence: { groupOrder: 0 } } },
+      // Task 6 (Z38, O2, PP10): fallow-no-freeze.test.ts measures a 50 ms event-loop
+      // budget, which flakes under load when other projects' test files are still
+      // running their own child processes and timers. `groupOrder: 1` puts this
+      // project in a later group than 'node' and 'jsdom' (both group 0, the default):
+      // Vitest runs groups from lowest to highest and projects sharing a group run
+      // together, so this file runs alone, after every other project has finished,
+      // on an otherwise idle worker pool.
+      { resolve: { alias: { obsidian: obsidianMock } },
+        plugins: [vue()],
+        test: { name: 'node-serial', environment: 'node',
+                include: ['tests/integration/fallow-no-freeze.test.ts'],
+                sequence: { groupOrder: 1 } } },
     ],
   },
 });
