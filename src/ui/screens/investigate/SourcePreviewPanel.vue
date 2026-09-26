@@ -61,10 +61,12 @@ const highlightLine = computed(() => {
 // Polish (E19): the request this window was read for (state.line) can differ from the
 // row's CURRENT reported line after a re-run moves it — IN13 keeps the old window and
 // never re-reads on its own, so without this the panel would show it with no explanation.
-// Null-safe: only shown once both lines are actually known and they disagree.
+// Null-safe: only shown once both lines are actually known and they disagree, and only
+// over an actual read window (`text`) — an unavailable or still-loading read has no
+// window to have been "read for", so this must never say so over one (re-review residual).
 const readForOtherLine = computed(() => {
   const s = props.state;
-  if (s.status !== 'ready' || s.line === null || props.row.line === null || s.line === props.row.line) return null;
+  if (s.status !== 'ready' || text.value === null || s.line === null || props.row.line === null || s.line === props.row.line) return null;
   return s.line;
 });
 const staleText = computed(() => {

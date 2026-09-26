@@ -21,10 +21,10 @@ That is the point of the plugin: it builds a structural map of a local codebase.
 - Reading begins only after you approve a specific directory and scope. Changing
   the directory or the scope invalidates that approval.
 
-Two claims appear in the interface — "Read-only source access" and "Source remains
-unchanged." — and the evidence they rest on is recorded in
+Two claims appear in the interface — "Read-only source access" and "Scanning never
+changes the source." — and the evidence they rest on is recorded in
 [`docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md`](docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md),
-section G2.
+section G2, including the WP-04 note on the one exception above (a note you confirm).
 
 ## Installing
 

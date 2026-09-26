@@ -53,8 +53,9 @@ export interface SettingDefinitionsCallbacks {
 // because settings-tab.ts and its tests read it by that name.
 export const BINDING_MISSING_TEXT = COPY_28;
 
-// Neither "Read-only source access" nor "Source remains unchanged" appears here —
-// ruling M25: those two strings ship only after task 12 records the G2 evidence.
+// Neither "Read-only source access" nor "Scanning never changes the source" appears
+// here — ruling M25: those two strings ship only after task 12 records the G2 evidence
+// (the second reworded by WP-04 ruling E29).
 export const STORAGE_DISCLOSURE_TEXT =
   'Codebase profiles, local folder bindings and each codebase’s review decisions (work items, ' +
   'boundary rules and finding decisions) are stored in this vault, in this plugin’s own data ' +

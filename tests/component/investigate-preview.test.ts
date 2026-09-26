@@ -107,6 +107,21 @@ describe('IN13/IP39: reads happen only on selection change and Reload', () => {
     expect(w.find('.ci-source-preview__line-moved').text()).toBe(PREVIEW_READ_FOR_LINE(2));
     w.unmount();
   });
+
+  it('re-review residual: an UNAVAILABLE read never gets "Read for line N" when the line then moves — there is no window it was read for', async () => {
+    const { snap, preview } = await withReport(12);
+    const row = await select(findingOfKind('complexity')); // row.line === 2
+    const w = mountScreen();
+    await nextTick();
+    await resolve(preview, { status: 'unavailable', reason: 'missing' });
+    expect(w.find('.ci-source-preview__line-moved').exists(), 'no window read, so no claim of one').toBe(false);
+
+    attachMovedLineReport(snap, row.anchorPath, 9);
+    await nextTick();
+    expect(preview.requests, 'no new read on a re-import (IN13)').toHaveLength(1);
+    expect(w.find('.ci-source-preview__line-moved').exists(), 'still no claim: the read was never a window').toBe(false);
+    w.unmount();
+  });
 });
 
 describe('IN10: the exact-line highlight and the stale-location callout', () => {
