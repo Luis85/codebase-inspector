@@ -96,6 +96,9 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
     // The baseline, taken with the plugin disabled.
     await page.disablePlugin(PLUGIN_ID);
     const disabled = await hostState(browser);
+    // The first enable's precondition: no city leaf exists while disabled (NPF3), so any city leaf after the enable
+    // below could only have been opened by the enable itself.
+    expect(disabled).toMatchObject({ cityLeaves: 0, roots: 0 });
     const before = await listenerCounts(browser);
     await trackIntervals(browser);
     // Positive control: an interval made now is counted while live, and not once cleared.
@@ -104,7 +107,8 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
     await browser.executeObsidian(() => { window.clearInterval((window as ProbeWindow).ciProbeInterval); });
     expect(await liveIntervals(browser)).toBe(0);
 
-    // Enabling opens no tab (NPF3: asserted at the first enable, never after a disable).
+    // Enabling opens no tab. Non-vacuous because no city leaf existed before it (asserted above), and asserted at
+    // the first enable, never after a later disable (NPF3: a disable detaches every city leaf, an enable restores none).
     await page.enablePlugin(PLUGIN_ID);
     const enabled = await hostState(browser);
     expect(enabled).toMatchObject({ cityLeaves: 0, roots: 0 });
@@ -131,13 +135,16 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
     const intervals = await liveIntervals(browser);
     // Obsidian's own cost of unregistering a view type while a leaf shows it, measured the same way on its core
     // Outline view (one open leaf): observed here, 1.13.4 swaps each such leaf to its unknown-view pane, whose
-    // `layout-change` listener outlives the leaf. The plugin may leave exactly that per city leaf, and nothing else.
+    // `layout-change` listener outlives the leaf. WP-04.2 E4: the plugin may leave exactly that many layout-change
+    // listeners per city leaf; every other event name must return to its pre-enable count exactly.
     const host = await hostUnregisterCost(browser);
     await writeEvidence(directory, 'leaves', { disabled, enabled, open, after, windows: (await browser.getWindowHandles()).length });
     await writeEvidence(directory, 'listeners', {
       grewWhileOpen: leakedListeners(before, during), grewAfterDisable: growth(before, released), host, before, during, released, intervals,
     });
     expect(host.leaves).toBe(1);
+    // Fail closed (E4): the allowance is layout-change or nothing, so a host leak on another name never widens it.
+    expect([[], ['workspace:layout-change']]).toContainEqual(Object.keys(host.growth));
     expect(growth(before, released)).toEqual(scaled(host.growth, open.cityLeaves));
     expect(intervals).toBe(0);
     expect(after).toMatchObject({ cityLeaves: 0, roots: 0, canvases: 0, allCanvases: disabled.allCanvases });
