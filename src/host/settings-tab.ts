@@ -32,6 +32,14 @@ function parseExclusions(rawLines: string): string[] {
   return rawLines.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
 }
 
+/** WP-04.2 polish PN4: whether `target` is a field a person types or picks in (an input, textarea or select) inside
+ *  `container`. `matches`, not `instanceof`: the settings window's elements may come from another window. */
+function isEditingIn(container: Node, target: EventTarget | null): boolean {
+  if (target === null || !('matches' in target)) return false;
+  const el = target as Element;
+  return el.matches('input, textarea, select') && container.contains(el);
+}
+
 export class CodebaseInspectorSettingTab extends PluginSettingTab {
   private entries: ProfileEntry[] = [];
   // Fix round 1, Important 4: test-only convenience so a test that fires two
@@ -43,6 +51,8 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
   // WP-04.2 NE9: refreshSoon()'s one refresh in flight, and whether one more is queued.
   private refreshing: Promise<void> | null = null;
   private refreshQueued = false;
+  // WP-04.2 polish PN4: the document whose focusout the one waiting render listens for, or null when none waits.
+  private renderPendingIn: Document | null = null;
 
   constructor(
     app: App,
@@ -80,7 +90,10 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
    *  this file already paired the two; main.ts was the only one that did not, which is
    *  itself the smell. Pairing it here removes the class of bug rather than this
    *  instance, and the four mutation paths below no longer call `update()` themselves --
-   *  a second call would re-render twice for one change. */
+   *  a second call would re-render twice for one change.
+   *
+   *  WP-04.2 polish PN4: it is still asked for HERE, through renderWhenIdle(), which runs it at once unless a
+   *  field of the settings holds focus, and then once focus has left the fields. */
   async refresh(): Promise<void> {
     try {
       const profiles = await this.profileStore.list();
@@ -104,7 +117,31 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       // reload must not be indistinguishable from "you have no profiles".
       this.showFailure(e);
     }
-    this.update();
+    this.renderWhenIdle();
+  }
+
+  /** WP-04.2 polish PN4: Obsidian's update() re-renders every render-type row, so it waits while a field of the
+   *  settings holds focus, and runs once focus has left the fields. The scope is the tab's document, not its
+   *  containerEl: observed on 1.13.4, a profile page renders into its own `.setting-page` and the containerEl is
+   *  detached while it shows (Settings open in their own window: NPF7). A render that runs at once supersedes a
+   *  waiting one, so a focusout that never arrived (its window closed) cannot hold a later render back. */
+  private renderWhenIdle(): void {
+    const doc = this.containerEl.ownerDocument;
+    if (!isEditingIn(doc, doc.activeElement)) {
+      this.renderPendingIn = null;
+      this.update();
+      return;
+    }
+    if (this.renderPendingIn === doc) return;
+    this.renderPendingIn = doc;
+    const onFocusOut = (event: FocusEvent): void => {
+      if (isEditingIn(doc, event.relatedTarget)) return;
+      doc.removeEventListener('focusout', onFocusOut);
+      if (this.renderPendingIn !== doc) return;
+      this.renderPendingIn = null;
+      this.update();
+    };
+    doc.addEventListener('focusout', onFocusOut);
   }
 
   /** WP-04.2 NE9: a write elsewhere (a scan's new profile, a note's exclusion, a fallow trust) re-reads

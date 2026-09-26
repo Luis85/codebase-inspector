@@ -36,5 +36,6 @@
   "code spans keep %%, $ and == inert in reading and live-preview views",
   "email addresses stay inert after noteText escaping",
   "creates a note in a folder that exists on disk before Obsidian has indexed it",
-  "scan-codebase after a Reconnect to another folder asks to approve the connected folder"
+  "scan-codebase after a Reconnect to another folder asks to approve the connected folder",
+  "a setting being typed keeps its text when a write elsewhere refreshes the settings tab"
 ]

@@ -1,14 +1,16 @@
-// WP-04.2 spec §5 rows 10–14 (NE9): the plugin's settings tab in the real settings renderer. NPF7: the settings
-// render in their own window, so every `pluginData` read happens before openPluginSettings or after closeSettings.
+// WP-04.2 spec §5 rows 10–14 (NE9) and polish row 38 (PN4): the plugin's settings tab in the real settings renderer.
+// NPF7: the settings render in their own window, so every `pluginData` read happens before openPluginSettings or
+// after closeSettings (scenario 38 switches to the main window with the settings still open, for its write elsewhere).
 // Observed here: a Notice the tab raises, and the source and clear-binding modals it opens, all render in the
 // settings window. IPF20: the plugin's own words only through its copy constants; everything else by selector.
 import { describe, expect } from 'vitest';
+import { Key } from 'webdriverio';
 import { defaultNoteFolder } from '../../src/application/investigation/note-path';
 import { exclusionInputReasons } from '../../src/domain/validator';
 import { NOTES_FOLDER_PROBLEM, NOTES_FOLDER_SETTING_NAME } from '../../src/ui/audit-copy/investigation';
 import { test } from './fixture';
 import { closeSettings, onlyProfile, openPluginSettings, pluginData, savedBindings, savedProfiles } from './host-probes';
-import type { NativeBrowser } from './session';
+import { PLUGIN_ID, type NativeBrowser } from './session';
 import { copyProject } from './workspace-files';
 
 const LIST = '.modal.mod-settings .setting-group.mod-list';
@@ -17,6 +19,42 @@ const SCOPE_MODAL = '.modal-container [data-field="acknowledge"]';
 async function clickWhenClickable(element: () => ReturnType<NativeBrowser['$']>): Promise<void> {
   await expect.poll(() => element().isClickable()).toBe(true);
   await element().click();
+}
+
+/** Scenario 38: switches WebDriver to the window holding the Obsidian app WITHOUT closing the settings (NPF7:
+ *  `executeObsidian` works only there); the settings window's handle is `settingsWindow`. */
+async function switchToMainWindow(browser: NativeBrowser, settingsWindow: string): Promise<void> {
+  for (const handle of await browser.getWindowHandles()) {
+    if (handle === settingsWindow) continue;
+    await browser.switchToWindow(handle);
+    if (await browser.execute(() => typeof (window as unknown as { app?: unknown }).app === 'object')) return;
+  }
+  throw new Error('no window holds the Obsidian app');
+}
+
+type OpenTab = {
+  id?: string;
+  investigations?: { write(profileId: string, folder: string): Promise<void> };
+  entries?: { profile: { profileId: string }; investigationFolder: string }[];
+};
+/** Scenario 38's write elsewhere, from the main window: the plugin's one investigation folder store (main.ts passes
+ *  its instance to the tab; the plugin instance holds none) writes the watched `investigations` slice through
+ *  writePluginDataSlice, so the NE9 watcher hears it. Reached through probe f's `app.setting.activeTab`. */
+async function writeNotesFolderElsewhere(browser: NativeBrowser, profileId: string, folder: string): Promise<void> {
+  await browser.executeObsidian(async ({ app }, id, profile, value) => {
+    const tab = (app as unknown as { setting: { activeTab?: OpenTab | null } }).setting.activeTab;
+    if (tab?.id !== id || tab.investigations === undefined) throw new Error(`the open settings tab is not ${id}`);
+    await tab.investigations.write(profile, value);
+  }, PLUGIN_ID, profileId, folder);
+}
+
+/** The notes folder the open tab's last refresh() read for `profileId` (from the main window). refresh() stores what
+ *  it read and asks for the render in the same task, so once this shows a write, the refresh that heard it has asked. */
+function tabNotesFolder(browser: NativeBrowser, profileId: string): Promise<string | null> {
+  return browser.executeObsidian(({ app }, profile) => {
+    const tab = (app as unknown as { setting: { activeTab?: OpenTab | null } }).setting.activeTab;
+    return tab?.entries?.find((entry) => entry.profile.profileId === profile)?.investigationFolder ?? null;
+  }, profileId);
 }
 
 describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
@@ -142,5 +180,36 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     await expect.poll(() => inspector.settingsPage().$('[data-action="reconnect"]').isExisting()).toBe(true);
     await closeSettings(browser);
     await expect.poll(async () => (await pluginData(browser)).bindings).toEqual([]);
+  });
+
+  test('a setting being typed keeps its text when a write elsewhere refreshes the settings tab', async ({ native: { browser, page, inspector } }) => {
+    copyProject(page.getVaultPath(), 'code');
+    await inspector.openCity();
+    await inspector.scanFolder('code');
+    const profile = onlyProfile(await pluginData(browser));
+    const elsewhere = 'Research/elsewhere';
+    const excluded = () => inspector.settingsPage().$('textarea');
+    await inspector.openCodebaseSettings(profile.name);
+    const settingsWindow = await browser.getWindowHandle();
+    await expect.poll(() => excluded().isClickable()).toBe(true);
+    await excluded().click();
+    await browser.keys([Key.Ctrl, Key.End]);
+    await excluded().addValue('\nfirst-half');
+    // Focus stays in the textarea: observed, a switch to the main window and back with no write fires no focusout
+    // and no change, and the textarea is still document.activeElement. The settings stay open.
+    await switchToMainWindow(browser, settingsWindow);
+    await writeNotesFolderElsewhere(browser, profile.profileId, elsewhere);
+    await expect.poll(async () => ((await pluginData(browser)).investigations as Record<string, { folder?: string }> | undefined)?.[profile.profileId]?.folder)
+      .toBe(elsewhere);
+    // The tab heard it: its refresh has read the write (before the fix, it re-rendered the page at once).
+    await expect.poll(() => tabNotesFolder(browser, profile.profileId)).toBe(elsewhere);
+    await browser.switchToWindow(settingsWindow);
+    await browser.keys('second-half');
+    await inspector.settingsPage().$('.setting-page-title').click();
+    // Positive control: the write re-rendered the tab. The notes folder row is render-type, so its field shows the
+    // folder written elsewhere only once the page is drawn again.
+    await expect.poll(() => inspector.settingsRow(NOTES_FOLDER_SETTING_NAME).$('input').getValue()).toBe(elsewhere);
+    await closeSettings(browser);
+    await expect.poll(async () => savedProfiles(await pluginData(browser))[0]?.exclusions).toContain('first-halfsecond-half');
   });
 });

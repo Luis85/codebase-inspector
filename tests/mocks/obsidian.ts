@@ -157,8 +157,10 @@ export abstract class PluginSettingTab {
     // tests/host/plugin-onload.test.ts constructs a real CodebaseInspectorPlugin under
     // the 'node' vitest project (no `document`) to exercise onload() cheaply; this class
     // is not asked for any real DOM there (getSettingDefinitions() returns plain data),
-    // so containerEl only needs to exist, not to be a real element, when there is no DOM.
-    this.containerEl = typeof document === 'undefined' ? ({} as HTMLElement) : document.createElement('div');
+    // so containerEl only needs to exist, not to be a real element, when there is no DOM. WP-04.2 polish PN4: the
+    // tab reads its document's focused element before it renders, so it has a document, with nothing focused.
+    this.containerEl = typeof document === 'undefined'
+      ? ({ ownerDocument: { activeElement: null } } as unknown as HTMLElement) : document.createElement('div');
   }
 
   getSettingDefinitions(): unknown[] { return []; }
