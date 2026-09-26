@@ -728,8 +728,9 @@ not reproduce here — the disk/live result is recorded rather than that predict
 (corrected during execution, Part 7 task 14).
 
 **The heading now states what task 9's own last `npm run verify` measured, and every run
-this task made — one `npm run test` and five `npm run verify` runs — is disclosed in the
-WP-04 Part 2 polish section below.** In short: the first verify run failed only on this
+of the whole pass — Tasks 5, 6 and 8's earlier runs, plus task 9's own one `npm run test`
+and five `npm run verify` runs — is disclosed in the WP-04 Part 2 polish section below.**
+In short, of task 9's own runs: the first verify run failed only on this
 document's own arithmetic (the G8 total had not yet been updated to match the refreshed
 table — a self-inflicted, expected failure, not a product or test regression) with Z38
 passing; the second and third runs failed on further self-inflicted documentation mistakes
@@ -1710,7 +1711,7 @@ argv and no trust change.
   (50 ms, both `hang` and `streamed` modes) is unchanged.
 - **T1–T5, T9, T10 (Task 7).** Native test minors only, no `src` change: `openPluginSettings`
   captures its window handle inside the poll itself; `listenerCounts` fails closed on a
-  non-array entry, with scenario 2's negative control; `reviewFinding` is typed and
+  non-array entry, with scenario 1's negative control; `reviewFinding` is typed and
   scenario 2 also dismisses a second finding, checked before and after the reload;
   `evidence()` checks `dt`/`dd`; scenario 2's post-reload mutation is recorded; the smoke
   test's nav labels come from `ROUTE_META`; scenarios 2, 17 and 22 take the config's
@@ -1768,6 +1769,13 @@ Four scenarios added, all inside files the gate already named — no new native 
 | `commands.e2e.ts` | 39 — `scan-codebase after a Reconnect to another folder asks to approve the connected folder` (P6/E14, O1) |
 | `investigation.e2e.ts` | 40 — `the finding list pages through a report longer than one page and leaves out unmatched findings` (T6, T7) |
 
+**Ruling E11**: these four numbers are the spec §5 numbers, not implementation order —
+`required-scenarios.json` is ordered by the commit that appended each title (Task 1's
+scenario 37 landed before Task 3's scenario 39 and Task 4's scenario 38), and the gate
+(`scripts/check-native-results.mjs`) matches every case to its required title, never to a
+position in the file. Scenario 38 stays "settings typing" and scenario 39 stays
+"scan after Reconnect"; neither is renumbered to match file order.
+
 Each was shown RED once, per its own task report: scenario 37 on unfixed `ensureFolders`
 (the create refused as `write-failed`); scenario 38 on `0f12436` (typed text lost to a
 write elsewhere's re-render); scenario 39 on the unbound-check missing (a Reconnect's new
@@ -1778,8 +1786,26 @@ Obsidian's own UI text (IPF20).
 
 ### Every `npm run verify` and `npm run test` run this task made
 
-Disclosed in full, including every self-inflicted failure while this document's own
-counts were mid-refresh — nothing here is a cherry-picked pass:
+Disclosed in full, including every self-inflicted failure and every flake across the
+whole pass — nothing here is a cherry-picked pass:
+
+**Earlier runs of the pass** (Tasks 5, 6 and 8; recorded in task-9-context.md and
+disclosed here for the same reason every other run is):
+
+- Controller `npm run test` at `5968e38` (after the last `src` task, Task 5): 308/310
+  files, 3483 passed, 1 skipped, 2 failed — the G8 component file count (107 vs. 108,
+  expected until this task) and **Z38 failed**: hang 62.6 ms, before Task 6's isolation.
+- Task 6's own `npm run test` at `886f67a`: 310/311 files, 3484 passed, 1 failed (the same
+  G8 count), 1 skipped; **Z38 passed**: hang 33.9 ms, streamed 20.3 ms — isolated in its own
+  `node-serial` project for the first time.
+- An ad hoc run during Task 6's gate re-check (a plain two-file `vitest run`, not the
+  `node-serial` project): **Z38 flaked once** at 290 ms right after a typecheck/lint burst,
+  then passed on immediate re-runs (24.6/19.7 ms, then 22.4/24.9 ms).
+- Task 8's native run: scenario 9 (`cancel-fallow-analysis`) flaked once on a `vaultHas`
+  poll timeout during an investigation run, then passed both alone and in the final
+  full-file run.
+
+**This task's own runs** (one `npm run test` and five `npm run verify`):
 
 1. **`npm run test` (counts refresh, before touching this document), HEAD `f931ad8`:**
    311 files (310 passed, 1 failed — the pre-refresh G8 file-count check, expected) and
