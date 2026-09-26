@@ -128,5 +128,46 @@ The pre-flight scan (2026-09-25, at bee136b) re-measured every Global Constraint
 
 | # | Ruling |
 |---|---|
+| WP-04 E1 | **Ruling:** the two `// oxlint-disable-next-line preserve-caught-error` lines in `tests/support/session-lifecycle.ts` (ported from describe) are ratified, with a comment. — `AggregateError` has no `ErrorOptions` without the ES2022 lib (IP49); behaviour-neutral. — None. |
+| WP-04 E2 | **Ruling:** probe (b)'s literals end a paragraph with a block id (` ^probe-id` / ` \^probe-id`), and the probe asserts the control's id is registered and the escaped one's is not. — Spec §6(b) names block ids, and the mid-paragraph `^block` is never one, so there was no positive control. — None. |
+| WP-04 E3 | **Ruling:** the Investigate screen's gone announcement uses `reannounce(live, message)`, not the brief's `computed`. — The Global Constraints' announcement rule outranks the brief's code sample. — None. |
+| WP-04 E4 | **Ruling:** `noteText` escapes the `.` of every `www.`, case-insensitive, wherever it occurs. — `\b(www)\.` let `_www.x` through (`_` is a word character). — Low: `\.` shows in source view. |
+| WP-04 E5 | **Ruling:** `npm run analyze` above 9 is accepted between tasks when every extra finding is an export whose consumer is a named later task (IPF1); it returned to 9 at Task 9, again at Task 12, and is 9 at Task 15 and after. — The plan builds pure modules before their consumers. — None. |
+| WP-04 E6 | **Ruling:** `NOTE_TYPE` stays exported for Task 5 (a controller omission in the Task 3 dispatch's transient list). — Task 5 consumes it; privatising it would duplicate the literal. — None. |
+| WP-04 E7 | **Ruling:** `joinRootPath`/`relativeInside` transients are expected until Task 9. — Task 9 consumes them. — None. |
+| WP-04 E8 | **Ruling:** one shared invisible/bidi set (`INVISIBLE_CONTROLS`, built numerically) is exported from `note-text.ts` and used by the note text and the source preview. — The two copies had drifted into literal characters. — None. |
+| WP-04 E9 | **Ruling:** implementers build invisible and bidi code points numerically and scan touched files before committing. — Typed `\u` escapes landed as raw characters twice (Tasks 2 and 4), the Trojan Source pattern in the feature that defends against it. — None. |
+| WP-04 E10 | **Ruling:** the stale-report uncertainty is worded by `staleCauseOf(report)`: the older-snapshot words, or `UNCERTAINTY_REPORT_FAILED_RUN` for a report stale after a failed run. — The single sentence was false after a failed run, and it is written into notes as fact. — Low: wording. |
+| WP-04 E11 | **Ruling:** Quality's Severity options keep their existing `localeCompare` order. — Existing Quality behaviour, outside this part. — Low: two unlisted severity words may sort differently from the rows' code-unit order. |
+| WP-04 E12 | **Ruling:** the fake vault fires the metadata `changed` event asynchronously, after the write resolves. — Real Obsidian fires it after re-parsing (the native probe had to wait for it); a synchronous fake would let tests pass that fail in the app. — None. |
+| WP-04 E13 | **Ruling:** Task 8's report stands on line endings (git blobs are LF; CRLF only in the checkout), and the code-point bound's RED was shown with a UTF-16-unit mutation because zod 4.6.5's `.max()` already counts code points. — Both are facts checked by the controller. — None. |
+| WP-04 E14 | **Ruling:** the note index rebuilds from `getMarkdownFiles()` only on the first `resolved` after it starts; afterwards only `changed`, `rename` and `delete` update it. — `resolved` fires after every modification (obsidian.d.ts:4468), so a rebuild per event undid IP13; IPF18 confirmed the incremental events fire. — Low: a missed event is not repaired until reload. |
+| WP-04 E15 | **Ruling:** a refresh whose block write succeeded but whose frontmatter update failed returns `'partial'`, with copy that says the evidence was refreshed and the note's fields were not. — `write-failed` would claim nothing changed (E17 of Part 2). — None. |
+| WP-04 E16 | **Ruling (spec note):** a refresh updates `snapshot_id` and `source_path` only; `entity_id` and `finding_fingerprint` keep the identity the note was created for (IN32 as written). — A note stays linked to the finding it was written for. — Low: after a source path change, `entity_id` names the old path. |
+| WP-04 E17 | **Ruling:** `'partial'` is a plain string in the `RefreshNoteResult` union (correcting the controller's own E15 wording, which asked for an object). — The union is otherwise string literals. — None. |
+| WP-04 E18 | **Ruling:** focus after Show more reveals the last page is not moved (deferred). — Quality has the same pattern; out of this part. — Low: keyboard users land on the page body. |
+| WP-04 E19 | **Ruling:** a ready preview records the line it was read for; the verdict is null ("not checked") when the finding's current line differs, and the highlight and its label require the line to be in the window. — A re-run that moves the finding keeps its fingerprint, and the old window would otherwise earn an exact highlight on a line not shown. — None. |
+| WP-04 E20 | **Ruling:** remounting the Investigate screen never re-reads when the store holds a ready or loading preview for the same fingerprint. — IN13, one read per selection. — None. |
+| WP-04 E21 | **Ruling:** the "created and excluded" announcement names the root-relative exclusion actually saved. — The user finds that value in Excluded paths. — Low: wording. |
+| WP-04 E22 | **Ruling:** a create outcome is announced only while the same codebase is still bound. — After a switch, "this codebase's excluded paths" would describe another codebase. — Low: a create finished after a switch is silent (the note is listed on return). |
+| WP-04 E23 | **Ruling:** the refresh dialog resolves its note from the current index each time; a note re-linked to another finding is refused as `not-linked` without calling the port. — The host check does not carry the fingerprint, so a stale link would refresh a note with the wrong finding's evidence. — None. |
+| WP-04 E24 | **Ruling:** a refresh outcome that resolves after its dialog closed is announced (success or refusal words), same codebase only. — The user must always be told what happened to their note. — None. |
+| WP-04 E25 | **Ruling (amends IP14):** a profile with no LocalBinding (as `scan-codebase` creates one, by WP-01's documented open decision) previews under the in-memory snapshot's own `scope.rootPath`; a bound profile must still equal the snapshot's root, else `no-binding`; no snapshot never reads. — Found by the native spine: in the real app the preview otherwise never worked in the default flow. The snapshot store is in-memory only, so the root is always one this session's approved scan read. — Low: a preview reads under a root the user approved for scanning but never "connected" in Settings. |
+| WP-04 E26 | **Ruling:** the note's evidence-state words are Current / Stale, not Collected / Stale. — "Collected" read as the collected-report origin next to "Imported report". — Low: wording. |
+| WP-04 E27 | **Ruling:** two UI defects seen in the harness captures (no inner padding in the create and refresh dialogs; an always-rendered empty chips paragraph leaving a gap in the Evidence panel) are fixed in Task 17's fix round with re-shot captures. — They were earlier tasks' CSS/template; the harness task could re-shoot. — None. |
+
+Also recorded during execution:
+- **Full suite after Task 15** (the last task that touches `src` before the E25/E27 fixes): 299/301 files, 3414 passed, 1 skipped; the only failures were the two evidence-count tests Task 18 refreshes by design. No cross-task regression.
+- **Network errors:** the Task 6 reviewer was cut off once and resumed.
+- **Open items found by the native spine** (outside this part): the Settings tab does not refresh after `scan-codebase` creates a profile (pre-existing); the native test vault's watcher did not index files copied in with `node:fs` (test environment).
 
 ## Deferred minors
+
+Each is to be triaged by the final whole-branch review.
+- **Task 2:** `LPT0` and `CONOUT$` are not tested separately (the same character class as `COM0` and `CONIN$` is).
+- **Task 3:** the evidence block's hard size guard is unreachable through the shrink ladder (its last step is already bounded), so it is untested, and it is not escape-aware if ever reached.
+- **Task 4:** the one retry read after a stat/read race is not itself verified.
+- **Task 10:** the destination token is bumped twice per bind (harmless).
+- **Task 11:** no test that a filter change resets paging after it grew past one page.
+- **Task 12:** no dedicated idle-state test; the no-line case does not assert the uncertainty panel.
+- **Task 16:** a stale comment in `audit-copy/investigation.ts` (~92-93) still says "collected or stale".
