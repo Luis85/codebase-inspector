@@ -99,8 +99,9 @@ function realLayers(): Map<string, number> {
 }
 
 function statedTotal(source: string): number {
-  const match = /\*\*(\d+) files, (\d+) tests, (\d+) passed,\s*\n?(\d+) skipped\.\*\*/.exec(source.replace(/\n/g, '\n'));
-  expect(match, 'the G8 heading does not state "<n> files, <n> tests, <n> passed, <n> skipped"').not.toBeNull();
+  // A measured run may carry failures (WP-04 Part 2's Z38 under load), so "<n> failed," is optional.
+  const match = /\*\*(\d+) files, (\d+) tests, (\d+) passed,\s*(?:(\d+) failed,\s*)?(\d+) skipped\.\*\*/.exec(source);
+  expect(match, 'the G8 heading does not state "<n> files, <n> tests, <n> passed, [<n> failed,] <n> skipped"').not.toBeNull();
   return Number(match![2]);
 }
 

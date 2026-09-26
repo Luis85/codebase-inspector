@@ -325,7 +325,7 @@ describe('the evidence documents keep their own arithmetic', () => {
       .toBe(Number(match![1]));
   });
 
-  it('states a G8 passed/skipped split that adds up to its own test total', () => {
+  it('states a G8 passed/failed/skipped split that adds up to its own test total', () => {
     // The G8 heading states FOUR numbers. `gate-evidence.test.ts` checks the files count
     // against disk and the tests count against the table's own sum; the passed/skipped
     // pair was checked by nothing and classified nowhere — a load-bearing-looking figure
@@ -333,10 +333,11 @@ describe('the evidence documents keep their own arithmetic', () => {
     // WHICH test is skipped is a runner fact no in-suite test can read, and is declared
     // TRANSCRIBED. The arithmetic is derivable, so it is derived here.
     const evidence = readFileSync(EVIDENCE, 'utf8').replace(/[*`]/g, '').replace(/\s+/g, ' ');
-    const match = /(\d+) files, (\d+) tests, (\d+) passed, (\d+) skipped\./.exec(evidence);
-    expect(match, 'the G8 heading no longer states files/tests/passed/skipped').not.toBeNull();
-    const [tests, passed, skipped] = [Number(match![2]), Number(match![3]), Number(match![4])];
-    expect(passed + skipped, `${passed} passed + ${skipped} skipped is not ${tests} tests`)
+    // WP-04 Part 2's final review fix wave: the heading states a measured run, failures included.
+    const match = /(\d+) files, (\d+) tests, (\d+) passed, (?:(\d+) failed, )?(\d+) skipped\./.exec(evidence);
+    expect(match, 'the G8 heading no longer states files/tests/passed/[failed/]skipped').not.toBeNull();
+    const [tests, passed, failed, skipped] = [Number(match![2]), Number(match![3]), Number(match![4] ?? 0), Number(match![5])];
+    expect(passed + failed + skipped, `${passed} passed + ${failed} failed + ${skipped} skipped is not ${tests} tests`)
       .toBe(tests);
   });
 
