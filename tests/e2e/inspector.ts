@@ -118,16 +118,16 @@ export function createInspectorPage(browser: NativeBrowser) {
     await scan.click();
   };
   /** The create dialog's folder field, its exclusion checkbox and the path it plans (O7, IN26, IP26). */
-  const createFolder = () => root().$('.ci-create-note__folder');
+  const folderField = () => root().$('.ci-create-note__folder');
   const excludeBox = () => root().$('.ci-create-note__exclude input[type="checkbox"]');
   /** Create investigation note… with `folder` typed over the default (WP-04.2 E2's keys, so `input` fires as a
    *  person's typing does); done when the dialog plans a path in that folder. Returns that path. */
   const openCreateNote = async (folder: string): Promise<string> => {
     await root().$('.ci-notes-panel__create').click();
-    await expect.poll(() => createFolder().isClickable()).toBe(true);
-    await createFolder().click();
+    await expect.poll(() => folderField().isClickable()).toBe(true);
+    await folderField().click();
     await browser.keys([Key.Ctrl, 'a']);
-    await createFolder().addValue(folder);
+    await folderField().addValue(folder);
     const shown = root().$('.ci-create-note__path');
     await expect.poll(async () => (await shown.isExisting()) && (await textOf(shown)).trim().startsWith(`${folder}/`)).toBe(true);
     return (await textOf(shown)).trim();

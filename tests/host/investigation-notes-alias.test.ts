@@ -104,3 +104,42 @@ describe('the resolver only adds an overlap (NE15)', () => {
     expect(realPathOfNearest(join(tmpdir(), 'x'))).toBeNull();
   });
 });
+
+// Fix round 1: realPathOfNearest's own rules with injected fake modules (POSIX paths, so this runs on every platform).
+// On the fake disk `/`, `/real` and `/alias` exist, and `/alias` is an alias of `/real`; every other path is missing.
+describe('realPathOfNearest with fake modules (NE15)', () => {
+  const EXISTING: Record<string, string> = { '/': '/', '/real': '/real', '/alias': '/real' };
+  /** A fake `realpathSync.native`: `errors` names paths that fail with another code; a missing path is ENOENT. */
+  const fakeResolver = (errors: Record<string, string> = {}) => (path: string): string | null => realPathOfNearest(path, {
+    fs: {
+      realpathSync: {
+        native: (p: string): string => {
+          const code = errors[p] ?? (p in EXISTING ? undefined : 'ENOENT');
+          if (code !== undefined) throw Object.assign(new Error(`${code}: ${p}`), { code });
+          return EXISTING[p]!;
+        },
+      },
+    },
+    path: nodePath.posix,
+  });
+
+  it.each(['EACCES', 'ENOTDIR'])('an error other than a missing segment (%s) answers null, never an ancestor', (code) => {
+    expect(fakeResolver({ '/real/locked': code })('/real/locked')).toBeNull();
+    expect(fakeResolver({ '/real/locked': code })('/real/locked/deeper')).toBeNull();
+    // Control: the same path, only missing, resolves through its existing ancestor.
+    expect(fakeResolver()('/real/locked/deeper')).toBe('/real/locked/deeper');
+  });
+
+  it('a root that does not exist at all walks up to its nearest existing ancestor and re-appends the rest', () => {
+    expect(fakeResolver()('/alias/gone/code')).toBe('/real/gone/code');
+    expect(fakeResolver()('/nowhere/at/all')).toBe('/nowhere/at/all');
+  });
+
+  it('a missing aliased root gives no false overlap, and still overlaps where it names the same folder', async () => {
+    const { notes } = await notesOn('/real', fakeResolver());
+    expect(notes.plan('other/notes', 'x', '/alias/gone/code')).toMatchObject({ status: 'ok', overlapsRoot: false, rootRelativeFolder: null });
+    expect(notes.plan('gone/codex/notes', 'x', '/alias/gone/code')).toMatchObject({ status: 'ok', overlapsRoot: false, rootRelativeFolder: null });
+    // Control: a folder inside the same missing root, reached through the alias.
+    expect(notes.plan('gone/code/notes', 'x', '/alias/gone/code')).toMatchObject({ status: 'ok', overlapsRoot: true, rootRelativeFolder: 'notes' });
+  });
+});

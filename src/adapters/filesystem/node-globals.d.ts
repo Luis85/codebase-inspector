@@ -1,7 +1,8 @@
 // Ambient typing ONLY — erased at compile time, no runtime code, no Node import.
 //
-// node-access.ts's code is spec 3.1 verbatim (ruling M17: it must not be restructured,
-// not even to add a type annotation). But `window` is a DOM `Window`, which has no
+// node-access.ts's original exports (`fs`, `fsPromises`, `nodePath`) are spec 3.1 verbatim
+// (ruling M17: they must not be restructured, not even to add a type annotation);
+// `realPathOfNearest` was added beside them by WP-04.2 NE15. But `window` is a DOM `Window`, which has no
 // `require` member in lib.dom.d.ts, so `window.require(...)` does not typecheck without
 // something augmenting `Window` first. The obvious fix — adding `@types/node` to
 // tsconfig.json's `types` — was rejected: it would put Node's ambient globals (`process`,
