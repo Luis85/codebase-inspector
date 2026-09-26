@@ -7,41 +7,16 @@
 // person's sections stay byte-identical, their frontmatter value-identical, and Obsidian's
 // own metadata cache links the note — also after a move and rename (Task 9's carry), and a
 // deleted note leaves the panel. Nothing under `code/` changes.
-import { createHash } from 'node:crypto';
-import { cpSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { cpSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect } from 'vitest';
-import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
-import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
+import { RECORDING, cycleFinding, hashTree } from './workspace-files';
 
-const RECORDING = resolve('tests/fixtures/fallow/relations-combined-3.27.0.json');
 const CYCLE_ANCHOR = 'src/core/a.ts';
 const BEGIN_MARKER = '<!-- codebase-inspector:evidence:begin -->';
 const END_MARKER = '<!-- codebase-inspector:evidence:end -->';
-
-/** IP56: a local tree hash (the fast suite's hashTree lives under tests/fixtures/, which native files never import). */
-function hashTree(root: string, prefix = ''): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const name of readdirSync(root).sort()) {
-    const abs = join(root, name);
-    const rel = prefix === '' ? name : `${prefix}/${name}`;
-    if (statSync(abs).isDirectory()) Object.assign(out, { [rel]: 'directory' }, hashTree(abs, rel));
-    else out[rel] = createHash('sha256').update(readFileSync(abs)).digest('hex');
-  }
-  return out;
-}
-
-/** The import cycle's finding id and reported line, read from the recording through the real parser and normaliser. */
-function cycleFinding(): { id: string; line: number } {
-  const parsed = parseFallowReportText(readFileSync(RECORDING, 'utf8'));
-  if (!parsed.ok) throw new Error(`the recording was refused (${parsed.code})`);
-  const report = buildEvidenceReport({ raw: parsed.report, fileName: 'r.json', stripPrefix: null, importedAt: new Date().toISOString(), snapshotId: 's' });
-  const cycle = report.normalized.findings.find((f) => f.category === 'cycle' && f.path === CYCLE_ANCHOR && f.line !== null);
-  if (!cycle || cycle.line === null) throw new Error('no import cycle on src/core/a.ts in the recording');
-  return { id: cycle.id, line: cycle.line };
-}
 
 const afterEnd = (text: string): string => text.slice(text.indexOf(`${END_MARKER}\n`) + END_MARKER.length + 1);
 /** The evidence block alone, from its begin marker: never the frontmatter, whose snapshot_id changes too. */

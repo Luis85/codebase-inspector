@@ -1,11 +1,26 @@
 // IPF20: native tests never match Obsidian's own UI text (the session UI follows the system locale, German
 // here); they use selectors, command ids and `executeObsidian`.
+import { readFileSync } from 'node:fs';
 import { expect } from 'vitest';
+import { decodePng, type Png } from './png';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
 
 type ErrorWindow = Window & { ciErrors?: string[] };
 
 export type InspectorPage = ReturnType<typeof createInspectorPage>;
+
+const hasClass = (name: string): string => `contains(concat(' ', normalize-space(@class), ' '), ' ${name} ')`;
+/** An XPath string literal for any text (concat() when it holds both quote kinds). */
+function xpathLiteral(text: string): string {
+  if (!text.includes('"')) return `"${text}"`;
+  if (!text.includes("'")) return `'${text}'`;
+  return `concat("${text.split('"').join(`", '"', "`)}")`;
+}
+/** Probe f: `.modal.mod-settings … .setting-item > .setting-item-info > .setting-item-name`, the name compared
+ *  after XPath's own whitespace normalisation. */
+const settingsRowXpath = (name: string): string =>
+  `//*[${hasClass('mod-settings')}]//*[${hasClass('setting-item')}][./*[${hasClass('setting-item-info')}]/*[${hasClass('setting-item-name')}]`
+  + `[normalize-space(.)=${xpathLiteral(name.trim().replace(/\s+/gu, ' '))}]]`;
 
 /** The city leaf's persisted snapshot id (Obsidian's own `View.getState()`), or null. */
 function snapshotIdOf(browser: NativeBrowser): Promise<string | null> {
@@ -138,5 +153,30 @@ export function createInspectorPage(browser: NativeBrowser) {
       });
     },
     errors: () => browser.executeObsidian((): string[] => (activeWindow as ErrorWindow).ciErrors ?? []),
+    /** NE13: the city leaf's `--ci-*` token as sRGB bytes, read the way theme-bridge.ts reads it (the root's own
+     *  `getCssPropertyValue`) and resolved through a 1×1 2D canvas in the leaf's own window. */
+    resolvedColor: (token: string): Promise<[number, number, number]> => browser.executeObsidian(({ app }, type, name): [number, number, number] => {
+      const el = app.workspace.getLeavesOfType(type)[0]?.view.containerEl.querySelector<HTMLElement>('.codebase-inspector-root');
+      if (!el) throw new Error('no city leaf');
+      // The leaf's own window's global createEl (obsidianmd/prefer-create-el), which Window's type does not declare.
+      const canvas = (el.doc.win as Window & { createEl: typeof createEl }).createEl('canvas');
+      canvas.width = 1; canvas.height = 1;
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      if (!context) throw new Error('no 2D context');
+      context.fillStyle = el.getCssPropertyValue(name);
+      context.fillRect(0, 0, 1, 1);
+      const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+      return [r ?? 0, g ?? 0, b ?? 0];
+    }, CITY_VIEW_TYPE, token),
+    /** NE13: the city canvas element's own WebDriver screenshot, saved to `file` and decoded. */
+    async canvasShot(file: string): Promise<Png> {
+      const canvas = root().$('canvas');
+      await expect.poll(() => canvas.isExisting()).toBe(true);
+      await canvas.saveScreenshot(file);
+      return decodePng(readFileSync(file));
+    },
+    /** A settings `.setting-item` whose own name is `name` (a constant from the plugin's copy, IPF20). The
+     *  settings render in their own window: call host-probes' openPluginSettings first. */
+    settingsRow: (name: string) => browser.$(settingsRowXpath(name)),
   };
 }
