@@ -28,5 +28,7 @@
   "refresh reports partial when the frontmatter update fails after the block was written",
   "refreshing a note moved inside the codebase root changes nothing else under the root",
   "a note created inside the codebase root is excluded from the next scan",
-  "offers the scan exclusion when the codebase root is reached through an alias"
+  "offers the scan exclusion when the codebase root is reached through an alias",
+  "a bound codebase previews under its connected folder and refuses a changed root",
+  "Open in Obsidian and Open note each open the file in a new tab"
 ]

@@ -34,9 +34,10 @@ export function hashTree(root: string, prefix = ''): Record<string, string> {
   return out;
 }
 
-/** Every finding the recording holds once normalised: the real parser and normaliser. */
-function recordingFindings() {
-  const parsed = parseFallowReportText(readFileSync(RECORDING, 'utf8'));
+/** Every finding the recording (or a report crafted from it, `file`) holds once normalised: the real parser and
+ *  normaliser. */
+export function recordingFindings(file = RECORDING) {
+  const parsed = parseFallowReportText(readFileSync(file, 'utf8'));
   if (!parsed.ok) throw new Error(`the recording was refused (${parsed.code})`);
   const report = buildEvidenceReport({ raw: parsed.report, fileName: 'r.json', stripPrefix: null, importedAt: new Date().toISOString(), snapshotId: 's' });
   return report.normalized.findings;
