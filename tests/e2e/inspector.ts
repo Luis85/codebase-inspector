@@ -96,6 +96,13 @@ export function createInspectorPage(browser: NativeBrowser) {
     if (!(await item.isDisplayed())) await root().$('.ci-topbar__menu').click();
     await item.click();
   };
+  /** Refresh evidence… on the note at `path`, then the dialog's Refresh evidence. */
+  const confirmRefresh = async (path: string): Promise<void> => {
+    await root().$(`.ci-notes-panel__refresh[data-path="${path}"]`).click();
+    const confirm = root().$('.ci-refresh-note__confirm');
+    await expect.poll(() => confirm.isExisting()).toBe(true);
+    await confirm.click();
+  };
   /** Runs `scan-codebase` and waits for the leaf to show a snapshot other than `before`. */
   const scanned = async (before: string | null): Promise<void> => {
     await expect.poll(() => snapshotIdOf(browser), { timeout: 60_000 }).not.toBe(before);
@@ -227,12 +234,23 @@ export function createInspectorPage(browser: NativeBrowser) {
     },
     /** Refresh evidence… on the note at `path` → Refresh evidence; waits for the dialog to close. */
     async refreshNote(path: string): Promise<void> {
-      await root().$(`.ci-notes-panel__refresh[data-path="${path}"]`).click();
-      const confirm = root().$('.ci-refresh-note__confirm');
-      await expect.poll(() => confirm.isExisting()).toBe(true);
-      await confirm.click();
+      await confirmRefresh(path);
       await expect.poll(() => root().$('.ci-refresh-note').isExisting()).toBe(false);
     },
+    /** The same, for a refusal (E17): the dialog stays open with its role="alert" line (`.ci-refresh-note__error`).
+     *  Returns that line's text, then closes the dialog with Cancel. */
+    async refreshNoteExpectingRefusal(path: string): Promise<string> {
+      await confirmRefresh(path);
+      const error = root().$('.ci-refresh-note__error');
+      await expect.poll(() => error.isExisting()).toBe(true);
+      const words = (await textOf(error)).trim();
+      await root().$('.ci-refresh-note__cancel').click();
+      await expect.poll(() => root().$('.ci-refresh-note').isExisting()).toBe(false);
+      return words;
+    },
+    /** The Investigate screen's live region (`.ci-investigate__live`, role="status", visually hidden), where a
+     *  refreshed or partial outcome is announced once the dialog closes (use-note-refresh.ts, E15). */
+    announced: async (): Promise<string> => (await textOf(root().$('.ci-investigate__live'))).trim(),
     readNote: (path: string): Promise<string> => browser.getObsidianPage().read(path),
     /** The note's frontmatter through Obsidian's own `getFrontMatterInfo` and `parseYaml`. */
     async frontmatter(path: string): Promise<Record<string, unknown>> {

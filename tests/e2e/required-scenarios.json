@@ -23,5 +23,8 @@
   "cancel-fallow-analysis stops a running analysis and is refused when none runs",
   "the settings tab shows a fallow executable trusted in Data & scans",
   "the note index follows a folder move and ignores an unrelated note",
-  "relinks a note moved while the plugin was disabled once it is enabled again"
+  "relinks a note moved while the plugin was disabled once it is enabled again",
+  "refresh refuses a note whose markers were edited and leaves it byte-identical",
+  "refresh reports partial when the frontmatter update fails after the block was written",
+  "refreshing a note moved inside the codebase root changes nothing else under the root"
 ]
