@@ -10,6 +10,7 @@ import { InMemoryEvidenceStore } from './adapters/storage/in-memory-evidence-sto
 import { createReviewRepositoryRegistry } from './adapters/storage/review-repository-registry';
 import { createPluginDataAnalyzerStore } from './adapters/storage/plugin-data-analyzer-store';
 import { createPluginDataInvestigationStore } from './adapters/storage/plugin-data-investigation-store';
+import { watchPluginData } from './adapters/storage/plugin-data-shape';
 import { createExecutableInspector } from './adapters/fallow/executable-inspector';
 import { createFallowRunner } from './adapters/fallow/fallow-runner';
 import { AnalysisCoordinator } from './application/analysis/analysis-coordinator';
@@ -37,6 +38,8 @@ export default class CodebaseInspectorPlugin extends Plugin {
   /** Part 7 Z24: kept so onunload can shut every fallow run down. */
   private analysis: FallowAnalysisService | null = null;
   private unwatchAnalysis: (() => void) | null = null;
+  /** WP-04.2 NE9: the settings tab's data.json watch, released in onunload. */
+  private unwatchSettings: (() => void) | null = null;
 
   override onload(): void {
     // onload REGISTERS ONLY. No scanning, no expensive work (spec 4.4). Constructing
@@ -98,6 +101,8 @@ export default class CodebaseInspectorPlugin extends Plugin {
       investigationFolders);
     this.addSettingTab(settingTab);
     void settingTab.refresh();
+    // WP-04.2 NE9: the tab follows every write to what it shows, whoever made it.
+    this.unwatchSettings = watchPluginData(this, ['profiles', 'bindings', 'analyzers', 'investigations'], () => { settingTab.refreshSoon(); });
 
     this.app.workspace.onLayoutReady(() => {
       // Startup work belongs here, not in onload. Task 11's per-leaf snapshot
@@ -125,6 +130,8 @@ export default class CodebaseInspectorPlugin extends Plugin {
     // Part 7 Z24: stop watching, then kill every fallow child, synchronously; idempotent.
     this.unwatchAnalysis?.();
     this.unwatchAnalysis = null;
+    this.unwatchSettings?.();
+    this.unwatchSettings = null;
     this.analysis?.shutdown();
     this.analysis = null;
   }

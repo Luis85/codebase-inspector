@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import CodebaseInspectorPlugin from '../../src/main';
 import { CITY_VIEW_TYPE } from '../../src/host/city-view';
 import { CodebaseInspectorSettingTab } from '../../src/host/settings-tab';
+import { writePluginDataSlice } from '../../src/adapters/storage/plugin-data-shape';
 import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
 import { createFakeBindingStoreHarness } from '../fixtures/fake-binding-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
@@ -241,5 +242,27 @@ describe('the review registry (Part 6 Y11, Y17)', () => {
     expect(list?.onDelete).toBeDefined();
     list?.onDelete?.(0);
     await vi.waitFor(() => { expect(data).toEqual({ profiles: [], reviews: { p2: { v: 1 } } }); });
+  });
+});
+
+// WP-04.2 NE9: onload watches data.json for the settings tab; onunload stops it.
+describe('the settings tab follows data.json writes while the plugin is loaded (WP-04.2 NE9)', () => {
+  it('a profile write refreshes the tab, and after onunload it no longer does', async () => {
+    const p = makePluginDouble();
+    let data: unknown = null;
+    Object.assign(p, {
+      loadData: vi.fn(() => Promise.resolve(data)),
+      saveData: vi.fn((next: unknown) => { data = JSON.parse(JSON.stringify(next)) as unknown; return Promise.resolve(); }),
+    });
+    p.onload();
+    const tab = p.addSettingTab.mock.calls[0]?.[0] as CodebaseInspectorSettingTab;
+    await tab.refresh();
+    const refresh = vi.spyOn(tab, 'refresh').mockResolvedValue();
+    await writePluginDataSlice(p, 'profiles', () => [{ profileId: 'p1' }]);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    p.onunload();
+    await writePluginDataSlice(p, 'profiles', () => [{ profileId: 'p2' }]);
+    await Promise.resolve();
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 });

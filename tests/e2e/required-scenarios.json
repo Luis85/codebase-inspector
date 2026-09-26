@@ -8,5 +8,10 @@
   "folders can be created one segment at a time",
   "releases the app, driver and copied directories after a test body rejects",
   "releases an acquired real session when final initialization rejects",
-  "keeps human sections byte-identical across a real refresh and links the note through the metadata cache"
+  "keeps human sections byte-identical across a real refresh and links the note through the metadata cache",
+  "the settings tab renders each saved codebase in the real settings renderer",
+  "the settings tab lists a codebase that scan-codebase created",
+  "the notes folder setting saves a valid folder and refuses an invalid one with its reason",
+  "an excluded-paths change is saved, a refused one names its reason, and the next scan asks for approval",
+  "Connect binds a codebase to a vault folder and Clear binding asks before removing it"
 ]

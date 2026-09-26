@@ -2,6 +2,7 @@
 // here); they use selectors, command ids and `executeObsidian`.
 import { readFileSync } from 'node:fs';
 import { expect } from 'vitest';
+import { openPluginSettings } from './host-probes';
 import { decodePng, type Png } from './png';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
 
@@ -16,11 +17,18 @@ function xpathLiteral(text: string): string {
   if (!text.includes("'")) return `'${text}'`;
   return `concat("${text.split('"').join(`", '"', "`)}")`;
 }
-/** Probe f: `.modal.mod-settings … .setting-item > .setting-item-info > .setting-item-name`, the name compared
- *  after XPath's own whitespace normalisation. */
-const settingsRowXpath = (name: string): string =>
-  `//*[${hasClass('mod-settings')}]//*[${hasClass('setting-item')}][./*[${hasClass('setting-item-info')}]/*[${hasClass('setting-item-name')}]`
-  + `[normalize-space(.)=${xpathLiteral(name.trim().replace(/\s+/gu, ' '))}]]`;
+/** A `.setting-item` child predicate: its own `.setting-item-info > .setting-item-name` is `name`, compared after
+ *  XPath's own whitespace normalisation. */
+const namedItem = (name: string): string =>
+  `[./*[${hasClass('setting-item-info')}]/*[${hasClass('setting-item-name')}][normalize-space(.)=${xpathLiteral(name.trim().replace(/\s+/gu, ' '))}]]`;
+/** Probe f: `.modal.mod-settings … .setting-item > .setting-item-info > .setting-item-name`. */
+const settingsRowXpath = (name: string): string => `//*[${hasClass('mod-settings')}]//*[${hasClass('setting-item')}]${namedItem(name)}`;
+/** NPF7: a profile's navigable row in the settings list (`.setting-group.mod-list .setting-item.mod-navigable`). */
+const profileRowXpath = (name: string): string =>
+  `//*[${hasClass('mod-settings')}]//*[${hasClass('mod-list')}]//*[${hasClass('setting-item')} and ${hasClass('mod-navigable')}]${namedItem(name)}`;
+const PROFILE_NAMES = '.modal.mod-settings .setting-group.mod-list .setting-item.mod-navigable > .setting-item-info > .setting-item-name';
+/** The source modal's two modes a test drives: a vault folder, or an absolute path (the modal's `external`). */
+export type SourceMode = 'vault-folder' | 'absolute';
 
 /** The city leaf's persisted snapshot id (Obsidian's own `View.getState()`), or null. */
 function snapshotIdOf(browser: NativeBrowser): Promise<string | null> {
@@ -40,11 +48,22 @@ export function createInspectorPage(browser: NativeBrowser) {
   const root = () => browser.$(`.workspace-leaf-content[data-type="${CITY_VIEW_TYPE}"] .codebase-inspector-root`);
   // One selector per call, so a modal that is still closing never scopes the search.
   const inModal = (selector: string) => browser.$(`.modal-container ${selector}`);
-  /** The source modal: vault-folder mode, the folder, Continue. */
-  const chooseVaultFolder = async (folder: string): Promise<void> => {
-    await inModal('input[type="radio"][name="source-mode"][value="vault-folder"]').click();
-    await inModal('[data-field="vault-folder-path"]').setValue(folder);
+  /** The source modal: the mode, the folder, Continue. */
+  const chooseSource = async (folder: string, mode: SourceMode): Promise<void> => {
+    const [value, field] = mode === 'vault-folder' ? ['vault-folder', 'vault-folder-path'] : ['external', 'external-path'];
+    await inModal(`input[type="radio"][name="source-mode"][value="${value}"]`).click();
+    await inModal(`[data-field="${field}"]`).setValue(folder);
     await inModal('[data-action="continue"]').click();
+  };
+  /** The open profile page in the settings window (NPF7). */
+  const settingsPage = () => browser.$('.modal.mod-settings .setting-page.vertical-tab-content');
+  /** Connect or Reconnect on the open profile page. Observed (Task 2): the source modal opens in the SETTINGS
+   *  window, where WebDriver already is; done when the modal is gone and the page offers Clear binding. */
+  const bindFrom = async (action: 'connect' | 'reconnect', folder: string, mode: SourceMode): Promise<void> => {
+    await settingsPage().$(`[data-action="${action}"]`).click();
+    await chooseSource(folder, mode);
+    await expect.poll(() => inModal('[data-action="continue"]').isExisting()).toBe(false);
+    await expect.poll(() => settingsPage().$('[data-action="clear-binding"]').isExisting()).toBe(true);
   };
   const navigate = async (title: string): Promise<void> => {
     const item = root().$(`.ci-nav__item*=${title}`);
@@ -70,7 +89,7 @@ export function createInspectorPage(browser: NativeBrowser) {
     async scanFolder(folder: string): Promise<void> {
       const before = await snapshotIdOf(browser);
       await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
-      await chooseVaultFolder(folder);
+      await chooseSource(folder, 'vault-folder');
       await inModal('[data-field="acknowledge"]').click();
       const scan = inModal('[data-action="confirm-scan"]');
       await expect.poll(() => scan.isEnabled()).toBe(true);
@@ -178,5 +197,24 @@ export function createInspectorPage(browser: NativeBrowser) {
     /** A settings `.setting-item` whose own name is `name` (a constant from the plugin's copy, IPF20). The
      *  settings render in their own window: call host-probes' openPluginSettings first. */
     settingsRow: (name: string) => browser.$(settingsRowXpath(name)),
+    /** The profile names the settings list shows, in order (the settings window: openPluginSettings first). */
+    settingsProfileNames: async (): Promise<string[]> => browser.$$(PROFILE_NAMES).map(async (el) => String(await el.getProperty('textContent')).trim()),
+    settingsPage,
+    /** openPluginSettings, then the profile's list row: its page is open, and WebDriver is in the settings window. */
+    async openCodebaseSettings(profileName: string): Promise<void> {
+      await openPluginSettings(browser);
+      const row = browser.$(profileRowXpath(profileName));
+      // Observed: the settings window animates in, and the row is not interactable until it has.
+      await expect.poll(() => row.isClickable()).toBe(true);
+      await row.click();
+      await expect.poll(() => settingsPage().isExisting()).toBe(true);
+    },
+    /** Connect on the open profile page (openCodebaseSettings first), through the source modal. */
+    connect: (folder: string, mode: SourceMode): Promise<void> => bindFrom('connect', folder, mode),
+    /** Reconnect on the open profile page (a binding this device no longer has), through the source modal. */
+    reconnect: (folder: string, mode: SourceMode): Promise<void> => bindFrom('reconnect', folder, mode),
+    /** The text of every `.notice` in the CURRENT window. Observed (Task 2): a Notice the settings tab raises renders
+     *  in the settings window, not the main one. */
+    notices: async (): Promise<string[]> => browser.$$('.notice').map(async (el) => String(await el.getProperty('textContent'))),
   };
 }

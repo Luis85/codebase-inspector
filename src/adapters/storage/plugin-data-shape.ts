@@ -53,6 +53,27 @@ function withDataLock<T>(plugin: Plugin, fn: () => Promise<T>): Promise<T> {
   return result;
 }
 
+interface DataWatcher { keys: ReadonlySet<keyof PluginDataShape>; listener: () => void }
+const watchers = new WeakMap<Plugin, Set<DataWatcher>>();
+
+/** WP-04.2 NE9: a write listener per plugin, so a surface that shows a slice (the Settings
+ *  tab) hears writes it did not make. Heard after the write settles, and only when it saved;
+ *  a throwing listener is isolated. Returns the unwatch. */
+export function watchPluginData(plugin: Plugin, keys: readonly (keyof PluginDataShape)[], listener: () => void): () => void {
+  const set = watchers.get(plugin) ?? new Set<DataWatcher>();
+  watchers.set(plugin, set);
+  const entry: DataWatcher = { keys: new Set(keys), listener };
+  set.add(entry);
+  return () => { set.delete(entry); };
+}
+
+function notifyWritten(plugin: Plugin, key: keyof PluginDataShape): void {
+  for (const entry of Array.from(watchers.get(plugin) ?? [])) {
+    if (!entry.keys.has(key)) continue;
+    try { entry.listener(); } catch { /* the listener's own failure, never the write's */ }
+  }
+}
+
 export async function readPluginData(plugin: Plugin): Promise<PluginDataShape> {
   return withDataLock(plugin, async () => {
     const data = (await plugin.loadData()) as PluginDataShape | null | undefined;
@@ -64,21 +85,24 @@ export async function readPluginData(plugin: Plugin): Promise<PluginDataShape> {
  *
  *  Polish E7 (L17): when `mutate` returns its input (the SAME reference), nothing changed and
  *  nothing is saved. So `mutate` must never change its input in place: an in-place edit that
- *  returns the same object would be silently dropped. Build and return a new value instead. */
+ *  returns the same object would be silently dropped. Build and return a new value instead.
+ *  WP-04.2 NE9: a saved write is heard by `key`'s watchers once the lock's write has settled. */
 export async function writePluginDataSlice(
   plugin: Plugin,
   key: keyof PluginDataShape,
   mutate: (current: unknown) => unknown,
 ): Promise<void> {
-  await withDataLock(plugin, async () => {
+  const saved = await withDataLock(plugin, async () => {
     const data = (await plugin.loadData()) as PluginDataShape | null | undefined;
     const shape = data ?? {};
     const next = mutate(shape[key]);
     // Polish E7: a mutation that changed nothing (returned its input) is not written.
-    if (next === shape[key]) return;
+    if (next === shape[key]) return false;
     shape[key] = next;
     await plugin.saveData(shape);
+    return true;
   });
+  if (saved) notifyWritten(plugin, key);
 }
 
 /** Atomically reads the CURRENT record matching `id` in `field` under `key`, applies
@@ -88,7 +112,8 @@ export async function writePluginDataSlice(
  *  IT EXISTS AT WRITE TIME (after waiting for the lock), never a snapshot taken before
  *  the lock was acquired, so a second update() landing in between cannot be silently
  *  overwritten by a first one that started earlier but read a now-stale value (Critical
- *  1's second reproduction). Returns false, and does nothing, if no record matches. */
+ *  1's second reproduction). Returns false, and does nothing, if no record matches.
+ *  WP-04.2 NE9: a saved update is heard by `key`'s watchers, as writePluginDataSlice's is. */
 export async function updatePluginDataRecord(
   plugin: Plugin,
   key: keyof PluginDataShape,
@@ -96,7 +121,7 @@ export async function updatePluginDataRecord(
   id: string,
   mutate: (current: unknown) => unknown,
 ): Promise<boolean> {
-  return withDataLock(plugin, async () => {
+  const saved = await withDataLock(plugin, async () => {
     const data = (await plugin.loadData()) as PluginDataShape | null | undefined;
     const shape = data ?? {};
     const list = asUnknownArray(shape[key]);
@@ -108,6 +133,8 @@ export async function updatePluginDataRecord(
     await plugin.saveData(shape);
     return true;
   });
+  if (saved) notifyWritten(plugin, key);
+  return saved;
 }
 
 /** Shared list-lookup used by both stores: their records are plain JSON objects at

@@ -40,6 +40,9 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
   // Production code never reads this -- refresh() (which now updates() too, fix wave
   // item 9) already runs at the end of every mutation below.
   private pendingUpdates: Promise<void>[] = [];
+  // WP-04.2 NE9: refreshSoon()'s one refresh in flight, and whether one more is queued.
+  private refreshing: Promise<void> | null = null;
+  private refreshQueued = false;
 
   constructor(
     app: App,
@@ -102,6 +105,16 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       this.showFailure(e);
     }
     this.update();
+  }
+
+  /** WP-04.2 NE9: a write elsewhere (a scan's new profile, a note's exclusion, a fallow trust) re-reads
+   *  the entries; while a refresh runs, at most one more is queued. */
+  refreshSoon(): void {
+    if (this.refreshing) { this.refreshQueued = true; return; }
+    this.refreshing = this.refresh().finally(() => {
+      this.refreshing = null;
+      if (this.refreshQueued) { this.refreshQueued = false; this.refreshSoon(); }
+    });
   }
 
   /** Every reason on one line, in a Notice. Polish D2: built by `notify`, the one Notice maker. */
