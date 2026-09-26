@@ -144,7 +144,7 @@ its own, so the same assertion can be reused unchanged inside a live host.
 **No analyzer, Git command, project script or package installation was executed.** This
 is asserted **structurally**, because "no process was spawned" is not observable after
 the fact while "nothing in the shipped source can spawn one" is: the acceptance step
-reads every `.ts`/`.vue` file under `src/` (320+ files, count asserted so the sweep cannot
+reads every `.ts`/`.vue` file under `src/` (350+ files, count asserted so the sweep cannot
 go vacuous) and fails on any occurrence of `child_process`, `execFile`, `spawnSync`,
 `spawn(`, `execSync` or `npm install`. `src/adapters/filesystem/node-access.ts` is the
 only file in `src/` that reaches Node at all, and `tests/unit/node-access-boundary.test.ts`
@@ -624,8 +624,30 @@ heading; `npx vitest run tests/component` (92 files, 902 tests, unchanged) confi
 Component row needed no change. No other layer's files changed, so their rows stand as
 task 15 took them.
 
-The per-layer total below is **269**, which is not what `npm run test` itself runs: it is
-267 files plus the opt-in `tests/fallow-real` layer's two files, which never run inside it
+Refreshed once more by **WP-04 Part 1** (2026-09-26, task 18, the same L28 rule: the
+evidence-note counts are updated once, in the final task). Tasks 0–17 add test files across
+seven layers — 17 in `tests/unit/` (the native harness's own unit tests plus the
+application-layer investigation suites: `note-text`, `note-path`, `note-model`,
+`note-index`, `root-path`, `source-preview`, `stale-location`, `evidence`,
+`evidence-splice`, `model`, `store`, `store-ports`, `folder-store`, `fake-vault`,
+`session-lifecycle`, `native-results-gate`, `native-baseline`), 3 in `tests/host/`
+(`investigation-notes`, `investigation-note-index`, `investigation-ports`), 13 in
+`tests/component/` (the Investigate screen, its dialogs and panels, the city Findings
+panel, the Settings notes-folder row, and the work-item-editor draft), 2 in
+`tests/acceptance/` (the in-memory spine and the safety cases, IN38/IN39) and 1 in
+`tests/integration/` (`investigation-preview-real`) — plus new cases inside two existing
+`tests/harness/` and `tests/build/` files (no new file in either). `npm run test` (303
+files, 3439 tests) and the per-layer re-runs below refreshed every row, the totals and the
+heading; the Contract and Benchmark rows are unchanged (WP-04 Part 1 touches neither
+directory). The native layer (`tests/e2e/`, `tests/support/`) adds no G8 row: IP53 keeps
+native cases out of this table, because they are opt-in and local-only, and its two
+`tests/unit/` files are already counted in the Unit row above. The native run itself —
+`npm run test:e2e`, both at the baseline version and at `OBSIDIAN_VERSION=latest` — is
+recorded in the **WP-04 Part 1** section below, in its own **native acceptance**
+subsection.
+
+The per-layer total below is **305**, which is not what `npm run test` itself runs: it is
+303 files plus the opt-in `tests/fallow-real` layer's two files, which never run inside it
 (see the Real fallow row below, and its own eleven-test run in the WP-03 Part 1 section
 above). The Contract row is the one exception to "read straight off a run": its guard
 derives its Tests cell from its own files rather than a transcription, so it includes
@@ -637,7 +659,7 @@ throwaway vault trees under `os.tmpdir()` and do not depend on this worktree hav
 `.obsidian/` folder of its own, so the environmental failure recorded through Part 6 did
 not reproduce here — the disk/live result is recorded rather than that prediction
 (corrected during execution, Part 7 task 14).
-**269 files, 2960 tests, 2959 passed,
+**305 files, 3439 tests, 3438 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -667,16 +689,16 @@ above whenever tests are added.
 
 | Layer | Directory | Files | Ran | Tests | Notes |
 |---|---|---|---|---|---|
-| Unit | `tests/unit/**` | 135 | yes | 1734 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard. WP-03 Part 1 adds the relation domain/normaliser/model/architecture-model suites and `relation-copy-claims.test.ts` (spec §5's "no calls/executes/will break" and "no backlink" sweeps). The WP-03 Part 1 polish pass adds PO1/PO2 and the JP5 gating cases inside `architecture-relations.test.ts`, no new file. The final whole-branch review's fix wave adds Minor 4's Report/Markdown split case inside `report-model.test.ts`, no new file |
-| Contract | `tests/contracts/**` | 5 | yes | 62 | **one suite, two implementations** (40) — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift — plus this directory's other three pinned files, `height-scale.test.ts` (task 13's four preserved scale.ts properties), `microcopy.test.ts` (task 12's catalogue-completeness sweep) and `fallow-runner.test.ts` (Part 7 K28: the real adapter against a real spawned process, injected `node:child_process`, Z38) |
-| Integration (real temp dirs) | `tests/integration/**` | 9 | yes | 39 | 38 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase, the fallow-analysis no-freeze suite |
-| Component (jsdom) | `tests/component/**` | 92 | yes | 902 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite. The WP-03 Part 1 polish pass adds cases inside `architecture-screen.test.ts`, `architecture-rules.test.ts`, `architecture-edges.test.ts`, `architecture-cycles.test.ts` and `city-relations-panel.test.ts`, no new file |
-| Host (Obsidian doubles) | `tests/host/**` | 20 | yes | 150 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily** |
-| Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 1 | yes | 26 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused) |
-| Benchmark | `tests/benchmarks/**` | 2 | yes | 11 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers. WP-03 Part 1 adds `relations-budget.test.ts` (N33, N37 — medians above) |
-| Harness | `tests/harness/**` | 2 | yes | 24 | task 0b: keeps the browser dev harness (`npm run harness`) alive under the ordinary suite — pins the three-stylesheet load order, that `/styles.css` is served from `src/ui/styles.css` on disk rather than a build, the fixture's shape and determinism, and that scheme classes land on `<body>` and nothing else. Not a screenshot test: nothing here asserts what gets drawn, and headless-browser drawing is out of jsdom's reach — see the harness task's own report for what step 10 saw with real eyes. WP-03 Part 1 extends the fixture's synthetic report with relation evidence (N38) |
-| Build | `tests/build/**` | 1 | yes | 12 | task 0c: pins `scripts/harness-shot.mjs`'s `SHOTS` coverage (all seven city screens, including S11's two distinct entry paths -- the list-only fallback and a genuine WebGL failure) and `scripts/chromium.mjs`'s own browser-resolution rule (`executablePath()`, asked of playwright-core, never a hand-mirrored per-platform path). Not a screenshot test itself -- see the task's own report for what `npm run harness-shot` produced with real eyes. WP-03 Part 1 adds the six new `wp03-*` and four re-framed `wp02-*` capture ids to the pinned coverage |
-| Real fallow (opt-in) | `tests/fallow-real/**` | 2 | opt-in (`npm run test:fallow`), never in `npm run test` | 0 | Part 7 Z40/Z41: ten tests against the real, pinned fallow 3.27.0 (or `FALLOW_BIN`): native-binary inspection, the version probe, fixture fidelity, the fs-diff side-effect proof with its `.fallow/` control, the bad-root error, `--fail-on-issues` exit 1, the time limit, cancel and the stdout cap; WP-03 Part 1 (N36) adds a sibling file's eleventh test against the relations fixture project (J16). Its eleven tests are not part of the living suite this table totals, so its Tests cell is 0; the run is recorded in the WP-03 Part 1 section above and in G6 above |
+| Unit | `tests/unit/**` | 152 | yes | 1988 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard. WP-03 Part 1 adds the relation domain/normaliser/model/architecture-model suites and `relation-copy-claims.test.ts` (spec §5's "no calls/executes/will break" and "no backlink" sweeps). The WP-03 Part 1 polish pass adds PO1/PO2 and the JP5 gating cases inside `architecture-relations.test.ts`, no new file. The final whole-branch review's fix wave adds Minor 4's Report/Markdown split case inside `report-model.test.ts`, no new file. **WP-04 Part 1** adds 17 files: the native harness's own `session-lifecycle`, `native-results-gate` and `native-baseline` tests (Task 0, IP45), and the pure application layer's `investigation-note-text`, `investigation-note-path`, `investigation-note-model`, `investigation-evidence-splice`, `investigation-note-index`, `investigation-root-path`, `investigation-source-preview`, `investigation-stale-location`, `investigation-evidence`, `investigation-model`, `investigation-store`, `investigation-store-ports`, `investigation-folder-store` and `fake-vault` tests (Tasks 2–10) |
+| Contract | `tests/contracts/**` | 5 | yes | 62 | **one suite, two implementations** (40) — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift — plus this directory's other three pinned files, `height-scale.test.ts` (task 13's four preserved scale.ts properties), `microcopy.test.ts` (task 12's catalogue-completeness sweep) and `fallow-runner.test.ts` (Part 7 K28: the real adapter against a real spawned process, injected `node:child_process`, Z38). Untouched by WP-04 Part 1 |
+| Integration (real temp dirs) | `tests/integration/**` | 10 | yes | 45 | 44 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase, the fallow-analysis no-freeze suite. **WP-04 Part 1** adds `investigation-preview-real.test.ts` (Task 4, IP15: the source-preview service against the real Node adapter over a real temp directory) |
+| Component (jsdom) | `tests/component/**` | 105 | yes | 1022 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite. The WP-03 Part 1 polish pass adds cases inside `architecture-screen.test.ts`, `architecture-rules.test.ts`, `architecture-edges.test.ts`, `architecture-cycles.test.ts` and `city-relations-panel.test.ts`, no new file. **WP-04 Part 1** adds 13 files: the Investigate screen and route (`investigate-screen`, `investigate-route`), its entry points (`investigate-entry-points`), the evidence and preview panels (`investigate-evidence`, `investigate-preview`, `investigate-preview-io`), the create and refresh dialogs (`investigate-create`, `investigate-refresh`, `investigate-refresh-review`), the city Findings panel (`city-findings-panel`), the Settings notes-folder row (`settings-notes-folder-row`, `settings-notes-folder`) and the work-item-editor draft prefill (`work-item-editor-draft`) |
+| Host (Obsidian doubles) | `tests/host/**` | 23 | yes | 233 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily.** **WP-04 Part 1** adds `investigation-notes.test.ts` (Task 9: `plan`/`create`/`refresh`/`open`/`destination`/`sourceNotePath` against the fake vault), `investigation-note-index.test.ts` (Task 9: the incremental reducer) and `investigation-ports.test.ts` (Task 10: the wired `InvestigationNotesPort`/source-preview over the fake vault, including E25's unbound-profile case) |
+| Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 3 | yes | 39 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused). **WP-04 Part 1** adds `investigation-spine.test.ts` (Task 16, IN38: finding → preview → create → edit → rescan → refresh, byte-identical human sections, over the real relations project and the real Node port) and `investigation-safety.test.ts` (Task 16, IN39: injection, collision, race, marker and traversal cases; mutation runs below) |
+| Benchmark | `tests/benchmarks/**` | 2 | yes | 11 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers. WP-03 Part 1 adds `relations-budget.test.ts` (N33, N37 — medians above). Untouched by WP-04 Part 1 |
+| Harness | `tests/harness/**` | 2 | yes | 26 | task 0b: keeps the browser dev harness (`npm run harness`) alive under the ordinary suite — pins the three-stylesheet load order, that `/styles.css` is served from `src/ui/styles.css` on disk rather than a build, the fixture's shape and determinism, and that scheme classes land on `<body>` and nothing else. Not a screenshot test: nothing here asserts what gets drawn, and headless-browser drawing is out of jsdom's reach — see the harness task's own report for what step 10 saw with real eyes. WP-03 Part 1 extends the fixture's synthetic report with relation evidence (N38). **WP-04 Part 1** (Task 17) adds two cases inside `harness-evidence.test.ts` for `demoInvestigation`'s linked and orphan notes and its fixed preview's location verdicts, no new file |
+| Build | `tests/build/**` | 1 | yes | 13 | task 0c: pins `scripts/harness-shot.mjs`'s `SHOTS` coverage (all seven city screens, including S11's two distinct entry paths -- the list-only fallback and a genuine WebGL failure) and `scripts/chromium.mjs`'s own browser-resolution rule (`executablePath()`, asked of playwright-core, never a hand-mirrored per-platform path). Not a screenshot test itself -- see the task's own report for what `npm run harness-shot` produced with real eyes. WP-03 Part 1 adds the six new `wp03-*` and four re-framed `wp02-*` capture ids to the pinned coverage. **WP-04 Part 1** (Task 17) adds one case inside `harness-shot.test.ts` pinning the five new `wp04-investigate-*` ids, no new file |
+| Real fallow (opt-in) | `tests/fallow-real/**` | 2 | opt-in (`npm run test:fallow`), never in `npm run test` | 0 | Part 7 Z40/Z41: ten tests against the real, pinned fallow 3.27.0 (or `FALLOW_BIN`): native-binary inspection, the version probe, fixture fidelity, the fs-diff side-effect proof with its `.fallow/` control, the bad-root error, `--fail-on-issues` exit 1, the time limit, cancel and the stdout cap; WP-03 Part 1 (N36) adds a sibling file's eleventh test against the relations fixture project (J16). Its eleven tests are not part of the living suite this table totals, so its Tests cell is 0; the run is recorded in the WP-03 Part 1 section above and in G6 above. Untouched by WP-04 Part 1 |
 <!-- g8:table:end -->
 
 | Layer | Ran | Notes |
@@ -1192,3 +1214,174 @@ No test file was edited to strengthen the `EDGE_LIST_LIMIT` case — the literal
 already in `architecture-edges.test.ts` closes JP7's clause under the in-range (300)
 mutation, and `relations-budget.test.ts`'s own assertion closes it independently under the
 past-fixture-size (2,500) mutation; the brief's "or strengthen it" path was not needed.
+
+---
+
+## WP-04 Part 1 — investigation workbench and notes
+
+Recorded by task 18 at branch `feat/wp-04-part1`, base `450a0da`; design in
+`docs/superpowers/specs/2026-09-25-wp04-part1-investigation-design.md` (IN1–IN51, owner
+decisions O1–O8), rulings in
+`docs/superpowers/notes/2026-09-25-wp04-part1-ledger.md`. Part 1 delivers a new
+**Investigate** screen: a finding list over the same evidence Quality reads, a bounded
+read-only source preview with a stale-location rule, an evidence bundle and uncertainty
+panel, and explicit Markdown-note creation and refresh in the user's own vault (O3, O4).
+It adds one new durable key (`investigations`) and no process, argv or trust change.
+
+### The deliverable's acceptance, item by item (spec §5)
+
+| Acceptance | Test (in-memory) | Native (IN51) |
+|---|---|---|
+| A city finding opens the same evidence in the workbench | `tests/component/investigate-entry-points.test.ts`: "IN4/IN5: a city finding opens the same evidence in the workbench, keeping the selection and never moving the camera" (plus the Quality dialog, File detail and Architecture entry points in the same file) | — (component only, per spec §5) |
+| One well-formed note in the chosen folder, no source-project edit | `tests/acceptance/investigation-spine.test.ts`: "finding → Investigate: the preview shows the anchor file as read from disk, with the reported line highlighted exactly" and "→ create → edit → rescan and re-attach → refresh: human sections byte-identical, frontmatter value-identical, a new block, no source write" (the whole-tree hash is unchanged); the **O7 exception** — a note created inside the codebase root, with its explicit exclusion checkbox — is `tests/component/investigate-create.test.ts`, describe "inside the codebase root (IN29, IP26)": "a folder inside the root shows the overlap, checked; confirming adds its root-relative exclusion and says so" | native spine (below): the note exists in the real vault; the copied codebase folder is unchanged (fs-diff, IN39) |
+| Existing notes are not overwritten | exact and case-only collision — `tests/component/investigate-create.test.ts`: "IN27: a taken name shows its (2) name and path before confirm; confirming writes it and leaves the first file byte-identical"; race — "the race: another writer takes the name first; the refusal stays in the dialog, announces nothing, and re-plans"; `tests/host/investigation-notes.test.ts`, describe "create: the race (IN27, IPF16, Review Focus 3)": "a request whose re-plan renames is refused as exists, writing nothing" | probe (a): `vault.create` rejects an existing path, and (recorded) a case-only variant too, on this case-insensitive vault (IPF16) |
+| Filenames and messages cannot inject unsafe markup | `tests/acceptance/investigation-safety.test.ts`: "a symbol, a specifier and a zone name holding every opener give inert notes; the screen shows the text as text" and "a hostile file name: the proposed name holds none of `[ ] # ^ \|`, and source_path round-trips exactly"; `tests/unit/investigation-note-text.test.ts` (`noteText`/`noteCode`): "flattens every line break, so a break cannot start a heading, rule or list", "escapes a leading list or ordered-list opener", "breaks bare URLs", "replaces invisible controls and bidi overrides with U+FFFD", "produces exactly the text the native probe proved inert (IP52)" | probe (b): backslash escapes keep every category inert in reading view and live preview, with a positive control that proves the probe can fail (IPF17) |
+| Human sections survive evidence refresh | `tests/acceptance/investigation-spine.test.ts` (the same "→ create → edit → rescan …" case above); `tests/component/investigate-refresh.test.ts`: "IN31: the dialog names the snapshot change, the state and the line; confirm refreshes the block only" and "IN32 (IP8): the user's status, an added key and created survive a refresh, value-equal" | native spine (below): "keeps human sections byte-identical across a real refresh and links the note through the metadata cache" — byte-identical human sections, value-identical frontmatter, over a real `vault.process` and `processFrontMatter` |
+| Stale line → stale evidence, not an exact highlight | `tests/unit/investigation-stale-location.test.ts` (`locationVerdict`): "is exact only when every check holds", "names the FIRST failed check", "a finding with no line is never exact", "an mtime equal to the analysis time passes"; `tests/component/investigate-preview.test.ts`, describe "IN10: the exact-line highlight and the stale-location callout" (the size/lines/mtime/line-range/report cases) | — (unit/component only, per spec §5) |
+| (the plugin itself) loads cleanly in Obsidian | — | smoke (below): "loads the plugin without errors and opens the inspector on its default route", extended by Task 11's "renders the Investigate route in a real leaf" |
+
+### Task 16 mutation runs
+
+`tests/acceptance/investigation-safety.test.ts` and `investigation-spine.test.ts` are
+acceptance pins over the real relations project and the real notes port; both mutations
+below were applied to `src` with Edit, run, and reverted (`git diff --stat -- src` empty
+afterwards):
+
+1. **`noteText` skips escaping `[`** (`PUNCTUATION` regex missing `\]`):
+   ```
+   FAIL  tests/acceptance/investigation-safety.test.ts > injection through report text (IN39, Review Focus 2) > a symbol, a specifier and a zone name holding every opener give inert notes; the screen shows the text as text
+   AssertionError: unescaped [[: expected true to be false
+    ❯ expectInert tests/acceptance/investigation-safety.test.ts:94:58
+         Tests  1 failed | 10 passed (11)
+   ```
+2. **`spliceEvidenceBlock` accepts a missing end marker** (`if (begins.length === 1 && begin && ends.length === 0) return { ok: true, … }`):
+   ```
+   FAIL  tests/acceptance/investigation-safety.test.ts > refresh and the markers, and who writes (IN31, IN35; Review Focus 1) > vanished or doubled marker: each refresh reports REFRESH_MARKERS_EDITED and each note is byte-identical
+   Error: Cannot call text on an empty DOMWrapper.
+    ❯ refuseRefresh tests/acceptance/investigation-safety.test.ts:203:59   (the refresh succeeded, so the dialog closed with no alert)
+         Tests  1 failed | 10 passed (11)
+   ```
+
+Both were reverted before the recorded GREEN run; a third, native-layer mutation proving
+the same marker-splice guard inside a real `vault.process` is in the **native acceptance**
+subsection below.
+
+### The five spec §6 probe results
+
+Run by Task 0 (`tests/e2e/obsidian-facts.e2e.ts`) against Obsidian 1.13.4/win32, and kept
+as native regression tests thereafter (Task 16's `npm run test:e2e` re-runs all five, and
+this task's own run below re-confirms them):
+
+| Fact | Result | Ruling |
+|---|---|---|
+| (a) `vault.create` rejects a path that already exists | **PASS.** A second `create('probe-a.md', …)` rejected with `"File already exists."`, text unchanged; a case-only duplicate (`PROBE-A.md`) also rejected on this case-insensitive vault | IPF16 |
+| (b) Backslash escapes suppress wikilinks, embeds, tags, comments, highlights, block ids and math in reading and live-preview views | **PASS** (after IPF15's dotted-host correction to the probe literals: bare `x` is never auto-linked at all, so the first run's positive control could not fire). Every category present for the control (2 external links, 1 internal link, 1 embed, 1 tag, 1 highlight, 1 math span, the `%%…%%` comment hidden, `^probe-id` registered), 0 for the escaped text in both views | IPF15, IPF17 |
+| (c) `metadataCache` fires `changed` after `vault.process` and `processFrontMatter` | **PASS.** All three writes (`create`, `process`, `processFrontMatter`) produced a `changed` event within the 5 s bound; none timed out | IPF18 |
+| (d) `stringifyYaml` quoting of `yes`, `null`, `0012`, `a: b` | **PASS.** `yes` is written unquoted (YAML 1.2 core schema) and reads back as the string `"yes"`; `null`, `0012`, `a: b`, `true`, `~`, `#x` and `[[x]]` are double-quoted; every value round-trips as a string | IPF19 |
+| (e) `createFolder` creates missing parents | **PASS.** `createFolder('p1/q1')` created the missing `p1` parent; both segments indexed as `TFolder` and present on disk | IPF20 |
+
+### Harness captures (Task 17, IN40)
+
+`npm run harness-shot` produces every id `scripts/harness-shot.mjs`'s `SHOTS` names,
+verified by `tests/build/harness-shot.test.ts`, and reproduced by this task's own run
+(below): five new `wp04-*` captures, seeded by `demoInvestigation` (`tests/harness/seed.ts`)
+through the same read models the real screen uses, over a fake vault whose base path is the
+snapshot's own root (so the default notes folder overlaps it, exercising IN26/IN29's
+Exclude checkbox):
+
+- `wp04-investigate-dark` / `-light` — the two-column Investigate screen, the first finding
+  selected (`fn6 · Cognitive complexity 26`), its Evidence panel and its exact-highlighted
+  Source preview, dark and light
+- `wp04-investigate-narrow-dark` (760×1600) — the single-column stack, showing the orphan
+  note under **Notes for findings not in this report**
+- `wp04-investigate-stale-dark` — the same selection with a one-byte size mismatch: the
+  stale-location callout, no highlighted line, the IN10 exact/no-exact contrast
+- `wp04-investigate-create-dialog-dark` — the create dialog open over the screen, showing
+  the folder, the planned name, the vault path and the checked Exclude checkbox (IN26,
+  IN29)
+
+Confirmed present, current and error-free by this task's own `npm run harness-shot` run
+(Step 5 below): every id from `s05` through `s11`, every `wp02-*`, `wp03-*` and `wp04-*`
+capture, exit 0, no page error and no console error on any shot.
+
+### Native acceptance (O8, IN42–IN51)
+
+**Stack and origin.** Vitest 5.0.1 drives a real installed Obsidian through standalone
+WebdriverIO (`wdio-obsidian-service` 3.2.1, `webdriverio` 9.32.0), ported from
+[`github.com/Luis85/describe`](https://github.com/Luis85/describe) (MIT, same author) as
+Task 0. It is a separate project (`tests/e2e/vitest.config.mts`), typechecked and linted by
+`npm run verify` but **never run** by it; `npm run test:e2e` = `npm run build` + the native
+project + the results gate.
+
+**Command and gate, at the baseline version** (`OBSIDIAN_VERSION` unset):
+
+```
+npm run test:e2e
+
+ ✓ |native-obsidian| tests/e2e/obsidian-facts.e2e.ts (5 tests) 22812ms
+ ✓ |native-obsidian| tests/e2e/investigation.e2e.ts (1 test) 7320ms
+ ✓ |native-obsidian| tests/e2e/smoke.e2e.ts (2 tests) 8270ms
+ ✓ |native-obsidian| tests/e2e/lifecycle.e2e.ts (2 tests) 6398ms
+ Test Files  4 passed (4)
+      Tests  10 passed (10)
+Verified 10 executed native Vitest cases, including all 10 required scenarios.
+```
+
+Resolved versions (`reports/native/cases/*/environment.json`):
+`{"requestedVersion":"1.13.4","appVersion":"1.13.4","installerVersion":"1.13.4","platform":"win32","runner":"vitest","commit":"local"}`.
+
+**Command and gate, at `OBSIDIAN_VERSION=latest`:**
+
+```
+OBSIDIAN_VERSION=latest npm run test:e2e
+
+ ✓ |native-obsidian| tests/e2e/obsidian-facts.e2e.ts (5 tests) 112254ms
+ ✓ |native-obsidian| tests/e2e/smoke.e2e.ts (2 tests) 7534ms
+ ✓ |native-obsidian| tests/e2e/investigation.e2e.ts (1 test) 7041ms
+ ✓ |native-obsidian| tests/e2e/lifecycle.e2e.ts (2 tests) 5872ms
+ Test Files  4 passed (4)
+      Tests  10 passed (10)
+Verified 10 executed native Vitest cases, including all 10 required scenarios.
+```
+
+Resolved versions: `{"requestedVersion":"latest","appVersion":"1.13.7","installerVersion":"1.13.7","platform":"win32","runner":"vitest","commit":"local"}`
+— `latest` resolved to **1.13.7**, distinct from and newer than the 1.13.4 baseline; both
+runs passed all 10 required scenarios with no retries. IN49's rule (a version that cannot
+be downloaded fails the run; `latest` is never treated as reproducible) held: both versions
+downloaded and ran cleanly on this attempt.
+
+**The required-scenario list** (`tests/e2e/required-scenarios.json`, IN48): the smoke
+("loads the plugin without errors and opens the inspector on its default route", Task 0;
+"renders the Investigate route in a real leaf", Task 11, IPF5), the five Obsidian-fact
+probes above (Task 0), the two session-cleanup tests ("releases the app, driver and copied
+directories after a test body rejects"; "releases an acquired real session when final
+initialization rejects", Task 0, IN45), and the native spine ("keeps human sections
+byte-identical across a real refresh and links the note through the metadata cache", Task
+16, IN51 d) — ten in total, none of them G8 layers (IP53).
+
+**The native spine** (`tests/e2e/investigation.e2e.ts`, Task 16). In the session's copied
+vault: Settings → Add profile → Connect (a vault-folder scope over the copied `code/`
+folder) → scan → import a real fallow report through the Data & scans dialog → select the
+import-cycle finding → the source preview shows the exact highlight → create a note through
+the real dialog → edit its human sections through `vault.process` → rescan (a new snapshot)
+→ refresh through the real dialog: the text after the end marker is byte-identical, the
+frontmatter is value-identical bar the new `snapshot_id`, and Obsidian's own
+`metadataCache` links the note to the finding (not the notes port — the native spine checks
+the real host). The RED proof: `refreshNote` mutated to also write `RED mutation` after `##
+Decision` failed the byte-identity assertion, reproduced with the recorded versions and
+reverted before the final run above. The same test also carries Task 9's move/rename and
+delete carry: a moved and renamed note stays linked through the real metadata cache, and a
+deleted note leaves the notes panel.
+
+**Native cases are not a G8 layer (IP53).** They are opt-in, local and never part of
+`npm run verify`; the two `tests/unit/` files the native layer adds (`session-lifecycle`,
+`native-results-gate`, plus `native-baseline`) are already counted in the Unit row above.
+
+**Local only, desktop only.** Every run above was on this Windows 11 machine; the
+repository has no CI for `npm run test:e2e`, so this evidence is what a run on this machine
+recorded. `manifest.json` sets `isDesktopOnly: true`, so the native layer never exercises
+mobile emulation (none is installed, IP51) or any operating system but this one.
+
+**If Task 0 had stopped under IN50:** it did not — IPF14 records GO on this Windows 11
+machine at first attempt — so the in-memory-only fallback was never needed and every native
+scenario above stayed in the required list.

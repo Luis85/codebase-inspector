@@ -414,6 +414,66 @@ freezing Obsidian") stays the owner's, unchanged from G6 above.
 
 ---
 
+## WP-04 Part 1 — investigation workbench and notes
+
+Transcribed from
+`docs/superpowers/specs/2026-09-25-wp04-part1-investigation-design.md` §8, plus three
+further limitations this task recorded while producing the evidence above (IP29, the §6
+probe results and spec §3). Recorded by task 18.
+
+- **Stale detection is by size, line count and modification time, not content.** A file
+  edited so that none of the three observations change is read as current even when its
+  text differs from what was analysed. For an imported report the analysis time is only
+  bounded by the import time.
+- **A refresh re-serialises the frontmatter.** `processFrontMatter` rewrites the whole YAML
+  block: the user's own comments and quoting style there are not kept, but every value is
+  (IP8) — `status`, `created` and any key the user added round-trip value-identical, never
+  byte-identical.
+- **The note index is per codebase and built from the metadata cache.** A note written by
+  another tool without the plugin's frontmatter keys (`type: codebase-investigation` and
+  the rest) is not linked, and never appears under a codebase's notes.
+- **A notes folder equal to the codebase root is scanned.** It cannot be excluded without
+  excluding everything, so notes in that folder are read back into the next scan (IP26).
+- **Clone groups, symbol tracing and an external editor are not in this part** (O1, O5).
+- **The note serialiser in tests is `yaml` 2.9.1, not Obsidian's own** (IP29). No test
+  asserts YAML bytes, only parsed values; a quoting difference between the two libraries is
+  found by the native probe, not by the fast suite. Fact (d) above records what Obsidian's
+  own `stringifyYaml` actually does: `yes` unquoted (read back as the string `"yes"`),
+  `null`/`0012`/`a: b`/`true`/`~`/`#x`/`[[x]]` double-quoted, every value a string.
+- **Escaping relies on Obsidian honouring CommonMark backslash escapes for its own syntax.**
+  `noteText()`'s escaping is not proved by construction; it is proved by the native probe
+  (b) against the real renderer and the real live-preview editor, and it is kept as a
+  regression test (`tests/e2e/obsidian-facts.e2e.ts`) precisely because a future Obsidian
+  release could change that behaviour. The probe's own positive control (IPF15) is what
+  makes a silent pass impossible: it failed once, for a real reason (an undotted host is
+  never auto-linked at all), before the literals were corrected.
+- **The plugin is desktop-only** (`manifest.json` `isDesktopOnly: true`). The preview's
+  `no-filesystem` defensive state (a missing `FileSystemAdapter`) is therefore reachable
+  only in tests — never on a real device this plugin runs on (spec §3).
+- **Native acceptance runs locally only** (O8). The repository has no CI, so
+  `npm run test:e2e` is run by hand, and its evidence is what a run on this machine
+  recorded — Windows 11, Obsidian 1.13.4 (baseline) and 1.13.7 (`latest`, resolved on this
+  run), one app version per run, one real display session. It does not certify
+  accessibility, other operating systems, or any Obsidian version other than the two
+  actually run.
+- **Two open items the native spine found, neither of them WP-04 code:**
+  - **The Settings tab does not refresh after `scan-codebase` creates a profile
+    (pre-existing).** `SettingsTab.refresh()` runs only from `onload` and after the tab's
+    own mutations, so a profile `scan-codebase` creates in the same session is not listed
+    until the plugin reloads and cannot be Connected, renamed or given a notes folder in
+    that session. WP-04 Part 1's own preview no longer depends on this (ruling E25 reads an
+    unbound profile's preview under its in-memory snapshot root), but the Settings-tab gap
+    itself remains.
+  - **The test vault's watcher did not index files copied in with `node:fs`
+    (test-environment).** In the native session's copied vault, files written by the test
+    harness with `node:fs` (rather than through `app.vault.adapter`) were not indexed by
+    Obsidian's own file watcher within 9–12 seconds; the copied vault's path being an 8.3
+    short path is a plausible but unproven cause. Nothing in the plugin depends on this (the
+    scan and preview read through the Node port, not the vault index), but a future native
+    test that expects Obsidian to notice an externally-made edit needs to account for it.
+
+---
+
 ## Numbers in this document
 
 Read this before quoting a figure from here.

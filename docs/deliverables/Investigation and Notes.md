@@ -66,3 +66,51 @@ A city finding opens the same evidence in the workbench. Creating an investigati
 ## Non-goals
 
 Automatic deletion, fabricated “safe to delete” percentages, source auto-fix, ticket-system synchronization, and replacement of the team's existing backlog plugin.
+
+## Delivery record
+
+Built on branch `feat/wp-04-part1` (fast-forwarded onto `feat/wp-01-codebase-city`, so it
+lands on PR #1); design in
+`docs/superpowers/specs/2026-09-25-wp04-part1-investigation-design.md` (IN1–IN51, owner
+decisions O1–O8).
+
+**Scope: the whole task table, 04.1–04.7, plus the native acceptance harness (O8).** Part 1
+delivers a new **Investigate** screen: the same evidence Quality reads, a bounded
+read-only source preview with a stale-location rule, an evidence bundle and uncertainty
+panel, and explicit Markdown-note creation and refresh in the user's own vault (O3, O4).
+Notes are the record — no link table — read back through Obsidian's own metadata cache.
+
+| Task | Deliverable | Decisions |
+|---|---|---|
+| 04.1 | Finding list, native categories/rules, stable selection | IN1–IN6 |
+| 04.2 | Safe bounded source preview and stale-location checks | IN7–IN13 |
+| 04.3 | Evidence bundle and uncertainty/verification panel | IN14–IN17 |
+| 04.4 | Vault note destination/settings and escaped note templates | IN18–IN25 |
+| 04.5 | Create/open investigation; collision-safe filenames | IN26–IN30 |
+| 04.6 | Human-section-preserving refresh and note-link reconciliation | IN31–IN36 |
+| 04.7 | End-to-end finding → note → evidence tests | IN37–IN40 |
+| Task 0 | Native Obsidian acceptance harness, ported from `Luis85/describe` (O8) | IN42–IN51 |
+
+**Out of Part 1** (O1): clone-group inspection and symbol tracing (the deliverable's
+optional items); an external-editor action (O5) — Source actions stay the read-only
+preview and, for a Markdown file inside the vault, Open in Obsidian; automatic status
+sync (O6) — a note's `status` is the user's own and nothing writes it but creation; and
+every deliverable non-goal above. **Notes may be written inside the codebase root** (O7),
+but only after the create dialog's explicit checkbox, which also adds the folder to the
+codebase's scan exclusions (IN29) — the one exception to "no writes in the directory you
+select", stated in the README and the two settings disclosures (IN41).
+
+Acceptance, item by item, is recorded in
+`docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md`'s **WP-04 Part 1** section,
+added by task 18: the spec §5 acceptance table (in-memory and native test citations), the
+Task 16 mutation runs, the five spec §6 pre-flight probe results with their IPF rulings,
+the `wp04-*` harness captures, and a **native acceptance** subsection — the stack and its
+origin, `npm run test:e2e` at the baseline Obsidian version (1.13.4) and at
+`OBSIDIAN_VERSION=latest` (resolved to 1.13.7 on this run), the ten required scenarios,
+the fail-closed gate's output line, and the platform and commit from the environment
+evidence. The limitations this part carries — stale detection by size/lines/time rather
+than content, a refresh's re-serialised frontmatter, the per-codebase metadata-cache
+index, a notes folder equal to the root being scanned, the deferred items above, the test
+YAML serialiser, Obsidian's own escape handling, the desktop-only `no-filesystem` state,
+and native acceptance being local-only — are in
+`docs/superpowers/notes/2026-09-17-wp01-limitations.md`'s **WP-04 Part 1** section.
