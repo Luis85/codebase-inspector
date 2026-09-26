@@ -111,7 +111,8 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
    *  the entries; while a refresh runs, at most one more is queued. */
   refreshSoon(): void {
     if (this.refreshing) { this.refreshQueued = true; return; }
-    this.refreshing = this.refresh().finally(() => {
+    // refresh() shows its own load failures; a throw past them (update() itself) is shown here, never left unhandled.
+    this.refreshing = this.refresh().catch((e: unknown) => { this.showFailure(e); }).finally(() => {
       this.refreshing = null;
       if (this.refreshQueued) { this.refreshQueued = false; this.refreshSoon(); }
     });

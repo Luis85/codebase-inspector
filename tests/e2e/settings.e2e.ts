@@ -5,7 +5,7 @@
 import { describe, expect } from 'vitest';
 import { Key } from 'webdriverio';
 import { defaultNoteFolder } from '../../src/application/investigation/note-path';
-import { ValidationError, exclusionInputReasons, validationFailureText } from '../../src/domain/validator';
+import { exclusionInputReasons } from '../../src/domain/validator';
 import { NOTES_FOLDER_PROBLEM, NOTES_FOLDER_SETTING_NAME } from '../../src/ui/audit-copy/investigation';
 import { test } from './fixture';
 import { closeSettings, openPluginSettings, pluginData } from './host-probes';
@@ -115,7 +115,8 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     // Two refused lines, each with its reason in one Notice; the stored value unchanged and shown again. `dist*` is
     // refused only at this input boundary (M62: a stored record may hold it), `./dist` by the stored-record rules too.
     const refused = [...saved, './dist', 'dist*'];
-    const reason = validationFailureText(new ValidationError(exclusionInputReasons(refused), 'Excluded paths'));
+    // validationFailureText's own join of a ValidationError's reasons, without naming the field (IPF20).
+    const reason = exclusionInputReasons(refused).join(' ');
     expect(exclusionInputReasons(refused)).toHaveLength(2);
     await inspector.openCodebaseSettings(profile.name);
     await edit(browser, inspector, excluded, refused.join('\n'));
@@ -124,6 +125,7 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     await closeSettings(browser);
     expect(profilesOf(await pluginData(browser))[0]?.exclusions).toEqual(saved);
     // The saved change is a new scope: scan-codebase asks for approval again.
+    await inspector.activateCity();
     await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
     await expect.poll(() => browser.$(SCOPE_MODAL).isExisting()).toBe(true);
   });

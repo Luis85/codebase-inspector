@@ -28,7 +28,21 @@ const profileRowXpath = (name: string): string =>
   `//*[${hasClass('mod-settings')}]//*[${hasClass('mod-list')}]//*[${hasClass('setting-item')} and ${hasClass('mod-navigable')}]${namedItem(name)}`;
 const PROFILE_NAMES = '.modal.mod-settings .setting-group.mod-list .setting-item.mod-navigable > .setting-item-info > .setting-item-name';
 /** The source modal's two modes a test drives: a vault folder, or an absolute path (the modal's `external`). */
-export type SourceMode = 'vault-folder' | 'absolute';
+export type ConnectMode = 'vault-folder' | 'absolute';
+
+/** Fix round 1 (Important 1): the city commands act on the ACTIVE CityView and silently do nothing without one
+ *  (commands.ts), and the main window regains focus only some time after the settings window closes. Makes the city
+ *  leaf the active view of the main window (focusing it when it is not) and reports whether it now is. */
+function cityActive(browser: NativeBrowser): Promise<boolean> {
+  return browser.executeObsidian(({ app }, type): boolean => {
+    const leaf = app.workspace.getLeavesOfType(type)[0];
+    if (!leaf) throw new Error('no city leaf');
+    // The command's own check, getActiveViewOfType(CityView), with the class read off the city leaf's view.
+    const ready = (): boolean => activeDocument === document && app.workspace.getActiveViewOfType(leaf.view.constructor as never) === leaf.view;
+    if (!ready()) app.workspace.setActiveLeaf(leaf, { focus: true });
+    return ready();
+  }, CITY_VIEW_TYPE);
+}
 
 /** The city leaf's persisted snapshot id (Obsidian's own `View.getState()`), or null. */
 function snapshotIdOf(browser: NativeBrowser): Promise<string | null> {
@@ -49,9 +63,12 @@ export function createInspectorPage(browser: NativeBrowser) {
   // One selector per call, so a modal that is still closing never scopes the search.
   const inModal = (selector: string) => browser.$(`.modal-container ${selector}`);
   /** The source modal: the mode, the folder, Continue. */
-  const chooseSource = async (folder: string, mode: SourceMode): Promise<void> => {
+  const chooseSource = async (folder: string, mode: ConnectMode): Promise<void> => {
     const [value, field] = mode === 'vault-folder' ? ['vault-folder', 'vault-folder-path'] : ['external', 'external-path'];
-    await inModal(`input[type="radio"][name="source-mode"][value="${value}"]`).click();
+    const radio = inModal(`input[type="radio"][name="source-mode"][value="${value}"]`);
+    // A command that did nothing fails here, by name, rather than as a missing element.
+    await expect.poll(() => radio.isExisting()).toBe(true);
+    await radio.click();
     await inModal(`[data-field="${field}"]`).setValue(folder);
     await inModal('[data-action="continue"]').click();
   };
@@ -59,12 +76,14 @@ export function createInspectorPage(browser: NativeBrowser) {
   const settingsPage = () => browser.$('.modal.mod-settings .setting-page.vertical-tab-content');
   /** Connect or Reconnect on the open profile page. Observed (Task 2): the source modal opens in the SETTINGS
    *  window, where WebDriver already is; done when the modal is gone and the page offers Clear binding. */
-  const bindFrom = async (action: 'connect' | 'reconnect', folder: string, mode: SourceMode): Promise<void> => {
+  const bindFrom = async (action: 'connect' | 'reconnect', folder: string, mode: ConnectMode): Promise<void> => {
     await settingsPage().$(`[data-action="${action}"]`).click();
     await chooseSource(folder, mode);
     await expect.poll(() => inModal('[data-action="continue"]').isExisting()).toBe(false);
     await expect.poll(() => settingsPage().$('[data-action="clear-binding"]').isExisting()).toBe(true);
   };
+  /** Before a city command: the city leaf is the main window's active view (see cityActive). */
+  const activateCity = async (): Promise<void> => { await expect.poll(() => cityActive(browser)).toBe(true); };
   const navigate = async (title: string): Promise<void> => {
     const item = root().$(`.ci-nav__item*=${title}`);
     if (!(await item.isDisplayed())) await root().$('.ci-topbar__menu').click();
@@ -83,11 +102,13 @@ export function createInspectorPage(browser: NativeBrowser) {
       await expect.poll(() => root().isExisting()).toBe(true);
     },
     navigate,
+    activateCity,
     snapshotId: () => snapshotIdOf(browser),
     /** WP-04 Task 16: `scan-codebase` as a user answers it — the source modal in vault-folder
      *  mode, then the scope modal's acknowledgement and Scan. */
     async scanFolder(folder: string): Promise<void> {
       const before = await snapshotIdOf(browser);
+      await activateCity();
       await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
       await chooseSource(folder, 'vault-folder');
       await inModal('[data-field="acknowledge"]').click();
@@ -99,11 +120,13 @@ export function createInspectorPage(browser: NativeBrowser) {
     /** `scan-codebase` again: a refresh against the stored scope, with no modal (a new snapshot id). */
     async rescan(): Promise<void> {
       const before = await snapshotIdOf(browser);
+      await activateCity();
       await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
       await scanned(before);
     },
     /** Data & scans' import dialog (the `import-analysis-report` command), its file input and Attach. */
     async importReport(absolutePath: string): Promise<void> {
+      await activateCity();
       await browser.executeObsidianCommand('codebase-inspector:import-analysis-report');
       const file = root().$('.ci-connect-fallow__file');
       await expect.poll(() => file.isExisting()).toBe(true);
@@ -210,9 +233,9 @@ export function createInspectorPage(browser: NativeBrowser) {
       await expect.poll(() => settingsPage().isExisting()).toBe(true);
     },
     /** Connect on the open profile page (openCodebaseSettings first), through the source modal. */
-    connect: (folder: string, mode: SourceMode): Promise<void> => bindFrom('connect', folder, mode),
+    connect: (folder: string, mode: ConnectMode): Promise<void> => bindFrom('connect', folder, mode),
     /** Reconnect on the open profile page (a binding this device no longer has), through the source modal. */
-    reconnect: (folder: string, mode: SourceMode): Promise<void> => bindFrom('reconnect', folder, mode),
+    reconnect: (folder: string, mode: ConnectMode): Promise<void> => bindFrom('reconnect', folder, mode),
     /** The text of every `.notice` in the CURRENT window. Observed (Task 2): a Notice the settings tab raises renders
      *  in the settings window, not the main one. */
     notices: async (): Promise<string[]> => browser.$$('.notice').map(async (el) => String(await el.getProperty('textContent'))),

@@ -1,7 +1,7 @@
 // WP-04.2 NE9: the settings tab re-reads on a write it did not make through refreshSoon(), which coalesces: one
 // refresh now, and at most one more queued while it runs. A new file: settings-tab.test.ts is at its cap. The tab
 // is built the way settings-tab-purge.test.ts builds it.
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import type { App, Plugin as ObsidianPlugin } from 'obsidian';
 import { CodebaseInspectorSettingTab } from '../../src/host/settings-tab';
@@ -19,6 +19,10 @@ function newTab(profileStore: ProfileStore): CodebaseInspectorSettingTab {
     () => createFakeSourceFileSystem({}).port, { purge: () => Promise.resolve() }, createFakeFallowAnalysis(), { remove: vi.fn() },
     createFakeInvestigationFolders());
 }
+
+afterEach(() => {
+  document.querySelectorAll('.notice-container').forEach((n) => { n.remove(); });
+});
 
 describe('settings tab: refreshSoon (WP-04.2 NE9)', () => {
   it('three calls while a refresh is loading make exactly one more refresh, after the first', async () => {
@@ -49,5 +53,25 @@ describe('settings tab: refreshSoon (WP-04.2 NE9)', () => {
     tab.refreshSoon();
     await flushPromises();
     expect(list).toHaveBeenCalledTimes(2);
+  });
+
+  it('Task 2 fix round 1: a refresh that throws is shown, never an unhandled rejection, and a queued refresh still runs', async () => {
+    const { store } = createFakeProfileStoreHarness();
+    const list = vi.spyOn(store, 'list');
+    const tab = newTab(store);
+    const update = vi.spyOn(tab, 'update').mockImplementationOnce(() => { throw new Error('The settings could not be drawn.'); });
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      tab.refreshSoon();
+      tab.refreshSoon();
+      await vi.waitFor(() => { expect(update).toHaveBeenCalledTimes(2); });
+      await flushPromises();
+      expect(list).toHaveBeenCalledTimes(2);
+      expect(document.querySelector('.notice')?.textContent).toBe('The settings could not be drawn.');
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
   });
 });
