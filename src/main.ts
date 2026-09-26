@@ -88,6 +88,8 @@ export default class CodebaseInspectorPlugin extends Plugin {
       evidenceStore,
       fallowAnalysis: analysis,
       investigationNotes: investigation.notes, sourcePreview: investigation.preview,
+      // WP-04.2 polish O1 (PN5): this device's binding record only, the same lookup as the preview's resolveRoot.
+      boundRoot: async (profile) => (profile.bindingId === null ? null : (await bindingStore.get(profile.bindingId))?.rootPath ?? null),
     }));
     this.addRibbonIcon('building-2', 'Open codebase city', () => { void openCity(this); });
     registerCommands(this);

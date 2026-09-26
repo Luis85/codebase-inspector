@@ -7,6 +7,8 @@ import { openSourceModal } from './modals/source-modal';
 import { openScopeModal } from './modals/scope-modal';
 import type { ScopeApproval } from './modals/scope-modal';
 import { approve, fingerprintScope } from '../application/approval';
+import { sameRoot } from '../application/investigation/root-path';
+import { Platform } from 'obsidian';
 import type { App } from 'obsidian';
 import type { ScanCoordinator } from '../application/scan-coordinator';
 import type { ProfileStore } from '../application/ports/profile-store';
@@ -182,15 +184,29 @@ async function persistThenScan(
  *
  *  Only the SCOPE modal is re-opened, never the source modal: the root has not changed,
  *  so the friction stays proportionate. `rootPath` comes from the snapshot's recorded
- *  scope in both branches -- a profile carries a `bindingId`, never a path (§4.1), so it
- *  could not supply one. Comparison goes through `fingerprintScope`, the function the
+ *  scope unless the live binding names another root (`boundRoot`, below) -- a profile
+ *  carries a `bindingId`, never a path (§4.1), so it could not supply one. Comparison goes
+ *  through `fingerprintScope`, the function the
  *  approval model itself already uses to decide "has the scope changed", rather than a
  *  bespoke field-by-field check: reusing it means the two answers cannot diverge (and it
- *  sorts exclusions, so a pure re-ordering is correctly not divergence). */
+ *  sorts exclusions, so a pure re-ordering is correctly not divergence).
+ *
+ *  `boundRoot` is the profile's live binding root on THIS device, or null (unbound, or no
+ *  record here). When it names another root than the snapshot's, the scope modal opens on
+ *  it, as below. */
 export async function runRefresh(
   app: App, coordinator: ScanCoordinator, profile: CodebaseProfile, storedScope: AnalysisScope,
-  clock: Clock, profileStore: ProfileStore,
+  clock: Clock, profileStore: ProfileStore, boundRoot: string | null,
 ): Promise<void> {
+  // WP-04.2 polish O1 (PN5): a Reconnect names a new root, and WP-01 §4.1 says a changed root invalidates prior
+  // approval. So when the live binding's root is not the snapshot's, the scope modal opens on the bound root (the
+  // M57 path), and nothing is self-minted for it.
+  if (boundRoot !== null && !sameRoot(boundRoot, storedScope.rootPath, { caseSensitive: Platform.isLinux })) {
+    const result = await openScopeModal(app, { profile, resolvedRoot: boundRoot });
+    if (!result) return;   // cancelled: no approval, no scan, profile untouched
+    await persistThenScan(coordinator, profileStore, profile.profileId, result);
+    return;
+  }
   const profileScope: AnalysisScope = {
     rootPath: storedScope.rootPath,
     exclusions: profile.exclusions,

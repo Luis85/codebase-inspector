@@ -41,6 +41,8 @@ export interface CityViewDeps {
   investigationNotes: InvestigationNotesPort;
   /** WP-04 IN7 (IP14): the plugin's ONE source preview; it reads only from the store's readPreview. */
   sourcePreview: SourcePreview;
+  /** WP-04.2 polish O1 (PN5): the profile's live binding root on this device, or null. */
+  boundRoot: (profile: CodebaseProfile) => Promise<string | null>;
 }
 
 /** What the controller reads from, and reports to, the CityView that owns it. */
@@ -84,7 +86,10 @@ export class CityScanController {
       if (snapshotId) {
         const existing = this.deps.snapshotStore.get(snapshotId);
         if (existing) {
-          await runRefresh(this.plugin.app, this.coordinator, profile, existing.scope, this.deps.clock, this.deps.profileStore);
+          await runRefresh(
+            this.plugin.app, this.coordinator, profile, existing.scope, this.deps.clock, this.deps.profileStore,
+            await this.deps.boundRoot(profile),
+          );
           return;
         }
         // The in-memory store no longer has this id (e.g. the plugin reloaded) --

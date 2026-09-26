@@ -327,7 +327,7 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
     const { app, profile, store, update, coordinator, start } = setUp(
       { exclusions: ['.git'], maxFileBytes: 1_000_000 });
 
-    await runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store);
+    await runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null);
 
     expect(document.querySelector('.modal-container')).toBeNull();
     expect(start).toHaveBeenCalledTimes(1);
@@ -346,7 +346,7 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
       { exclusions: ['.git', 'node_modules'], maxFileBytes: 1_000_000 });
     const reordered: AnalysisScope = { ...SNAPSHOT_SCOPE, exclusions: ['node_modules', '.git'] };
 
-    await runRefresh(app, coordinator, profile, reordered, createFixedClock(), store);
+    await runRefresh(app, coordinator, profile, reordered, createFixedClock(), store, null);
     expect(document.querySelector('.modal-container')).toBeNull();
     expect(start).toHaveBeenCalledTimes(1);
     // Not divergence, so the SNAPSHOT's own scope object is what gets scanned -- never a
@@ -358,7 +358,7 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
     const { app, profile, store, coordinator, start } = setUp(
       { exclusions: ['.git', 'node_modules'], maxFileBytes: 2_000_000 });
 
-    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store);
+    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null);
     const modal = await waitForModal();
 
     // The scope modal, never the source modal: the root has not changed.
@@ -380,7 +380,7 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
     const { app, profile, store, update, coordinator, start } = setUp(
       { exclusions: ['.git', 'node_modules'], maxFileBytes: 2_000_000 });
 
-    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store);
+    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null);
     await waitForModal();
     const ack = modalRoot().querySelector<HTMLInputElement>('[data-field="acknowledge"]')!;
     ack.checked = true;
@@ -408,7 +408,7 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
     const { app, profile, store, update, coordinator, start } = setUp(
       { exclusions: ['.git', 'node_modules'], maxFileBytes: 2_000_000 });
 
-    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store);
+    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null);
     await waitForModal();
     modalRoot().querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
     await runPromise;

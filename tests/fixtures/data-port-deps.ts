@@ -8,7 +8,7 @@ import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evid
 import { createFakeFallowAnalysis } from './fake-fallow-analysis';
 import { inertInvestigationNotes, scriptedSourcePreview } from './fake-investigation';
 
-export function dataPortDeps(): Pick<CityViewDeps, 'reviewRepositoryFor' | 'evidenceStore' | 'fallowAnalysis' | 'investigationNotes' | 'sourcePreview'> {
+export function dataPortDeps(): Pick<CityViewDeps, 'reviewRepositoryFor' | 'evidenceStore' | 'fallowAnalysis' | 'investigationNotes' | 'sourcePreview' | 'boundRoot'> {
   const repositories = new Map<string, ReviewRepository>();
   return {
     reviewRepositoryFor: (repositoryId) => {
@@ -26,5 +26,7 @@ export function dataPortDeps(): Pick<CityViewDeps, 'reviewRepositoryFor' | 'evid
     // WP-04 Task 10: the notes port lists and writes nothing; the preview reads nothing on its own.
     investigationNotes: inertInvestigationNotes(),
     sourcePreview: scriptedSourcePreview(),
+    // WP-04.2 polish O1 (PN5): no live binding on this device, so scan-codebase's refresh stays silent.
+    boundRoot: async () => null,
   };
 }

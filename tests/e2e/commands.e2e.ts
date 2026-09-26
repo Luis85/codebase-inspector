@@ -4,6 +4,8 @@
 // timing an uncancelled refresh over a 4 000-file synthetic tree (WP-04.2 E8), and the cancel is sent only once
 // cancel-scan's own checkCallback answers true. Scenario 7: import-analysis-report is refused while the city shows no
 // snapshot, and after a scan attaches the real 3.27.0 recording, whose every finding Investigate then lists (IN1).
+// Scenario 39 (WP-04.2 E14, polish O1, PN5): once the codebase is reconnected to another folder, scan-codebase opens the
+// scope modal on the connected folder; a cancel leaves the snapshot on the old root, and approving scans the new one.
 // Observed (Task 4, 1.13.4, NPF13): `commands.executeCommandById` returns true for ANY registered command whose body does not
 // throw, whatever its checkCallback answers, so `executeObsidianCommand` on a refused command RESOLVES. A refusal is
 // therefore its checkCallback(true) answering false (the palette's own test, `commandAvailable`) and its body not
@@ -14,9 +16,11 @@ import { join } from 'node:path';
 import { describe, expect } from 'vitest';
 import { CANCELLED_BANNER } from '../../src/application/run-state';
 import { ROUTE_META } from '../../src/ui/routes';
+import { storeSnapshot } from './cycle-note';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
-import { commandAvailable, rendered } from './host-probes';
+import { closeSettings, commandAvailable, onlyProfile, pluginData, rendered, savedBindings, vaultBasePath } from './host-probes';
+import type { InspectorPage } from './inspector';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
 import { RECORDING, copyProject, cycleFinding, recordingFindingCount, writeSyntheticTree } from './workspace-files';
 
@@ -29,6 +33,22 @@ const MIN_WINDOW_MS = 2_000;
 
 const cityLeaves = (browser: NativeBrowser): Promise<number> =>
   browser.executeObsidian(({ app }, type): number => app.workspace.getLeavesOfType(type).length, CITY_VIEW_TYPE);
+
+/** Scenario 39: the scope modal's resolved root (scope-modal.ts's `.scope-modal-root`, the root after the plugin's
+ *  own label), in whichever modal is open. */
+const shownRoot = (browser: NativeBrowser) => browser.$('.modal-container .scope-modal-root');
+
+/** Scenario 39: Clear binding on the open profile page, confirmed in its modal; done when the page offers Reconnect.
+ *  Observed: the profile page slides in, and its buttons are not interactable until it has. */
+async function clearBinding(browser: NativeBrowser, inspector: InspectorPage): Promise<void> {
+  const clear = inspector.settingsPage().$('[data-action="clear-binding"]');
+  await expect.poll(() => clear.isClickable()).toBe(true);
+  await clear.click();
+  const confirm = browser.$('.modal-container [data-action="confirm-clear-binding"]');
+  await expect.poll(() => confirm.isClickable()).toBe(true);
+  await confirm.click();
+  await expect.poll(() => inspector.settingsPage().$('[data-action="reconnect"]').isExisting()).toBe(true);
+}
 
 describe('the plugin commands and ribbon in the real Obsidian host (WP-04.2 §5 rows 5–7)', () => {
   test('open-city and the ribbon icon each open a new city tab', async ({ native: { browser, inspector } }) => {
@@ -128,5 +148,63 @@ describe('the plugin commands and ribbon in the real Obsidian host (WP-04.2 §5 
     expect(listed).toBe(expected);
     // The recording's own import cycle is among them.
     expect(await inspector.root().$(`.ci-investigate-row[data-fingerprint$="#${cycleFinding().id}"]`).isExisting()).toBe(true);
+  });
+
+  test('scan-codebase after a Reconnect to another folder asks to approve the connected folder', async ({ native: { browser, page, inspector, directory } }) => {
+    copyProject(page.getVaultPath(), 'code');
+    copyProject(page.getVaultPath(), 'code-copy');
+    await expect.poll(() => browser.executeObsidian(({ app }) => app.vault.adapter.exists('code-copy/src/core/a.ts'))).toBe(true);
+    const base = await vaultBasePath(browser);
+    if (base === null) throw new Error('the vault has no base path');
+    const [code, copy] = [join(base, 'code'), join(base, 'code-copy')];
+
+    // Scanned, then Connected in Settings to the same vault folder: the binding's root is the snapshot's root.
+    await inspector.openCity();
+    await inspector.scanFolder('code');
+    const scanned = await storeSnapshot(browser);
+    expect(scanned.rootPath).toBe(code);
+    const profile = onlyProfile(await pluginData(browser));
+    await inspector.openCodebaseSettings(profile.name);
+    await inspector.connect('code', 'vault-folder');
+    await closeSettings(browser);
+    expect(savedBindings(await pluginData(browser)).map((binding) => binding.rootPath)).toEqual([code]);
+
+    // Positive control: bound to the snapshot's own root, scan-codebase refreshes with no modal (a new snapshot, still
+    // on code/), so the modal below is the Reconnect's doing.
+    await inspector.rescan();
+    expect(await shownRoot(browser).isExisting()).toBe(false);
+    const refreshed = await storeSnapshot(browser);
+    expect(refreshed.snapshotId).not.toBe(scanned.snapshotId);
+    expect(refreshed.rootPath).toBe(code);
+
+    // The Reconnect (E16): a live binding offers only Clear binding, and the cleared page offers Reconnect.
+    await inspector.openCodebaseSettings(profile.name);
+    await clearBinding(browser, inspector);
+    await inspector.reconnect('code-copy', 'vault-folder');
+    await closeSettings(browser);
+    const reconnected = await pluginData(browser);
+    expect(savedBindings(reconnected).map((binding) => binding.rootPath)).toEqual([copy]);
+
+    // scan-codebase now opens the scope modal on the connected folder.
+    await inspector.activateCity();
+    await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
+    await expect.poll(() => shownRoot(browser).isExisting()).toBe(true);
+    const offered = String(await shownRoot(browser).getProperty('textContent')).trim();
+
+    // Cancelled: no scan, and the leaf, its snapshot's root and the profile are unchanged.
+    await browser.$('.modal-container [data-action="cancel"]').click();
+    await expect.poll(() => shownRoot(browser).isExisting()).toBe(false);
+    const cancelled = await storeSnapshot(browser);
+    expect(await inspector.snapshotId()).toBe(refreshed.snapshotId);
+    expect(cancelled).toEqual(refreshed);
+    expect(onlyProfile(await pluginData(browser))).toEqual(onlyProfile(reconnected));
+
+    // Approved: a new snapshot on the connected folder.
+    await inspector.rescanApproving();
+    const approved = await storeSnapshot(browser);
+    await writeEvidence(directory, 'reconnect-rescan', { code, copy, scanned, refreshed, offered, cancelled, approved });
+    expect(offered.endsWith(copy)).toBe(true);
+    expect(approved.snapshotId).not.toBe(refreshed.snapshotId);
+    expect(approved.rootPath).toBe(copy);
   });
 });

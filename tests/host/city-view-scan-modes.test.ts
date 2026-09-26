@@ -5,8 +5,11 @@
 // duplicated rather than shared, matching this codebase's own per-test-file
 // self-containment convention -- except `makePluginDouble`, shared by polish G1
 // (tests/fixtures/city-view-doubles.ts).
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Platform } from 'obsidian';
 import { CityView } from '../../src/host/city-view';
+import { ScanCoordinator } from '../../src/application/scan-coordinator';
+import { fingerprintSource } from '../../src/application/approval';
 import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import { createFixedClock } from '../fixtures/clock';
@@ -176,4 +179,97 @@ describe('selectCodebase vs startScan (ruling M46)', () => {
   // The two production store-wiring tests (item 1) that used to follow here also
   // moved to tests/host/city-view-store-wiring.test.ts, for the same budget
   // reason as the Pinia test above.
+});
+
+// WP-04.2 polish O1 (PN5, E14): a Reconnect names a new root, and WP-01 §4.1 says a changed root invalidates prior
+// approval. The snapshot scanned `/root/a`; `boundRoot` is the deps' answer for the profile's live binding on this
+// device. ScanCoordinator.start is spied on (and runs nothing), so the scope each path hands it is read directly.
+describe('scan-codebase after a Reconnect (WP-04.2 polish O1, PN5)', () => {
+  // Non-empty exclusions, so resolveOrCreateProfile's M44 migration writes nothing and every profile write is the
+  // flow's own; the profile's scope matches the snapshot's, so M57's divergence check stays silent.
+  const ROOT_A = { ...FAKE_ROOT_SCOPE, rootPath: '/root/a', exclusions: ['.git'] };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    Platform.isLinux = false;
+    document.querySelectorAll('.modal-container').forEach((el) => { el.remove(); });
+  });
+
+  async function boundView(bound: string | null) {
+    const snapshotStore = new InMemorySnapshotStore(createFixedClock());
+    snapshotStore.put(publishedSnapshot({ scope: ROOT_A }));
+    const { port } = createFakeSourceFileSystem({});
+    const profile: CodebaseProfile = { profileId: 'p1', name: 'Alpha', bindingId: 'b1', exclusions: ['.git'], maxFileBytes: 5_000_000 };
+    const profileStore = makeProfileStoreDouble([profile]);
+    const boundRoot = vi.fn(async () => bound);
+    const start = vi.spyOn(ScanCoordinator.prototype, 'start').mockResolvedValue(undefined);
+    const deps: CityViewDeps = {
+      profileStore, getFilesystem: () => port, snapshotStore, clock: createFixedClock(), ...dataPortDeps(), boundRoot,
+    };
+    const view = new CityView(makeLeafDouble() as never, makePluginDouble() as never, deps);
+    await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1' }, {} as never);
+    await view.onOpen();
+    // Spies returned as consts, so assertions never read a method off the ProfileStore type (unbound-method).
+    return { view, profile, update: vi.spyOn(profileStore, 'update'), save: vi.spyOn(profileStore, 'save'), boundRoot, start };
+  }
+
+  /** startScan() to completion when it must NOT open a modal: the scope it handed ScanCoordinator.start. */
+  async function silentRefresh(bound: string | null): Promise<unknown> {
+    const { view, profile, boundRoot, start } = await boundView(bound);
+    await view.startScan();
+    expect(document.querySelector('.modal-container')).toBeNull();
+    expect(boundRoot).toHaveBeenCalledWith(profile);
+    expect(start).toHaveBeenCalledTimes(1);
+    return start.mock.calls[0]![1];
+  }
+
+  it('opens the scope modal on the bound root, and approving it scans that root', async () => {
+    const { view, update, start } = await boundView('/root/b');
+    const runPromise = view.startScan();
+    const modal = await waitForModal();
+    expect(modal.querySelector('.scope-modal-root')?.textContent).toContain('/root/b');
+    expect(start).not.toHaveBeenCalled();
+
+    const ack = modal.querySelector<HTMLInputElement>('[data-field="acknowledge"]')!;
+    ack.checked = true;
+    ack.dispatchEvent(new Event('change'));
+    modal.querySelector<HTMLButtonElement>('[data-action="confirm-scan"]')!.click();
+    await runPromise;
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(start.mock.calls[0]![1]).toMatchObject({ rootPath: '/root/b', exclusions: ['.git'], maxFileBytes: 5_000_000 });
+    // The modal's approval, granted for the bound root (never one self-minted for the snapshot's), then
+    // persistThenScan's one profile write.
+    expect(start.mock.calls[0]![0]?.sourceFingerprint).toBe(fingerprintSource('/root/b'));
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it('a cancelled modal starts no scan and leaves the profile unchanged', async () => {
+    const { view, update, save, start } = await boundView('/root/b');
+    const runPromise = view.startScan();
+    const modal = await waitForModal();
+    modal.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
+    await runPromise;
+    expect(start).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('control: bound to the snapshot\'s own root, or unbound, it refreshes silently on /root/a', async () => {
+    expect(await silentRefresh('/root/a')).toEqual(ROOT_A);
+    vi.restoreAllMocks();
+    expect(await silentRefresh(null)).toEqual(ROOT_A);
+  });
+
+  it('case: /ROOT/A is the snapshot\'s root off Linux, and another root on Linux', async () => {
+    expect(await silentRefresh('/ROOT/A')).toEqual(ROOT_A);
+    vi.restoreAllMocks();
+    Platform.isLinux = true;
+    const { view, start } = await boundView('/ROOT/A');
+    const runPromise = view.startScan();
+    const modal = await waitForModal();
+    expect(modal.querySelector('.scope-modal-root')?.textContent).toContain('/ROOT/A');
+    modal.querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
+    await runPromise;
+    expect(start).not.toHaveBeenCalled();
+  });
 });
