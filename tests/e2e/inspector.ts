@@ -2,6 +2,7 @@
 // here); they use selectors, command ids and `executeObsidian`.
 import { readFileSync } from 'node:fs';
 import { expect } from 'vitest';
+import { Key } from 'webdriverio';
 import { openPluginSettings } from './host-probes';
 import { decodePng, type Png } from './png';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
@@ -56,6 +57,10 @@ function snapshotIdOf(browser: NativeBrowser): Promise<string | null> {
  *  consider rendered (see smoke.e2e.ts), so this reads `textContent`. */
 async function textOf(element: ReturnType<NativeBrowser['$']>): Promise<string> {
   return String(await element.getProperty('textContent'));
+}
+/** The same, trimmed, for an element `$$` already resolved. */
+async function trimmedText(element: { getProperty(name: string): Promise<unknown> }): Promise<string> {
+  return String(await element.getProperty('textContent')).trim();
 }
 
 export function createInspectorPage(browser: NativeBrowser) {
@@ -155,6 +160,48 @@ export function createInspectorPage(browser: NativeBrowser) {
       await expect.poll(() => root().$(`.ci-notes-panel__open[data-path="${path}"]`).isExisting()).toBe(true);
       return path;
     },
+    /** The evidence panel's Review, then the review dialog's control for `disposition` (FindingReviewDialog.vue:
+     *  `acknowledged` is the Acknowledge toggle, which saves on press; `dismissed` is Dismiss, a reason and Save),
+     *  then Close. Waits for the store to accept decisions (the toggle is not aria-disabled, E40) and for the
+     *  dialog's status chip to show the decision. */
+    async reviewFinding(disposition: string): Promise<void> {
+      await root().$('.ci-evidence-panel__review').click();
+      const dialog = root().$('.ci-finding-dialog');
+      await expect.poll(() => dialog.isExisting()).toBe(true);
+      await expect.poll(() => dialog.$('.ci-finding-dialog__acknowledge').getAttribute('aria-disabled')).toBe('false');
+      if (disposition === 'acknowledged') {
+        await dialog.$('.ci-finding-dialog__acknowledge').click();
+      } else if (disposition === 'dismissed') {
+        await dialog.$('.ci-finding-dialog__dismiss').click();
+        await dialog.$('.ci-finding-dialog__dismissal textarea').addValue('native e2e');
+        await dialog.$('.ci-finding-dialog__save-dismissal').click();
+      } else {
+        throw new Error(`the review dialog has no control for ${disposition}`);
+      }
+      await expect.poll(() => dialog.$(`.ci-chip--status-${disposition}`).isExisting()).toBe(true);
+      await dialog.$('.ci-finding-dialog__close').click();
+      await expect.poll(() => dialog.isExisting()).toBe(false);
+    },
+    /** The evidence panel's Add work item, then the editor's Save; returns the title the editor was pre-filled
+     *  with (IP22). Done when the editor has closed, which it does only on a saved item (WorkItemEditor.vue). */
+    async addWorkItem(): Promise<string> {
+      await root().$('.ci-evidence-panel__add-work-item').click();
+      const title = root().$('.ci-work-editor__title');
+      await expect.poll(() => title.isExisting()).toBe(true);
+      const prefilled = String(await title.getValue());
+      await root().$('.ci-work-editor__save').click();
+      await expect.poll(() => root().$('.ci-work-editor').isExisting()).toBe(false);
+      return prefilled;
+    },
+    /** The evidence panel as shown: each `dt` label with the text of the `dd` after it, and the work item lines. */
+    async evidence(): Promise<{ rows: Record<string, string>; workItems: string[] }> {
+      const meta = root().$('.ci-evidence-panel__meta');
+      await expect.poll(() => meta.isExisting()).toBe(true);
+      const terms = await meta.$$('dt').map(trimmedText);
+      const values = await meta.$$('dd').map(trimmedText);
+      const workItems = await root().$$('.ci-evidence-panel__work-items li').map(trimmedText);
+      return { rows: Object.fromEntries(terms.map((term, i) => [term, values[i] ?? ''])), workItems };
+    },
     /** Refresh evidence… on the note at `path` → Refresh evidence; waits for the dialog to close. */
     async refreshNote(path: string): Promise<void> {
       await root().$(`.ci-notes-panel__refresh[data-path="${path}"]`).click();
@@ -223,6 +270,17 @@ export function createInspectorPage(browser: NativeBrowser) {
     /** The profile names the settings list shows, in order (the settings window: openPluginSettings first). */
     settingsProfileNames: async (): Promise<string[]> => browser.$$(PROFILE_NAMES).map(async (el) => String(await el.getProperty('textContent')).trim()),
     settingsPage,
+    /** WP-04.2 E2: types `value` into a control on the open profile page and leaves it, so its `change` fires as a
+     *  person's edit does. Observed: the page slides in, and a control is not interactable until it has. Never
+     *  `setValue`: its WebDriver clear fires `change` with an empty value, which the tab saves (or refuses). */
+    async editSetting(field: () => ReturnType<NativeBrowser['$']>, value: string): Promise<void> {
+      await expect.poll(() => field().isClickable()).toBe(true);
+      await field().click();
+      await browser.keys([Key.Ctrl, 'a']);
+      await field().addValue(value);
+      await expect.poll(() => field().getValue()).toBe(value);
+      await settingsPage().$('.setting-page-title').click();
+    },
     /** openPluginSettings, then the profile's list row: its page is open, and WebDriver is in the settings window. */
     async openCodebaseSettings(profileName: string): Promise<void> {
       await openPluginSettings(browser);

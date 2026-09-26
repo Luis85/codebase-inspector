@@ -3,13 +3,11 @@
 // Observed here: a Notice the tab raises, and the source and clear-binding modals it opens, all render in the
 // settings window. IPF20: the plugin's own words only through its copy constants; everything else by selector.
 import { describe, expect } from 'vitest';
-import { Key } from 'webdriverio';
 import { defaultNoteFolder } from '../../src/application/investigation/note-path';
 import { exclusionInputReasons } from '../../src/domain/validator';
 import { NOTES_FOLDER_PROBLEM, NOTES_FOLDER_SETTING_NAME } from '../../src/ui/audit-copy/investigation';
 import { test } from './fixture';
 import { closeSettings, openPluginSettings, pluginData } from './host-probes';
-import type { InspectorPage } from './inspector';
 import type { NativeBrowser } from './session';
 import { copyProject } from './workspace-files';
 
@@ -24,17 +22,6 @@ async function onlyProfile(browser: NativeBrowser): Promise<SavedProfile> {
   const saved = profilesOf(await pluginData(browser));
   expect(saved).toHaveLength(1);
   return saved[0]!;
-}
-/** Types `value` into a control on the open profile page and leaves it, so its `change` fires as a person's edit
- *  does. Observed: the page slides in, and a control is not interactable until it has. Never `setValue`: its
- *  WebDriver clear fires `change` with an empty value, which the tab saves (or refuses) and re-renders. */
-async function edit(browser: NativeBrowser, inspector: InspectorPage, field: () => ReturnType<NativeBrowser['$']>, value: string): Promise<void> {
-  await expect.poll(() => field().isClickable()).toBe(true);
-  await field().click();
-  await browser.keys([Key.Ctrl, 'a']);
-  await field().addValue(value);
-  await expect.poll(() => field().getValue()).toBe(value);
-  await inspector.settingsPage().$('.setting-page-title').click();
 }
 
 describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
@@ -82,14 +69,14 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     const profile = await onlyProfile(browser);
     const folder = () => inspector.settingsRow(NOTES_FOLDER_SETTING_NAME).$('input');
     await inspector.openCodebaseSettings(profile.name);
-    await edit(browser, inspector, folder, `${configDir}/x`);
+    await inspector.editSetting(folder, `${configDir}/x`);
     await expect.poll(async () => (await inspector.notices()).some((text) => text.includes(NOTES_FOLDER_PROBLEM['config-dir']))).toBe(true);
     await expect.poll(() => folder().getValue()).toBe(defaultNoteFolder(profile.name));
     await closeSettings(browser);
     expect((await pluginData(browser)).investigations).toBeUndefined();
     // Positive control: a valid folder is saved, and shown again after the settings reopen.
     await inspector.openCodebaseSettings(profile.name);
-    await edit(browser, inspector, folder, 'Research/notes');
+    await inspector.editSetting(folder, 'Research/notes');
     await closeSettings(browser);
     await expect.poll(async () => ((await pluginData(browser)).investigations as Record<string, { folder?: string }> | undefined)?.[profile.profileId]?.folder)
       .toBe('Research/notes');
@@ -109,7 +96,7 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     const excluded = () => inspector.settingsPage().$('textarea');
     const saved = [...profile.exclusions, 'dist2'];
     await inspector.openCodebaseSettings(profile.name);
-    await edit(browser, inspector, excluded, saved.join('\n'));
+    await inspector.editSetting(excluded, saved.join('\n'));
     await closeSettings(browser);
     await expect.poll(async () => profilesOf(await pluginData(browser))[0]?.exclusions).toEqual(saved);
     // Two refused lines, each with its reason in one Notice; the stored value unchanged and shown again. `dist*` is
@@ -119,7 +106,7 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     const reason = exclusionInputReasons(refused).join(' ');
     expect(exclusionInputReasons(refused)).toHaveLength(2);
     await inspector.openCodebaseSettings(profile.name);
-    await edit(browser, inspector, excluded, refused.join('\n'));
+    await inspector.editSetting(excluded, refused.join('\n'));
     await expect.poll(async () => (await inspector.notices()).some((text) => text.includes(reason))).toBe(true);
     await expect.poll(() => excluded().getValue()).toBe(saved.join('\n'));
     await closeSettings(browser);
