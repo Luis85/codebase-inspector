@@ -22,7 +22,7 @@ import { test } from './fixture';
 import { closeSettings, commandAvailable, onlyProfile, pluginData, rendered, savedBindings, vaultBasePath } from './host-probes';
 import type { InspectorPage } from './inspector';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
-import { RECORDING, copyProject, cycleFinding, recordingFindingCount, writeSyntheticTree } from './workspace-files';
+import { RECORDING, copyProject, cycleFinding, expectedFindingCount, writeSyntheticTree } from './workspace-files';
 
 /** NPF12: the plugin's own ribbon label (main.ts's addRibbonIcon). */
 const RIBBON = '.side-dock-ribbon-action[aria-label="Open codebase city"]';
@@ -119,7 +119,7 @@ describe('the plugin commands and ribbon in the real Obsidian host (WP-04.2 §5 
   }, 240_000);
 
   test('import-analysis-report attaches a real report file and is refused without a snapshot', async ({ native: { browser, page, inspector, directory } }) => {
-    copyProject(page.getVaultPath(), 'code');
+    const code = copyProject(page.getVaultPath(), 'code');
     await expect.poll(() => browser.executeObsidian(({ app }) => app.vault.adapter.exists('code/src/core/a.ts'))).toBe(true);
     await inspector.openCity();
 
@@ -143,7 +143,7 @@ describe('the plugin commands and ribbon in the real Obsidian host (WP-04.2 §5 
 
     // Investigate lists exactly the recording's normalised findings (IN1), every page shown.
     const listed = await inspector.listedFindings();
-    const expected = recordingFindingCount();
+    const expected = expectedFindingCount(code);
     await writeEvidence(directory, 'findings', { listed, expected });
     expect(listed).toBe(expected);
     // The recording's own import cycle is among them.

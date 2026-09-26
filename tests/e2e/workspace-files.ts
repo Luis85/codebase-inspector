@@ -6,6 +6,7 @@ import { cpSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync }
 import { join, resolve } from 'node:path';
 import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
 import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
+import { resolveFindings } from '../../src/application/evidence/resolve-findings';
 
 export const RECORDING = resolve('tests/fixtures/fallow/relations-combined-3.27.0.json');
 const RELATIONS_PROJECT = resolve('tests/fixtures/fallow/relations-project');
@@ -43,8 +44,26 @@ export function recordingFindings(file = RECORDING) {
   return report.normalized.findings;
 }
 
-/** How many findings the 3.27.0 recording gives the relations project once normalised (Investigate lists each). */
-export const recordingFindingCount = (): number => recordingFindings().length;
+/** Every file (never a folder) under `root`, `/`-separated and relative to it, walked the way `hashTree` walks
+ *  (readdirSync, sorted, recursive) but keeping only files: what a snapshot's own file paths are. */
+function projectFilePaths(root: string, prefix = ''): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(root).sort()) {
+    const abs = join(root, name);
+    const rel = prefix === '' ? name : `${prefix}/${name}`;
+    if (statSync(abs).isDirectory()) out.push(...projectFilePaths(abs, rel));
+    else out.push(rel);
+  }
+  return out;
+}
+
+/** T6: how many findings the recording (or a report crafted from it, `file`) gives Investigate to list for the
+ *  project at `projectRoot` once normalised and resolved against its real files (`resolveFindings`) — never a raw
+ *  finding count, which would also count one whose anchor is not a snapshot file. */
+export function expectedFindingCount(projectRoot: string, file = RECORDING): number {
+  const snapshotPaths = new Set(projectFilePaths(projectRoot));
+  return resolveFindings(recordingFindings(file), snapshotPaths).matched.length;
+}
 
 /** The import cycle's finding id and reported line, read from the recording through the real parser and normaliser. */
 export function cycleFinding(): { id: string; line: number } {

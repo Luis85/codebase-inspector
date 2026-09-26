@@ -24,7 +24,7 @@ import { closeSettings, commandAvailable, onlyProfile, pluginData, rendered } fr
 import { fallowBinary, fallowProcessCount } from './inspector-fallow';
 import type { InspectorPage } from './inspector';
 import type { NativeBrowser } from './session';
-import { copyProject, recordingFindingCount, writeSyntheticTree } from './workspace-files';
+import { copyProject, expectedFindingCount, writeSyntheticTree } from './workspace-files';
 
 interface SavedAnalyzer { executablePath: string; trust: { version: string } | null }
 
@@ -51,7 +51,7 @@ async function openSources(inspector: InspectorPage): Promise<void> {
 describe('the installed fallow run by command id in the real Obsidian host (WP-04.2 §5 rows 8, 9, 15)', () => {
   test('run-fallow-analysis runs the installed fallow on the scanned codebase', async ({ native: { browser, page, inspector, directory } }) => {
     const binary = fallowBinary();
-    copyProject(page.getVaultPath(), 'code');
+    const code = copyProject(page.getVaultPath(), 'code');
     await expect.poll(() => vaultHas(browser, 'code/src/core/a.ts')).toBe(true);
     await inspector.openCity();
     await inspector.scanFolder('code');
@@ -79,7 +79,7 @@ describe('the installed fallow run by command id in the real Obsidian host (WP-0
 
     // Investigate lists the findings the recording's normaliser gives this project, every page shown.
     const listed = await inspector.listedFindings();
-    const expected = recordingFindingCount();
+    const expected = expectedFindingCount(code);
     await writeEvidence(directory, 'fallow-run', {
       binary, version, tested: FALLOW_TESTED_VERSIONS, ...card, listed, expected,
     });

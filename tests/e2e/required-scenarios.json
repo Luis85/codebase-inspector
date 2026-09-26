@@ -37,5 +37,6 @@
   "email addresses stay inert after noteText escaping",
   "creates a note in a folder that exists on disk before Obsidian has indexed it",
   "scan-codebase after a Reconnect to another folder asks to approve the connected folder",
-  "a setting being typed keeps its text when a write elsewhere refreshes the settings tab"
+  "a setting being typed keeps its text when a write elsewhere refreshes the settings tab",
+  "the finding list pages through a report longer than one page and leaves out unmatched findings"
 ]

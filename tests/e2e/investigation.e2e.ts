@@ -10,9 +10,12 @@
 import { cpSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect } from 'vitest';
+import { FINDINGS_PAGE } from '../../src/ui/read-models/findings';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
-import { CYCLE_ANCHOR, RECORDING, cycleFinding, hashTree } from './workspace-files';
+import {
+  CYCLE_ANCHOR, RECORDING, copyProject, cycleFinding, expectedFindingCount, hashTree, recordingFindings, writeReport,
+} from './workspace-files';
 
 const BEGIN_MARKER = '<!-- codebase-inspector:evidence:begin -->';
 const END_MARKER = '<!-- codebase-inspector:evidence:end -->';
@@ -121,5 +124,43 @@ describe('the investigation spine in the real Obsidian host (IN51 d)', () => {
     await browser.executeObsidian(async ({ app }, target) => { await app.vault.adapter.remove(target); }, moved);
     await expect.poll(() => inspector.notePaths()).toEqual([]);
     await expect.poll(() => inspector.root().$('.ci-notes-panel__none').isExisting()).toBe(true);
+  });
+
+  // T6, T7, scenario 40: a report far longer than one page, with one finding the app must leave out.
+  test('the finding list pages through a report longer than one page and leaves out unmatched findings', async ({ native: { browser, page, inspector, directory } }) => {
+    const code = copyProject(page.getVaultPath(), 'code');
+    await expect.poll(() => browser.executeObsidian(({ app }) => app.vault.adapter.exists('code/src/core/a.ts'))).toBe(true);
+    await inspector.openCity();
+    await inspector.scanFolder('code');
+
+    // T7: the recording's own unused-exports finding (src/barrel/x.ts), cloned about 150 times with a distinct
+    // export_name each (normalize-fallow.ts's dedupe key is path|export_name|rule, so each clone is its own
+    // finding), plus one clone whose path is not one of the project's files (T6).
+    const file = writeReport(join(directory, 'many-findings.json'), (raw) => {
+      const check = raw.check as { unused_exports: Record<string, unknown>[] };
+      const base = check.unused_exports[0]!;
+      expect(base.path).toBe('src/barrel/x.ts');
+      const clones: Record<string, unknown>[] = [];
+      for (let i = 0; i < 150; i += 1) clones.push({ ...base, export_name: `x${i}` });
+      clones.push({ ...base, path: 'src/missing.ts', export_name: 'x-missing' });
+      check.unused_exports = [...check.unused_exports, ...clones];
+    });
+
+    // Controls, before the UI checks (T6, T7): every clone has its own id, the crafted report holds exactly one
+    // finding more than the app will list (the unmatched one, on a path that is not a snapshot file), and that
+    // list is itself longer than one page.
+    const all = recordingFindings(file);
+    const expected = expectedFindingCount(code, file);
+    expect(new Set(all.map((f) => f.id)).size).toBe(all.length);
+    expect(all.length).toBe(expected + 1);
+    expect(expected).toBeGreaterThan(FINDINGS_PAGE);
+
+    await inspector.importReport(file);
+    // listedFindings presses Show more (`.ci-investigate-list__more`) until it is gone; only reachable at all
+    // here because the list is longer than one page, so this also proves T7's loop ran.
+    const listed = await inspector.listedFindings();
+    await writeEvidence(directory, 'paged-findings', { total: all.length, expected, listed });
+    expect(listed).toBeGreaterThan(FINDINGS_PAGE);
+    expect(listed).toBe(expected);
   });
 });
