@@ -121,6 +121,9 @@ describe('a note folder Obsidian has not indexed yet (WP-04.2 NPF15, P2)', () =>
   test('creates a note in a folder that exists on disk before Obsidian has indexed it', async ({ native }) => {
     const { browser, page, inspector, directory } = native;
     copyProject(page.getVaultPath(), 'code');
+    // The copy is not settled at once (cycle-note.ts's own guard): wait for a known file of it before
+    // relying on the copy, so the positive control below can't read a false "not on disk".
+    await expect.poll(() => browser.executeObsidian(({ app }) => app.vault.adapter.exists('code/src/core/a.ts'))).toBe(true);
 
     // Positive control: on disk, but not in the vault's index (NPF15).
     const control = await browser.executeObsidian(async ({ app }) => ({
@@ -137,7 +140,7 @@ describe('a note folder Obsidian has not indexed yet (WP-04.2 NPF15, P2)', () =>
 
     const path = await inspector.createNoteIn('code/notes', true);
     expect(path.startsWith('code/notes/')).toBe(true);
-    expect(await inspector.notePaths()).toContain(path);
+    await expect.poll(() => inspector.notePaths()).toContain(path);
 
     const indexedAfter = await browser.executeObsidian(({ app, obsidian }) => app.vault.getAbstractFileByPath('code') instanceof obsidian.TFolder);
     await writeEvidence(directory, 'unindexed-folder', { control, path, indexedAfter });
