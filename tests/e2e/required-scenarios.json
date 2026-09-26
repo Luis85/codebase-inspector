@@ -30,5 +30,7 @@
   "a note created inside the codebase root is excluded from the next scan",
   "offers the scan exclusion when the codebase root is reached through an alias",
   "a bound codebase previews under its connected folder and refuses a changed root",
-  "Open in Obsidian and Open note each open the file in a new tab"
+  "Open in Obsidian and Open note each open the file in a new tab",
+  "draws the city in dark and light themes and recolours on css-change without rebuilding",
+  "restores the city leaf's route after an app restart without scanning"
 ]
