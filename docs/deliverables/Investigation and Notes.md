@@ -96,9 +96,10 @@ optional items); an external-editor action (O5) — Source actions stay the read
 preview and, for a Markdown file inside the vault, Open in Obsidian; automatic status
 sync (O6) — a note's `status` is the user's own and nothing writes it but creation; and
 every deliverable non-goal above. **Notes may be written inside the codebase root** (O7),
-but only after the create dialog's explicit checkbox, which also adds the folder to the
-codebase's scan exclusions (IN29) — the one exception to "no writes in the directory you
-select", stated in the README and the two settings disclosures (IN41).
+but only after you confirm the create dialog, which names the overlap and offers,
+checked, to exclude the folder — the checkbox also adds the folder to the codebase's scan
+exclusions (IN29) — the one exception to "no writes in the directory you select", stated
+in the README and the two settings disclosures (IN41).
 
 Acceptance, item by item, is recorded in
 `docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md`'s **WP-04 Part 1** section,

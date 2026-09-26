@@ -15,7 +15,7 @@ import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { analysedAtOf, previewRequestFor } from '../../src/ui/read-models/investigation-evidence';
 import {
-  PREVIEW_FILE_EMPTY, PREVIEW_LINE_LABEL, PREVIEW_READ_AT, PREVIEW_STALE_LOCATION, PREVIEW_UNAVAILABLE,
+  PREVIEW_FILE_EMPTY, PREVIEW_LINE_LABEL, PREVIEW_READ_AT, PREVIEW_READ_FOR_LINE, PREVIEW_STALE_LOCATION, PREVIEW_UNAVAILABLE,
   UNCERTAINTY_LINE_MATCHED, UNCERTAINTY_LINE_NOT_CHECKED,
 } from '../../src/ui/inspector-copy';
 import { formatAbsoluteTime } from '../../src/ui/copy';
@@ -102,6 +102,9 @@ describe('IN13/IP39: reads happen only on selection change and Reload', () => {
     expect(w.find('.ci-source-preview__line[aria-current="true"]').exists(), 'no highlight for a line the OLD window was not read for').toBe(false);
     expect(w.find('.ci-source-preview__line-label').exists(), 'no label either').toBe(false);
     expect(uncertaintyItems(w)).toContain(UNCERTAINTY_LINE_NOT_CHECKED);
+    // Polish (E19): the panel says which line the shown window was read for, since the
+    // finding now reports another one (row.line moved 2 -> 9) with no new read to explain it.
+    expect(w.find('.ci-source-preview__line-moved').text()).toBe(PREVIEW_READ_FOR_LINE(2));
     w.unmount();
   });
 });

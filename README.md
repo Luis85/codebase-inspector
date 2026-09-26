@@ -42,9 +42,13 @@ files to `dist/`.
 ## What it does not do yet
 
 Snapshots are **in memory only**: reopening a view shows the retained state with its
-age, and an Obsidian restart clears it. There is no analyzer, no findings, no coverage,
-no dependency relations, no note writing and no open-in-editor action. Symbolic links
-and junctions are never followed; they are reported as skipped.
+age, and an Obsidian restart clears it. Findings and dependency relations come from a
+fallow report you run or import; that report is **session-only** too, held in memory and
+gone on restart the same as the snapshot. Coverage is still sample data, never a real
+measurement. Investigation notes are the one write this plugin makes: a Markdown note is
+written into your vault only when you confirm the create or refresh dialog for it (see
+above), and there is still no external-editor action. Symbolic links and junctions are
+never followed; they are reported as skipped.
 
 The full record, including what has and has not been verified — **the perceptual half of
 accessibility has not been checked by anybody, and the performance figures are not GPU

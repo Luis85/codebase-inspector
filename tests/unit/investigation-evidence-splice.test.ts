@@ -5,6 +5,7 @@ import { isEvidenceBlock, spliceEvidenceBlock } from '../../src/application/inve
 const NEW = [B, 'new', E].join('\n');
 const HEAD = '---\nstatus: open\n---\n\n';
 const TAIL = '\n## Investigation notes\n\nmine, with <!-- a comment --> and trailing spaces   \n';
+const BOM = String.fromCharCode(0xfeff);
 
 describe('spliceEvidenceBlock (IN23, IN31)', () => {
   it('replaces only what lies between the markers, byte for byte', () => {
@@ -35,7 +36,7 @@ describe('spliceEvidenceBlock (IN23, IN31)', () => {
     ['an indented begin', `  ${B}\nx\n${E}\n`],
     ['a trailing-space end', `${B}\nx\n${E} \n`],
     ['a second block in a code fence', `${B}\nx\n${E}\n\`\`\`\n${B}\n${E}\n\`\`\`\n`],
-    ['a BOM before a first-line begin marker', `﻿${B}\nx\n${E}\n`],
+    ['a BOM before a first-line begin marker', `${BOM}${B}\nx\n${E}\n`],
     ['an end marker with no begin at all', `x\n${E}\ny\n`],
     ['an indented end marker together with a trailing-space begin marker', `${B} \nx\n  ${E}\n`],
     ['a lone begin marker inside a fence alongside a real block', `${B}\nx\n${E}\n\`\`\`\n${B}\n\`\`\`\n`],

@@ -60,7 +60,7 @@ describe('SnapshotStatus.vue (C12)', () => {
   // (docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md). The scope modal makes
   // them BEFORE the read; this line makes them AFTER it, beside the snapshot they are
   // about -- which is where a user actually wonders what the scan did to their files.
-  it('states "Read-only source access" and "Source remains unchanged." beside a retained snapshot', () => {
+  it('states "Read-only source access" and "Scanning never changes the source." beside a retained snapshot', () => {
     const store = useCityStore();
     const snapshot = buildSnapshotFixture({ files: 2 });
     store.setCity(snapshot, computeLayout(snapshot));

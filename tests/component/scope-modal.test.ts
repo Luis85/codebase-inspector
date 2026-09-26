@@ -206,11 +206,16 @@ describe('scope modal (C04)', () => {
   // the absence form was one assertion because either string appearing was a failure,
   // and the presence form needs to fail SEPARATELY for each, naming which one went
   // missing.
-  it('claims "Read-only source access" and "Source remains unchanged", now that G2 is recorded', () => {
+  //
+  // WP-04 ruling E29: the second claim's wording changed to "Scanning never changes
+  // the source." once O7 allowed a confirmed note inside the root -- the claim is
+  // about scanning and the preview, not about the plugin never writing anything (see
+  // the WP-04 G2 note in gate-evidence.md).
+  it('claims "Read-only source access" and "Scanning never changes the source", now that G2 is recorded', () => {
     void openScopeModal(app, makeSelection());
     const text = modalRoot().textContent;
     expect(text).toContain('Read-only source access');
-    expect(text).toContain('Source remains unchanged.');
+    expect(text).toContain('Scanning never changes the source.');
     cancelButton().click();
   });
 
@@ -224,7 +229,7 @@ describe('scope modal (C04)', () => {
     const claim = modalRoot().querySelector('.scope-modal-claims');
     expect(claim, 'the claims are not rendered as their own, findable element').not.toBeNull();
     expect(claim!.textContent).toContain('Read-only source access');
-    expect(claim!.textContent).toContain('Source remains unchanged.');
+    expect(claim!.textContent).toContain('Scanning never changes the source.');
     cancelButton().click();
   });
 

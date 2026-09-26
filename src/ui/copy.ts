@@ -81,7 +81,11 @@ export const COPY_30_CLEAR_LABEL = capitalizeFirst(COPY_30_CLEAR_RAW!);
  *  making slightly different promises. The trailing full stop on the second is
  *  deliberate: it is a sentence, where the first is a label. */
 export const CLAIM_READ_ONLY_ACCESS = 'Read-only source access';
-export const CLAIM_SOURCE_UNCHANGED = 'Source remains unchanged.';
+/** WP-04 ruling E29: this claim is about scanning and the preview only. O7 allows a
+ *  confirmed note inside the root, written through the vault API and disclosed in the
+ *  README and the create dialog — see the WP-04 G2 note in
+ *  docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md. */
+export const CLAIM_SOURCE_UNCHANGED = 'Scanning never changes the source.';
 
 /** COPY-08, formatted. `run-state.ts`'s own `formatProgressMessage` (task 8) is the
  *  identical string, kept in sync by construction — both read the same catalogue

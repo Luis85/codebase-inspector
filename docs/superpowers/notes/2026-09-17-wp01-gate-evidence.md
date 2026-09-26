@@ -646,8 +646,15 @@ native cases out of this table, because they are opt-in and local-only, and its 
 recorded in the **WP-04 Part 1** section below, in its own **native acceptance**
 subsection.
 
-The per-layer total below is **305**, which is not what `npm run test` itself runs: it is
-303 files plus the opt-in `tests/fallow-real` layer's two files, which never run inside it
+The final whole-branch review's fix wave (2026-09-26) adds one more component file,
+`investigate-create-review.test.ts` (finding 8: a create refusal that lands after its
+dialog closed — the same codebase, the selection moved off the finding — is now announced
+through the live region, same as refresh's E24), 2 tests. `npm run test` becomes 304
+files, 3441 tests, and the per-layer re-runs below refreshed the Component row, the total
+and the heading again the same way.
+
+The per-layer total below is **306**, which is not what `npm run test` itself runs: it is
+304 files plus the opt-in `tests/fallow-real` layer's two files, which never run inside it
 (see the Real fallow row below, and its own eleven-test run in the WP-03 Part 1 section
 above). The Contract row is the one exception to "read straight off a run": its guard
 derives its Tests cell from its own files rather than a transcription, so it includes
@@ -659,7 +666,7 @@ throwaway vault trees under `os.tmpdir()` and do not depend on this worktree hav
 `.obsidian/` folder of its own, so the environmental failure recorded through Part 6 did
 not reproduce here — the disk/live result is recorded rather than that prediction
 (corrected during execution, Part 7 task 14).
-**305 files, 3439 tests, 3438 passed,
+**306 files, 3441 tests, 3440 passed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -692,7 +699,7 @@ above whenever tests are added.
 | Unit | `tests/unit/**` | 152 | yes | 1988 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard. WP-03 Part 1 adds the relation domain/normaliser/model/architecture-model suites and `relation-copy-claims.test.ts` (spec §5's "no calls/executes/will break" and "no backlink" sweeps). The WP-03 Part 1 polish pass adds PO1/PO2 and the JP5 gating cases inside `architecture-relations.test.ts`, no new file. The final whole-branch review's fix wave adds Minor 4's Report/Markdown split case inside `report-model.test.ts`, no new file. **WP-04 Part 1** adds 17 files: the native harness's own `session-lifecycle`, `native-results-gate` and `native-baseline` tests (Task 0, IP45), and the pure application layer's `investigation-note-text`, `investigation-note-path`, `investigation-note-model`, `investigation-evidence-splice`, `investigation-note-index`, `investigation-root-path`, `investigation-source-preview`, `investigation-stale-location`, `investigation-evidence`, `investigation-model`, `investigation-store`, `investigation-store-ports`, `investigation-folder-store` and `fake-vault` tests (Tasks 2–10) |
 | Contract | `tests/contracts/**` | 5 | yes | 62 | **one suite, two implementations** (40) — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift — plus this directory's other three pinned files, `height-scale.test.ts` (task 13's four preserved scale.ts properties), `microcopy.test.ts` (task 12's catalogue-completeness sweep) and `fallow-runner.test.ts` (Part 7 K28: the real adapter against a real spawned process, injected `node:child_process`, Z38). Untouched by WP-04 Part 1 |
 | Integration (real temp dirs) | `tests/integration/**` | 10 | yes | 45 | 44 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase, the fallow-analysis no-freeze suite. **WP-04 Part 1** adds `investigation-preview-real.test.ts` (Task 4, IP15: the source-preview service against the real Node adapter over a real temp directory) |
-| Component (jsdom) | `tests/component/**` | 105 | yes | 1022 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite. The WP-03 Part 1 polish pass adds cases inside `architecture-screen.test.ts`, `architecture-rules.test.ts`, `architecture-edges.test.ts`, `architecture-cycles.test.ts` and `city-relations-panel.test.ts`, no new file. **WP-04 Part 1** adds 13 files: the Investigate screen and route (`investigate-screen`, `investigate-route`), its entry points (`investigate-entry-points`), the evidence and preview panels (`investigate-evidence`, `investigate-preview`, `investigate-preview-io`), the create and refresh dialogs (`investigate-create`, `investigate-refresh`, `investigate-refresh-review`), the city Findings panel (`city-findings-panel`), the Settings notes-folder row (`settings-notes-folder-row`, `settings-notes-folder`) and the work-item-editor draft prefill (`work-item-editor-draft`) |
+| Component (jsdom) | `tests/component/**` | 106 | yes | 1024 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite. The WP-03 Part 1 polish pass adds cases inside `architecture-screen.test.ts`, `architecture-rules.test.ts`, `architecture-edges.test.ts`, `architecture-cycles.test.ts` and `city-relations-panel.test.ts`, no new file. **WP-04 Part 1** adds 13 files: the Investigate screen and route (`investigate-screen`, `investigate-route`), its entry points (`investigate-entry-points`), the evidence and preview panels (`investigate-evidence`, `investigate-preview`, `investigate-preview-io`), the create and refresh dialogs (`investigate-create`, `investigate-refresh`, `investigate-refresh-review`), the city Findings panel (`city-findings-panel`), the Settings notes-folder row (`settings-notes-folder-row`, `settings-notes-folder`) and the work-item-editor draft prefill (`work-item-editor-draft`). **The final whole-branch review's fix wave** adds a 14th, `investigate-create-review.test.ts` (finding 8: a create refusal announced through the live region once its dialog has closed) |
 | Host (Obsidian doubles) | `tests/host/**` | 23 | yes | 233 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily.** **WP-04 Part 1** adds `investigation-notes.test.ts` (Task 9: `plan`/`create`/`refresh`/`open`/`destination`/`sourceNotePath` against the fake vault), `investigation-note-index.test.ts` (Task 9: the incremental reducer) and `investigation-ports.test.ts` (Task 10: the wired `InvestigationNotesPort`/source-preview over the fake vault, including E25's unbound-profile case) |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 3 | yes | 39 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused). **WP-04 Part 1** adds `investigation-spine.test.ts` (Task 16, IN38: finding → preview → create → edit → rescan → refresh, byte-identical human sections, over the real relations project and the real Node port) and `investigation-safety.test.ts` (Task 16, IN39: injection, collision, race, marker and traversal cases; mutation runs below) |
 | Benchmark | `tests/benchmarks/**` | 2 | yes | 11 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers. WP-03 Part 1 adds `relations-budget.test.ts` (N33, N37 — medians above). Untouched by WP-04 Part 1 |
@@ -1228,6 +1235,17 @@ read-only source preview with a stale-location rule, an evidence bundle and unce
 panel, and explicit Markdown-note creation and refresh in the user's own vault (O3, O4).
 It adds one new durable key (`investigations`) and no process, argv or trust change.
 
+### G2 note — the source-unchanged claim and O7
+
+Ruling E29: `CLAIM_SOURCE_UNCHANGED` ("Scanning never changes the source.",
+`SnapshotStatus.vue`, the scope modal) covers scanning and the preview only. The only
+in-root write this part adds is an investigation note the user confirmed in the create
+dialog (O7), written through the vault API (`Vault.createFolder`, `Vault.create`), never
+through the `SourceFileSystemPort` the scan and preview read through. That write is
+disclosed both in the README ("What this plugin reads, and what it never does") and in
+the create dialog itself (`NOTE_CREATE_OVERLAP`, `NOTE_CREATE_EXCLUDE`), so the claim and
+the one exception to it are stated in the same places a user would look.
+
 ### The deliverable's acceptance, item by item (spec §5)
 
 | Acceptance | Test (in-memory) | Native (IN51) |
@@ -1360,18 +1378,23 @@ byte-identical across a real refresh and links the note through the metadata cac
 16, IN51 d) — ten in total, none of them G8 layers (IP53).
 
 **The native spine** (`tests/e2e/investigation.e2e.ts`, Task 16). In the session's copied
-vault: Settings → Add profile → Connect (a vault-folder scope over the copied `code/`
-folder) → scan → import a real fallow report through the Data & scans dialog → select the
-import-cycle finding → the source preview shows the exact highlight → create a note through
-the real dialog → edit its human sections through `vault.process` → rescan (a new snapshot)
-→ refresh through the real dialog: the text after the end marker is byte-identical, the
-frontmatter is value-identical bar the new `snapshot_id`, and Obsidian's own
-`metadataCache` links the note to the finding (not the notes port — the native spine checks
-the real host). The RED proof: `refreshNote` mutated to also write `RED mutation` after `##
-Decision` failed the byte-identity assertion, reproduced with the recorded versions and
-reverted before the final run above. The same test also carries Task 9's move/rename and
-delete carry: a moved and renamed note stays linked through the real metadata cache, and a
-deleted note leaves the notes panel.
+vault: `scan-codebase`'s own default flow — the source and scope modals over the copied
+`code/` folder, creating an unbound profile (no Connect step; E25's preview reads under the
+snapshot's own root) — → scan → import a real fallow report through the Data & scans dialog
+→ select the import-cycle finding → the source preview shows the exact highlight → create a
+note through the real dialog → edit its human sections through `vault.process` → rescan (a
+new snapshot) → refresh through the real dialog: the text after the end marker is
+byte-identical, the frontmatter is value-identical bar the new `snapshot_id`, and Obsidian's
+own `metadataCache` links the note to the finding (not the notes port — the native spine
+checks the real host). A bound profile's preview (a Connected folder read through the
+binding rather than the snapshot root) is not exercised natively; it is covered only by
+`tests/host/investigation-ports.test.ts` ("E25: a profile with no binding (scan-codebase's
+own) reads under the snapshot root; a binding whose record is gone does not"). The RED
+proof: `refreshNote` mutated to also write `RED mutation` after `## Decision` failed the
+byte-identity assertion, reproduced with the recorded versions and reverted before the
+final run above. The same test also carries Task 9's move/rename and delete carry: a moved
+and renamed note stays linked through the real metadata cache, and a deleted note leaves the
+notes panel.
 
 **Native cases are not a G8 layer (IP53).** They are opt-in, local and never part of
 `npm run verify`; the two `tests/unit/` files the native layer adds (`session-lifecycle`,

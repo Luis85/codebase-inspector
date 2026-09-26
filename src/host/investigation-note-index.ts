@@ -41,6 +41,12 @@ export function createNoteIndexSource(app: App, registerEvent: (ref: EventRef) =
       repaired = true;
       apply(everyFile());
     }));
+    // A folder move, rename or delete carries no event of its own here: this index relies on
+    // Obsidian firing 'rename' (or 'delete', for a folder removed outright) once per markdown
+    // file the folder contained, never a single folder-level event this index would need to
+    // walk itself. Per E14, a missed event (this listener not yet registered, or Obsidian not
+    // firing one for some file) is repaired only on the next reload's whole-cache rebuild
+    // above, never by a later, unrelated event.
     registerEvent(app.vault.on('rename', (file, oldPath) => {
       apply(file instanceof TFile && file.extension === 'md'
         ? { kind: 'renamed', oldPath, path: file.path, frontmatter: frontmatterOf(file) }

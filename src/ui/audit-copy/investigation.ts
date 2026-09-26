@@ -78,7 +78,10 @@ export const NOTE_VOCABULARY: NoteVocabulary = {
     cyclePath: 'Cycle path',
     provider: 'Provider',
     analysed: 'Analysed at',
-    snapshot: 'Snapshot',
+    // WP-04 polish (Important 3): the block's own snapshot line (facts.snapshotId, note-model.ts)
+    // is the report's snapshot, never the frontmatter's snapshot_id (always the current one, and
+    // the only field a refresh updates) -- "Report snapshot" so the two can differ truthfully.
+    snapshot: 'Report snapshot',
     evidence: 'Evidence',
     // IN34: a refreshed note for a finding the current report no longer lists.
     notReported: 'Not reported by the current analysis',
@@ -89,8 +92,6 @@ export const NOTE_VOCABULARY: NoteVocabulary = {
   },
 };
 
-// WP-04 IN14 (fix round 1): the evidence block's own two-word evidence state ("collected or
-// stale"), never the code word ('current'/'stale') `EvidenceBundle.state` carries.
 // WP-04 E26: the evidence's state against the current snapshot, never 'Collected' (a collected
 // report's origin, a different fact).
 export const NOTE_EVIDENCE_STATE_TEXT: Readonly<Record<'current' | 'stale', string>> = { current: 'Current', stale: 'Stale' };
@@ -251,6 +252,12 @@ export const PREVIEW_STALE_LOCATION = (check: LocationCheck | 'no-line', cause: 
   (check === 'no-line'
     ? 'fallow reports no line for this finding, so the first 41 lines are shown.'
     : UNCERTAINTY_LINE_STALE(check, cause ?? 'unknown', line));
+/** Polish (E19): the window's own request line (PreviewState's `line`) can differ from the
+ *  row's CURRENT reported line after a re-run moves it without changing the fingerprint
+ *  (IN13 keeps the OLD window, no new read) — otherwise the panel shows a window with no
+ *  highlight and no explanation why. `n` is the line the shown window was read for. */
+export const PREVIEW_READ_FOR_LINE = (n: number): string =>
+  `Read for line ${n}; the finding now reports another line. Reload to check it.`;
 export const PREVIEW_UNAVAILABLE: Readonly<Record<PreviewUnavailable, string>> = {
   'no-binding': 'This codebase’s folder is not connected on this device, or it now points to another folder than the scan read.',
   'no-filesystem': 'Source preview needs the desktop app’s file access.',
@@ -270,8 +277,9 @@ export const NOTE_PANEL_NONE = 'No note for this finding yet.';
 export const NOTE_STATUS = (status: string | null): string => (status === null || status.trim() === '' ? 'No status' : `Status: ${status}`);
 export const NOTE_OPEN = 'Open';
 export const NOTE_OPEN_LABEL = (path: string): string => `Open ${path}`;
-/** The notes panel's own role="alert" line when Open finds no file (E17: never silent). */
-export const NOTE_OPEN_FAILED = 'That note is not in the vault any more.';
+/** The notes panel's own role="alert" line when Open fails (E17: never silent) — the file is
+ *  gone, or `openFile` threw for some other reason; one sentence true for both causes. */
+export const NOTE_OPEN_FAILED = 'The note could not be opened.';
 export const NOTE_CREATE_OPEN = 'Create investigation note…';
 export const NOTE_CREATE_TITLE = 'Create an investigation note';
 export const NOTE_CREATE_FOLDER = 'Folder';

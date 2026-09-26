@@ -456,6 +456,18 @@ probe results and spec §3). Recorded by task 18.
   run), one app version per run, one real display session. It does not certify
   accessibility, other operating systems, or any Obsidian version other than the two
   actually run.
+- **A missed metadata event is not repaired until reload (E14's cost).** The note index
+  updates incrementally from `changed`/`rename`/`delete`; if Obsidian fails to fire one of
+  those for some file (or the listener is not registered yet), that note's entry is stale
+  until the next whole-cache rebuild, which runs only once, on the first `resolved` after
+  the plugin starts. Nothing prompts a rebuild in between.
+- **The preview reads under a root approved for scanning but never connected in Settings
+  (E25's cost).** A profile with no binding (`scan-codebase`'s own default flow) reads the
+  source preview under the snapshot's own root rather than a Settings-tab binding, so the
+  preview works without ever exercising the Connect step or its per-device binding record.
+  The bound-profile preview path — a Connected folder read through the binding — is not
+  exercised by the native spine at all; it is covered only by
+  `tests/host/investigation-ports.test.ts`.
 - **Two open items the native spine found, neither of them WP-04 code:**
   - **The Settings tab does not refresh after `scan-codebase` creates a profile
     (pre-existing).** `SettingsTab.refresh()` runs only from `onload` and after the tab's

@@ -14,7 +14,7 @@ import { useInvestigationStore } from '../../stores/investigation-store';
 import { useEvidenceStore } from '../../stores/evidence-store';
 import { reannounce } from '../../kit/reannounce';
 import {
-  FINDING_KIND_LABEL, NOTE_CREATED, NOTE_CREATED_EXCLUDED, NOTE_EXCLUSION_FAILED, NOTE_VOCABULARY,
+  FINDING_KIND_LABEL, NOTE_CREATE_REFUSED, NOTE_CREATED, NOTE_CREATED_EXCLUDED, NOTE_EXCLUSION_FAILED, NOTE_VOCABULARY,
 } from '../../inspector-copy';
 
 interface NotesInput {
@@ -39,6 +39,13 @@ export type SubmitNote = (request: CreateNoteRequest, excluded: string | null) =
 function createdMessage(path: string, exclusion: Exclusion, excluded: string | null): string {
   if (exclusion === 'added' && excluded !== null) return NOTE_CREATED_EXCLUDED(path, excluded);
   return exclusion === 'failed' ? NOTE_EXCLUSION_FAILED(path) : NOTE_CREATED(path);
+}
+/** Polish (E24's carry to create): a refusal's own words — the dialog's alert line reads
+ *  them itself (CreateNoteDialog.vue) while still open; the live region reads the same
+ *  words once the dialog has closed under the refusal (submitCreate below). Never called
+ *  with a 'created' result (the caller branches on that first). */
+function createRefusalWords(result: Exclude<CreateNoteResult, { status: 'created' }> | null): string {
+  return NOTE_CREATE_REFUSED[result === null ? 'write-failed' : result.reason];
 }
 
 export function useInvestigationNotes(input: NotesInput) {
@@ -108,17 +115,27 @@ export function useInvestigationNotes(input: NotesInput) {
    *  in the dialog, so a note written after a same-codebase selection change closed the
    *  dialog is still announced (E17: every real outcome; E22: never in another codebase). Only when the selection is still the one the
    *  create was for does it close the dialog and move focus to the note's Open (IP24;
-   *  nothing is opened). A refusal is returned for the dialog's own alert line. */
+   *  nothing is opened). A refusal is returned for the dialog's own alert line while that
+   *  dialog is still open; once it has closed under the refusal (same codebase, selection
+   *  moved), the live region says it instead (E24's carry to create). */
   const submitCreate: SubmitNote = async (request, excluded) => {
     const fingerprint = investigation.selectedFingerprint;
     const codebase = evidence.repositoryId;
     const result = await investigation.create(request);
-    if (result === null || result.status !== 'created') return result;
     // Ruling E22: a codebase switch mid-write announces nothing here — the words (an
     // exclusion "of this codebase") would describe codebase A in codebase B's live region.
     // The note is listed when the user returns to A.
     if (evidence.repositoryId !== codebase) return result;
     const same = fingerprint !== null && investigation.selectedFingerprint === fingerprint;
+    if (result === null || result.status !== 'created') {
+      // Polish (E24's carry to create): the selection moving off this finding (same
+      // codebase) auto-closes the dialog before the write resolves, so its own alert line
+      // never renders. Announce the refusal through the live region in that case only —
+      // while the dialog is still open (`same`), its own alert line is the one place this
+      // is said (never doubled here).
+      if (!same) await reannounce(input.live, createRefusalWords(result));
+      return result;
+    }
     if (same) creating.value = false;
     focusPending.value = same ? result.path : null;
     await reannounce(input.live, createdMessage(result.path, result.exclusion, excluded));

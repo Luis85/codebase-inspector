@@ -27,7 +27,7 @@ import { formatAbsoluteTime } from '../../copy';
 import { useUniqueId } from '../../unique-id';
 import {
   PREVIEW_CUT, PREVIEW_FILE_EMPTY, PREVIEW_LINE_LABEL, PREVIEW_LOADING, PREVIEW_OPEN_FAILED, PREVIEW_OPEN_IN_OBSIDIAN,
-  PREVIEW_READ_AT, PREVIEW_RELOAD, PREVIEW_STALE_LOCATION, PREVIEW_SUBTITLE, PREVIEW_TITLE, PREVIEW_UNAVAILABLE,
+  PREVIEW_READ_AT, PREVIEW_READ_FOR_LINE, PREVIEW_RELOAD, PREVIEW_STALE_LOCATION, PREVIEW_SUBTITLE, PREVIEW_TITLE, PREVIEW_UNAVAILABLE,
 } from '../../audit-copy/investigation';
 import Panel from '../../kit/Panel.vue';
 import Callout from '../../kit/Callout.vue';
@@ -57,6 +57,15 @@ const highlightLine = computed(() => {
   const t = text.value;
   if (v === null || !v.exact || t === null) return null;
   return t.lines.some((line) => line.number === v.line) ? v.line : null;
+});
+// Polish (E19): the request this window was read for (state.line) can differ from the
+// row's CURRENT reported line after a re-run moves it — IN13 keeps the old window and
+// never re-reads on its own, so without this the panel would show it with no explanation.
+// Null-safe: only shown once both lines are actually known and they disagree.
+const readForOtherLine = computed(() => {
+  const s = props.state;
+  if (s.status !== 'ready' || s.line === null || props.row.line === null || s.line === props.row.line) return null;
+  return s.line;
 });
 const staleText = computed(() => {
   const v = props.verdict;
@@ -113,6 +122,12 @@ function guardedOpen(): void {
       class="ci-source-preview__read-at"
     >
       {{ readAtText }}
+    </p>
+    <p
+      v-if="readForOtherLine !== null"
+      class="ci-note ci-source-preview__line-moved"
+    >
+      {{ PREVIEW_READ_FOR_LINE(readForOtherLine) }}
     </p>
     <p
       v-if="busy"
