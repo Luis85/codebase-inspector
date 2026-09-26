@@ -21,5 +21,7 @@
   "import-analysis-report attaches a real report file and is refused without a snapshot",
   "run-fallow-analysis runs the installed fallow on the scanned codebase",
   "cancel-fallow-analysis stops a running analysis and is refused when none runs",
-  "the settings tab shows a fallow executable trusted in Data & scans"
+  "the settings tab shows a fallow executable trusted in Data & scans",
+  "the note index follows a folder move and ignores an unrelated note",
+  "relinks a note moved while the plugin was disabled once it is enabled again"
 ]
