@@ -33,12 +33,20 @@ export function hashTree(root: string, prefix = ''): Record<string, string> {
   return out;
 }
 
-/** The import cycle's finding id and reported line, read from the recording through the real parser and normaliser. */
-export function cycleFinding(): { id: string; line: number } {
+/** Every finding the recording holds once normalised: the real parser and normaliser. */
+function recordingFindings() {
   const parsed = parseFallowReportText(readFileSync(RECORDING, 'utf8'));
   if (!parsed.ok) throw new Error(`the recording was refused (${parsed.code})`);
   const report = buildEvidenceReport({ raw: parsed.report, fileName: 'r.json', stripPrefix: null, importedAt: new Date().toISOString(), snapshotId: 's' });
-  const cycle = report.normalized.findings.find((f) => f.category === 'cycle' && f.path === CYCLE_ANCHOR && f.line !== null);
+  return report.normalized.findings;
+}
+
+/** How many findings the 3.27.0 recording gives the relations project once normalised (Investigate lists each). */
+export const recordingFindingCount = (): number => recordingFindings().length;
+
+/** The import cycle's finding id and reported line, read from the recording through the real parser and normaliser. */
+export function cycleFinding(): { id: string; line: number } {
+  const cycle = recordingFindings().find((f) => f.category === 'cycle' && f.path === CYCLE_ANCHOR && f.line !== null);
   if (!cycle || cycle.line === null) throw new Error('no import cycle on src/core/a.ts in the recording');
   return { id: cycle.id, line: cycle.line };
 }

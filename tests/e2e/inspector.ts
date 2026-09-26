@@ -3,7 +3,9 @@
 import { readFileSync } from 'node:fs';
 import { expect } from 'vitest';
 import { Key } from 'webdriverio';
+import { ROUTE_META } from '../../src/ui/routes';
 import { commandAvailable, openPluginSettings } from './host-probes';
+import { createFallowSteps } from './inspector-fallow';
 import { decodePng, type Png } from './png';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
 
@@ -100,6 +102,7 @@ export function createInspectorPage(browser: NativeBrowser) {
     await expect.poll(() => snapshotIdOf(browser)).not.toBeNull();
   };
   return {
+    ...createFallowSteps(browser, root, navigate),
     root,
     screen: (route: string) => root().$(`.ci-screen--${route}`),
     async openCity(): Promise<void> {
@@ -148,6 +151,19 @@ export function createInspectorPage(browser: NativeBrowser) {
       await expect.poll(() => attach.isExisting()).toBe(true);
       await attach.click();
       await expect.poll(() => attach.isExisting()).toBe(false);
+    },
+    /** Investigate, with Show more (`.ci-investigate-list__more`) pressed until it is gone; how many rows it lists. */
+    async listedFindings(): Promise<number> {
+      await navigate(ROUTE_META.investigate.title);
+      const rows = (): Promise<number> => root().$$('.ci-investigate-row').length;
+      await expect.poll(rows).toBeGreaterThan(0);
+      const more = root().$('.ci-investigate-list__more');
+      while (await more.isExisting()) {
+        const shown = await rows();
+        await more.click();
+        await expect.poll(rows).toBeGreaterThan(shown);
+      }
+      return rows();
     },
     /** Investigate → the row whose fingerprint (`<entity id>#<finding id>`) ends with the id. */
     async selectFinding(findingId: string): Promise<void> {

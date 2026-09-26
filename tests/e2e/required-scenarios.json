@@ -18,5 +18,8 @@
   "keeps profiles, bindings, the notes folder, dispositions and work items across a plugin reload",
   "open-city and the ribbon icon each open a new city tab",
   "cancel-scan stops a running scan and is refused when no scan runs",
-  "import-analysis-report attaches a real report file and is refused without a snapshot"
+  "import-analysis-report attaches a real report file and is refused without a snapshot",
+  "run-fallow-analysis runs the installed fallow on the scanned codebase",
+  "cancel-fallow-analysis stops a running analysis and is refused when none runs",
+  "the settings tab shows a fallow executable trusted in Data & scans"
 ]

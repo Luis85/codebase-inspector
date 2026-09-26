@@ -10,18 +10,15 @@
 // running when invoked by id anyway.
 // IPF20: nothing here matches Obsidian's own UI text; the ribbon is found by the label the plugin passes to
 // addRibbonIcon (main.ts, NPF12); the cancelled banner by the constant surfaceCopy renders.
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect } from 'vitest';
 import { CANCELLED_BANNER } from '../../src/application/run-state';
-import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
-import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
 import { ROUTE_META } from '../../src/ui/routes';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
-import { commandAvailable } from './host-probes';
+import { commandAvailable, rendered } from './host-probes';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
-import { RECORDING, copyProject, cycleFinding, writeSyntheticTree } from './workspace-files';
+import { RECORDING, copyProject, cycleFinding, recordingFindingCount, writeSyntheticTree } from './workspace-files';
 
 /** NPF12: the plugin's own ribbon label (main.ts's addRibbonIcon). */
 const RIBBON = '.side-dock-ribbon-action[aria-label="Open codebase city"]';
@@ -30,25 +27,8 @@ const RIBBON = '.side-dock-ribbon-action[aria-label="Open codebase city"]';
 const SYNTHETIC_FILES = 4_000;
 const MIN_WINDOW_MS = 2_000;
 
-/** Waits two frames in the main window, so whatever a command body just changed has rendered before the DOM is read. */
-async function rendered(browser: NativeBrowser): Promise<void> {
-  await browser.executeObsidian(async (): Promise<void> => {
-    await new Promise<void>((resolve) => {
-      window.requestAnimationFrame(() => { window.requestAnimationFrame(() => { resolve(); }); });
-    });
-  });
-}
-
 const cityLeaves = (browser: NativeBrowser): Promise<number> =>
   browser.executeObsidian(({ app }, type): number => app.workspace.getLeavesOfType(type).length, CITY_VIEW_TYPE);
-
-/** Every finding the recording holds once normalised: the real parser and normaliser, as cycleFinding reads them. */
-function recordingFindingCount(): number {
-  const parsed = parseFallowReportText(readFileSync(RECORDING, 'utf8'));
-  if (!parsed.ok) throw new Error(`the recording was refused (${parsed.code})`);
-  const report = buildEvidenceReport({ raw: parsed.report, fileName: 'r.json', stripPrefix: null, importedAt: new Date().toISOString(), snapshotId: 's' });
-  return report.normalized.findings.length;
-}
 
 describe('the plugin commands and ribbon in the real Obsidian host (WP-04.2 §5 rows 5–7)', () => {
   test('open-city and the ribbon icon each open a new city tab', async ({ native: { browser, inspector } }) => {
@@ -142,16 +122,7 @@ describe('the plugin commands and ribbon in the real Obsidian host (WP-04.2 §5 
     expect(await inspector.screen(ROUTE_META.sources.id).isExisting()).toBe(true);
 
     // Investigate lists exactly the recording's normalised findings (IN1), every page shown.
-    await inspector.navigate(ROUTE_META.investigate.title);
-    const rows = (): Promise<number> => inspector.root().$$('.ci-investigate-row').length;
-    await expect.poll(rows).toBeGreaterThan(0);
-    const more = inspector.root().$('.ci-investigate-list__more');
-    while (await more.isExisting()) {
-      const shown = await rows();
-      await more.click();
-      await expect.poll(rows).toBeGreaterThan(shown);
-    }
-    const listed = await rows();
+    const listed = await inspector.listedFindings();
     const expected = recordingFindingCount();
     await writeEvidence(directory, 'findings', { listed, expected });
     expect(listed).toBe(expected);

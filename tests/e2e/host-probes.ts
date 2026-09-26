@@ -129,6 +129,15 @@ export function commandAvailable(browser: NativeBrowser, id: string): Promise<bo
   }, id.includes(':') ? id : `${PLUGIN_ID}:${id}`);
 }
 
+/** Waits two frames in the main window, so whatever a command body just changed has rendered before the DOM is read. */
+export async function rendered(browser: NativeBrowser): Promise<void> {
+  await browser.executeObsidian(async (): Promise<void> => {
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => { window.requestAnimationFrame(() => { resolve(); }); });
+    });
+  });
+}
+
 /** The plugin's `data.json` under the session's config dir, parsed; `{}` when it does not exist yet. */
 export async function pluginData(browser: NativeBrowser): Promise<Record<string, unknown>> {
   const configDir = await browser.getObsidianPage().getConfigDir();
