@@ -25,7 +25,8 @@ const LINE_BREAKS = new RegExp(`[\\r\\n${LINE_SEPARATOR_CHARS}]+`, 'g');
 // no-control-regex does not fire on a dynamically-built RegExp (it can only see a literal
 // /…/ pattern), so no disable comment is needed here, unlike the old regex literal.
 const INVISIBLE = new RegExp(`[\\u0000-\\u0008\\u000B-\\u001F\\u007F-\\u009F${INVISIBLE_CONTROLS}]`, 'g');
-const PUNCTUATION = /[\\`*_[\]<>#|~=$%^!{}&:]/g;
+// NE16 (WP-04 Part 2 Task 11): `@` too — Obsidian autolinks a bare email, and `\<a@x.io\>` still linked natively.
+const PUNCTUATION = /[\\`*_[\]<>#|~=$%^!{}&:@]/g;
 
 function flatten(value: string, max: number): string {
   // Review round 1, finding 6: a caller passing max <= 0 must not turn the cap into a

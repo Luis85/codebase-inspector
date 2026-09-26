@@ -1,4 +1,6 @@
 import { describe, expect } from 'vitest';
+import { noteText } from '../../src/application/investigation/note-text';
+import { mdCode } from '../../src/application/markdown-code';
 import { PROBE_ESCAPED, PROBE_HOSTILE } from '../support/probe-strings';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
@@ -16,8 +18,14 @@ const LIVE_PREVIEW_TOKENS: Record<string, string> = {
 };
 /** E2: the end-of-paragraph block id both probe literals carry. */
 const PROBE_BLOCK_ID = 'probe-id';
+/** NE16/NE17: a paragraph after the probe line, so live preview is read only once the probe line is drawn. */
+const PROBE_END = 'Probe end.';
+/** NE17: a comment, math and a highlight — each inert only inside a code span. */
+const SPAN_HOSTILE = 'a %%c%% $x$ ==y== b';
+/** NE16: every anchor an email could become in reading view (IPF15: the host holds a dot). */
+const EMAIL_SELECTORS = ['a.external-link', 'a[href^="mailto:"]'];
 
-function renderReading(browser: NativeBrowser, markdown: string) {
+function renderReading(browser: NativeBrowser, markdown: string, selectorList: string[] = READING_SELECTORS) {
   return browser.executeObsidian(async ({ app, obsidian }, md, selectors) => {
     const el = createDiv();
     const component = new obsidian.Component();
@@ -32,32 +40,34 @@ function renderReading(browser: NativeBrowser, markdown: string) {
       // the comment's c. "block" contains a c, so only a c standing alone or between %% markers counts.
       for (const embed of Array.from(el.querySelectorAll('.internal-embed'))) embed.remove();
       const commentScope = el.textContent ?? '';
-      return { counts, text, commentScope, commentTextVisible: /(?:^|[^a-z])c(?:[^a-z]|$)/iu.test(commentScope), html };
+      const codeTexts = Array.from(el.querySelectorAll('code')).map((code) => code.textContent);
+      return { counts, text, commentScope, commentTextVisible: /(?:^|[^a-z])c(?:[^a-z]|$)/iu.test(commentScope), codeTexts, html };
     } finally {
       component.unload();
     }
-  }, markdown, READING_SELECTORS);
+  }, markdown, selectorList);
 }
 
-async function renderLivePreview(browser: NativeBrowser, path: string, markdown: string) {
+/** `ready` is text the rendered `.cm-content` holds once the probe's own line is drawn (the probe literals' `block`). */
+async function renderLivePreview(browser: NativeBrowser, path: string, markdown: string, ready = 'block') {
   await browser.executeObsidian(async ({ app }, target, md) => {
     const file = await app.vault.create(target, `Probe.\n\n${md}\n`);
     await app.workspace.getLeaf(true).openFile(file, { state: { mode: 'source', source: false } });
   }, path, markdown);
-  const read = () => browser.executeObsidian(({ app, obsidian }, target) => {
+  const read = () => browser.executeObsidian(({ app, obsidian }, target, marker) => {
     const view = app.workspace.getLeavesOfType('markdown').map((leaf) => leaf.view)
       .find((candidate) => candidate instanceof obsidian.MarkdownView && candidate.file?.path === target);
     if (!(view instanceof obsidian.MarkdownView) || !view.file) return null;
     const content = view.containerEl.querySelector('.cm-content');
     const cache = app.metadataCache.getFileCache(view.file);
-    if (!content || !cache || !(content.textContent ?? '').includes('block')) return null;
+    if (!content || !cache || !(content.textContent ?? '').includes(marker)) return null;
     const classes = new Set<string>();
     for (const node of Array.from(content.querySelectorAll('*'))) for (const name of Array.from(node.classList)) classes.add(name);
     return {
       mode: view.getMode(), source: view.getState().source, livePreview: view.containerEl.querySelector('.is-live-preview') !== null,
       classes: Array.from(classes).sort(), text: content.textContent, blockIds: Object.keys(cache.blocks ?? {}),
     };
-  }, path);
+  }, path, ready);
   await expect.poll(read).not.toBeNull();
   const observed = await read();
   if (!observed) throw new Error(`Live preview of ${path} vanished.`);
@@ -178,5 +188,48 @@ describe('Obsidian facts the investigation notes rely on', () => {
     });
     await writeEvidence(directory, 'probe', observed);
     expect(observed.stepwise).toEqual({ parent: { indexed: true, onDisk: true }, child: { indexed: true, onDisk: true } });
+  });
+
+  test('code spans keep %%, $ and == inert in reading and live-preview views', async ({ native: { browser, directory } }) => {
+    const code = mdCode(SPAN_HOSTILE);
+    const reading = { control: await renderReading(browser, SPAN_HOSTILE), code: await renderReading(browser, code) };
+    const livePreview = {
+      control: await renderLivePreview(browser, 'probe-span-control.md', `${SPAN_HOSTILE}\n\n${PROBE_END}`, PROBE_END),
+      code: await renderLivePreview(browser, 'probe-span-code.md', `${code}\n\n${PROBE_END}`, PROBE_END),
+    };
+    await writeEvidence(directory, 'probe', { code, reading, livePreview });
+    // The positive control: the same string outside a code span highlights, typesets math and hides the comment.
+    expect.soft(reading.control.counts.mark, 'control mark').toBeGreaterThan(0);
+    expect.soft(reading.control.counts['.math'], 'control math').toBeGreaterThan(0);
+    expect.soft(reading.control.commentTextVisible, 'control comment hidden').toBe(false);
+    expect.soft(reading.code.codeTexts, 'one code element, text intact').toEqual([SPAN_HOSTILE]);
+    expect.soft(reading.code.counts.mark, 'code mark').toBe(0);
+    expect.soft(reading.code.counts['.math'], 'code math').toBe(0);
+    expect.soft(reading.code.commentTextVisible, 'code comment visible').toBe(true);
+    expect(livePreview.control.livePreview && livePreview.code.livePreview).toBe(true);
+    for (const category of ['highlights', 'math', 'comments']) {
+      expect.soft(livePreview.control.tokens[category], `control ${category}`).not.toEqual([]);
+      expect.soft(livePreview.code.tokens[category], `code ${category}`).toEqual([]);
+    }
+  });
+
+  test('email addresses stay inert after noteText escaping', async ({ native: { browser, directory } }) => {
+    const forms = { angle: '<a@x.io>', bare: 'a@x.io', escapedAngle: noteText('<a@x.io>'), escapedBare: noteText('a@x.io') };
+    const reading: Record<string, Awaited<ReturnType<typeof renderReading>>> = {};
+    const livePreview: Record<string, Awaited<ReturnType<typeof renderLivePreview>>> = {};
+    for (const [name, md] of Object.entries(forms)) {
+      reading[name] = await renderReading(browser, md, EMAIL_SELECTORS);
+      livePreview[name] = await renderLivePreview(browser, `probe-email-${name}.md`, `${md}\n\n${PROBE_END}`, PROBE_END);
+    }
+    await writeEvidence(directory, 'probe', { forms, reading, livePreview });
+    // NPF10: the bare form is recorded above, never asserted. Live preview draws no anchor at all, even for the
+    // control; its email token is `cm-url`, which the control carries.
+    const urlTokens = (name: string) => livePreview[name]?.classes.filter((token) => token.includes('url'));
+    for (const selector of EMAIL_SELECTORS) expect.soft(reading.angle?.counts[selector], `control ${selector}`).toBeGreaterThan(0);
+    expect.soft(urlTokens('angle'), 'control live-preview url token').not.toEqual([]);
+    for (const name of ['escapedAngle', 'escapedBare']) {
+      for (const selector of EMAIL_SELECTORS) expect.soft(reading[name]?.counts[selector], `${name} ${selector}`).toBe(0);
+      expect.soft(urlTokens(name), `${name} live-preview url token`).toEqual([]);
+    }
   });
 });

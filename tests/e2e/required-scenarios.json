@@ -32,5 +32,7 @@
   "a bound codebase previews under its connected folder and refuses a changed root",
   "Open in Obsidian and Open note each open the file in a new tab",
   "draws the city in dark and light themes and recolours on css-change without rebuilding",
-  "restores the city leaf's route after an app restart without scanning"
+  "restores the city leaf's route after an app restart without scanning",
+  "code spans keep %%, $ and == inert in reading and live-preview views",
+  "email addresses stay inert after noteText escaping"
 ]
