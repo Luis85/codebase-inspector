@@ -1,10 +1,10 @@
 // WP-04.2 spec §5 rows 5–7: the plugin's commands and its ribbon icon, run by id in the real host.
 // Scenario 5: open-city and the ribbon icon each open a NEW city tab (commands.ts's openCity, ruling M9).
 // Scenario 6 (NE8): cancel-scan is refused with no scan, and stops a refresh mid-run; the window is proven first by
-// timing uncancelled runs over a 2 000-file synthetic tree (NPF8), and the cancel is sent only once cancel-scan's own
-// checkCallback answers true. Scenario 7: import-analysis-report is refused while the city shows no snapshot, and
-// after a scan attaches the real 3.27.0 recording, whose every finding Investigate then lists (IN1).
-// Observed (Task 4, 1.13.4): `commands.executeCommandById` returns true for ANY registered command whose body does not
+// timing an uncancelled refresh over a 4 000-file synthetic tree (WP-04.2 E8), and the cancel is sent only once
+// cancel-scan's own checkCallback answers true. Scenario 7: import-analysis-report is refused while the city shows no
+// snapshot, and after a scan attaches the real 3.27.0 recording, whose every finding Investigate then lists (IN1).
+// Observed (Task 4, 1.13.4, NPF13): `commands.executeCommandById` returns true for ANY registered command whose body does not
 // throw, whatever its checkCallback answers, so `executeObsidianCommand` on a refused command RESOLVES. A refusal is
 // therefore its checkCallback(true) answering false (the palette's own test, `commandAvailable`) and its body not
 // running when invoked by id anyway.
@@ -25,8 +25,9 @@ import { RECORDING, copyProject, cycleFinding, writeSyntheticTree } from './work
 
 /** NPF12: the plugin's own ribbon label (main.ts's addRibbonIcon). */
 const RIBBON = '.side-dock-ribbon-action[aria-label="Open codebase city"]';
-/** NPF8: the synthetic tree for cancel-scan, and the shortest uncancelled run that leaves a window to cancel in. */
-const SYNTHETIC_FILES = 2_000;
+/** WP-04.2 E8 (amends NPF8): the synthetic tree for cancel-scan, sized so an uncancelled REFRESH takes about 3 s, and
+ *  the shortest uncancelled run that leaves a window to cancel in. */
+const SYNTHETIC_FILES = 4_000;
 const MIN_WINDOW_MS = 2_000;
 
 /** Waits two frames in the main window, so whatever a command body just changed has rendered before the DOM is read. */
@@ -80,20 +81,20 @@ describe('the plugin commands and ribbon in the real Obsidian host (WP-04.2 §5 
     expect(await inspector.snapshotId()).toBeNull();
     expect(await commandAvailable(browser, 'cancel-scan')).toBe(false);
 
-    // Positive control (NE8, NPF8): an uncancelled scan of the tree through the modals, timed until the snapshot id
-    // changes. Then an uncancelled refresh, the kind of run cancelled below: it publishes a new snapshot, so the
-    // unchanged id asserted after the cancel is not vacuous. Its duration is recorded too (observed: shorter, the
-    // files being cached by then).
+    // The initial scan through the modals stores the scope and makes the first snapshot; it is not the control.
     let started = Date.now();
     await inspector.scanFolder('big');
     const scanMs = Date.now() - started;
-    if (scanMs < MIN_WINDOW_MS) throw new Error('mid-run window too short');
     const scanned = await inspector.snapshotId();
+    // Positive control (NE8, WP-04.2 E8): an UNCANCELLED refresh against the stored scope, the same kind of run as the
+    // one cancelled below, timed until the snapshot id changes. It also publishes a new snapshot, so the unchanged id
+    // asserted after the cancel is not vacuous.
     started = Date.now();
     await inspector.rescan();
     const refreshMs = Date.now() - started;
     const control = await inspector.snapshotId();
     await writeEvidence(directory, 'mid-run-window', { files: SYNTHETIC_FILES, scanMs, refreshMs, scanned, control });
+    if (refreshMs < MIN_WINDOW_MS) throw new Error('mid-run window too short');
     expect(control).not.toBeNull();
     expect(control).not.toBe(scanned);
     expect(await commandAvailable(browser, 'cancel-scan')).toBe(false);
