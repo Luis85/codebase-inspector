@@ -44,9 +44,11 @@ const added = (before: LeafFact[], after: LeafFact[]): Omit<LeafFact, 'id'>[] =>
   return after.filter((leaf) => !known.has(leaf.id)).map(({ group, type, path }) => ({ group, type, path }));
 };
 
-/** Observed: once a Markdown leaf exists, Obsidian's status bar (its editor item) floats over the foot of the city
- *  leaf, where the notes panel's buttons sit, and intercepts WebDriver's click there. Scrolls `element` to the middle
- *  of its scroll container (the DOM's own scrollIntoView) and waits until WebDriver finds it clickable. */
+/** WP-04.2 polish E8: the overlap is Obsidian's own status bar, fixed over the bottom edge of the viewport --
+ *  not the plugin's own content padding, which is already zero here (shell.css). `scroll-padding-block-end`
+ *  cannot reach it either: ChromeDriver's click-scroll only moves an element that starts outside the viewport,
+ *  and this button is already inside it, merely covered. Scrolls `element` to the middle of its scroll
+ *  container (the DOM's own scrollIntoView) and waits until WebDriver finds it clickable. */
 async function centred(browser: Browser, element: ReturnType<Browser['$']>): Promise<void> {
   await expect.poll(() => element.isExisting()).toBe(true);
   // The resolved element (a chainable one is not serialised as an element reference).
@@ -181,8 +183,8 @@ describe('the source preview (WP-04.2 rows 23, 24)', () => {
     await expect.poll(() => inspector.highlightedLines()).toEqual([String(cycle.line)]);
     expect(await openObsidian.isExisting()).toBe(false);
 
-    // Open note: a note for the cycle, opened from the notes panel in another new tab. Observed: once a Markdown leaf
-    // exists, Obsidian's editor status bar item covers the notes panel's foot, so its buttons are scrolled to the middle.
+    // Open note: a note for the cycle, opened from the notes panel in another new tab. The overlap is Obsidian's
+    // status bar, fixed over the viewport's bottom edge, so its buttons are scrolled to the middle (see centred()).
     await centred(browser, inspector.root().$('.ci-notes-panel__create'));
     const note = await inspector.createNote();
     const fromNote = await opensNewTab(native, `.ci-notes-panel__open[data-path="${note}"]`, note);
