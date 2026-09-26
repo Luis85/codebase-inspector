@@ -101,3 +101,43 @@ None of the new names exists yet (`groupOrder` in the config, `diskOnly`, `bound
 |---|---|
 | PQ1 | **Ruling:** Task 3 reads the scope modal at `src/host/modals/scope-modal.ts`. PQ-R1 is carried into Task 4's dispatch: its native run adds scenario 39. — Both are facts: the plan's path, and a cross-task dependency its Files list missed. — None. |
 | PQ2 | **Ruling:** E14's root comparison uses `sameRoot(…, { caseSensitive: Platform.isLinux })`, as PN5 states, not the source modal's `!Platform.isWin`. — The investigation code and the preview already use `Platform.isLinux` (`investigation-notes.ts:44–46`, `investigation-services.ts:49`), and macOS's default filesystem is case-insensitive. The source modal's stricter macOS rule is a containment check on a new selection, not a comparison of two roots. — Low: on a case-sensitive macOS volume, two roots that differ only in case would read as one, so no approval would be asked. |
+
+## Execution rulings
+
+| # | Ruling |
+|---|---|
+| WP-04.2 Polish E1 | **Ruling:** the Task 2 implementer ran `git stash -u` once, which is forbidden, to rebuild its RED after writing code first. It restored the tree byte-identical and clean. The entry `4b7f790 wp04-task2-red-check-1790450957` holds a strict subset of `7bb5f5b`: its tree differs from `7bb5f5b` only by 66 test lines the commit adds. The harness blocked the subagent's `git stash drop`, and the controller does not drop it either, because an action the safety layer refused is surfaced to the owner, not retried. — Cost: one redundant entry on the shared stash stack until the owner drops it; none to the branch. |
+| WP-04.2 Polish E2 | **Ruling:** Task 2's reconstructed RED needs no fix round. The reviewer checked that it is tied to byte-identical pre-fix `src` (`HEAD~1`), and each failure is the expected pre-fix behaviour:<ul><li>`sourceNotePath` null through the alias;</li><li>doubled root lookups;</li><li>a UNC path reaching `realpathSync`.</li></ul>Later dispatches restate "the failing test first". — Low: a test passing for a wrong reason would have been caught only by the reconstruction, which the reviewer judged specific. |
+| WP-04.2 Polish E3 | **Ruling (amends PN4):** the focus check is scoped to the settings window's document (`containerEl.ownerDocument`), not to `containerEl`. Observed natively: a profile page renders into its own `.setting-page` while the tab's `containerEl` is detached, so a check scoped to `containerEl` never deferred (built and run: still RED). The pending state names its document (`renderPendingIn`), so a stale wait never holds back a later render. — Low. While focus is in any field of the settings window (another tab, or the settings search), this tab's re-render waits until focus leaves, and before Settings are first opened a focused field in the main window does the same. No text is lost; a render only comes later, and `display()` re-reads `getSettingDefinitions()`. |
+| WP-04.2 Polish E4 | **Ruling (amends spec §5 row 38's control):** the positive control is the notes-folder field showing the write made elsewhere, after the blur. Observed: a marker on `.setting-item` survives a re-render, and one on the Name input disappears even with no write, because the tab's own save re-renders. — Low: the control proves that a render carried the write. The while-focused evidence is the scenario's poll on the tab's own state before the switch back. |
+| WP-04.2 Polish E5 | **Ruling (amends Task 4's step 5):** scenario 38's watched write is the tab's own investigation folder store, reached through `app.setting.activeTab` (a `writePluginDataSlice('investigations')` write). `setTimeLimit` throws `not-bound` for a profile with no fallow executable, and the plugin instance holds no profile store. The scenario reads the tab's private fields (`investigations`, `entries`). — Low: renaming those fields breaks scenario 38 loudly, never silently. |
+| WP-04.2 Polish E6 | **Ruling:** the Task 4 implementer's one `node -e` rewrite of `tests/e2e/settings.e2e.ts`, which breaks the Edit/Write-only rule, is accepted. The file is LF before and after, and the committed diff is what the reviewer judged. — None. |
+| WP-04.2 Polish E7 | **Ruling:** the reviewer's ⚠️ item is accepted as a known cost, not fixed: a settings window closed while a field is focused sends no focusout, so the deferred `update()` may never run. `refresh()` has already stored fresh entries, and Obsidian calls `getSettingDefinitions()` on every `display()`. Only `update()`'s search-index snapshot stays stale until the next refresh or display, and the next refresh with nothing focused supersedes the wait. — Low: the settings search may match stale row text until then. |
+| WP-04.2 Polish E8 | **Ruling (resolves PP8):**<ul><li>**Why the fix failed:** ChromeDriver scrolls only an element outside the viewport. A button already inside it, but under the fixed status bar, gets no scroll, so `scroll-padding` cannot help a WebDriver click.</li><li>**The plan:** prove the person-facing path instead, the button's own `focus()` followed by a not-obscured check. If that did not discriminate, revert the CSS and keep `centred()` with a corrected comment.</li></ul>— Low. |
+| WP-04.2 Polish E9 | **Ruling (closes the Task 9 minor; amends P3 and PN3):** the plugin's padding is not at fault, and no product change ships.<ul><li>Natively, the button's own `focus()` already scrolls it clear of the status bar on the unchanged CSS: E8's check was GREEN without `scroll-padding`.</li><li>At maximum scroll, the Create button sits 70.35 px above the status bar's top.</li><li>Only a WebDriver click on a button left under the bar at the viewport's bottom edge is intercepted. That is Obsidian's fixed status bar, over any view.</li></ul>`centred()` stays, with its comment corrected, and the spec's P3 claim "focus is obscured (WCAG 2.4.11)" is withdrawn. — None to the product; the native workaround remains, now correctly explained. |
+| WP-04.2 Polish E10 | **Ruling:** native runs set `FALLOW_BIN` as a pure-backslash Windows path. Scenario 15 compares the executable path the tab shows against `FALLOW_BIN` as text, and the owner's forward-slash path names the same file; a mixed-separator value is a harness input error, not a product bug. One scenario-9 flake (a `vaultHas` poll timeout during a Task 8 investigation run, green alone and in the full file) is recorded under Part 2's E5 rule. — Low. |
+| WP-04.2 Polish E11 | **Ruling (rejects a Task 9 review finding):** scenario numbers are the spec §5 identities: 38 is settings typing and 39 is the scan after a Reconnect. `required-scenarios.json` is ordered by the commit that appended each title, and Task 3 appended 39 before Task 4 appended 38. The gate matches titles, not positions, and the evidence says so once. — None. |
+
+Also recorded during execution:
+- **Pre-flight:** 0 blocking findings. PQ-R1 was carried into Task 4, which re-ran scenario 39.
+- **Fix rounds:**
+  - Task 1 needed one: scenario 37's copy-settle poll.
+  - Task 9 needed one: four earlier runs undisclosed, and one scenario number wrong.
+  - Every other task was approved at its first review. Task 5 stopped once under PP8 and was resolved by E8 and E9.
+- **Test runs of the pass**, every one, in order:
+  1. The controller's `npm run test` at `5968e38`, after the last `src` task: 308/310 files, 3483 passed, 1 skipped, 2 failed. The failures were the G8 count, expected until Task 9, and **Z38 failing at 62.6 ms** before isolation.
+  2. Task 6's `npm run test` at `886f67a`: 310/311 files, 1 failed (the G8 count). Z38 passed at 33.9 and 20.3 ms.
+  3. An ad hoc two-file run: Z38 at 290 ms right after a typecheck and lint burst, then passing (24.6/19.7 and 22.4/24.9 ms).
+  4. Task 9's runs:
+     - `verify` #1 failed on the pre-refresh G8 sum; Z38 30.7/25.2 ms.
+     - `verify` #2 failed on the implementer's placeholder text, plus a `wp01.steps.ts` "Verify unchanged source after a real scan" timeout; Z38 22.7/25.0 ms.
+     - `verify` #3 failed on a wrong count convention, plus **Z38 failing at 62.5 ms in `node-serial` under sustained load**, plus the same acceptance timeout.
+     - `verify` #4 exited 0; Z38 21.6/21.1 ms.
+     - `verify` #5 exited 0; Z38 22.5/27.3 ms. That run had 313 files and 3486 tests: 3485 passed, 1 skipped.
+- **Native and tooling:**
+  - `npm run test:e2e` on 1.13.4: "Verified 40 executed native Vitest cases, including all 40 required scenarios."
+  - The latest run resolved to 1.13.7 and also passed 40/40.
+  - `npm run test:fallow`: 11/11.
+  - `npm run analyze`: 9.
+  - `npm run harness-shot`: the `wp04-investigate-*`, `wp02-settings-*` and `s05-city-dark` captures were looked at, with no layout change.
+
