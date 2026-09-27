@@ -164,6 +164,28 @@ The final review triaged these as acceptable follow-ups:
 - **Task 4:**
   - The brief's stale FM4 line reference.
   - FM12 also dropped the unused `prefix` parameter.
-- **Out of scope, suggested as follow-up tasks:**
+- **Out of scope, suggested as follow-up tasks:** both were done, and are recorded below.
   - E3: an explicit timeout for the acceptance scan step.
   - E6 and E7: a native fallow process count scoped to the test's own processes.
+
+## Follow-ups closed after the pass (2026-09-27)
+
+Both follow-up tasks ran in separate sessions from `9b219df`. Each branch got a final review (E3 on sonnet, E6 on opus), with 0 Critical and 0 Important findings. The controller stacked them on a local branch, `feat/wp-04-followups-e3-e6`, and on the owner's approval fast-forwarded it onto PR 1 (`9b219df..da42e9f`).
+
+- **E3, closed (`4a4a073`).**
+  - `runFeature` takes a per-scenario `timeouts` map, and a key naming no scenario throws before anything registers. "Verify unchanged source after a real scan" gets 60 s.
+  - Measured: 0.40–0.66 s alone, 1.7–3.9 s in a full run, and up to 27.4 s under 22 burner processes. A structural guard pins the registered timeout.
+  - No assertion changed. The evidence heading became 316 files and 3509 tests.
+- **E6 and E7, closed (`d038b63`, `b972d83`, `97a47b6`, `da42e9f`).**
+  - `fallowProcessCount(root)` walks one `Win32_Process` snapshot down from the Obsidian renderer's pid; a child counts only if it was created after its parent.
+  - `fallow.e2e.ts`'s cancel scenario runs a foreign `fallow.exe` throughout (a renamed `PING.EXE`) and asserts that the machine-wide count sees it while the scoped count does not.
+  - It was RED before the fix and under the machine-wide mutation.
+  - `97a47b6` folds in the review's hardening: a 30 s timeout on the process listing, a foreign control that lives at most 330 s, and temp-folder cleanup if its spawn fails.
+- **Ruling (amends E10 and FP12):** a native run no longer needs "no `fallow.exe` running" at launch. — The fallow scenario's count is scoped to the test's own Obsidian, and its foreign control proves that another process is ignored. — Low: heavy CPU load from other sessions can still time out native scans, so the landing runs waited for load under 50 %.
+- **Runs on `da42e9f`:**
+  - `npm run verify`: exit 0; 314 files, 3508 passed, 1 skipped. Z38 passed (control/hang/streamed 25.0/23.1/22.1 ms).
+  - Native latest (1.13.7): 40/40, "Verified 40 executed native Vitest cases, including all 40 required scenarios."
+  - Native 1.13.4: **failed and was not retried.** 36 of 40 passed, then the Vitest worker crashed with `0xC0000409` in `commands.e2e.ts` before its 4 cases reported. `fallow.e2e.ts` passed 3/3, with a scoped baseline of 0 while the foreign control ran.
+  - `npm run test:fallow` 11/11; `npm run analyze` 9.
+  - The owner chose to push with this disclosed.
+- **Open observation:** the `0xC0000409` worker crash has now happened in 2 of the last 3 runs on 1.13.4 (E8's run, in `fallow.e2e.ts`, and this one, in `commands.e2e.ts`). No latest run crashed. Its cause, whether the 1.13.4 runtime or load from other sessions, is not established.
