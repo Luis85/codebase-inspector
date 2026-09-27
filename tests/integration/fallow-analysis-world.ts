@@ -31,10 +31,10 @@ import { nodeWrapped } from '../fixtures/node-wrapped-port';
 import { createRealNodePort } from '../fixtures/real-node-port';
 import { killTree, realKill, realSpawn } from '../fixtures/real-spawn';
 
-export const PROJECT = fileURLToPath(new URL('../fixtures/fallow/project', import.meta.url));
+const PROJECT = fileURLToPath(new URL('../fixtures/fallow/project', import.meta.url));
 export const FAKE = fileURLToPath(new URL('../fixtures/fallow-runner/fake-fallow.mjs', import.meta.url));
 export const EXE = process.platform === 'win32' ? 'C:\\Tools\\fallow\\fallow.exe' : '/opt/fallow/bin/fallow';
-export const bases: string[] = [];
+const bases: string[] = [];
 export const pids: number[] = [];
 
 // PF2: capture-free helpers live at module scope.

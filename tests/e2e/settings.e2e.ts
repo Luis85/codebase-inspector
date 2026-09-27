@@ -206,8 +206,9 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     await browser.switchToWindow(settingsWindow);
     await browser.keys('second-half');
     await inspector.settingsPage().$('.setting-page-title').click();
-    // Positive control: the write re-rendered the tab. The notes folder row is render-type, so its field shows the
-    // folder written elsewhere only once the page is drawn again.
+    // Positive control (E4): a render after the write shows it. The notes folder row is render-type, so its field
+    // shows the folder written elsewhere only once the page is drawn again. The while-focused evidence is the poll on
+    // the tab's own state before the switch back.
     await expect.poll(() => inspector.settingsRow(NOTES_FOLDER_SETTING_NAME).$('input').getValue()).toBe(elsewhere);
     await closeSettings(browser);
     await expect.poll(async () => savedProfiles(await pluginData(browser))[0]?.exclusions).toContain('first-halfsecond-half');

@@ -163,7 +163,8 @@ async function persistThenScan(
 /** scan-codebase's REFRESH behaviour: silently re-approves against the SAME scope the
  *  previous snapshot recorded (spec 5: "re-approves against the stored scope") -- no
  *  modal, because the root and scope have not changed from what was already consented
- *  to. A changed root or scope is exactly what approval fingerprints exist to
+ *  to, unless the live binding names another root (WP-04.2 polish O1, PN5; below). A
+ *  changed root or scope is exactly what approval fingerprints exist to
  *  invalidate; refreshing an UNCHANGED one is not a new grant, so re-showing the same
  *  consent screen for the same answer would be friction with no safety benefit.
  *
@@ -182,14 +183,15 @@ async function persistThenScan(
  *  §4.1's "a changed root or scope invalidates prior approval" exists to prevent.
  *  Applying that same §4.1 rule here removes the silence without weakening consent.
  *
- *  Only the SCOPE modal is re-opened, never the source modal: the root has not changed,
- *  so the friction stays proportionate. `rootPath` comes from the snapshot's recorded
- *  scope unless the live binding names another root (`boundRoot`, below) -- a profile
- *  carries a `bindingId`, never a path (§4.1), so it could not supply one. Comparison goes
- *  through `fingerprintScope`, the function the
- *  approval model itself already uses to decide "has the scope changed", rather than a
- *  bespoke field-by-field check: reusing it means the two answers cannot diverge (and it
- *  sorts exclusions, so a pure re-ordering is correctly not divergence).
+ *  Only the SCOPE modal is re-opened, never the source modal: the root has not changed
+ *  (unless the live binding names another root, WP-04.2 polish O1, PN5), so the friction
+ *  stays proportionate. `rootPath` comes from the snapshot's recorded scope unless the
+ *  live binding names another root (`boundRoot`, below) -- a profile carries a
+ *  `bindingId`, never a path (§4.1), so it could not supply one. Comparison goes through
+ *  `fingerprintScope`, the function the approval model itself already uses to decide
+ *  "has the scope changed", rather than a bespoke field-by-field check: reusing it means
+ *  the two answers cannot diverge (and it sorts exclusions, so a pure re-ordering is
+ *  correctly not divergence).
  *
  *  `boundRoot` is the profile's live binding root on THIS device, or null (unbound, or no
  *  record here). When it names another root than the snapshot's, the scope modal opens on

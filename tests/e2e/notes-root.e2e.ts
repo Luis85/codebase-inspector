@@ -138,6 +138,8 @@ describe('a note folder Obsidian has not indexed yet (WP-04.2 NPF15, P2)', () =>
     await inspector.importReport(RECORDING);
     await inspector.selectFinding(id);
 
+    // The control still holds at create time: `code/` is not in the vault's index yet.
+    expect(await browser.executeObsidian(({ app }) => app.vault.getAbstractFileByPath('code') === null)).toBe(true);
     const path = await inspector.createNoteIn('code/notes', true);
     expect(path.startsWith('code/notes/')).toBe(true);
     await expect.poll(() => inspector.notePaths()).toContain(path);

@@ -32,12 +32,16 @@ function parseExclusions(rawLines: string): string[] {
   return rawLines.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
 }
 
+/** WP-04.2 polish PN4: whether `target` is an element inside `container`. `matches`, not `instanceof`: the settings
+ *  window's elements may come from another window. */
+function isElementIn(container: Node, target: EventTarget | null): target is Element {
+  return target !== null && 'matches' in target && container.contains(target as Element);
+}
+
 /** WP-04.2 polish PN4: whether `target` is a field a person types or picks in (an input, textarea or select) inside
- *  `container`. `matches`, not `instanceof`: the settings window's elements may come from another window. */
+ *  `container`. */
 function isEditingIn(container: Node, target: EventTarget | null): boolean {
-  if (target === null || !('matches' in target)) return false;
-  const el = target as Element;
-  return el.matches('input, textarea, select') && container.contains(el);
+  return isElementIn(container, target) && target.matches('input, textarea, select');
 }
 
 export class CodebaseInspectorSettingTab extends PluginSettingTab {
@@ -124,7 +128,13 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
    *  settings holds focus, and runs once focus has left the fields. The scope is the tab's document, not its
    *  containerEl: observed on 1.13.4, a profile page renders into its own `.setting-page` and the containerEl is
    *  detached while it shows (Settings open in their own window: NPF7). A render that runs at once supersedes a
-   *  waiting one, so a focusout that never arrived (its window closed) cannot hold a later render back. */
+   *  waiting one, so a focusout that never arrived (its window closed) cannot hold a later render back.
+   *
+   *  Final fix wave (item 1): the wait is released only when focus leaves the page's controls. Focus moving onto a
+   *  button (Connect, Reconnect, Clear binding, Forget) keeps it waiting: a render there would rebuild the button's
+   *  row between mousedown and mouseup and lose the click, and the button's own action ends in refresh() with
+   *  nothing editable focused, which renders at once. A window switch (the document lost focus) keeps it waiting
+   *  too, so an uncommitted field is never replaced. A release re-checks the current document and focus. */
   private renderWhenIdle(): void {
     const doc = this.containerEl.ownerDocument;
     if (!isEditingIn(doc, doc.activeElement)) {
@@ -135,11 +145,11 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     if (this.renderPendingIn === doc) return;
     this.renderPendingIn = doc;
     const onFocusOut = (event: FocusEvent): void => {
-      if (isEditingIn(doc, event.relatedTarget)) return;
+      if (isElementIn(doc, event.relatedTarget) || !doc.hasFocus()) return;
       doc.removeEventListener('focusout', onFocusOut);
       if (this.renderPendingIn !== doc) return;
       this.renderPendingIn = null;
-      this.update();
+      this.renderWhenIdle();
     };
     doc.addEventListener('focusout', onFocusOut);
   }

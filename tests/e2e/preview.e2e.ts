@@ -1,7 +1,7 @@
 // WP-04.2 spec §5 rows 23 and 24: the source preview in real Obsidian. Scenario 23 (NE19, E25): a profile connected
 // in Settings to `code/` previews the cycle's exact line under its binding; once the binding is reconnected to
 // `code-copy/` (a byte-identical copy), the preview refuses as `no-binding`, because the binding's root no longer names
-// the snapshot's root. No scan reads the binding (WP-04.2 E14), so nothing is rescanned in between. Scenario 24 (NE18,
+// the snapshot's root. Scenario 23 never rescans, so the snapshot keeps `code/` throughout. Scenario 24 (NE18,
 // NP12): a report crafted from the 3.27.0 recording anchors a finding on a Markdown file of the scanned `code/`; Open in
 // Obsidian opens it in a NEW tab, as does Open note from the notes panel; a `.ts` anchor offers no Open in Obsidian.
 // IPF20: nothing matches Obsidian's own UI; the plugin's words come from its copy module.
