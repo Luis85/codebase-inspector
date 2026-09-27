@@ -699,8 +699,9 @@ services wiring pin), no new file. Task 3 (P6/E14, O1) adds 4 cases inside
 `city-view-scan-modes.test.ts` (the Reconnect scope-modal path, cancel, unbound and
 same-root silent refresh) and updates `consent-chain.test.ts`'s five `runRefresh` call
 sites for the new bound-root parameter, adding no case. Task 4 (P4, NE9 typing) adds
-`tests/component/settings-tab-focus.test.ts` (5 cases: the deferred `update()`,
-field-to-field, a refusal still shown, `refreshSoon` still coalescing) — one file. Task 5
+`tests/component/settings-tab-focus.test.ts` (5 cases: the deferred `update()` and
+field-to-field, a profile page's field outside the detached `containerEl`, nothing focused,
+`refreshSoon` still coalescing, a stale wait never repeating a render) — one file. Task 5
 (P3) ships no product and no test change at all (rulings E8, E9 below). Task 6 (P7/Z38, O2)
 moves the no-freeze case out of `fallow-analysis.test.ts` into its own
 `tests/integration/fallow-no-freeze.test.ts`, a third `node-serial` project
@@ -711,7 +712,12 @@ test` becomes 311 files, 3486 tests; `npx vitest run tests/host` (25 files, 263 
 `npx vitest run tests/component` (108 files, 1033 tests) and `npx vitest run
 tests/integration` (11 files, 45 tests) refreshed those three rows, the totals and the
 heading. No other layer's files or tests changed, so their rows stand as Part 2's final
-review took them.
+review took them. The pass's **final fix wave** then adds 4 cases inside
+`settings-tab-focus.test.ts` (focus onto a button keeps the render waiting, a window blur
+keeps it waiting, a release re-checks the document's focus, and a refused edit's Notice
+shows while a render waits), no new file: `npx vitest run tests/component` becomes 108
+files, 1037 tests, `npm run test` 311 files, 3490 tests, and the Component row, the total
+and the heading were refreshed from that.
 
 The per-layer total below is **313**, which is not what `npm run test` itself runs: it is
 311 files plus the opt-in `tests/fallow-real` layer's two files, which never run inside it
@@ -727,19 +733,22 @@ throwaway vault trees under `os.tmpdir()` and do not depend on this worktree hav
 not reproduce here — the disk/live result is recorded rather than that prediction
 (corrected during execution, Part 7 task 14).
 
-**The heading now states what task 9's own last `npm run verify` measured, and every run
-of the whole pass — Tasks 5, 6 and 8's earlier runs, plus task 9's own one `npm run test`
-and five `npm run verify` runs — is disclosed in the WP-04 Part 2 polish section below.**
-In short, of task 9's own runs: the first verify run failed only on this
+**The heading now states what the pass's final fix wave's last `npm run verify` measured,
+and every run of the whole pass — Tasks 5, 6 and 8's earlier runs, task 9's own one
+`npm run test` and five `npm run verify` runs, and the final fix wave's runs — is
+disclosed in the WP-04 Part 2 polish section below.**
+In short, of task 9's own runs: its `npm run test` at `f931ad8` failed only on the
+expected pre-refresh G8 file count, with Z38 passing (hang 25.0 ms, streamed 28.4 ms); the
+first verify run failed only on this
 document's own arithmetic (the G8 total had not yet been updated to match the refreshed
 table — a self-inflicted, expected failure, not a product or test regression) with Z38
 passing; the second and third runs failed on further self-inflicted documentation mistakes
 plus one unrelated environmental flake (an acceptance test that passed alone immediately
-after, and Z38 itself genuinely flaked once, under the load of four back-to-back
-full-suite runs); the fourth and fifth runs each exited 0 with every test passing, Z38
-included. See that section for the exact tails, both native gate runs,
+after), and in the third Z38 itself genuinely failed (62.5 ms), in the fourth back-to-back
+full-suite run of the task; the fourth and fifth runs each exited 0 with every test
+passing, Z38 included. See that section for the exact tails, both native gate runs,
 `npm run test:fallow`, `npm run analyze` and `npm run harness-shot`.
-**313 files, 3486 tests, 3485 passed, 0 failed,
+**313 files, 3490 tests, 3489 passed, 0 failed,
 1 skipped.**
 
 **These numbers are partly machine-checked, and the boundary is stated rather than
@@ -772,7 +781,7 @@ above whenever tests are added.
 | Unit | `tests/unit/**` | 154 | yes | 1994 | domain, application, UI stores, interaction state, stylesheet-as-contract (comments stripped — see below), and this table's own guard. WP-03 Part 1 adds the relation domain/normaliser/model/architecture-model suites and `relation-copy-claims.test.ts` (spec §5's "no calls/executes/will break" and "no backlink" sweeps). The WP-03 Part 1 polish pass adds PO1/PO2 and the JP5 gating cases inside `architecture-relations.test.ts`, no new file. The final whole-branch review's fix wave adds Minor 4's Report/Markdown split case inside `report-model.test.ts`, no new file. **WP-04 Part 1** adds 17 files: the native harness's own `session-lifecycle`, `native-results-gate` and `native-baseline` tests (Task 0, IP45), and the pure application layer's `investigation-note-text`, `investigation-note-path`, `investigation-note-model`, `investigation-evidence-splice`, `investigation-note-index`, `investigation-root-path`, `investigation-source-preview`, `investigation-stale-location`, `investigation-evidence`, `investigation-model`, `investigation-store`, `investigation-store-ports`, `investigation-folder-store` and `fake-vault` tests (Tasks 2–10). **WP-04 Part 2** adds 2 files: `plugin-data-watch.test.ts` (Task 2, NE9: `watchPluginData` hears a settled write to a watched slice, and only that) and `note-text-email.test.ts` (Task 11, NE16: `noteText` backslash-escapes the `@` of a bare or angle-bracket email) |
 | Contract | `tests/contracts/**` | 5 | yes | 62 | **one suite, two implementations** (40) — `source-filesystem-port.contract.ts` runs against the fake port and the real Node adapter, so they cannot drift — plus this directory's other three pinned files, `height-scale.test.ts` (task 13's four preserved scale.ts properties), `microcopy.test.ts` (task 12's catalogue-completeness sweep) and `fallow-runner.test.ts` (Part 7 K28: the real adapter against a real spawned process, injected `node:child_process`, Z38). Untouched by WP-04 Part 1 |
 | Integration (real temp dirs) | `tests/integration/**` | 11 | yes | 45 | 44 passed + **the one skip**, the file-symlink environment gate. Walker, walker bounds/content/symlinks, scan lifecycle, read log, no-source-writes (including the 1,000-file full-scale proof), vault-is-the-codebase, the fallow-analysis no-freeze suite. **WP-04 Part 1** adds `investigation-preview-real.test.ts` (Task 4, IP15: the source-preview service against the real Node adapter over a real temp directory). **The WP-04 Part 2 polish pass** (Task 6, P7/Z38) moves the no-freeze case out of `fallow-analysis.test.ts` into its own `tests/integration/fallow-no-freeze.test.ts`, in the `node-serial` project so it runs alone, after every other file — one file added, one case relocated, none added, the row's Tests cell unchanged |
-| Component (jsdom) | `tests/component/**` | 108 | yes | 1033 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite. The WP-03 Part 1 polish pass adds cases inside `architecture-screen.test.ts`, `architecture-rules.test.ts`, `architecture-edges.test.ts`, `architecture-cycles.test.ts` and `city-relations-panel.test.ts`, no new file. **WP-04 Part 1** adds 13 files: the Investigate screen and route (`investigate-screen`, `investigate-route`), its entry points (`investigate-entry-points`), the evidence and preview panels (`investigate-evidence`, `investigate-preview`, `investigate-preview-io`), the create and refresh dialogs (`investigate-create`, `investigate-refresh`, `investigate-refresh-review`), the city Findings panel (`city-findings-panel`), the Settings notes-folder row (`settings-notes-folder-row`, `settings-notes-folder`) and the work-item-editor draft prefill (`work-item-editor-draft`). **The final whole-branch review's fix wave** adds a 14th, `investigate-create-review.test.ts` (finding 8: a create refusal announced through the live region once its dialog has closed). **WP-04 Part 2** adds `settings-tab-refresh-soon.test.ts` (Task 2, NE9: the Settings tab's coalesced `refreshSoon`, and a refresh that throws is shown rather than left unhandled). **The WP-04 Part 2 polish pass** adds `settings-tab-focus.test.ts` (Task 4, NE9 typing: the deferred `update()`, field-to-field, a refusal still shown, `refreshSoon` still coalescing) — one file, five cases |
+| Component (jsdom) | `tests/component/**` | 108 | yes | 1037 | against **our** controls: the file list, search, inspector, camera controls, viewport, status surfaces, announcements, both modals, the settings tab, the renderer contract and disposal, (task 5) the toolbar's Scan control, and (task 7) the canvas header. WP-03 Part 1 adds the Architecture Cycles/Edges/Rules tabs, the File detail and Quality relations panels, the city Relations section, the relation-arcs geometry suite and the renderer-wiring suite. The WP-03 Part 1 polish pass adds cases inside `architecture-screen.test.ts`, `architecture-rules.test.ts`, `architecture-edges.test.ts`, `architecture-cycles.test.ts` and `city-relations-panel.test.ts`, no new file. **WP-04 Part 1** adds 13 files: the Investigate screen and route (`investigate-screen`, `investigate-route`), its entry points (`investigate-entry-points`), the evidence and preview panels (`investigate-evidence`, `investigate-preview`, `investigate-preview-io`), the create and refresh dialogs (`investigate-create`, `investigate-refresh`, `investigate-refresh-review`), the city Findings panel (`city-findings-panel`), the Settings notes-folder row (`settings-notes-folder-row`, `settings-notes-folder`) and the work-item-editor draft prefill (`work-item-editor-draft`). **The final whole-branch review's fix wave** adds a 14th, `investigate-create-review.test.ts` (finding 8: a create refusal announced through the live region once its dialog has closed). **WP-04 Part 2** adds `settings-tab-refresh-soon.test.ts` (Task 2, NE9: the Settings tab's coalesced `refreshSoon`, and a refresh that throws is shown rather than left unhandled). **The WP-04 Part 2 polish pass** adds `settings-tab-focus.test.ts` (Task 4, NE9 typing: the deferred `update()`, field-to-field, a profile page's field, nothing focused, `refreshSoon` still coalescing, a stale wait; the final fix wave adds focus onto a button keeping the wait, a window blur keeping it, a release re-checking focus, and a refused edit's Notice shown while a render waits) — one file, nine cases |
 | Host (Obsidian doubles) | `tests/host/**` | 25 | yes | 263 | real `CityView` instances over doubles for what Obsidian provides: plugin onload, commands, multi-leaf, lifecycle leaks, window migration (against a genuinely separate jsdom realm), build output, and task 13's clean-vault install — the scriptable half of G1, which also holds the checkpoint-#4 checklist to the controls and keys `src/` actually ships. **This is the layer the rest of this document leans on most heavily.** **WP-04 Part 1** adds `investigation-notes.test.ts` (Task 9: `plan`/`create`/`refresh`/`open`/`destination`/`sourceNotePath` against the fake vault), `investigation-note-index.test.ts` (Task 9: the incremental reducer) and `investigation-ports.test.ts` (Task 10: the wired `InvestigationNotesPort`/source-preview over the fake vault, including E25's unbound-profile case). **WP-04 Part 2** adds `investigation-notes-alias.test.ts` (Task 8, NE15: `realPathOfNearest` and the notes port's overlap and `sourceNotePath` through a junction root, with a no-resolver control) and six cases inside `plugin-onload.test.ts` (Task 2, NE9: a profile write refreshes the Settings tab, and after `onunload` it no longer does; the final review fix wave's Minor 6: a write to each watched slice — `profiles`, `bindings`, `analyzers`, `investigations` — refreshes it, and a `reviews` write does not). **The WP-04 Part 2 polish pass** adds `investigation-notes-unindexed.test.ts` (Task 1, NPF15: a disk-only folder is used, a disk-only file still refuses, an indexed folder takes no `stat` call) — one file, three cases — plus three more cases inside `investigation-notes-alias.test.ts` (Task 2, E20/E13) and one inside `investigation-ports.test.ts` (Task 2, the services wiring pin), and four inside `city-view-scan-modes.test.ts` (Task 3, E14/O1: the Reconnect scope-modal path, cancel, unbound and same-root silent refresh) |
 | Acceptance (21 + 3 repairs) | `tests/acceptance/**` | 3 | yes | 39 | 24 scenarios plus 2 structural guards (the feature file carries all 21 ported scenarios and the three repairs and nothing else; no step definition is unused). **WP-04 Part 1** adds `investigation-spine.test.ts` (Task 16, IN38: finding → preview → create → edit → rescan → refresh, byte-identical human sections, over the real relations project and the real Node port) and `investigation-safety.test.ts` (Task 16, IN39: injection, collision, race, marker and traversal cases; mutation runs below) |
 | Benchmark | `tests/benchmarks/**` | 2 | yes | 11 | reference hardware recorded above; **not a GPU measurement**, and this document says so in the same table as the numbers. WP-03 Part 1 adds `relations-budget.test.ts` (N33, N37 — medians above). Untouched by WP-04 Part 1 |
@@ -974,10 +983,11 @@ check these against the suite and against the matrix itself:
   the WP-03 Part 1 refresh closed the two-vintage gap, refreshed again by the final
   whole-branch review's fix wave, by WP-04 Part 2's task 12, by Part 2's final review fix
   wave (308 files, 3470 tests: 3468 passed, 1 failed — Z38 under load — and 1 skipped), and
-  now by the WP-04 Part 2 polish pass's task 9 (313 files, 3486 tests:
-  3485 passed, 0 failed, 1 skipped, as its last `npm run
+  by the WP-04 Part 2 polish pass's task 9 (313 files, 3486 tests:
+  3485 passed, 0 failed, 1 skipped), and now by that pass's final fix wave (313 files,
+  3490 tests: 3489 passed, 0 failed, 1 skipped, as its last `npm run
   verify` beside the G8 heading measured — see the WP-04 Part 2 polish section for every
-  run this task made).
+  run either made).
   Nothing in the suite can assert its own whole-run tally from inside itself, for the
   same reason the per-layer test counts are transcribed rather than derived. Re-take
   with `npx vitest run --reporter=dot`.
@@ -1657,7 +1667,7 @@ second run logged none. `npm run verify`: exit 1, with Z38 the one failure
 
 Recorded by task 9 at branch `feat/wp-04-part2-polish`, base `9644c08`, HEAD `f931ad8`;
 plan in `docs/superpowers/plans/2026-09-26-wp04-part2-polish.md`, rulings in
-`docs/superpowers/notes/2026-09-26-wp04-part2-polish-ledger.md` (WP-04.2 Polish E1–E10).
+`docs/superpowers/notes/2026-09-26-wp04-part2-polish-ledger.md` (WP-04.2 Polish E1–E11).
 This pass closes WP-04 Part 2's own deferred minors (P1–P8, T1–T10) and carries the native
 gate from 36 to 40 required scenarios. It adds no feature, no durable key, no process, no
 argv and no trust change.
@@ -1778,8 +1788,8 @@ position in the file. Scenario 38 stays "settings typing" and scenario 39 stays
 
 Each was shown RED once, per its own task report: scenario 37 on unfixed `ensureFolders`
 (the create refused as `write-failed`); scenario 38 on `0f12436` (typed text lost to a
-write elsewhere's re-render); scenario 39 on the unbound-check missing (a Reconnect's new
-root silently rescanned with no modal); scenario 40 against the pre-fix
+write elsewhere's re-render); scenario 39 under a mutation where `boundRoot` answered null
+(after a Reconnect, scan-codebase silently refreshed the **old** root, with no modal); scenario 40 against the pre-fix
 `expectedFindingCount` (the unmatched clone counted as listed). Every new or changed
 scenario carries a positive control in the same test (Review Focus 5), and none matches
 Obsidian's own UI text (IPF20).
@@ -1798,9 +1808,15 @@ disclosed here for the same reason every other run is):
 - Task 6's own `npm run test` at `886f67a`: 310/311 files, 3484 passed, 1 failed (the same
   G8 count), 1 skipped; **Z38 passed**: hang 33.9 ms, streamed 20.3 ms — isolated in its own
   `node-serial` project for the first time.
-- An ad hoc run during Task 6's gate re-check (a plain two-file `vitest run`, not the
-  `node-serial` project): **Z38 flaked once** at 290 ms right after a typecheck/lint burst,
-  then passed on immediate re-runs (24.6/19.7 ms, then 22.4/24.9 ms).
+- An ad hoc run during Task 6's gate re-check (a two-file `npx vitest run` under the root
+  config, so the no-freeze file ran in the `node-serial` project, group 1): **Z38 failed
+  once** at 290 ms right after a typecheck/lint burst, then passed on immediate re-runs
+  (24.6/19.7 ms, then 22.4/24.9 ms).
+
+**Stated plainly: after the isolation, Z38 failed 2 of the recorded runs** — this 290 ms
+run and task 9's `npm run verify` #3 below (62.5 ms) — both inside `node-serial`, and both
+put down to machine load that was inferred, not measured. The isolation removed the
+contention from inside the suite; it did not remove failure under load on the machine.
 - Task 8's native run: scenario 9 (`cancel-fallow-analysis`) flaked once on a `vaultHas`
   poll timeout during an investigation run, then passed both alone and in the final
   full-file run.
@@ -1838,7 +1854,8 @@ disclosed here for the same reason every other run is):
    count `npm run test` itself executes (311):** `gate-evidence.test.ts`'s file-sum check
    failed as a direct result (expected 311, the rows summed to 313); **Z38 genuinely
    failed this run** (hang 62.5 ms, over the 50 ms budget, under the same sustained load —
-   three back-to-back full verify runs in this session); the same `wp01.steps.ts`
+   the fourth back-to-back full-suite run of this task: its `npm run test` and three
+   `npm run verify` runs); the same `wp01.steps.ts`
    scenario flaked again (5000 ms timeout). 311 files (308 passed, 3 failed) and 3486
    tests — 3482 passed, 3 failed, 1 skipped.
 5. **`npm run verify` #4, after the heading's file count was corrected to 313 — exit 0,
@@ -1853,13 +1870,15 @@ disclosed here for the same reason every other run is):
    `npm run build` (twice, same reason as run 4) all green. **Z38 passed** (hang 22.5 ms,
    streamed 27.3 ms). This is the run the G8 heading above states.
 
-`tests/acceptance/wp01.steps.ts`'s flake in runs 3–4 is unrelated to this pass: no task
+`tests/acceptance/wp01.steps.ts`'s flake in runs 3–4 of the list above (`npm run verify`
+#2 and #3) is unrelated to this pass: no task
 1–8 touches `tests/acceptance/**`, the real-filesystem hashing pipeline it exercises, or
 anything it depends on, and it passed in 13.05 s when run alone
 (`npx vitest run tests/acceptance/wp01.steps.ts -t "Verify unchanged source after a real
 scan"`) immediately afterward. It is recorded here as an environmental flake under
-sustained load from four back-to-back full-suite runs, the same class of flake this
-document already records for Z38 (G8 heading, above), and it did not recur in run 4.
+sustained load — the third and fourth back-to-back full-suite runs of this task — the
+same class of flake this document already records for Z38 (G8 heading, above), and it did
+not recur in runs 5 and 6.
 
 ### Command and gate, at the baseline version
 
@@ -1952,3 +1971,39 @@ and the Privacy & storage tab's rows (No network requests, Saved review state,
 Investigation notes folder, Import/Clear review state) and its Replace-review-state
 confirmation dialog; and the Code city district view. Nothing here changed in layout —
 consistent with PN3: this pass ships no CSS.
+
+### Final fix wave
+
+After the final whole-branch review (base `e39667b`), one fix wave at `9caede4`. **What
+changed:** the Settings tab's waiting render (`renderWhenIdle`,
+`src/host/settings-tab.ts`) is now released only when focus leaves the page's controls —
+focus moving onto a button (Connect, Reconnect, Clear binding, Forget) keeps it waiting, so
+a render can no longer rebuild the button's row between mousedown and mouseup and lose the
+click, and the button's own action ends in `refresh()` with nothing editable focused, which
+renders at once; a blur while the document has lost focus (a window switch) keeps it
+waiting too; and a release re-checks the tab's current document and focus through
+`renderWhenIdle()` instead of calling `update()` directly. `settings-tab-focus.test.ts`
+gains four cases (the three above, each RED on `e39667b` first, and a refused edit's Notice
+shown while a render waits, RED under a temporary mutation that deferred `notify`,
+reverted), so its earlier "a refusal still shown" is now true. Comment-only fixes in
+`scan-flow.ts` (`runRefresh`), `preview.e2e.ts` (scenario 23) and `settings.e2e.ts`
+(scenario 38's control, E4); scenario 37 re-reads that `code/` is still unindexed just
+before its create; `fallow-analysis-world.ts` drops two needless exports. No CSS and no
+capture changed, so `npm run harness-shot` was not re-run. This record's Z38 account
+above was corrected (the 290 ms failure ran inside `node-serial`; after the isolation Z38
+failed 2 recorded runs, both put down to inferred machine load), as were scenario 39's RED
+wording and the ruling range (E1–E11).
+
+**Re-verification, every run:** typecheck, `lint:fast` and eslint on the touched files
+clean; the touched fast files green; `npm run analyze` 9, unchanged. `npm run verify` #1
+(after the counts refresh): exit 0 — 311 files, 3490 tests, 3489 passed, 1 skipped;
+**Z38 passed** (hang 34.8 ms, streamed 35.5 ms). Native, `FALLOW_BIN` pure-backslash (E10),
+no `fallow.exe` running before either run: `npm run test:e2e` on 1.13.4 — 13 files,
+40 passed, 520.17 s, `Verified 40 executed native Vitest cases, including all 40 required
+scenarios.`; with `OBSIDIAN_VERSION=latest` (resolved to **1.13.7**) — 13 files, 40 passed,
+346.69 s, the same Verified line. Each logged only the T2 negative control's one
+`vault:ci-probe is not a listener array` line, and no worker crashed. `npm run
+test:fallow`: 2 files, 11 tests passed, nothing fetched. `npm run verify` #2, after this
+paragraph was written (documentation only since #1): exit 0 — 311 files, 3490 tests,
+3489 passed, 1 skipped; **Z38 passed** (hang 25.4 ms, streamed 25.2 ms). This is the run
+the G8 heading states; only this sentence was added after it.
