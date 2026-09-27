@@ -116,6 +116,8 @@ None of the new names exists yet (`groupOrder` in the config, `diskOnly`, `bound
 | WP-04.2 Polish E8 | **Ruling (resolves PP8):**<ul><li>**Why the fix failed:** ChromeDriver scrolls only an element outside the viewport. A button already inside it, but under the fixed status bar, gets no scroll, so `scroll-padding` cannot help a WebDriver click.</li><li>**The plan:** prove the person-facing path instead, the button's own `focus()` followed by a not-obscured check. If that did not discriminate, revert the CSS and keep `centred()` with a corrected comment.</li></ul>— Low. |
 | WP-04.2 Polish E9 | **Ruling (closes the Task 9 minor; amends P3 and PN3):** the plugin's padding is not at fault, and no product change ships.<ul><li>Natively, the button's own `focus()` already scrolls it clear of the status bar on the unchanged CSS: E8's check was GREEN without `scroll-padding`.</li><li>At maximum scroll, the Create button sits 70.35 px above the status bar's top.</li><li>Only a WebDriver click on a button left under the bar at the viewport's bottom edge is intercepted. That is Obsidian's fixed status bar, over any view.</li></ul>`centred()` stays, with its comment corrected, and the spec's P3 claim "focus is obscured (WCAG 2.4.11)" is withdrawn. — None to the product; the native workaround remains, now correctly explained. |
 | WP-04.2 Polish E10 | **Ruling:** native runs set `FALLOW_BIN` as a pure-backslash Windows path. Scenario 15 compares the executable path the tab shows against `FALLOW_BIN` as text, and the owner's forward-slash path names the same file; a mixed-separator value is a harness input error, not a product bug. One scenario-9 flake (a `vaultHas` poll timeout during a Task 8 investigation run, green alone and in the full file) is recorded under Part 2's E5 rule. — Low. |
+| WP-04.2 Polish E12 | **Ruling (final review):** one fix wave covers Important 1–3 and Minors 4–9.<ul><li>**Important 1 is fixed, not ruled.** The waiting Settings render is released only when focus leaves the page's controls with the document still focused, and the release re-checks focus. Focus moving onto a button, or a window blur, keeps it waiting, and a button's own action renders at once.</li><li>**Minors 4–9:** stale scan-flow and preview comments, two evidence wording slips, scenario 38's control comment, scenario 37's control re-read at create time, and two needless exports.</li><li>**Not taken:** deriving scenario 2's `SECOND_FINDING` from the recording, and 14 of the 19 task-review minors. The review triaged them as follow-ups; the other 5 were fixed in this wave.</li></ul>— Low: a render waits while focus rests on a button whose action never refreshes, until focus leaves the page's controls. |
+| WP-04.2 Polish E13 | **Ruling (parks the fix-wave re-review's one Minor):** a `focusout` listener from an earlier wait can stay attached after the immediate branch of `renderWhenIdle()` renders. A later wait can then add a second listener.<ul><li>Each listener re-checks `relatedTarget`, `hasFocus()` and `renderPendingIn` before acting.</li><li>Each one removes itself on the next focusout that leaves the page's controls.</li><li>No double render and no lost click reproduces in the traced sequences.</li></ul>— Low: a few idle listeners on the settings document until focus next leaves its controls. A follow-up can remove the listener in the immediate branch. |
 | WP-04.2 Polish E11 | **Ruling (rejects a Task 9 review finding):** scenario numbers are the spec §5 identities: 38 is settings typing and 39 is the scan after a Reconnect. `required-scenarios.json` is ordered by the commit that appended each title, and Task 3 appended 39 before Task 4 appended 38. The gate matches titles, not positions, and the evidence says so once. — None. |
 
 Also recorded during execution:
@@ -127,17 +129,60 @@ Also recorded during execution:
 - **Test runs of the pass**, every one, in order:
   1. The controller's `npm run test` at `5968e38`, after the last `src` task: 308/310 files, 3483 passed, 1 skipped, 2 failed. The failures were the G8 count, expected until Task 9, and **Z38 failing at 62.6 ms** before isolation.
   2. Task 6's `npm run test` at `886f67a`: 310/311 files, 1 failed (the G8 count). Z38 passed at 33.9 and 20.3 ms.
-  3. An ad hoc two-file run: Z38 at 290 ms right after a typecheck and lint burst, then passing (24.6/19.7 and 22.4/24.9 ms).
+  3. An ad hoc two-file run under the root config, so the no-freeze file ran in `node-serial`: **Z38 failed at 290 ms** right after a typecheck and lint burst, then passed (24.6/19.7 and 22.4/24.9 ms).
   4. Task 9's runs:
      - `verify` #1 failed on the pre-refresh G8 sum; Z38 30.7/25.2 ms.
      - `verify` #2 failed on the implementer's placeholder text, plus a `wp01.steps.ts` "Verify unchanged source after a real scan" timeout; Z38 22.7/25.0 ms.
      - `verify` #3 failed on a wrong count convention, plus **Z38 failing at 62.5 ms in `node-serial` under sustained load**, plus the same acceptance timeout.
      - `verify` #4 exited 0; Z38 21.6/21.1 ms.
      - `verify` #5 exited 0; Z38 22.5/27.3 ms. That run had 313 files and 3486 tests: 3485 passed, 1 skipped.
+     - Task 9 also ran `npm run test` once at `f931ad8` to refresh the counts; Z38 25.0/28.4 ms.
+  5. The final fix wave's runs:
+     - `verify` #1 exited 0 with 3489 passed and 1 skipped of 3490; Z38 34.8/35.5 ms.
+     - `verify` #2, after the docs, exited 0 with the same counts; Z38 25.4/25.2 ms.
+  - **After isolation, Z38 failed 2 of the recorded runs**: 290 ms and 62.5 ms, both inside `node-serial` and both put down to machine load, which was inferred rather than measured. Isolation removed the contention inside the suite, but not the failures under machine load. The 50 ms budget stands (O2); the owner may revisit it.
 - **Native and tooling:**
   - `npm run test:e2e` on 1.13.4: "Verified 40 executed native Vitest cases, including all 40 required scenarios."
   - The latest run resolved to 1.13.7 and also passed 40/40.
   - `npm run test:fallow`: 11/11.
   - `npm run analyze`: 9.
-  - `npm run harness-shot`: the `wp04-investigate-*`, `wp02-settings-*` and `s05-city-dark` captures were looked at, with no layout change.
+  - `npm run harness-shot`: run in Task 9. The `wp04-investigate-*`, `wp02-settings-*` and `s05-city-dark` captures were looked at, with no layout change. It was not re-run after the fix wave, which changed no UI or CSS.
+- **Final whole-branch review (opus, `9644c08..e39667b`): ready with fixes.**
+  - It found 0 Critical, 3 Important and 8 Minor issues:
+    - a click lost after a deferred Settings render;
+    - the evidence claiming a refusal test that did not exist;
+    - the Z38 record calling the 290 ms run "not node-serial" and understating the isolated failures.
+  - It confirmed the E14 consent path, PN1, PN2, scenarios 37–40, every trailer, the line caps and the CRLF notes. Of the 19 task-review minors it triaged 3 as fix-before-merge; everything else was a follow-up.
+  - One fix wave (`9caede4`, `fe8b60e`; E12) closed all 3 Important issues and Minors 4–9, and the scoped re-review found every finding addressed. Its one new Minor is parked (E13).
+  - The fix wave re-ran everything:
+    - `npm run verify` twice, exit 0 both times;
+    - `npm run test:e2e` on 1.13.4: 40/40, 520 s, "Verified 40 executed native Vitest cases, including all 40 required scenarios.";
+    - the latest run, which resolved to 1.13.7: 40/40, 347 s;
+    - `npm run test:fallow`: 11/11;
+    - `npm run analyze`: 9.
+- **Commit trailers:** every commit on the branch ends with the literal trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>", checked one commit at a time before the push.
+
+## Deferred minors
+
+The final whole-branch review triaged each minor from the task reviews. It wanted three fixed before merge: the `runRefresh` comment, `preview.e2e.ts`'s header, and the lost click. The fix wave fixed those three, plus scenario 38's control comment and the two needless exports. These are the acceptable follow-ups:
+- **Task 1:** the fake vault's `reconcileFolder` fires no `create` event for a parent it reconciles.
+- **Task 2:**
+  - `Memo` is structurally `RealPath`.
+  - T8's "unrelated resolver" case survives the mutation, because the null-resolver case is the one that catches it. A test comment would say so.
+- **Task 3:**
+  - The commands describe title still says "rows 5–7".
+  - Scenario 39's cancel could also assert `cancel-scan` and the bindings.
+  - Scenario 39 asserts the modal's root at the end, not at step 5.
+  - `clearBinding` is duplicated in `commands.e2e.ts` and `preview.e2e.ts`.
+  - A `silentRefresh` regression shows as a 5 s timeout, not an assertion.
+- **Task 4:**
+  - The refusal-restore comments now take effect only once focus leaves the fields.
+  - No test re-arms the wait on a new document; `moveFocus` may send a duplicate focusout.
+- **Task 6:** the ordering proof is read from the position of console output.
+- **Task 7:** the `app.vault._` double-cast is repeated.
+- **Task 8:**
+  - `hashTree` and `projectFilePaths` walk the tree the same way.
+  - Scenario 40's `Record<string, unknown>[]` cast.
+- **Final review:** scenario 2's `SECOND_FINDING` could be derived from the recording.
+- **Final fix wave:** listeners may accumulate (E13).
 
