@@ -47,10 +47,22 @@ function swallow(event: Event): void {
   event.stopImmediatePropagation();
 }
 
-/** Focus leaves `from` for `to` (null: nothing focusable), as a person's click moves it. */
+/** Focus leaves `from` for `to` (null: nothing focusable), as a person's click moves it. Follow-ups FM9: jsdom's
+ *  focus() and blur() fire the focusout themselves. */
 function moveFocus(from: HTMLElement, to: HTMLElement | null): void {
   if (to === null) from.blur(); else to.focus();
-  from.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: to }));
+}
+
+/** How many of a spy's `addEventListener`/`removeEventListener` calls were for `focusout`. */
+function focusouts(calls: unknown[][]): number {
+  return calls.filter(([type]) => type === 'focusout').length;
+}
+
+/** Follow-ups FU1: the `focusout` listeners attached to `document` minus those removed, from now on. */
+function focusoutListeners(): () => number {
+  const add = vi.spyOn(document, 'addEventListener');
+  const remove = vi.spyOn(document, 'removeEventListener');
+  return () => focusouts(add.mock.calls) - focusouts(remove.mock.calls);
 }
 
 // jsdom's hasFocus() is false whenever no element is focused; a real window keeps its focus when a click lands on
@@ -182,6 +194,51 @@ describe('settings tab: a refresh never re-renders the field being typed in (WP-
     first.dispatchEvent(new FocusEvent('focusout', { bubbles: true, relatedTarget: null }));
     expect(update).not.toHaveBeenCalled();
     moveFocus(second, null);
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it('holds at most one focusout listener across a wait, a render at once and a second wait (follow-ups FU1, E13)', async () => {
+    const tab = newTab();
+    document.body.appendChild(tab.containerEl);
+    const typed = field(tab.containerEl);
+    const update = vi.spyOn(tab, 'update');
+    const attached = focusoutListeners();
+    typed.focus();
+    await tab.refresh();
+    expect(attached()).toBe(1);
+    // The field is left with the window unfocused: the wait's listener returns early and stays.
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    typed.blur();
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    expect(attached()).toBe(1);
+    await tab.refresh();
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(attached()).toBeLessThanOrEqual(1);
+    typed.focus();
+    await tab.refresh();
+    expect(attached()).toBeLessThanOrEqual(1);
+  });
+
+  it('hide() runs a waiting render once, after a microtask, and removes its listener (follow-ups FU2, E7)', async () => {
+    const tab = newTab();
+    document.body.appendChild(tab.containerEl);
+    const typed = field(tab.containerEl);
+    const update = vi.spyOn(tab, 'update');
+    // Control: with no render waiting, hide() renders nothing.
+    tab.hide();
+    await Promise.resolve();
+    expect(update).not.toHaveBeenCalled();
+    const attached = focusoutListeners();
+    typed.focus();
+    await tab.refresh();
+    expect(update).not.toHaveBeenCalled();
+    expect(attached()).toBe(1);
+    tab.hide();
+    await Promise.resolve();
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(attached()).toBe(0);
+    // A focusout after the hide adds nothing.
+    typed.blur();
     expect(update).toHaveBeenCalledTimes(1);
   });
 

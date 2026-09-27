@@ -21,6 +21,7 @@ import { AnalyzerStoreError } from '../application/analysis/analyzer-record';
 import type { EvidenceRepository } from '../application/ports/evidence-repository';
 import type { CodebaseProfile } from '../domain/model';
 import { buildSettingDefinitions } from './setting-definitions';
+import { createRenderWait } from './settings-render-wait';
 import type { ProfileEntry } from './setting-definitions';
 import { ClearBindingModal } from './modals/clear-binding-modal';
 import { openSourceModal } from './modals/source-modal';
@@ -30,18 +31,6 @@ import { defaultNoteFolder, validateNoteFolder } from '../application/investigat
 
 function parseExclusions(rawLines: string): string[] {
   return rawLines.split('\n').map((line) => line.trim()).filter((line) => line.length > 0);
-}
-
-/** WP-04.2 polish PN4: whether `target` is an element inside `container`. `matches`, not `instanceof`: the settings
- *  window's elements may come from another window. */
-function isElementIn(container: Node, target: EventTarget | null): target is Element {
-  return target !== null && 'matches' in target && container.contains(target as Element);
-}
-
-/** WP-04.2 polish PN4: whether `target` is a field a person types or picks in (an input, textarea or select) inside
- *  `container`. */
-function isEditingIn(container: Node, target: EventTarget | null): boolean {
-  return isElementIn(container, target) && target.matches('input, textarea, select');
 }
 
 export class CodebaseInspectorSettingTab extends PluginSettingTab {
@@ -55,8 +44,10 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
   // WP-04.2 NE9: refreshSoon()'s one refresh in flight, and whether one more is queued.
   private refreshing: Promise<void> | null = null;
   private refreshQueued = false;
-  // WP-04.2 polish PN4: the document whose focusout the one waiting render listens for, or null when none waits.
-  private renderPendingIn: Document | null = null;
+  // WP-04.2 polish PN4, follow-ups FN1: the tab's one render wait (settings-render-wait.ts). containerEl is read
+  // lazily, at each request, through the closure.
+  private readonly renderWait = createRenderWait(
+    () => this.containerEl.ownerDocument, () => { this.update(); }, (e) => { this.showFailure(e); });
 
   constructor(
     app: App,
@@ -96,8 +87,8 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
    *  instance, and the four mutation paths below no longer call `update()` themselves --
    *  a second call would re-render twice for one change.
    *
-   *  WP-04.2 polish PN4: it is still asked for HERE, through renderWhenIdle(), which runs it at once unless a
-   *  field of the settings holds focus, and then once focus has left the fields. */
+   *  WP-04.2 polish PN4: it is still asked for HERE, through the render wait (settings-render-wait.ts), which runs
+   *  it at once unless a field of the settings holds focus, and then once focus has left the fields. */
   async refresh(): Promise<void> {
     try {
       const profiles = await this.profileStore.list();
@@ -121,37 +112,15 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
       // reload must not be indistinguishable from "you have no profiles".
       this.showFailure(e);
     }
-    this.renderWhenIdle();
+    this.renderWait.request();
   }
 
-  /** WP-04.2 polish PN4: Obsidian's update() re-renders every render-type row, so it waits while a field of the
-   *  settings holds focus, and runs once focus has left the fields. The scope is the tab's document, not its
-   *  containerEl: observed on 1.13.4, a profile page renders into its own `.setting-page` and the containerEl is
-   *  detached while it shows (Settings open in their own window: NPF7). A render that runs at once supersedes a
-   *  waiting one, so a focusout that never arrived (its window closed) cannot hold a later render back.
-   *
-   *  Final fix wave (item 1): the wait is released only when focus leaves the page's controls. Focus moving onto a
-   *  button (Connect, Reconnect, Clear binding, Forget) keeps it waiting: a render there would rebuild the button's
-   *  row between mousedown and mouseup and lose the click, and the button's own action ends in refresh() with
-   *  nothing editable focused, which renders at once. A window switch (the document lost focus) keeps it waiting
-   *  too, so an uncommitted field is never replaced. A release re-checks the current document and focus. */
-  private renderWhenIdle(): void {
-    const doc = this.containerEl.ownerDocument;
-    if (!isEditingIn(doc, doc.activeElement)) {
-      this.renderPendingIn = null;
-      this.update();
-      return;
-    }
-    if (this.renderPendingIn === doc) return;
-    this.renderPendingIn = doc;
-    const onFocusOut = (event: FocusEvent): void => {
-      if (isElementIn(doc, event.relatedTarget) || !doc.hasFocus()) return;
-      doc.removeEventListener('focusout', onFocusOut);
-      if (this.renderPendingIn !== doc) return;
-      this.renderPendingIn = null;
-      this.renderWhenIdle();
-    };
-    doc.addEventListener('focusout', onFocusOut);
+  // Follow-ups FU2 (WP-04.2 Follow-up E2): a render still waiting when the tab is hidden (a close while the settings
+  // document is unfocused: quit, plugin unload, a close from another window) runs then; a person's close or a tab
+  // switch removes the focused field while its document has focus, and that focusout already released the wait.
+  override hide(): void {
+    super.hide();
+    this.renderWait.hidden();
   }
 
   /** WP-04.2 NE9: a write elsewhere (a scan's new profile, a note's exclusion, a fallow trust) re-reads
@@ -262,7 +231,7 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
   }
 
   /** Part 7 Z10 (M62): whole seconds from 10 to 1800; otherwise refused with a reason, and
-   *  refresh() puts the stored value back in the field. */
+   *  refresh() puts the stored value back in the field once focus leaves the settings' fields (the render wait). */
   private async changeAnalyzerTimeout(profileId: string, rawValue: string): Promise<void> {
     const seconds = rawValue.trim() === '' ? Number.NaN : Number(rawValue);
     try {
@@ -276,7 +245,7 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
 
   /** WP-04 Task 8 (IN19, IP10, IP11): validated the same way `changeExclusions` is --
    *  refused here, the typed value is never persisted and `refresh()` below puts the
-   *  stored value (or the default) back in the field. */
+   *  stored value (or the default) back in the field once focus leaves the settings' fields (the render wait). */
   private async changeInvestigationFolder(profileId: string, rawValue: string): Promise<void> {
     const checked = validateNoteFolder(rawValue, this.app.vault.configDir);
     if (checked.ok) {
@@ -298,7 +267,8 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
    *  already on disk. The scope modal already calls the same rules through
    *  `scopeValidationReasons`; this calls `exclusionInputReasons` directly, because a
    *  settings edit carries no maxFileBytes of its own. Refused here, the typed value is
-   *  never persisted and `refresh()` below puts the stored value back in the field. */
+   *  never persisted and `refresh()` below puts the stored value back in the field once focus leaves the settings'
+   *  fields (the render wait). */
   private async changeExclusions(profileId: string, rawLines: string): Promise<void> {
     const exclusions = parseExclusions(rawLines);
     const reasons = exclusionInputReasons(exclusions);
