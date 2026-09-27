@@ -2298,3 +2298,20 @@ in order:
   fetched.
 - **`npm run analyze`**: 9 findings, unchanged (5 unused exports, 1 unused type, 1 unused
   class member, 1 duplicate export pair, 1 circular dependency).
+- **`npm run verify`** at `832758a`, after the evidence commit: exit 0; 313 files, 3504
+  tests, 3503 passed, 1 skipped; **Z38 passed** (control 16.7 ms, hang 25.2 ms, streamed
+  18.1 ms).
+- **`npm run test:e2e` (1.13.4) once more, on the final head `832758a` (ruling E7)** —
+  launched only after 120 s with no `fallow.exe`, none running at launch — **FAILED,
+  reported as run, never retried.** 13 files (12 passed), 40 tests (39 passed, none
+  failed an assertion), 335.35 s, no `Verified` line: the Vitest worker running
+  `fallow.e2e.ts` exited with Windows code 3221226505 (`0xC0000409`, a process fault)
+  before its case reported. Only the T2 line was logged.
+- **The 1.13.4 run of record (ruling E8)** is therefore task 5's run at `059203a` (40/40,
+  `Verified 40 executed native Vitest cases, including all 40 required scenarios.`, 483 s).
+  Its native inputs are the final head's: `tests/e2e`, `scripts` and the build
+  configuration are unchanged since `059203a`, and building `src/host/settings-tab.ts` and
+  `src/host/settings-render-wait.ts` as they were there gives a `dist/main.js` (SHA-256
+  `b47599725e07…6485c2`) and `dist/styles.css` byte-identical to the final head's, because
+  the only `src` change since is comment text. The `latest` run above (1.13.7, 40/40) ran on
+  that same bundle.

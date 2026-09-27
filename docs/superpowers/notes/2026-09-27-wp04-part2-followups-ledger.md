@@ -58,11 +58,112 @@ This ledger records every ruling made while planning and executing the WP-04 Par
    - **r1, r3 and r6 (idle), and r4 and r7 (real load):** exit 0 with 311 files and 3489 passed, 1 skipped. Z38 passed: 30.7/21.5, 24.2/23.4, 24.8/24.7, 27.2/18.1 and 25.4/19.3 ms.
    - **r2, r5 and r8 (burn):** exit 1. Z38 failed: 50.8/41.7, 104.1/64.1 and 114.1/153.3 ms, alongside 6, 7 and 23 other load failures.
 2. **Probes:** two scratch `cpu-attrib` probes (FP7), not suite runs.
+3. **The controller's `npm run test` at `d665099`, after the last `src` task:** exit 1.
+   - Counts: 312 files (3 failed, 309 passed); 3501 tests (3 failed, 3497 passed, 1 skipped).
+   - Failures: the G8 component file count and the `src/` floor, both expected until Task 5; and the acceptance step "Verify unchanged source after a real scan", on Vitest's 5 000 ms default timeout (E3).
+   - Z38 passed at 25.3/23.3 ms, before the guard.
+4. **Task 3's `node-serial` runs:**
+   - unchanged file under an all-core burner: fail, `hang` at 56.8 ms;
+   - unchanged file idle: pass, 32.0/21.0 ms;
+   - guard, idle: pass, with a control of 24.8 ms and modes of 28.9/27.0 ms;
+   - guard under the burner: **skipped**, control 50.3 ms;
+   - guard, idle, under the 80 ms freeze mutation: `streamed` failed at 15 360.1 ms with a control of 22.8 ms (FQ1).
+5. **Task 5's runs:**
+   - `npm run test` at `69dabdd`: 313 files, 2 failed (the two count checks, before the refresh); 3504 tests. Z38 passed (control/hang/streamed 23.6/25.1/19.7 ms).
+   - `npm run verify` before its commit: exit 0; 313 files, 3503 passed, 1 skipped; Z38 16.6/29.2/21.8 ms.
+   - `npm run verify` at `059203a`: exit 0, the same counts; Z38 17.9/29.7/28.2 ms.
+   - Native 1.13.4: 40/40, "Verified 40 executed native Vitest cases, including all 40 required scenarios." (483 s).
+   - Native latest, which resolved to 1.13.7: **failed 39/40**. `fallow.e2e.ts`'s cancel scenario failed its machine-wide `fallowProcessCount()` baseline, because another session's `fallow.exe` appeared mid-run (E6).
+   - `npm run test:fallow` 11/11; `npm run analyze` 9; `npm run harness-shot` looked at.
+6. **The final fix wave's runs:**
+   - `npm run verify` at `b5a8591`: exit 0; 313 files, 3503 passed, 1 skipped; Z38 16.5/29.1/18.9 ms.
+   - Native 1.13.4: **failed 39/40** on the same baseline count. It was launched with a foreign `fallow.exe` already running; another session started a `dupes` run every 1–3 s (E7).
+   - Native latest (1.13.7), launched after 120 s with no `fallow.exe`: 40/40, with the same Verified line (377 s).
+   - `npm run test:fallow` 11/11; `npm run analyze` 9.
+   - `npm run verify` at `832758a`, after the evidence commit: exit 0, the same counts; Z38 16.7/25.2/18.1 ms.
+7. **The controller's native 1.13.4 run on the final head `832758a`** (E7), launched after 120 s with no `fallow.exe`: **failed**, 39/40, with no case failing an assertion. The Vitest worker running `fallow.e2e.ts` exited with Windows code `0xC0000409` (335 s). It was not re-run (E8).
+
+**Z38 across the pass:** it passed in every uninstrumented run. It failed only in the three instrumented burn runs and in Task 3's deliberate burner run before the guard. The guard skipped once, under the burner.
 
 ## Pre-flight scan
 
-(Recorded before Task 1.)
+The scan ran on 2026-09-27 at `57cc61c`, whose `src` is identical to `8466f03`.
+
+**Line counts:** re-measured with `wc -l`, and all match the plan's Size table.
+
+**Consumes names:** grepped, and all found:
+- `renderWhenIdle`, `renderPendingIn`, `isElementIn` and `isEditingIn` (`settings-tab.ts:37`, `:43`, `:59`, `:124`, `:138–155`);
+- the mock's `hide()` (`obsidian.ts:172`);
+- `moveFocus` (`settings-tab-focus.test.ts:51`);
+- scenario 38's helpers (`settings.e2e.ts:26`, `:43`, `:53`);
+- `reconcileFolder` and `vaultEvents` (`fake-vault.ts:204`, `:174`);
+- `RealPath` and `Memo` (`investigation-notes.ts:35`, `:38`);
+- `silentRefresh` and `waitForModal` (`city-view-scan-modes.test.ts:217`, `:43`);
+- `ctx.skip(note)` (`plugin.d.CN87HSxv.d.ts:356`);
+- in `workspace-files.ts`: `hashTree` (exported), `projectFilePaths` (module-private) and `writeReport`, whose only callers are `investigation.e2e.ts:139` and `preview.e2e.ts:163`;
+- `SECOND_FINDING` and the `_` casts (`plugin-lifecycle.e2e.ts`);
+- the runner's stdout handler (`fallow-runner.ts:163`).
+
+None of the new names exists yet.
+
+| Row | Tasks | Produces ↔ consumes / self-consistency | Finding |
+|---|---|---|---|
+| 1 | 1 ↔ 4 | Task 1 runs scenario 39 on its Settings change; Task 4 then edits scenario 39. | Sequential; Task 4 re-runs all of `commands.e2e.ts`. Consistent. |
+| 2 | 2 ↔ 4 | Both use temporary mutations of `scan-flow.ts` (`:206` for FM7, `:207` for FM5), each reverted. | Disjoint, never committed. Consistent. |
+| 3 | 2 ↔ 3 | Task 3's freeze proof temporarily edits `fallow-runner.ts`. | Disjoint. Consistent. |
+| 4 | 3 ↔ 5 | A load-skip changes the skipped count; G8 must come from an executed run. | Consistent. |
+| 5 | 1 ↔ 5 | `harness-shot`'s Settings captures show Task 1. | Consistent. |
+| 6 | 4 | FM13 retypes `writeReport`'s edit; both callers are in Task 4's files. | Consistent. |
+| T1 | 1 | Step 1's E13 RED needs the listener to stay; the file's `beforeEach` mocks `hasFocus` true. | Consistent: the plan mocks it false for the blur. |
+| T3 | 3 | The freeze mutation sits in the stdout handler, and the fake's `hang` mode writes no stdout. | **Correction (FQ1).** |
+| T5 | 5 | 41 executed = 41 required. | Consistent then; amended to 40 by E2. |
+
+0 blocking, 1 correction (FQ1).
+
+## Pre-flight rulings
+
+| # | Ruling |
+|---|---|
+| FQ1 | **Ruling:** Task 3's idle freeze proof expects the failure in `streamed`; a `hang` pass under the mutation is expected. — The fake's `hang` mode writes no stdout (`fake-fallow.mjs:13`, `:40`), so the 80 ms block never runs there. — Low: the block is 80 ms per chunk, so any streamed chunk fails the budget. |
 
 ## Execution rulings
 
-(Recorded during execution.)
+| # | Ruling |
+|---|---|
+| WP-04.2 Follow-up E1 | **Ruling:** after scenario 41 was GREEN on 8466f03 (FP8's stop), one more discriminating probe ran on the unchanged `src`: the settings closed from the main window with the settings document unfocused. — The implementer's diagnosis: WebDriver's `closeWindow` detaches the modal DOM before `onClose` and `hide()`. Removing the focused textarea fires `change` and a `focusout` while `document.hasFocus()` is still true, which releases the wait. Polish E7's premise ("a window closed with a field focused sends no focusout") is withdrawn for this path. — Low: one extra native run. |
+| WP-04.2 Follow-up E2 | **Ruling (amends spec §5 and FU2's test; the gate stays at 40):** scenario 41 is dropped, and FU1 and FU2 land as fast-tested fixes.<ul><li>The E1 probe was GREEN too, with its control passing. The focus evidence was `settingsFocused: true`: WebDriver's `switchToWindow` moves no OS focus.</li><li>Every person-driven close (the window's X, which re-activates an unfocused window first, Ctrl+W, or `setting.close()` while the settings window has focus) removes the focused field while its document has focus. Chromium's removal `focusout` then releases the wait before `hide()`.</li><li>The wait outlives a close only when the settings document is unfocused at removal: quitting, the plugin unloading, or a programmatic close from another window. A tab switch keeps the wait too, because focus on a nav item stays inside the document. In these cases `hide()` is the release.</li><li>The tab-level fast test, RED on 8466f03, is its proof.</li></ul>— Low: FU2 has no native guard, and its uncovered paths are programmatic. |
+| WP-04.2 Follow-up E3 | **Ruling:** the acceptance step "Verify unchanged source after a real scan" timing out at Vitest's 5 000 ms default is recorded, not fixed, in this pass. — It predates the pass (polish `verify` #2 and #3), recurs under load, and no task here touches the scan path. It is disclosed wherever it fails, and a follow-up task is suggested. — Low: a `verify` can fail on it, which is then disclosed. |
+| WP-04.2 Follow-up E4 | **Ruling (amends spec FM5):** scenario 39's cancel step gains the probe's positive control, `commandAvailable(browser, 'scan-codebase')` true, beside `cancel-scan` false. — The rule "every negative assertion has a positive control in the same test" binds over the row as written, and a `cancel-scan` true control would need a scan held in flight. — Low: the control proves the probe can answer true here, not that `cancel-scan` specifically would. The snapshot equality still catches a scan wrongly started by a cancel. |
+| WP-04.2 Follow-up E5 | **Ruling:** Task 5's one `sed -i` on the two CRLF notes, which is forbidden and stripped their CRLF, is accepted as repaired, as polish E6 was. — The controller verified the committed notes byte-level (every line CRLF, 0 bare LF), and the diff carries only content changes. — None. |
+| WP-04.2 Follow-up E6 | **Ruling:** Task 5's latest native run is void as gate evidence and was not re-run then. — Its stated precondition (no `fallow.exe` running, E10) was broken mid-run by another session's process, which `fallow.e2e.ts`'s machine-wide `fallowProcessCount()` counts. The native gate runs again on the final head. A follow-up task to scope the count to the test's own processes is suggested. — Medium: a foreign `fallow.exe` can fail any later run the same way. |
+| WP-04.2 Follow-up E7 | **Ruling:** the fix wave's 1.13.4 native run is void. — It was launched with a foreign `fallow.exe` already running, against E10, and it failed only on the machine-wide baseline count. The controller ran 1.13.4 once more on the final head, launched only after 120 s with no `fallow.exe`. Both runs are disclosed, and this is a first valid run, not a retry of a valid one. — Medium: a foreign process starting mid-run fails the same scenario, which is then the pass's reported result. |
+| WP-04.2 Follow-up E8 | **Ruling:** the E7 run failed differently: the Vitest worker running `fallow.e2e.ts` crashed with Windows code `0xC0000409` after 39 cases passed. It is disclosed and not re-run (no retries). The 1.13.4 run of record is Task 5's 40/40 at `059203a`. — Its native inputs are the final head's:<ul><li>`tests/e2e`, `scripts` and the build configuration are unchanged since `059203a`;</li><li>building the two `src` files as they were there gives a `dist/main.js` (SHA-256 `b47599725e07…6485c2`) and `dist/styles.css` byte-identical to the final head's, because the only `src` change since is comment text.</li></ul>`fallow.e2e.ts` also passed on latest on that same bundle. — Medium: the final head's commit has no green 1.13.4 run of its own, only a byte-identical build's. The owner may ask for one more run. |
+
+Also recorded during execution:
+- **Fix rounds:**
+  - Task 4 needed one: E4's positive control.
+  - Task 5 needed one: four false claims in the evidence prose.
+  - Tasks 1–3 were approved at their first review. Task 1 stopped twice under FP8 and was resolved by E1 and E2.
+- **Final whole-branch review (opus, `8466f03..cd7ef7f`): ready with fixes.**
+  - It found 0 Critical and 2 Important issues, both in the evidence notes: the new tests were misdescribed, in places inverted, and the final `verify` was a placeholder. It also found three Minors to fix before merge:
+    - the hide comments on the tab-switch release;
+    - exact listener counts in the tab test;
+    - the Task 4 evidence bullet.
+  - It confirmed the render wait under every focus/hide ordering, that the Z38 guard cannot mask a freeze on an idle machine, the native minors, the counts and every trailer.
+  - One fix wave (`b5a8591`, `832758a`) closed all five, and the scoped re-review found every finding addressed.
+  - It triaged these as acceptable follow-ups: `hidden()`'s microtask skipping the focus check (FN1), both Task 3 cosmetic notes, and both Task 4 notes.
+- **Commit trailers:** every commit on the branch ends with the literal trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>", checked one commit at a time before the push.
+
+## Deferred minors
+
+The final review triaged these as acceptable follow-ups:
+- **Task 1:** `hidden()`'s microtask render skips the focus check (FN1-mandated). It was not observed to rebuild a focused field.
+- **Task 3:**
+  - The header's guard note is three wrapped lines where the brief said one.
+  - An informational oxlint comment on an already module-scoped guard, following the repo's convention.
+- **Task 4:**
+  - The brief's stale FM4 line reference.
+  - FM12 also dropped the unused `prefix` parameter.
+- **Out of scope, suggested as follow-up tasks:**
+  - E3: an explicit timeout for the acceptance scan step.
+  - E6 and E7: a native fallow process count scoped to the test's own processes.
