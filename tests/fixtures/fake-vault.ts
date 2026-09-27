@@ -213,6 +213,7 @@ export function createFakeVault(options: FakeVaultOptions = {}): FakeVault {
     folderObjects.set(path, folder);
     parentFolder.children.push(folder);
     diskOnlyEntries.delete(path);
+    vaultEvents.trigger('create', folder);
     return folder;
   }
 

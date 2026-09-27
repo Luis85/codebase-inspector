@@ -35,7 +35,7 @@ export interface InvestigationNotesDeps {
 type RealPath = (path: string) => string | null;
 /** A per-session memo of one path's filesystem form (WP-04.2 PN1): resolved through `RealPath` on the first
  *  call, replayed after that. */
-type Memo = (path: string) => string | null;
+type Memo = RealPath;
 /** The lazy pair `insideOf` compares in filesystem form once the textual check finds no relation. */
 interface Resolved { container(): string | null; target(): string | null }
 

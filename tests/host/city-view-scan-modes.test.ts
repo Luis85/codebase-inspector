@@ -216,8 +216,12 @@ describe('scan-codebase after a Reconnect (WP-04.2 polish O1, PN5)', () => {
   /** startScan() to completion when it must NOT open a modal: the scope it handed ScanCoordinator.start. */
   async function silentRefresh(bound: string | null): Promise<unknown> {
     const { view, profile, boundRoot, start } = await boundView(bound);
-    await view.startScan();
+    let settled = false;
+    const run = view.startScan().finally(() => { settled = true; });
+    // oxlint-disable-next-line no-unmodified-loop-condition -- `settled` is set from `run`'s own .finally() above, not the loop body.
+    for (let i = 0; i < 50 && !settled && document.querySelector('.modal-container') === null; i += 1) await Promise.resolve();
     expect(document.querySelector('.modal-container')).toBeNull();
+    await run;
     expect(boundRoot).toHaveBeenCalledWith(profile);
     expect(start).toHaveBeenCalledTimes(1);
     return start.mock.calls[0]![1];

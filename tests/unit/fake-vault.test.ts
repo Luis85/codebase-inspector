@@ -94,6 +94,21 @@ describe('createFakeVault: createFolder (IPF20, IN28)', () => {
     await fakeVault.app.vault.createFolder('a');
     await expect(fakeVault.app.vault.createFolder('a')).rejects.toThrow('Folder already exists.');
   });
+
+  // WP-04.2 follow-ups (FM1): reconcileFolder indexes a disk-only ANCESTOR as a side effect
+  // (NPF15/PN2) but, until now, did so silently -- the real vault's own watcher fires
+  // "create" for a folder it indexes this way, and a listener relying on that event (as
+  // one plausibly would, to keep its own view of the tree in sync) never saw it here.
+  it('fires "create" for a folder reconciled in as a disk-only ancestor, not just the one requested', async () => {
+    const fakeVault = createFakeVault();
+    const paths: string[] = [];
+    fakeVault.app.vault.on('create', (f) => paths.push(f.path));
+
+    fakeVault.diskOnly('a', 'folder');
+    await fakeVault.app.vault.createFolder('a/b');
+
+    expect(paths).toEqual(['a', 'a/b']);
+  });
 });
 
 describe('createFakeVault: processFrontMatter (IPF18, IPF19)', () => {

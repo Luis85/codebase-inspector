@@ -96,7 +96,8 @@ describe.runIf(WINDOWS)('an aliased codebase root (NE15; Windows only: junctions
 describe('the resolver only adds an overlap (NE15)', () => {
   it.each([
     ['resolves nothing', (): string | null => null],
-    ['resolves every path somewhere unrelated', (path: string): string | null => `/unrelated${path}`],
+    ['resolves every path somewhere unrelated, relation-preserving', (path: string): string | null => `/unrelated${path}`],
+    ['resolves each path to an unrelated folder of its own', (path: string): string | null => `/unrelated/${path.split('/').join('_')}`],
   ] as const)('a textual overlap stays when the resolver %s', async (_label, realPath) => {
     const { fake, notes } = await notesOn('/vault', realPath);
     expect(notes.plan('code/notes', 'x', '/vault/code')).toMatchObject({ status: 'ok', overlapsRoot: true, rootRelativeFolder: 'notes' });
