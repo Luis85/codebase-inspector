@@ -5,13 +5,14 @@
 // recording's normaliser gives that project, each with origin collected.
 // Scenario 9 (NE8, NPF8, WP-04.2 E8): cancel-fallow-analysis is refused with no analysis; the window is proven first
 // by an UNCANCELLED run on the same 10 000-file tree (the same kind of run as the one cancelled), and the cancel is
-// sent only once its own checkCallback answers true and the system lists a fallow process.
+// sent only once its own checkCallback answers true and this Obsidian's process tree lists a fallow process. The
+// process checks are scoped to that tree (WP-04.2 Follow-up E6), and a foreign fallow.exe runs throughout to prove it.
 // Scenario 15 (NE9): the tab, already rendered, follows the `analyzers` write that Trust and run made.
 // NPF13: a refused command RESOLVES when run by id; a refusal is checkCallback(true) answering false plus no effect.
 // NPF7: every executeObsidian (pluginData, commandAvailable, the fallow card) runs outside the settings window.
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect } from 'vitest';
+import { describe, expect, onTestFinished } from 'vitest';
 import { FALLOW_TESTED_VERSIONS } from '../../src/application/analysis/fallow-invocation';
 import {
   FALLOW_EXE_NONE, FALLOW_RUN_CANCELLED, FALLOW_RUN_PROBING, FALLOW_TRUST_VALUE, SETTINGS_FALLOW_EXECUTABLE_NAME,
@@ -21,7 +22,7 @@ import { ROUTE_META } from '../../src/ui/routes';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import { closeSettings, commandAvailable, onlyProfile, pluginData, rendered } from './host-probes';
-import { fallowBinary, fallowProcessCount } from './inspector-fallow';
+import { fallowBinary, fallowProcessCount, machineFallowCount, obsidianPid, startForeignFallow } from './inspector-fallow';
 import type { InspectorPage } from './inspector';
 import type { NativeBrowser } from './session';
 import { copyProject, expectedFindingCount, writeSyntheticTree } from './workspace-files';
@@ -96,8 +97,14 @@ describe('the installed fallow run by command id in the real Obsidian host (WP-0
 
   test('cancel-fallow-analysis stops a running analysis and is refused when none runs', async ({ native: { browser, page, inspector, directory } }) => {
     const binary = fallowBinary();
-    // No fallow runs on the system before this test, so a count of 0 after the cancel is about this run's child.
-    const baseline = fallowProcessCount();
+    // WP-04.2 Follow-up E6: the process checks count only the fallow processes this Obsidian started. A foreign
+    // fallow.exe runs for the whole scenario, as another session's can; the system lists it, this Obsidian does not.
+    const obsidian = await obsidianPid(browser);
+    const foreign = await startForeignFallow();
+    onTestFinished(() => foreign.stop());
+    await expect.poll(() => machineFallowCount()).toBeGreaterThanOrEqual(1);
+    // This Obsidian runs no fallow before the test, so a count of 0 after the cancel is about this run's child.
+    const baseline = fallowProcessCount(obsidian);
     expect(baseline).toBe(0);
     const tree = join(page.getVaultPath(), 'big');
     writeSyntheticTree(tree, SYNTHETIC_FILES);
@@ -135,21 +142,24 @@ describe('the installed fallow run by command id in the real Obsidian host (WP-0
     writeFileSync(join(tree, 'src', 'unreached.ts'), 'export const unreached = 1;\n');
 
     // The cancel: the executable is trusted now, so the command starts the run with no dialog. Sent only once cancel's
-    // own checkCallback answers true, the run is past its version probe, and the system lists its fallow process
-    // (the positive control for the process check below).
+    // own checkCallback answers true, the run is past its version probe, and this Obsidian's process tree lists its
+    // fallow process (the positive control for the scoped count, and for the process check below).
     await inspector.activateCity();
     await browser.executeObsidianCommand('codebase-inspector:run-fallow-analysis');
     await expect.poll(() => commandAvailable(browser, 'cancel-fallow-analysis')).toBe(true);
     await expect.poll(() => inspector.fallowBanner()).not.toBe(FALLOW_RUN_PROBING(true));
-    await expect.poll(() => fallowProcessCount()).toBeGreaterThanOrEqual(1);
-    const running = fallowProcessCount();
+    let running = 0;
+    await expect.poll(() => (running = fallowProcessCount(obsidian))).toBeGreaterThanOrEqual(1);
     expect(await commandAvailable(browser, 'cancel-fallow-analysis')).toBe(true);
     await browser.executeObsidianCommand('codebase-inspector:cancel-fallow-analysis');
     await expect.poll(() => inspector.fallowBanner(), { timeout: 30_000 }).toBe(FALLOW_RUN_CANCELLED);
-    await expect.poll(() => fallowProcessCount(), { timeout: 30_000 }).toBe(0);
+    await expect.poll(() => fallowProcessCount(obsidian), { timeout: 30_000 }).toBe(0);
     await expect.poll(() => commandAvailable(browser, 'cancel-fallow-analysis')).toBe(false);
+    // The foreign process still runs: the 0 above is the scope, not its absence.
+    const system = machineFallowCount();
+    expect(system).toBeGreaterThanOrEqual(1);
     const after = { facts: await inspector.fallowFacts(), collectedAt: await inspector.fallowCollectedAt() };
-    await writeEvidence(directory, 'cancelled', { baseline, running, control, after });
+    await writeEvidence(directory, 'cancelled', { obsidian, foreign: foreign.pid, baseline, running, system, control, after });
     // No new collected report replaced the control's.
     expect(after).toEqual({ facts: control.facts, collectedAt: control.collectedAt });
   }, 300_000);

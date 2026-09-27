@@ -1,11 +1,12 @@
 // WP-04.2 NE7 (NP2): the fallow steps of the inspector page, spread into createInspectorPage, and the Node-side
-// facts the fallow scenarios need: the binary (NP7) and the fallow processes the system is running.
+// facts the fallow scenarios need: the binary (NP7) and the fallow processes the Obsidian under test is running.
 // The flow is Data & scans' own (probe g): the Connect fallow dialog's installed route takes a path, Check shows the
 // review of exactly what will run, and Trust and run starts it. IPF20: selectors, and the plugin's own words only
 // through its copy constants.
-import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { spawn, spawnSync } from 'node:child_process';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { expect } from 'vitest';
 import { FALLOW_ROW_COLLECTED } from '../../src/ui/audit-copy/fallow-run';
 import { ROUTE_META } from '../../src/ui/routes';
@@ -26,12 +27,69 @@ export function fallowBinary(): string {
   return binary;
 }
 
-/** How many `fallow.exe` processes the system runs now, from `tasklist` (spawned directly, no shell). Counted as
- *  the CSV rows naming the image, so the localised "no tasks" line counts as none. */
-export function fallowProcessCount(): number {
+/** How many `fallow.exe` processes the whole system runs now, from `tasklist` (spawned directly, no shell). Counted
+ *  as the CSV rows naming the image, so the localised "no tasks" line counts as none. */
+export function machineFallowCount(): number {
   const listed = spawnSync('tasklist', ['/FI', `IMAGENAME eq ${FALLOW_IMAGE}`, '/FO', 'CSV', '/NH'], { encoding: 'utf8', windowsHide: true });
   if (listed.error !== undefined || listed.status !== 0) throw new Error(`tasklist failed: ${String(listed.error ?? listed.stderr)}`);
   return listed.stdout.split(/\r?\n/u).filter((line) => line.toLowerCase().startsWith(`"${FALLOW_IMAGE}"`)).length;
+}
+
+/** The pid of the Obsidian renderer under test, the process the plugin's fallow runner spawns from. */
+export const obsidianPid = (browser: NativeBrowser): Promise<number> => browser.executeObsidian(() => process.pid);
+
+interface ProcessRow { pid: number; parent: number; created: bigint; name: string }
+
+/** One `Win32_Process` snapshot of the system: pid, parent pid, creation time (FILETIME, 0 when unknown), image. */
+function processTable(): ProcessRow[] {
+  const script = 'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) '
+    + '$(if ($_.CreationDate) { $_.CreationDate.ToFileTimeUtc() } else { 0 }) $($_.Name)" }';
+  const listed = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true });
+  if (listed.error !== undefined || listed.status !== 0) throw new Error(`Get-CimInstance failed: ${String(listed.error ?? listed.stderr)}`);
+  return listed.stdout.split(/\r?\n/u).flatMap((line) => {
+    const row = /^(\d+) (\d+) (\d+) (.+)$/u.exec(line.trim());
+    return row === null ? [] : [{ pid: Number(row[1]), parent: Number(row[2]), created: BigInt(row[3]!), name: row[4]!.toLowerCase() }];
+  });
+}
+
+/** WP-04.2 Follow-up E6: how many `fallow.exe` processes descend from `root` (the Obsidian under test), walking
+ *  parent pids down from it; another session's fallow is not counted. A child is taken only when created after its
+ *  parent, so a process whose dead parent's pid was reused inside the tree stays out. */
+export function fallowProcessCount(root: number): number {
+  const table = processTable();
+  const tree = new Map<number, bigint>();
+  for (const row of table) if (row.pid === root) tree.set(row.pid, row.created);
+  if (tree.size === 0) throw new Error(`the Obsidian process ${root} is not running`);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const row of table) {
+      const parentCreated = tree.get(row.parent);
+      if (!tree.has(row.pid) && parentCreated !== undefined && row.created >= parentCreated) {
+        tree.set(row.pid, row.created);
+        grew = true;
+      }
+    }
+  }
+  return table.filter((row) => row.pid !== root && tree.has(row.pid) && row.name === FALLOW_IMAGE).length;
+}
+
+/** WP-04.2 Follow-up E6: a live process named `fallow.exe` that the test's Obsidian did not start, as another
+ *  session's `fallow dupes` is. It is a copy of the system's PING.EXE pinging localhost, so it runs no fallow. */
+export async function startForeignFallow(): Promise<{ pid: number; stop: () => Promise<void> }> {
+  const dir = mkdtempSync(join(tmpdir(), 'ci-foreign-fallow-'));
+  const exe = join(dir, FALLOW_IMAGE);
+  copyFileSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'PING.EXE'), exe);
+  const child = spawn(exe, ['-n', '3600', '127.0.0.1'], { stdio: 'ignore', windowsHide: true });
+  const exited = new Promise<void>((done) => { child.once('exit', () => done()); });
+  await new Promise<void>((spawned, failed) => { child.once('spawn', spawned); child.once('error', failed); });
+  return {
+    pid: child.pid!,
+    stop: async () => {
+      child.kill();
+      await exited;
+      rmSync(dir, { recursive: true, force: true, maxRetries: 10 });
+    },
+  };
 }
 
 export function createFallowSteps(
