@@ -190,6 +190,9 @@ describe('the plugin commands and ribbon in the real Obsidian host (WP-04.2 §5 
     const afterCancel = await pluginData(browser);
     expect(onlyProfile(afterCancel)).toEqual(onlyProfile(reconnected));
     expect(savedBindings(afterCancel)).toEqual(savedBindings(reconnected));
+    // Positive control: the same probe answers true for a command available in this state (the city leaf is
+    // active with a snapshot).
+    expect(await commandAvailable(browser, 'scan-codebase')).toBe(true);
     expect(await commandAvailable(browser, 'cancel-scan')).toBe(false);
 
     // Approved: a new snapshot on the connected folder.
