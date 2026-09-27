@@ -2449,3 +2449,32 @@ files, 11 tests passed):
 
 A native run no longer needs "no `fallow.exe` running" as a precondition (E10's half about
 foreign processes). A foreign `fallow.exe` now only adds load.
+
+**Landed on E3.** Both E6 commits were cherry-picked onto E3's `4a4a073` (branch
+`feat/wp-04-followups-e3-e6`); the only conflict was this note's end, resolved by keeping
+E3's section and then this one. One review commit, `97a47b6`, hardens
+`tests/e2e/inspector-fallow.ts`: the `powershell.exe` process listing gets a 30 s timeout
+and a timeout or signal throws, naming the command; the foreign ping runs `-n 330` (about
+329 s, just over the 300 s test timeout) instead of `-n 3600`; and a failed foreign spawn
+removes its temporary folder before rethrowing. The runs on `97a47b6`, in order, with
+`FALLOW_BIN` the npx cache's fallow 3.27.0; each native run was launched after 60 s under
+50 % total CPU, with no `fallow.exe` running at launch:
+
+- **`npm run verify`**: exit 0; 314 files, 3509 tests, 3508 passed, 1 skipped; **Z38
+  passed** (control 25.0 ms, hang 23.1 ms, streamed 22.1 ms); `assert-bundle: OK`,
+  `dist/main.js` 1217 kB.
+- **`npm run test:e2e` (1.13.4)**, after a 721 s wait for the load: **FAILED, reported as
+  run, never retried.** 13 files (12 passed), 40 tests (36 passed, none failed an
+  assertion), 362.60 s, no `Verified` line: the Vitest worker running `commands.e2e.ts`
+  exited with Windows code 3221226505 (`0xC0000409`, a process fault) before its four
+  cases reported, as ruling E7's run did in `fallow.e2e.ts`. `fallow.e2e.ts` passed all 3;
+  the cancel case recorded `{"baseline":0,"running":1,"system":1}`. Only the T2 negative
+  control's `vault:ci-probe is not a listener array` line was logged.
+- **`OBSIDIAN_VERSION=latest npm run test:e2e`**, after a 366 s wait: resolved to
+  **1.13.7**; 13 files, 40 passed, 383.99 s, `Verified 40 executed native Vitest cases,
+  including all 40 required scenarios.` The cancel case recorded
+  `{"baseline":0,"running":1,"system":1}`. Only the T2 line was logged.
+- **`npm run test:fallow`**: 2 files, 11 tests passed in 9.08 s, fallow 3.27.0, nothing
+  fetched.
+- **`npm run analyze`**: 9 findings, unchanged (5 unused exports, 1 unused type, 1 unused
+  class member, 1 duplicate export pair, 1 circular dependency).
