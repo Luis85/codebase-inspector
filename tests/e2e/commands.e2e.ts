@@ -1,4 +1,4 @@
-// WP-04.2 spec §5 rows 5–7: the plugin's commands and its ribbon icon, run by id in the real host.
+// WP-04.2 spec §5 rows 5–7 and 39: the plugin's commands and its ribbon icon, run by id in the real host.
 // Scenario 5: open-city and the ribbon icon each open a NEW city tab (commands.ts's openCity, ruling M9).
 // Scenario 6 (NE8): cancel-scan is refused with no scan, and stops a refresh mid-run; the window is proven first by
 // timing an uncancelled refresh over a 4 000-file synthetic tree (WP-04.2 E8), and the cancel is sent only once
@@ -20,7 +20,7 @@ import { storeSnapshot } from './cycle-note';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import { closeSettings, commandAvailable, onlyProfile, pluginData, rendered, savedBindings, vaultBasePath } from './host-probes';
-import type { InspectorPage } from './inspector';
+import { clearBinding } from './inspector-binding';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
 import { RECORDING, copyProject, cycleFinding, expectedFindingCount, writeSyntheticTree } from './workspace-files';
 
@@ -38,19 +38,7 @@ const cityLeaves = (browser: NativeBrowser): Promise<number> =>
  *  own label), in whichever modal is open. */
 const shownRoot = (browser: NativeBrowser) => browser.$('.modal-container .scope-modal-root');
 
-/** Scenario 39: Clear binding on the open profile page, confirmed in its modal; done when the page offers Reconnect.
- *  Observed: the profile page slides in, and its buttons are not interactable until it has. */
-async function clearBinding(browser: NativeBrowser, inspector: InspectorPage): Promise<void> {
-  const clear = inspector.settingsPage().$('[data-action="clear-binding"]');
-  await expect.poll(() => clear.isClickable()).toBe(true);
-  await clear.click();
-  const confirm = browser.$('.modal-container [data-action="confirm-clear-binding"]');
-  await expect.poll(() => confirm.isClickable()).toBe(true);
-  await confirm.click();
-  await expect.poll(() => inspector.settingsPage().$('[data-action="reconnect"]').isExisting()).toBe(true);
-}
-
-describe('the plugin commands and ribbon in the real Obsidian host (WP-04.2 §5 rows 5–7)', () => {
+describe('the plugin commands and ribbon in the real Obsidian host (WP-04.2 §5 rows 5–7 and 39)', () => {
   test('open-city and the ribbon icon each open a new city tab', async ({ native: { browser, inspector } }) => {
     // Precondition: a fresh session opens no city tab (NPF3), so every tab counted below was opened here.
     expect(await cityLeaves(browser)).toBe(0);
@@ -190,20 +178,24 @@ describe('the plugin commands and ribbon in the real Obsidian host (WP-04.2 §5 
     await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
     await expect.poll(() => shownRoot(browser).isExisting()).toBe(true);
     const offered = String(await shownRoot(browser).getProperty('textContent')).trim();
+    expect(offered.endsWith(copy)).toBe(true);
 
-    // Cancelled: no scan, and the leaf, its snapshot's root and the profile are unchanged.
+    // Cancelled: no scan, and the leaf, its snapshot's root, the profile and its bindings are unchanged, and
+    // cancel-scan stays refused (nothing is running).
     await browser.$('.modal-container [data-action="cancel"]').click();
     await expect.poll(() => shownRoot(browser).isExisting()).toBe(false);
     const cancelled = await storeSnapshot(browser);
     expect(await inspector.snapshotId()).toBe(refreshed.snapshotId);
     expect(cancelled).toEqual(refreshed);
-    expect(onlyProfile(await pluginData(browser))).toEqual(onlyProfile(reconnected));
+    const afterCancel = await pluginData(browser);
+    expect(onlyProfile(afterCancel)).toEqual(onlyProfile(reconnected));
+    expect(savedBindings(afterCancel)).toEqual(savedBindings(reconnected));
+    expect(await commandAvailable(browser, 'cancel-scan')).toBe(false);
 
     // Approved: a new snapshot on the connected folder.
     await inspector.rescanApproving();
     const approved = await storeSnapshot(browser);
     await writeEvidence(directory, 'reconnect-rescan', { code, copy, scanned, refreshed, offered, cancelled, approved });
-    expect(offered.endsWith(copy)).toBe(true);
     expect(approved.snapshotId).not.toBe(refreshed.snapshotId);
     expect(approved.rootPath).toBe(copy);
   });

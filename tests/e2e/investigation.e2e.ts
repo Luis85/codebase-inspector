@@ -14,7 +14,7 @@ import { FINDINGS_PAGE } from '../../src/ui/read-models/findings';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import {
-  CYCLE_ANCHOR, RECORDING, copyProject, cycleFinding, expectedFindingCount, hashTree, recordingFindings, writeReport,
+  CYCLE_ANCHOR, RECORDING, copyProject, cycleFinding, expectedFindingCount, hashTree, recordingFindings, type UnusedExportEntry, writeReport,
 } from './workspace-files';
 
 const BEGIN_MARKER = '<!-- codebase-inspector:evidence:begin -->';
@@ -137,13 +137,12 @@ describe('the investigation spine in the real Obsidian host (IN51 d)', () => {
     // export_name each (normalize-fallow.ts's dedupe key is path|export_name|rule, so each clone is its own
     // finding), plus one clone whose path is not one of the project's files (T6).
     const file = writeReport(join(directory, 'many-findings.json'), (raw) => {
-      const check = raw.check as { unused_exports: Record<string, unknown>[] };
-      const base = check.unused_exports[0]!;
+      const base = raw.check.unused_exports[0]!;
       expect(base.path).toBe('src/barrel/x.ts');
-      const clones: Record<string, unknown>[] = [];
+      const clones: UnusedExportEntry[] = [];
       for (let i = 0; i < 150; i += 1) clones.push({ ...base, export_name: `x${i}` });
       clones.push({ ...base, path: 'src/missing.ts', export_name: 'x-missing' });
-      check.unused_exports = [...check.unused_exports, ...clones];
+      raw.check.unused_exports = [...raw.check.unused_exports, ...clones];
     });
 
     // Controls, before the UI checks (T6, T7): every clone has its own id, the crafted report holds exactly one

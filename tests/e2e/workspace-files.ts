@@ -12,6 +12,8 @@ export const RECORDING = resolve('tests/fixtures/fallow/relations-combined-3.27.
 const RELATIONS_PROJECT = resolve('tests/fixtures/fallow/relations-project');
 /** The file the recording's import cycle is anchored on (its finding fingerprint is `<anchor>#<finding id>`). */
 export const CYCLE_ANCHOR = 'src/core/a.ts';
+/** The file the recording's one unused-exports finding is anchored on. */
+const UNUSED_EXPORT_ANCHOR = 'src/barrel/x.ts';
 /** Files per leaf folder of the synthetic tree, and folders per level (MAX_DIRECT_SUBDISTRICTS is 20). */
 const FILES_PER_FOLDER = 25;
 const FOLDERS_PER_LEVEL = 20;
@@ -23,15 +25,26 @@ export function copyProject(vault: string, folder: string): string {
   return target;
 }
 
-/** IP56: a local tree hash (the fast suite's hashTree lives under tests/fixtures/, which native files never import). */
-export function hashTree(root: string, prefix = ''): Record<string, string> {
-  const out: Record<string, string> = {};
+/** FM12: the sorted, recursive, depth-first walk `hashTree` and `projectFilePaths` share. `onDir` (given) runs
+ *  before descending into a directory, and `onFile` for each file; both get the path relative to the original
+ *  `root`, `/`-separated. */
+function walk(root: string, onFile: (rel: string) => void, onDir?: (rel: string) => void, prefix = ''): void {
   for (const name of readdirSync(root).sort()) {
     const abs = join(root, name);
     const rel = prefix === '' ? name : `${prefix}/${name}`;
-    if (statSync(abs).isDirectory()) Object.assign(out, { [rel]: 'directory' }, hashTree(abs, rel));
-    else out[rel] = createHash('sha256').update(readFileSync(abs)).digest('hex');
+    if (statSync(abs).isDirectory()) {
+      onDir?.(rel);
+      walk(abs, onFile, onDir, rel);
+    } else {
+      onFile(rel);
+    }
   }
+}
+
+/** IP56: a local tree hash (the fast suite's hashTree lives under tests/fixtures/, which native files never import). */
+export function hashTree(root: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  walk(root, (rel) => { out[rel] = createHash('sha256').update(readFileSync(join(root, rel))).digest('hex'); }, (rel) => { out[rel] = 'directory'; });
   return out;
 }
 
@@ -44,16 +57,11 @@ export function recordingFindings(file = RECORDING) {
   return report.normalized.findings;
 }
 
-/** Every file (never a folder) under `root`, `/`-separated and relative to it, walked the way `hashTree` walks
- *  (readdirSync, sorted, recursive) but keeping only files: what a snapshot's own file paths are. */
-function projectFilePaths(root: string, prefix = ''): string[] {
+/** Every file (never a folder) under `root`, `/`-separated and relative to it: what a snapshot's own file paths
+ *  are. */
+function projectFilePaths(root: string): string[] {
   const out: string[] = [];
-  for (const name of readdirSync(root).sort()) {
-    const abs = join(root, name);
-    const rel = prefix === '' ? name : `${prefix}/${name}`;
-    if (statSync(abs).isDirectory()) out.push(...projectFilePaths(abs, rel));
-    else out.push(rel);
-  }
+  walk(root, (rel) => out.push(rel));
   return out;
 }
 
@@ -70,6 +78,14 @@ export function cycleFinding(): { id: string; line: number } {
   const cycle = recordingFindings().find((f) => f.category === 'cycle' && f.path === CYCLE_ANCHOR && f.line !== null);
   if (!cycle || cycle.line === null) throw new Error('no import cycle on src/core/a.ts in the recording');
   return { id: cycle.id, line: cycle.line };
+}
+
+/** FM14: the recording's one unused-exports finding, on src/barrel/x.ts -- T4's "second, still-open finding",
+ *  derived instead of hard-coded, read the same way as cycleFinding. */
+export function unusedExportFinding(): string {
+  const finding = recordingFindings().find((f) => f.category === 'unused-exports' && f.path === UNUSED_EXPORT_ANCHOR);
+  if (!finding) throw new Error('no unused-exports finding on src/barrel/x.ts in the recording');
+  return finding.id;
 }
 
 /** A TypeScript project of `files` source files (plus `package.json` and `src/index.ts`) under `root`:
@@ -101,9 +117,16 @@ export function writeSyntheticTree(root: string, files: number): void {
   writeFileSync(join(root, 'src', 'index.ts'), `${entry.join('\n')}\n\nexport const total = ${sums.join(' + ')};\n`);
 }
 
+/** FM13: one shape for the recording's `check.unused_exports` entries, so writeReport's callers need no cast of
+ *  their own. */
+export type UnusedExportEntry = { path: string; export_name: string } & Record<string, unknown>;
+/** The recording's raw JSON shape, typed only where writeReport's callers reach in (`check.unused_exports`);
+ *  every other field stays `unknown`. */
+type RecordingRaw = Record<string, unknown> & { check: { unused_exports: UnusedExportEntry[] } };
+
 /** The 3.27.0 recording, parsed, changed by `edit` and written to `to`; returns `to`. */
-export function writeReport(to: string, edit: (raw: Record<string, unknown>) => void): string {
-  const raw = JSON.parse(readFileSync(RECORDING, 'utf8')) as Record<string, unknown>;
+export function writeReport(to: string, edit: (raw: RecordingRaw) => void): string {
+  const raw = JSON.parse(readFileSync(RECORDING, 'utf8')) as RecordingRaw;
   edit(raw);
   writeFileSync(to, JSON.stringify(raw));
   return to;

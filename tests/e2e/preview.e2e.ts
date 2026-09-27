@@ -12,6 +12,7 @@ import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import type { NativeContext } from './fixture';
 import { closeSettings, onlyProfile, pluginData, savedBindings, vaultBasePath } from './host-probes';
+import { clearBinding } from './inspector-binding';
 import { storeSnapshot } from './cycle-note';
 import { CITY_VIEW_TYPE } from './session';
 import { RECORDING, copyProject, cycleFinding, recordingFindings, writeReport } from './workspace-files';
@@ -115,14 +116,8 @@ describe('the source preview (WP-04.2 rows 23, 24)', () => {
 
     // Reconnect to code-copy: a live binding offers only Clear binding, which (confirmed) removes this device's record
     // and leaves the page offering Reconnect; Reconnect keeps the binding id and gives it the new root.
-    // Observed: the profile page slides in, and its buttons are not interactable until it has.
     await inspector.openCodebaseSettings(profile.name);
-    const clear = inspector.settingsPage().$('[data-action="clear-binding"]');
-    await expect.poll(() => clear.isClickable()).toBe(true);
-    await clear.click();
-    const confirm = browser.$('.modal-container [data-action="confirm-clear-binding"]');
-    await expect.poll(() => confirm.isClickable()).toBe(true);
-    await confirm.click();
+    await clearBinding(browser, inspector);
     await inspector.reconnect('code-copy', 'vault-folder');
     await closeSettings(browser);
     const reconnected = await pluginData(browser);
@@ -161,7 +156,7 @@ describe('the source preview (WP-04.2 rows 23, 24)', () => {
     // Observed: the normaliser makes no finding of `unused_files` (normalize-fallow.ts reads unused_exports and
     // unused_types), so the brief's fallback, an `unused_exports` path, is the anchor.
     const report = writeReport(join(directory, 'md-anchor.json'), (raw) => {
-      const unused = (raw.check as { unused_exports: { path: string }[] }).unused_exports;
+      const unused = raw.check.unused_exports;
       expect(unused[0]?.path).toBe('src/barrel/x.ts');
       unused[0]!.path = GUIDE;
     });
