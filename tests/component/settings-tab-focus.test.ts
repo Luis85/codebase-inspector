@@ -213,10 +213,10 @@ describe('settings tab: a refresh never re-renders the field being typed in (WP-
     expect(attached()).toBe(1);
     await tab.refresh();
     expect(update).toHaveBeenCalledTimes(1);
-    expect(attached()).toBeLessThanOrEqual(1);
+    expect(attached()).toBe(0);
     typed.focus();
     await tab.refresh();
-    expect(attached()).toBeLessThanOrEqual(1);
+    expect(attached()).toBe(1);
   });
 
   it('hide() runs a waiting render once, after a microtask, and removes its listener (follow-ups FU2, E7)', async () => {

@@ -115,9 +115,10 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
     this.renderWait.request();
   }
 
-  // Follow-ups FU2 (WP-04.2 Follow-up E2): a render still waiting when the tab is hidden (a close while the settings
-  // document is unfocused: quit, plugin unload, a close from another window) runs then; a person's close or a tab
-  // switch removes the focused field while its document has focus, and that focusout already released the wait.
+  // Follow-ups FU2 (WP-04.2 Follow-up E2): a person's close removes the focused field while its document has focus,
+  // and that focusout releases the wait. hide() releases a render still waiting when the tab is hidden: a tab switch
+  // (focus on a nav item keeps the wait) or a close while the settings document is unfocused (quit, plugin unload,
+  // a close from another window).
   override hide(): void {
     super.hide();
     this.renderWait.hidden();

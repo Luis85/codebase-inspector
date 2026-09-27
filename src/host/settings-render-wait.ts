@@ -65,12 +65,13 @@ export function createRenderWait(doc: () => Document, render: () => void, onErro
 
   return {
     request,
-    /** Follow-ups FU2 (WP-04.2 E7; WP-04.2 Follow-up E2): a render still waiting when the tab is hidden runs then.
-     *  That is a close while the settings document is unfocused (Obsidian quitting, the plugin unloading, a close
-     *  from another window). A person's close or a tab switch removes the focused field while its document has
-     *  focus, and that focusout already releases the wait. A microtask (spec FN1): Obsidian calls hide() from
-     *  closeActiveTab() before it sets activeTab to null, and from openTab() before it sets the new tab, so the
-     *  render stores the definitions and refreshes the search without drawing into the hidden tab. */
+    /** Follow-ups FU2 (WP-04.2 E7; WP-04.2 Follow-up E2): a person's close removes the focused field while its
+     *  document has focus, and that focusout releases the wait. hide(), through hidden(), releases a render still
+     *  waiting when the tab is hidden: a tab switch (focus on a nav item keeps the wait) or a close while the
+     *  settings document is unfocused (Obsidian quitting, the plugin unloading, a close from another window). A
+     *  microtask (spec FN1): Obsidian calls hide() from closeActiveTab() before it sets activeTab to null, and from
+     *  openTab() before it sets the new tab, so the render stores the definitions and refreshes the search without
+     *  drawing into the hidden tab. */
     hidden(): void {
       if (pending === null) return;
       drop();
