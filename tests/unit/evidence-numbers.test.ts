@@ -292,7 +292,7 @@ describe('the evidence documents state derivable test counts truthfully', () => 
     const scenarios = (readFileSync(FEATURE, 'utf8').match(/^ {2}Scenario: /gm) ?? []).length;
     const evidence = readFileSync(EVIDENCE, 'utf8').replace(/\s+/g, ' ');
     expect(scenarios, 'the ported 21 plus the three §6 repairs').toBe(24);
-    expect(evidence).toContain(`${scenarios} scenarios plus 2 structural guards`);
+    expect(evidence).toContain(`${scenarios} scenarios plus 3 structural guards`);
     expect(evidence).toContain(`the acceptance runner generates ${scenarios} tests from one loop`);
     expect(evidence).toContain(`all ${scenarios - 3} ported scenarios and the three repairs`);
   });

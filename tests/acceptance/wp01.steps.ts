@@ -112,6 +112,18 @@ const REPAIRS: readonly string[] = [
   'Reject late result publication across profiles',
 ];
 
+/** WP-04.2 follow-up E3. "Verify unchanged source after a real scan" hashes a real temp
+ *  tree, scans it, re-hashes it, then reads and pattern-checks every file under src/;
+ *  that last step is most of its time. Measured 2026-09-27 on the 22-core dev machine,
+ *  per step: 0.40-0.66 s with this file run alone (5 runs); 1.7-3.9 s inside a full
+ *  `npm run test` (4 runs; a 5th hit the 5 000 ms default); 1.9-3.6 s beside a 22-thread
+ *  burner (3 runs); 4.7, 22.8 and 27.4 s beside 22 burner processes at ~90 % CPU. The
+ *  default sat inside that spread, so the budget is about twice the worst measured run.
+ *  What the scenario asserts is unchanged: only the time it may take. */
+const SCENARIO_TIMEOUTS: Readonly<Record<string, number>> = {
+  'Verify unchanged source after a real scan': 60_000,
+};
+
 describe('wp01.feature is the whole port', () => {
   const names = feature.scenarios.map((s) => s.name);
 
@@ -123,6 +135,13 @@ describe('wp01.feature is the whole port', () => {
   it('defines no step no scenario uses', () => {
     assertNoUnusedSteps(feature, steps);
   });
+
+  it('runs the real-scan scenario on its measured budget', ({ task }) => {
+    const suite = task.file.tasks.find((t) => t.name === feature.name);
+    if (suite?.type !== 'suite') throw new Error(`no suite named ${feature.name}`);
+    const scan = suite.tasks.find((t) => t.name === 'Verify unchanged source after a real scan');
+    expect(scan?.type === 'test' ? scan.timeout : undefined).toBe(60_000);
+  });
 });
 
-runFeature({ feature, steps, makeWorld, teardown: teardownWorld });
+runFeature({ feature, steps, makeWorld, teardown: teardownWorld, timeouts: SCENARIO_TIMEOUTS });

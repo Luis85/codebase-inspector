@@ -105,10 +105,18 @@ export interface RunFeatureOptions<W> {
   /** Runs after every scenario, pass or fail, so a scenario that opened a modal, a
    *  temp tree or a mounted view cannot leak into the next one. */
   teardown?: (world: W) => void | Promise<void>;
+  /** Explicit Vitest timeouts in ms, keyed by exact scenario name, for a scenario whose
+   *  measured duration can reach the 5 000 ms default; every other scenario keeps the
+   *  default. A key naming no scenario throws before anything registers, so a reworded
+   *  scenario cannot silently lose its budget. */
+  timeouts?: Readonly<Record<string, number>>;
 }
 
 export function runFeature<W>(options: RunFeatureOptions<W>): void {
-  const { feature, steps, makeWorld, teardown } = options;
+  const { feature, steps, makeWorld, teardown, timeouts = {} } = options;
+  const names = new Set(feature.scenarios.map((s) => s.name));
+  const stray = Object.keys(timeouts).filter((name) => !names.has(name)).sort();
+  if (stray.length > 0) throw new Error(`timeouts name no scenario: ${stray.join(', ')}`);
   describe(feature.name, () => {
     for (const scenario of feature.scenarios) {
       it(scenario.name, async () => {
@@ -122,7 +130,7 @@ export function runFeature<W>(options: RunFeatureOptions<W>): void {
         } finally {
           await teardown?.(world);
         }
-      });
+      }, timeouts[scenario.name]);
     }
   });
 }
