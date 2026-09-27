@@ -2390,3 +2390,62 @@ the largest event-loop gaps.
   and both lints clean; 314 files, 3509 tests, 3508 passed, 1 skipped; Z38 passed,
   30.9 / 32.0 / 27.7 ms; `npm run build`, `assert-bundle: OK`, `dist/main.js` 1217 kB.
   The pre-push `npm run verify` on the commit itself is disclosed where this follow-up is reported.
+
+## WP-04.2 Follow-up E6 — the native fallow process count scoped to the Obsidian under test
+
+Recorded at branch `claude/optimistic-ptolemy-a69331`, base `9b219df`, fix commit `849748f`.
+The follow-up that rulings E6 and E7 suggested: `fallowProcessCount()` in
+`tests/e2e/inspector-fallow.ts` counted every `fallow.exe` on the machine (`tasklist`), so
+another session's `fallow dupes` failed `cancel-fallow-analysis`'s baseline. It now takes
+the Obsidian renderer's pid (`process.pid` through `executeObsidian`; the plugin's fallow
+runner spawns from the renderer, `shell: false`) and counts the `fallow.exe` processes
+descending from it, walking one `Get-CimInstance Win32_Process` snapshot's parent pids
+down. A child is taken only when created after its parent, so a process whose dead
+parent's pid was reused inside the tree stays out. The old count survives as
+`machineFallowCount()`. `src` is unchanged, and `tests/e2e/inspector.ts` stays at 400 lines.
+
+The scenario keeps its name and its assertions, and gains a foreign process: a copy of
+the system's `PING.EXE` named `fallow.exe`, pinging localhost from a temporary folder,
+started by the test runner (not by Obsidian) before the baseline. It runs for the whole
+scenario and is stopped and removed in `onTestFinished`. Its own controls are
+`machineFallowCount() >= 1` before the baseline and again after the cancel, so the scoped
+0 there is the scope, not the process's absence. The positive control that the scoped
+count sees the test's own run is the existing poll for `>= 1` before the cancel is sent.
+The `cancelled` evidence now records `obsidian`, `foreign`, `baseline`, `running` and
+`system`.
+
+The runs, in order, all with `FALLOW_BIN` as the pure-backslash path that
+`npm run test:fallow` wrote to `.fallow-bin\bin-path.txt` (fallow 3.27.0; that run: 2
+files, 11 tests passed):
+
+- **RED, before the fix** (the test and the foreign process in place,
+  `fallowProcessCount(root)` still returning the machine-wide count). This is the cancel
+  scenario alone, on 1.13.4: failed at `expect(baseline).toBe(0)`
+  (`fallow.e2e.ts:108`, `expected 1 to be +0`).
+- **GREEN attempts under foreign CPU load, disclosed.** Two development runs of the cancel
+  scenario alone on the fix failed outside the change, while the machine was at 100 % CPU
+  from other sessions' `node` processes. After the second run, those were identified as
+  `node -e` busy loops of 400 s each, using 118 CPU-seconds per 5 s. Both runs passed the new baseline (line 108). One then failed `scanFolder('big')`'s 60 s
+  snapshot poll (`inspector.ts:114`), and the other failed the vault poll at
+  `fallow.e2e.ts:111`, where the `executeObsidian` call itself did not resolve in time.
+- **GREEN** (the cancel scenario alone, 1.13.4, started once the load had stayed under 50 % and
+  the busy loops had ended): passed, `{"baseline":0,"running":1,"system":1}`.
+- **Mutation** (on `849748f`, `fallowProcessCount` made to return `machineFallowCount()`
+  first, the foreign process running): the cancel scenario alone failed at
+  `fallow.e2e.ts:108`, `expected 1 to be +0`. The mutation was reverted with
+  `git checkout -- tests/e2e/inspector-fallow.ts`.
+- **`npm run test:e2e` (1.13.4)** at `849748f`: 13 files, 40 passed, 414.15 s,
+  `Verified 40 executed native Vitest cases, including all 40 required scenarios.` The
+  cancel case recorded `{"baseline":0,"running":1,"system":1}`: the foreign process was
+  listed by the system and not by the scope. Only the T2 negative control's
+  `vault:ci-probe is not a listener array` line was logged.
+- **`OBSIDIAN_VERSION=latest npm run test:e2e`** at `849748f`, no `fallow.exe` running at
+  launch: resolved to **1.13.7**; 13 files, 40 passed, 570.70 s, `Verified 40 executed
+  native Vitest cases, including all 40 required scenarios.` The cancel case recorded
+  `{"baseline":0,"running":1,"system":1}`. Only the T2 line was logged.
+- **`npm run verify`** at `849748f`, on its base `9b219df` before E3: exit 0; 313 files,
+  3504 tests, 3503 passed, 1 skipped; **Z38 passed** (control 18.2 ms, hang 25.4 ms,
+  streamed 23.7 ms); `assert-bundle: OK`, `dist/main.js` 1217 kB.
+
+A native run no longer needs "no `fallow.exe` running" as a precondition (E10's half about
+foreign processes). A foreign `fallow.exe` now only adds load.
