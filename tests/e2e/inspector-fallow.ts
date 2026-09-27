@@ -44,8 +44,10 @@ interface ProcessRow { pid: number; parent: number; created: bigint; name: strin
 function processTable(): ProcessRow[] {
   const script = 'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) '
     + '$(if ($_.CreationDate) { $_.CreationDate.ToFileTimeUtc() } else { 0 }) $($_.Name)" }';
-  const listed = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true });
-  if (listed.error !== undefined || listed.status !== 0) throw new Error(`Get-CimInstance failed: ${String(listed.error ?? listed.stderr)}`);
+  const listed = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', timeout: 30_000, windowsHide: true });
+  const timedOut = (listed.error as { code?: unknown } | undefined)?.code === 'ETIMEDOUT' || listed.signal !== null;
+  if (timedOut) throw new Error(`powershell.exe Get-CimInstance Win32_Process failed: timed out after 30 s (${String(listed.error ?? listed.signal)})`);
+  if (listed.error !== undefined || listed.status !== 0) throw new Error(`powershell.exe Get-CimInstance Win32_Process failed: ${String(listed.error ?? listed.stderr)}`);
   return listed.stdout.split(/\r?\n/u).flatMap((line) => {
     const row = /^(\d+) (\d+) (\d+) (.+)$/u.exec(line.trim());
     return row === null ? [] : [{ pid: Number(row[1]), parent: Number(row[2]), created: BigInt(row[3]!), name: row[4]!.toLowerCase() }];
@@ -78,18 +80,25 @@ export function fallowProcessCount(root: number): number {
 export async function startForeignFallow(): Promise<{ pid: number; stop: () => Promise<void> }> {
   const dir = mkdtempSync(join(tmpdir(), 'ci-foreign-fallow-'));
   const exe = join(dir, FALLOW_IMAGE);
-  copyFileSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'PING.EXE'), exe);
-  const child = spawn(exe, ['-n', '3600', '127.0.0.1'], { stdio: 'ignore', windowsHide: true });
-  const exited = new Promise<void>((done) => { child.once('exit', () => done()); });
-  await new Promise<void>((spawned, failed) => { child.once('spawn', spawned); child.once('error', failed); });
-  return {
-    pid: child.pid!,
-    stop: async () => {
-      child.kill();
-      await exited;
-      rmSync(dir, { recursive: true, force: true, maxRetries: 10 });
-    },
-  };
+  try {
+    copyFileSync(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'PING.EXE'), exe);
+    // 330 pings, about 329 s: just over the 300 s test timeout, so a crashed worker's orphan dies on its own.
+    const child = spawn(exe, ['-n', '330', '127.0.0.1'], { stdio: 'ignore', windowsHide: true });
+    const exited = new Promise<void>((done) => { child.once('exit', () => done()); });
+    await new Promise<void>((spawned, failed) => { child.once('spawn', spawned); child.once('error', failed); });
+    return {
+      pid: child.pid!,
+      stop: async () => {
+        child.kill();
+        await exited;
+        rmSync(dir, { recursive: true, force: true, maxRetries: 10 });
+      },
+    };
+  } catch (error) {
+    // The foreign spawn failed or threw: its temporary folder must not outlive it.
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10 });
+    throw error;
+  }
 }
 
 export function createFallowSteps(
