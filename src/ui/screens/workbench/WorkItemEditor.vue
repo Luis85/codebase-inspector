@@ -8,7 +8,7 @@ import { useReviewStore } from '../../stores/review-store';
 import {
   WORK_NOTES_MAX, WORK_TITLE_MAX, workItemProblem,
   type WorkChecks, type WorkIntent, type WorkItemStatus, type WorkPriority,
-} from '../../stores/ports/review-repository';
+} from '../../../application/ports/review-repository';
 import { useUniqueId } from '../../unique-id';
 import {
   WORK_CANCEL, WORK_CHECKLIST_HINT, WORK_CREATE, WORK_CREATED, WORK_DELETE,

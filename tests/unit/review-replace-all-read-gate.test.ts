@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { createInMemoryReviewRepository, type ReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository, type ReviewRepository } from '../../src/application/ports/review-repository';
 
 const EMPTY = { workItems: [], rules: [], dispositions: [] };
 // oxlint consistent-function-scoping: closures that capture nothing are hoisted.

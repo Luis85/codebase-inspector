@@ -4,7 +4,7 @@ import type { SamplePackage } from '../../fixtures/sample-packages';
 import { formatMetric, sample } from '../../evidence';
 import { reviewFailureText } from '../../read-models/review-failure';
 import { useReviewStore } from '../../stores/review-store';
-import type { WorkTarget } from '../../stores/ports/review-repository';
+import type { WorkTarget } from '../../../application/ports/review-repository';
 import {
   DEPS_COL_LICENSE, DEPS_LICENSE_UNRESOLVED, DEPS_RELATIONSHIP_LABEL, DEPS_STATUS_LABEL, NO_VALUE, PACKAGE_ADVISORY_UNKNOWN,
   PACKAGE_CLOSE, PACKAGE_CREATE_REVIEW, PACKAGE_DEMO_BADGE, PACKAGE_DIALOG_SUBTITLE, PACKAGE_IN_REVIEW,

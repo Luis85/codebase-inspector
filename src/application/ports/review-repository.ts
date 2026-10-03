@@ -2,7 +2,7 @@
 // Part 2 adds boundary rules (spec P5). Part 3 adds dispositions (Q3) and work-item
 // targets (Q4). Part 6 adds id allocation (Y10), change notifications (Y12) and storage
 // diagnostics (Y7), which the durable adapter implements the same way.
-import type { EntityId } from '../../../domain/entity-id';
+import type { EntityId } from '../../domain/entity-id';
 
 /** Part 6 Y9/Y7, moved here by Polish E1 (L3): a refused review write — nothing was written and
  *  nobody was told. The durable adapter throws it; a screen maps its code to words

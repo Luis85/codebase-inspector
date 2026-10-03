@@ -1,5 +1,5 @@
 // Part 4: Refactor workbench and the Work-item editor. Re-exported by inspector-copy.ts.
-import type { WorkIntent, WorkPriority } from '../stores/ports/review-repository';
+import type { WorkIntent, WorkPriority } from '../../application/ports/review-repository';
 import { CANCEL } from './shared';
 
 export const WORKBENCH_EYEBROW = 'Act / Refactor workbench';

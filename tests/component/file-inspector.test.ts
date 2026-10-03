@@ -5,7 +5,7 @@ import { nextTick } from 'vue';
 import FileInspector from '../../src/ui/components/FileInspector.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../../tests/fixtures/snapshot-builder';
 import { CITY_RENDERER_KEY } from '../../src/ui/renderer-handle';

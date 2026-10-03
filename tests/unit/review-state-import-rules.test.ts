@@ -2,7 +2,7 @@
 // and imported text staying plain text.
 import { describe, expect, it } from 'vitest';
 import { accepted, docWith, outcome, targetOf, type ReviewDoc } from '../fixtures/review-state-doc';
-import { RULE_RATIONALE_MAX } from '../../src/ui/stores/ports/review-repository';
+import { RULE_RATIONALE_MAX } from '../../src/application/ports/review-repository';
 
 const NUL = String.fromCharCode(0);
 type Change = (d: ReviewDoc) => void;

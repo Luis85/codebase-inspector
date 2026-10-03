@@ -3,7 +3,7 @@
 // One in-memory review repository per codebase, shared by every leaf built from the same
 // deps object — the registry's own contract, without a data.json.
 import type { CityViewDeps } from '../../src/host/city-view';
-import { createInMemoryReviewRepository, type ReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository, type ReviewRepository } from '../../src/application/ports/review-repository';
 import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
 import { createFakeFallowAnalysis } from './fake-fallow-analysis';
 import { inertInvestigationNotes, scriptedSourcePreview } from './fake-investigation';

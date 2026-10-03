@@ -3,7 +3,7 @@
 import { makeEntityId } from '../../src/domain/entity-id';
 import { reviewStateJson, reviewStateSource } from '../../src/ui/read-models/review-state';
 import { parseReviewState, type ImportedReviewState } from '../../src/ui/read-models/review-state-import';
-import { NO_CHECKS } from '../../src/ui/stores/ports/review-repository';
+import { NO_CHECKS } from '../../src/application/ports/review-repository';
 
 export const DOC_REPO = 'repo-xyz';
 export const DOC_NOW = '2026-09-22T10:00:00.000Z';

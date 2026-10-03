@@ -2,7 +2,7 @@
 // validates each record with the import's own schemas.
 import { describe, expect, it } from 'vitest';
 import { makeEntityId } from '../../src/domain/entity-id';
-import type { BoundaryRule, FindingDisposition, WorkItem } from '../../src/ui/stores/ports/review-repository';
+import type { BoundaryRule, FindingDisposition, WorkItem } from '../../src/application/ports/review-repository';
 import { reviewStateJson } from '../../src/ui/read-models/review-state';
 import {
   STORED_ID_SUFFIX_MAX, decodeRecords, encodeDisposition, encodeRule, encodeWorkItem,

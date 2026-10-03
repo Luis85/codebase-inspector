@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import {
   createInMemoryReviewRepository, DISMISS_REASON_MAX, workTargetKey, type ReviewRepository,
-} from '../../src/ui/stores/ports/review-repository';
+} from '../../src/application/ports/review-repository';
 
 const NOW = new Date('2026-09-21T10:00:00.000Z');
 const noop = (): void => {};

@@ -25,28 +25,21 @@ import { asUnknownArray, isPlainObject } from '../../domain/plain-data';
 import {
   ReviewStoreError, formatReviewId, noStorageDiagnostics, reviewIdSuffix, type ReviewIdKind, type ReviewRepository,
   type ReviewStorageDiagnostics, type ReviewStoreErrorCode,
-} from '../../ui/stores/ports/review-repository';
+} from '../../application/ports/review-repository';
 import {
   STORED_ID_SUFFIX_MAX, decodeRecords, encodeDisposition, encodeRule, encodeWorkItem, storedFindingKey,
   type DecodedRecords, type StoredRecord,
 } from '../../ui/read-models/review-record-codec';
-import {
-  REVIEW_SAVE_UNREPRESENTABLE, REVIEW_STORE_FULL, REVIEW_STORE_RETIRED, REVIEW_STORE_UNSUPPORTED,
-} from '../../ui/inspector-copy';
 import { isRecordWithField, readPluginData, writePluginDataSlice } from './plugin-data-shape';
 
 /** Y9: per codebase, as the JSON.stringify length of its record set (the same limit as
  *  the review-state import's IMPORT_MAX_BYTES). */
 export const REVIEW_STORE_MAX_BYTES = 1_000_000;
 
-const ERROR_TEXT: Readonly<Record<ReviewStoreErrorCode, string>> = {
-  full: REVIEW_STORE_FULL, unsupported: REVIEW_STORE_UNSUPPORTED, unrepresentable: REVIEW_SAVE_UNREPRESENTABLE,
-  retired: REVIEW_STORE_RETIRED,
-};
-
 /** A refused write (the port's ReviewStoreError, Polish E1): nothing was written and nobody
- *  was told. Screens name the reason through read-models/review-failure.ts. */
-const refused = (code: ReviewStoreErrorCode): ReviewStoreError => new ReviewStoreError(code, ERROR_TEXT[code]);
+ *  was told. The message is the code only (GRC1: an adapter holds no UI copy); screens name
+ *  the reason through read-models/review-failure.ts. */
+const refused = (code: ReviewStoreErrorCode): ReviewStoreError => new ReviewStoreError(code);
 
 /** The port plus the one member the registry's purge uses (Y17). */
 export interface PluginDataReviewRepository extends ReviewRepository {

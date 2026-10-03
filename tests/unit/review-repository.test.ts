@@ -6,7 +6,7 @@ import { Plugin } from '../mocks/obsidian';
 import {
   CONTRACT_REPO, runDurableReviewRepositoryContract, runReviewRepositoryContract, type ReviewRepositoryHarness,
 } from '../contracts/review-repository.contract';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import { createPluginDataReviewRepository } from '../../src/adapters/storage/plugin-data-review-repository';
 
 const notDurable = (): Promise<never> => Promise.reject(new Error('The in-memory adapter has no data.json.'));

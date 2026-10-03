@@ -15,7 +15,7 @@ import { buildSecurityModel } from '../../src/ui/read-models/security';
 import { buildReportModel, includedSections, reportMarkdown } from '../../src/ui/read-models/report';
 import { buildWorkbenchModel, planMarkdown, targetMarkdown } from '../../src/ui/read-models/work-items';
 import { REPORT_NOTE_MAX, useReportStore } from '../../src/ui/stores/report-store';
-import { NO_CHECKS } from '../../src/ui/stores/ports/review-repository';
+import { NO_CHECKS } from '../../src/application/ports/review-repository';
 import {
   ARCH_CARD_RULES, ARCH_CARD_VIOLATIONS, FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_NOTE, REPORT_EVIDENCE_TEXT, REPORT_LIMITS,
   REPORT_RULES_TITLE, RULE_STATUS_LABEL,

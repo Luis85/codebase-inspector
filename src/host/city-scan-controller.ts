@@ -15,7 +15,7 @@ import type { ProfileStore } from '../application/ports/profile-store';
 import type { SourceFileSystemPort } from '../application/ports/source-filesystem-port';
 import type { SnapshotStore } from '../application/ports/snapshot-store';
 import type { Clock } from '../application/ports/clock';
-import type { ReviewRepository } from '../ui/stores/ports/review-repository';
+import type { ReviewRepository } from '../application/ports/review-repository';
 import type { EvidenceRepository } from '../application/ports/evidence-repository';
 import type { FallowAnalysisService } from '../application/analysis/fallow-analysis-service';
 import type { InvestigationNotesPort } from '../application/ports/investigation-notes-port';

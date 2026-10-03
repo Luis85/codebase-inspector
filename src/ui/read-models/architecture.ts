@@ -3,7 +3,7 @@
 // never a full import graph and never sample data. Modules stay real inventory groups.
 import { aggregateEdges, stronglyConnected } from '../../domain/relations/queries';
 import { collected, sumEvidence, unknown, type MetricValue } from '../evidence';
-import type { BoundaryRule } from '../stores/ports/review-repository';
+import type { BoundaryRule } from '../../application/ports/review-repository';
 import {
   ARCH_CARD_EVIDENCED, ARCH_CARD_MODULES, ARCH_CARD_RULES, ARCH_CARD_VIOLATIONS, ARCH_MODULES_OMITTED_CAPTION,
   ARCH_NOT_ANALYSED_NO_SECTION, ARCH_NOT_ANALYSED_NOTE, ARCH_RULES_CAPTION, ARCH_RULES_NONE, ARCH_RULES_NONE_REASON, ARCH_VIOLATIONS_FALLOW_CAPTION,

@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import type { ModuleSummary } from '../../read-models/architecture';
 import { reviewFailureText } from '../../read-models/review-failure';
 import { useReviewStore } from '../../stores/review-store';
-import { RULE_RATIONALE_MAX } from '../../stores/ports/review-repository';
+import { RULE_RATIONALE_MAX } from '../../../application/ports/review-repository';
 import { useUniqueId } from '../../unique-id';
 import {
   RULE_EDITOR_CANCEL, RULE_EDITOR_DUPLICATE, RULE_EDITOR_FAILED, RULE_EDITOR_FROM, RULE_EDITOR_HINT,

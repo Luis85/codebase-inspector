@@ -19,7 +19,7 @@ import { buildEvidenceReport } from '../../src/application/evidence/normalize-fa
 import { rawReport } from '../fixtures/fallow-fixture';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
 import { RELATIONS_PATHS } from '../fixtures/relations-report';
-import type { BoundaryRule } from '../../src/ui/stores/ports/review-repository';
+import type { BoundaryRule } from '../../src/application/ports/review-repository';
 
 function graphOf(files: number, directories: number) {
   const snap = buildSnapshotFixture({ files, directories });

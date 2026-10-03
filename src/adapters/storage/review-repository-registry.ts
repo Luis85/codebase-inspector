@@ -3,7 +3,7 @@
 // so two leaves on one codebase share one instance (one high-water mark, one subscription
 // source), and the settings tab purges a removed profile's review state through it.
 import type { Plugin } from 'obsidian';
-import { createInMemoryReviewRepository, type ReviewRepository } from '../../ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository, type ReviewRepository } from '../../application/ports/review-repository';
 import { createPluginDataReviewRepository, deleteReviewSet, type PluginDataReviewRepository } from './plugin-data-review-repository';
 
 export interface ReviewRepositoryRegistry {

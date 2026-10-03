@@ -15,7 +15,7 @@ import { Plugin } from '../mocks/obsidian';
 import { makeEntityId } from '../../src/domain/entity-id';
 import {
   NO_CHECKS, ReviewStoreError, type WorkItem,
-} from '../../src/ui/stores/ports/review-repository';
+} from '../../src/application/ports/review-repository';
 import {
   createPluginDataReviewRepository, REVIEW_STORE_MAX_BYTES,
 } from '../../src/adapters/storage/plugin-data-review-repository';

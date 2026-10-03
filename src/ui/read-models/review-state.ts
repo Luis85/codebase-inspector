@@ -6,7 +6,7 @@
 // that does not parse is left out and counted in `warnings`, never written verbatim.
 // The import side is review-state-import.ts.
 import { parseEntityId, type EntityId } from '../../domain/entity-id';
-import type { BoundaryRule, FindingDisposition, WorkItem, WorkTarget } from '../stores/ports/review-repository';
+import type { BoundaryRule, FindingDisposition, WorkItem, WorkTarget } from '../../application/ports/review-repository';
 import type { ReportSection } from '../stores/report-store';
 import { fnv1a } from '../fixtures/seeded-random';
 import { REVIEW_STATE_NOTE, REVIEW_STATE_SKIPPED } from '../inspector-copy';

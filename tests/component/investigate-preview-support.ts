@@ -13,7 +13,7 @@ import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { analysedAtOf } from '../../src/ui/read-models/investigation-evidence';
 import type { InvestigationRow } from '../../src/ui/read-models/investigation';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { CodebaseSnapshot } from '../../src/domain/model';
 import type { EvidenceReport, FindingCategory } from '../../src/application/evidence/model';

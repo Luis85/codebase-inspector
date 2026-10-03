@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { StewardshipAction } from '../../read-models/ownership';
 import { useReviewStore } from '../../stores/review-store';
-import type { WorkTarget } from '../../stores/ports/review-repository';
+import type { WorkTarget } from '../../../application/ports/review-repository';
 import {
   OWNERSHIP_ACTION_ADD, OWNERSHIP_ACTION_ADD_SHORT, OWNERSHIP_ACTION_ADDED, OWNERSHIP_ACTION_ADDED_LABEL,
 } from '../../inspector-copy';

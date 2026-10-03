@@ -9,7 +9,7 @@ import {
   buildQualityModel, DEFAULT_QUALITY_FILTER, filterFindings, findingsCsv, severityRank, severityTone,
   type QualityModel,
 } from '../../src/ui/read-models/findings';
-import type { FindingDisposition } from '../../src/ui/stores/ports/review-repository';
+import type { FindingDisposition } from '../../src/application/ports/review-repository';
 import { FALLOW_NOT_ANALYSED, NO_FILES_REASON } from '../../src/ui/inspector-copy';
 
 const snap = buildSnapshotFixture({ files: 60, directories: 2 });

@@ -5,7 +5,7 @@ import {
   type ReviewStateInput,
 } from '../../src/ui/read-models/review-state';
 import { REVIEW_STATE_SKIPPED } from '../../src/ui/inspector-copy';
-import { NO_CHECKS, type WorkItem, type WorkTarget } from '../../src/ui/stores/ports/review-repository';
+import { NO_CHECKS, type WorkItem, type WorkTarget } from '../../src/application/ports/review-repository';
 
 // 'repo-xyz' (not a bare 'repo', which the "report" key itself contains) so every
 // not-leaked assertion below is meaningful.

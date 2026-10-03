@@ -11,7 +11,7 @@ import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { uncertaintiesFor, checklistFor, evidenceBundleFor } from '../../src/ui/read-models/investigation-evidence';
 import { cyclePathText } from '../../src/ui/read-models/relations';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import { formatAbsoluteTime } from '../../src/ui/copy';
 import {
   FINDING_DIALOG_RULE_VALUE, FINDING_OPEN_FILE, FINDING_IN_PLAN, FINDING_ADD_WORK_ITEM, FINDING_RELATED_LABEL, FINDING_LINE_TEXT,

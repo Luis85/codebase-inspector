@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { reviewFailureText } from '../../src/ui/read-models/review-failure';
-import { ReviewStoreError } from '../../src/ui/stores/ports/review-repository';
+import { ReviewStoreError } from '../../src/application/ports/review-repository';
 import { REVIEW_SAVE_UNREPRESENTABLE, REVIEW_STORE_FULL, REVIEW_STORE_RETIRED, REVIEW_STORE_UNSUPPORTED } from '../../src/ui/inspector-copy';
 
 const REVIEW_WRITERS: readonly string[] = [

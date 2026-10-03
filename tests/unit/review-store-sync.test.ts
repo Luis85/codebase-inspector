@@ -6,7 +6,7 @@ import { flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { makeEntityId } from '../../src/domain/entity-id';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { createInMemoryReviewRepository, type ReviewIdKind, type ReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository, type ReviewIdKind, type ReviewRepository } from '../../src/application/ports/review-repository';
 
 const NOW = new Date('2026-09-23T10:00:00.000Z');
 const fileIn = (repo: string, path: string) => ({ kind: 'file' as const, entityId: makeEntityId(repo, 'file', path) });

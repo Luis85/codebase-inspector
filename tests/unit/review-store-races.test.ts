@@ -6,7 +6,7 @@ import { createPinia } from 'pinia';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import {
   createInMemoryReviewRepository, type FindingDisposition, type ReviewRepository, type WorkItem,
-} from '../../src/ui/stores/ports/review-repository';
+} from '../../src/application/ports/review-repository';
 
 const AT = '2026-09-23T10:00:00.000Z';
 const DECISION: FindingDisposition = { fingerprint: 'src/a.ts#f1', status: 'acknowledged', decidedAt: AT };

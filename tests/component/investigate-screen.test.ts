@@ -12,7 +12,7 @@ import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { findingRef } from '../../src/ui/read-models/review-state';
 import { FINDINGS_PAGE } from '../../src/ui/read-models/findings';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { attachSyntheticReport, type SyntheticReportOptions } from '../fixtures/evidence-report';

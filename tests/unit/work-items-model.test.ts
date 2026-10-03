@@ -3,7 +3,7 @@ import { makeEntityId } from '../../src/domain/entity-id';
 import { collected, sample } from '../../src/ui/evidence';
 import type { FileSummary } from '../../src/ui/read-models/file-summaries';
 import { buildWorkbenchModel, filesById, planMarkdown, workTargetLabel } from '../../src/ui/read-models/work-items';
-import { NO_CHECKS, type WorkItem } from '../../src/ui/stores/ports/review-repository';
+import { NO_CHECKS, type WorkItem } from '../../src/application/ports/review-repository';
 
 const id = (p: string) => makeEntityId('repo', 'file', p);
 const summary = (p: string): FileSummary => {

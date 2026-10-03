@@ -11,7 +11,7 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useInvestigationStore } from '../../src/ui/stores/investigation-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { noteBaseName } from '../../src/application/investigation/note-path';
 import { createInvestigationNotes } from '../../src/host/investigation-notes';

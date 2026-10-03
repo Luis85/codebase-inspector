@@ -10,6 +10,14 @@ const RESTRICT_DYNAMIC_TESTS_IMPORT = {
   message: 'src/** must not import from tests/**, dynamically either: core no-restricted-imports does not inspect import() expressions.',
 };
 
+// The src -> tests ban, shared by the src/** block and every layer block below (GRC1): flat
+// config REPLACES a rule's options per block, so a block that sets its own
+// no-restricted-imports must repeat this pattern or its files silently lose the ban.
+const RESTRICT_TESTS_IMPORT_PATTERN = {
+  group: ['**/tests/**', '../tests/*', '../../tests/*'],
+  message: 'src/** must not import from tests/**: a test fixture reaching the bundle ships test code.',
+};
+
 export default tseslint.config(
   // package.json is excluded: eslint-plugin-vue's unscoped essential/strongly-recommended
   // rule blocks (no `files` restriction) assume a script/template AST and crash the JSON
@@ -210,12 +218,59 @@ export default tseslint.config(
   {
     files: ['src/**/*.{ts,vue}'],
     rules: {
-      'no-restricted-imports': ['error', { patterns: [
-        { group: ['**/tests/**', '../tests/*', '../../tests/*'],
-          message: 'src/** must not import from tests/**: a test fixture reaching the bundle ships test code.' },
-      ] }],
+      'no-restricted-imports': ['error', { patterns: [RESTRICT_TESTS_IMPORT_PATTERN] }],
       'no-restricted-syntax': ['error', { selector: RESTRICT_DYNAMIC_TESTS_IMPORT.selector,
         message: RESTRICT_DYNAMIC_TESTS_IMPORT.message }],
+    },
+  },
+  // GRC1 / GCO10: a layer never imports one above it. Each block repeats the shared tests
+  // pattern (flat config replaces, never merges). The three blocks are declared AFTER the
+  // src/** block and BEFORE the exception below, since later blocks win per rule.
+  {
+    files: ['src/ui/**/*.{ts,vue}'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [
+        RESTRICT_TESTS_IMPORT_PATTERN,
+        { group: ['**/adapters/**', '**/host/**'],
+          message: 'src/ui never imports adapters or host: it reaches them through application ports and injected dependencies.' },
+      ] }],
+    },
+  },
+  {
+    files: ['src/application/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [
+        RESTRICT_TESTS_IMPORT_PATTERN,
+        { group: ['**/adapters/**', '**/host/**', '**/ui/**'],
+          message: 'src/application never imports adapters, host or ui: it defines ports; they implement and consume them.' },
+      ] }],
+    },
+  },
+  {
+    files: ['src/adapters/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [
+        RESTRICT_TESTS_IMPORT_PATTERN,
+        { group: ['**/host/**', '**/ui/**'],
+          message: 'src/adapters never imports host or ui: an adapter implements an application port.' },
+      ] }],
+    },
+  },
+  // The one recorded exception (GCP2) until the codec moves: the durable review adapter
+  // encodes and decodes records through ui/read-models/review-record-codec. Spec row GRC1,
+  // owner decision GCO10. Only that import is allowed; the file keeps the host ban, the rest
+  // of the ui ban and the tests ban. A `regex` pattern, not a negated glob: gitignore-style
+  // `!` cannot re-include a file whose parent directory (ui/read-models) the glob excluded.
+  {
+    files: ['src/adapters/storage/plugin-data-review-repository.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [
+        RESTRICT_TESTS_IMPORT_PATTERN,
+        { group: ['**/host/**'],
+          message: 'src/adapters never imports host or ui: an adapter implements an application port.' },
+        { regex: '(^|/)ui/(?!read-models/review-record-codec$)',
+          message: 'src/adapters never imports host or ui; the review-record codec is the one recorded exception (GCP2).' },
+      ] }],
     },
   },
   {

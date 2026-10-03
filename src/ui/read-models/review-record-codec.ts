@@ -10,7 +10,7 @@
 import type { z } from 'zod';
 import { parseEntityId } from '../../domain/entity-id';
 import { asUnknownArray, isPlainObject } from '../../domain/plain-data';
-import { workTargetKey, type BoundaryRule, type FindingDisposition, type WorkItem } from '../stores/ports/review-repository';
+import { workTargetKey, type BoundaryRule, type FindingDisposition, type WorkItem } from '../../application/ports/review-repository';
 import { exportedDisposition, exportedRule, exportedWorkItem, findingRef } from './review-state';
 import { DISPOSITION, RULE, WORK_ITEM, toDisposition, toRule, toWorkItem } from './review-state-import';
 

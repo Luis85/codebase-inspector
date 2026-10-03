@@ -1,5 +1,5 @@
 // Part 6 Y5–Y12, R1: the suite every ReviewRepository must pass, run against the in-memory
-// adapter (src/ui/stores/ports/review-repository.ts) and the durable plugin-data adapter
+// adapter (src/application/ports/review-repository.ts) and the durable plugin-data adapter
 // (src/adapters/storage/plugin-data-review-repository.ts), so they cannot drift (ruling
 // M24's pattern, as profile-store.contract.ts).
 //
@@ -19,7 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { makeEntityId } from '../../src/domain/entity-id';
 import {
   NO_CHECKS, ReviewStoreError, type BoundaryRule, type FindingDisposition, type ReviewRepository, type WorkItem,
-} from '../../src/ui/stores/ports/review-repository';
+} from '../../src/application/ports/review-repository';
 import { REVIEW_STORE_MAX_BYTES } from '../../src/adapters/storage/plugin-data-review-repository';
 
 export interface ReviewRepositoryHarness {

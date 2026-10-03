@@ -9,7 +9,7 @@ import { severityTone } from '../../read-models/findings';
 import { cyclePathText } from '../../read-models/relations';
 import { reviewFailureText } from '../../read-models/review-failure';
 import { useReviewStore } from '../../stores/review-store';
-import { DISMISS_REASON_MAX } from '../../stores/ports/review-repository';
+import { DISMISS_REASON_MAX } from '../../../application/ports/review-repository';
 import { useUniqueId } from '../../unique-id';
 import { useOpenInvestigation } from '../investigate/use-open-investigation';
 import {

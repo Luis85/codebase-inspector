@@ -1,6 +1,6 @@
 // Polish E1 (amends U27, Part 6 spec §4 "screens keep generic"; L3): a review write the store
 // refused names its reason; every other failure keeps the screen's own generic text.
-import { ReviewStoreError, type ReviewStoreErrorCode } from '../stores/ports/review-repository';
+import { ReviewStoreError, type ReviewStoreErrorCode } from '../../application/ports/review-repository';
 import { REVIEW_SAVE_UNREPRESENTABLE, REVIEW_STORE_FULL, REVIEW_STORE_RETIRED, REVIEW_STORE_UNSUPPORTED } from '../inspector-copy';
 
 const TEXT: Readonly<Record<ReviewStoreErrorCode, string>> = {

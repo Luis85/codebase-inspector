@@ -10,7 +10,7 @@ import { fileSummariesFor, type FileSummary } from './file-summaries';
 import { buildOverviewModel, type OverviewModel } from './overview';
 import { buildCitySummary } from './city-summary';
 import { evidenceIndexFor, type EvidenceIndex } from './evidence-index';
-import type { BoundaryRule, FindingDisposition } from '../stores/ports/review-repository';
+import type { BoundaryRule, FindingDisposition } from '../../application/ports/review-repository';
 import {
   architectureGraphFor, buildArchitectureModel, cyclesValue, type ArchitectureGraph, type ArchitectureModel,
 } from './architecture';

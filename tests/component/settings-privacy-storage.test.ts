@@ -12,7 +12,7 @@ import App from '../../src/ui/App.vue';
 import SettingsScreen from '../../src/ui/screens/SettingsScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import { createPluginDataReviewRepository } from '../../src/adapters/storage/plugin-data-review-repository';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';

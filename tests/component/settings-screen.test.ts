@@ -9,7 +9,7 @@ import { computeLayout } from '../../src/domain/layout/layout';
 import SettingsScreen from '../../src/ui/screens/SettingsScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { usePreferencesStore } from '../../src/ui/stores/preferences-store';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import { makeEntityId } from '../../src/domain/entity-id';
 import { useReportStore } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';

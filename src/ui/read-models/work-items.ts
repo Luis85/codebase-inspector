@@ -4,7 +4,7 @@
 import { parseEntityId, type EntityId } from '../../domain/entity-id';
 import { collected, type MetricValue } from '../evidence';
 import { mdCode, mdLine, mdQuote } from '../export/markdown';
-import type { WorkItem, WorkItemStatus, WorkTarget } from '../stores/ports/review-repository';
+import type { WorkItem, WorkItemStatus, WorkTarget } from '../../application/ports/review-repository';
 import {
   PLAN_MD_EMPTY, PLAN_MD_NOTE, PLAN_MD_TITLE, WORK_CHECK_LABELS, WORK_FIELD_INTENT, WORK_FIELD_PRIORITY, WORK_FIELD_STATUS,
   WORK_FIELD_TARGET, WORK_INTENT_LABEL, WORK_ITEM_STATUS_LABEL, WORK_PRIORITY_LABEL, WORK_TARGET_MISSING, WORK_TARGET_MODULE,

@@ -6,7 +6,7 @@ import type { EntityId } from '../../domain/entity-id';
 import { originOf, type FindingCategory } from '../../application/evidence/model';
 import { hasValue, unknown, type MetricValue } from '../evidence';
 import { toCsv, type CsvColumn } from '../export/csv';
-import type { FindingDisposition } from '../stores/ports/review-repository';
+import type { FindingDisposition } from '../../application/ports/review-repository';
 import {
   FALLOW_NOT_ANALYSED, FINDING_TITLE_FOR, NO_FILES_REASON, QUALITY_CARD_COMPLEXITY, QUALITY_CARD_COMPLEXITY_CAPTION, QUALITY_CARD_DUPLICATION,
   QUALITY_CARD_DUPLICATION_CAPTION, QUALITY_CARD_OPEN, QUALITY_CARD_OPEN_CAPTION, QUALITY_CARD_OPEN_CAPTION_STALE, QUALITY_CARD_STRUCTURE,

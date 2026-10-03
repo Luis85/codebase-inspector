@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Plugin as ObsidianPlugin } from 'obsidian';
 import { Plugin } from '../mocks/obsidian';
 import { createPluginDataReviewRepository, deleteReviewSet } from '../../src/adapters/storage/plugin-data-review-repository';
-import { NO_CHECKS, ReviewStoreError, type WorkItem } from '../../src/ui/stores/ports/review-repository';
+import { NO_CHECKS, ReviewStoreError, type WorkItem } from '../../src/application/ports/review-repository';
 
 function harness() {
   // One cast at the boundary, as review-repository.test.ts: the mock implements loadData/saveData only.

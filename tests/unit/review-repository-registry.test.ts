@@ -5,8 +5,7 @@ import { flushPromises } from '@vue/test-utils';
 import type { Plugin as ObsidianPlugin } from 'obsidian';
 import { Plugin } from '../mocks/obsidian';
 import { createReviewRepositoryRegistry } from '../../src/adapters/storage/review-repository-registry';
-import { ReviewStoreError, type BoundaryRule } from '../../src/ui/stores/ports/review-repository';
-import { REVIEW_STORE_RETIRED } from '../../src/ui/inspector-copy';
+import { ReviewStoreError, type BoundaryRule } from '../../src/application/ports/review-repository';
 
 const AT = '2026-09-23T10:00:00.000Z';
 const rule = (id: string, to: string): BoundaryRule => ({ id, from: 'ui', to, rationale: 'Layering', createdAt: AT });
@@ -59,7 +58,8 @@ describe('review repository registry: purge (Part 6 Y17)', () => {
     expect(refused).toBeInstanceOf(ReviewStoreError);
     // Polish 5b fix round: its own reason (the codebase was removed), not a format one.
     expect((refused as ReviewStoreError).code).toBe('retired');
-    expect((refused as ReviewStoreError).message).toBe(REVIEW_STORE_RETIRED);
+    // GRC1: the adapter holds no UI copy; the words come from review-failure.ts by code.
+    expect((refused as ReviewStoreError).message).toBe('review store: retired');
     expect(await readDoc(plugin)).toEqual({ reviews: {} });
     const fresh = registry.for('p1');
     expect(fresh).not.toBe(old);

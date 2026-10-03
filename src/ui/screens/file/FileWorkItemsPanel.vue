@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WorkItem } from '../../stores/ports/review-repository';
+import type { WorkItem } from '../../../application/ports/review-repository';
 import { FILE_NO_WORK_ITEMS, FILE_WORK_ITEMS_SUBTITLE, FILE_WORK_ITEMS_TITLE, WORK_ITEM_STATUS_LABEL } from '../../inspector-copy';
 import Panel from '../../kit/Panel.vue';
 

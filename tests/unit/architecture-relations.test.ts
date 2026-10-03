@@ -23,7 +23,7 @@ import {
   OVERVIEW_IMPORTS_ROW, RELATIONS_SCOPE_SHORT, RELATION_CYCLES_CAPTION, RELATION_CYCLES_NOT_REPORTED, RULE_NOT_EVALUATED_PARTIAL,
   RULE_NOT_EVALUATED_REASON,
 } from '../../src/ui/inspector-copy';
-import type { BoundaryRule } from '../../src/ui/stores/ports/review-repository';
+import type { BoundaryRule } from '../../src/application/ports/review-repository';
 import { fallowDoc, rawReport } from '../fixtures/fallow-fixture';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { snapshotWithPaths } from '../fixtures/evidence-report';

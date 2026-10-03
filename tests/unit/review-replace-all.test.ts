@@ -7,7 +7,7 @@ import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useReportStore } from '../../src/ui/stores/report-store';
 import {
   NO_CHECKS, ReviewStoreError, createInMemoryReviewRepository, type BoundaryRule, type FindingDisposition, type ReviewReplaceState, type WorkItem,
-} from '../../src/ui/stores/ports/review-repository';
+} from '../../src/application/ports/review-repository';
 
 const NOW = new Date('2026-09-22T10:00:00.000Z');
 const AT = NOW.toISOString();

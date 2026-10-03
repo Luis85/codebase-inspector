@@ -11,7 +11,7 @@ import { createFixedClock } from '../fixtures/clock';
 import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
-import { createInMemoryReviewRepository, type ReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository, type ReviewRepository } from '../../src/application/ports/review-repository';
 import { makePluginDouble } from '../fixtures/city-view-doubles';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';

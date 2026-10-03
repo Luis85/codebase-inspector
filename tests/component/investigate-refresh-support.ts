@@ -12,7 +12,7 @@ import { useInvestigationStore } from '../../src/ui/stores/investigation-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { CodebaseSnapshot } from '../../src/domain/model';
 import { EVIDENCE_END } from '../../src/application/investigation/note-model';

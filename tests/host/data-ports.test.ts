@@ -11,7 +11,7 @@ import { Plugin } from '../mocks/obsidian';
 import { unwireDataPorts, wireDataPorts } from '../../src/host/data-ports';
 import type { CityViewDeps } from '../../src/host/city-view';
 import { createReviewRepositoryRegistry, type ReviewRepositoryRegistry } from '../../src/adapters/storage/review-repository-registry';
-import { createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import { useReviewStore } from '../../src/ui/stores/review-store';
 import { makeEntityId } from '../../src/domain/entity-id';
 import { dataPortDeps } from '../fixtures/data-port-deps';

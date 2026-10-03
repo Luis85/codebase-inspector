@@ -5,7 +5,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   NO_CHECKS, createInMemoryReviewRepository, formatReviewId, reviewIdSuffix, type WorkItem,
-} from '../../src/ui/stores/ports/review-repository';
+} from '../../src/application/ports/review-repository';
 
 const AT = '2026-09-23T10:00:00.000Z';
 const item = (id: string): WorkItem => ({

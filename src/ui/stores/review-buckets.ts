@@ -5,7 +5,7 @@
 //  - the keys in flight, per codebase (Y15).
 import { markRaw } from 'vue';
 import { noop } from '../kit/noop';
-import { createInMemoryReviewRepository, type ReviewReplaceState, type ReviewRepository } from './ports/review-repository';
+import { createInMemoryReviewRepository, type ReviewReplaceState, type ReviewRepository } from '../../application/ports/review-repository';
 
 /** Part 5 E18 / Part 6 R1: what `clearAll` replaces the bound codebase's state with — nothing. */
 export const EMPTY_REPLACEMENT: ReviewReplaceState = { workItems: [], rules: [], dispositions: [] };

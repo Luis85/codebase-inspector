@@ -11,7 +11,7 @@ import type { ImportCandidate } from '../../src/ui/screens/settings/import-candi
 import { computeLayout } from '../../src/domain/layout/layout';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { ReviewStoreError, createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { ReviewStoreError, createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import {
   IMPORT_FAILED, REVIEW_STORE_FULL, REVIEW_STORE_RETIRED, REVIEW_STORE_UNSUPPORTED, SETTINGS_CLEAR_FAILED,
 } from '../../src/ui/inspector-copy';

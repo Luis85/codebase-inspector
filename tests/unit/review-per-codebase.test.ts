@@ -8,7 +8,7 @@ import { fileSummariesFor } from '../../src/ui/read-models/file-summaries';
 import { relationModelFor } from '../../src/ui/read-models/relations';
 import { architectureModelFor } from '../../src/ui/read-models/use-read-models';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { NO_CHECKS, createInMemoryReviewRepository } from '../../src/ui/stores/ports/review-repository';
+import { NO_CHECKS, createInMemoryReviewRepository } from '../../src/application/ports/review-repository';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 
 const NOW = new Date('2026-09-22T10:00:00.000Z');

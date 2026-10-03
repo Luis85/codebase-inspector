@@ -8,7 +8,7 @@ import {
   workTargetKey, workItemProblem, clipTitle, noStorageDiagnostics, NO_CHECKS, DISMISS_REASON_MAX, RULE_RATIONALE_MAX,
   type BoundaryRule, type FindingDisposition, type ReviewReplaceState, type ReviewRepository, type ReviewStorageDiagnostics,
   type WorkIntent, type WorkItem, type WorkItemInit, type WorkItemPatch, type WorkTarget,
-} from './ports/review-repository';
+} from '../../application/ports/review-repository';
 import {
   EMPTY_REPLACEMENT, anyPending, beginLoad, bucketFor, createBucketState, endLoad, listenTo, ownWrite, pendingOf, release,
   reserve, ruleKey, settleOwnWrite, stopListening, type BucketState, type ReviewBucket, type ReviewPending,

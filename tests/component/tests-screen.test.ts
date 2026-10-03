@@ -9,7 +9,7 @@ import { downloadText } from '../../src/ui/export/download';
 import TestsScreen from '../../src/ui/screens/TestsScreen.vue';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { ReviewStoreError } from '../../src/ui/stores/ports/review-repository';
+import { ReviewStoreError } from '../../src/application/ports/review-repository';
 import { REVIEW_STORE_FULL, TESTS_PLAN_FAILED } from '../../src/ui/inspector-copy';
 import { useReadModels } from '../../src/ui/read-models/use-read-models';
 import { computeLayout } from '../../src/domain/layout/layout';

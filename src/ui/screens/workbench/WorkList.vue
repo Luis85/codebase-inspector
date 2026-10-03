@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { WORK_STATUSES, type WorkRow } from '../../read-models/work-items';
-import type { WorkPriority } from '../../stores/ports/review-repository';
+import type { WorkPriority } from '../../../application/ports/review-repository';
 import {
   WORK_INTENT_LABEL, WORK_ITEM_STATUS_LABEL, WORK_PRIORITY_LABEL, WORK_TARGET_MISSING, WORKBENCH_CHECKS, WORKBENCH_COL_CHECKS,
   WORKBENCH_COL_INTENT, WORKBENCH_COL_ITEM, WORKBENCH_COL_PRIORITY, WORKBENCH_COL_STATUS, WORKBENCH_COL_TARGET, WORKBENCH_LIST_CAPTION,

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { createInMemoryReviewRepository, RULE_RATIONALE_MAX } from '../../src/ui/stores/ports/review-repository';
-import type { ReviewRepository, WorkItem } from '../../src/ui/stores/ports/review-repository';
+import { createInMemoryReviewRepository, RULE_RATIONALE_MAX } from '../../src/application/ports/review-repository';
+import type { ReviewRepository, WorkItem } from '../../src/application/ports/review-repository';
 
 const NOW = new Date('2026-09-21T10:00:00.000Z');
 const noop = (): void => {};

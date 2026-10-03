@@ -16,7 +16,7 @@ import { repositoryDigest, reviewStateJson, reviewStateSource, type ReviewStateS
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useReportStore } from '../../src/ui/stores/report-store';
 import { useReviewStore } from '../../src/ui/stores/review-store';
-import { NO_CHECKS, createInMemoryReviewRepository, type ReviewReplaceState } from '../../src/ui/stores/ports/review-repository';
+import { NO_CHECKS, createInMemoryReviewRepository, type ReviewReplaceState } from '../../src/application/ports/review-repository';
 import {
   IMPORT_BUSY, IMPORT_CONFIRM_TEXT, IMPORT_ERROR, IMPORT_FAILED, IMPORT_ORIGIN, IMPORT_STALE, IMPORTED, SETTINGS_IMPORT_HINT,
   SETTINGS_IMPORT_OPEN,

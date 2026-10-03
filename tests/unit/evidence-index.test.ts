@@ -13,7 +13,7 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { COPY_16, FALLOW_NOT_ANALYSED, FALLOW_SOME_NOT_ANALYSED, NO_FILES_REASON, OVERVIEW_FINDINGS_CAPTION } from '../../src/ui/inspector-copy';
 import { buildQualityModel } from '../../src/ui/read-models/findings';
-import type { FindingDisposition } from '../../src/ui/stores/ports/review-repository';
+import type { FindingDisposition } from '../../src/application/ports/review-repository';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { attachSyntheticReport, syntheticEvidenceReport } from '../fixtures/evidence-report';
 

@@ -14,7 +14,7 @@ import { normalizeRelativePath } from '../../domain/path-safety';
 import {
   DISMISS_REASON_MAX, RULE_RATIONALE_MAX, WORK_NOTES_MAX, WORK_TITLE_MAX, workItemProblem,
   type BoundaryRule, type FindingDisposition, type WorkItem, type WorkTarget,
-} from '../stores/ports/review-repository';
+} from '../../application/ports/review-repository';
 import { REPORT_NOTE_MAX, type ReportSection } from '../stores/report-store';
 import { FINDING_ID_PATTERN, REVIEW_STATE_SCHEMA, REVIEW_STATE_SCHEMA_V1, SOURCE_FOLDER_MAX, repositoryDigest } from './review-state';
 

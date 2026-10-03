@@ -4,7 +4,7 @@ import { formatMetric } from '../../evidence';
 import type { FileSummary } from '../../read-models/file-summaries';
 import { TABLE_PAGE } from '../../read-models/hotspots';
 import { useReviewStore } from '../../stores/review-store';
-import type { WorkTarget } from '../../stores/ports/review-repository';
+import type { WorkTarget } from '../../../application/ports/review-repository';
 import {
   SHOW_MORE, TESTS_COL_ACTIONS, TESTS_COL_BRANCHES, TESTS_COL_COMMITS, TESTS_COL_COVERAGE, TESTS_COL_FILE, TESTS_GAPS_CAPTION,
   TESTS_GAPS_NONE, TESTS_OPEN, TESTS_OPEN_LABEL, TESTS_PLAN, TESTS_PLAN_LABEL, TESTS_PLANNED, TESTS_PLANNED_LABEL,
