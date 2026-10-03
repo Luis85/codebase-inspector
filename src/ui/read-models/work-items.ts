@@ -26,7 +26,7 @@ export interface WorkbenchCard {
 export interface WorkbenchModel { rows: readonly WorkRow[]; columns: readonly WorkColumn[]; cards: readonly WorkbenchCard[]; total: number }
 
 /** The source-relative path inside an entity id; never the raw id (it holds NUL separators). */
-export function entityPath(id: EntityId): string {
+function entityPath(id: EntityId): string {
   try { return parseEntityId(id).path; } catch { return id.replace(/\0/g, '/'); }
 }
 const baseName = (path: string): string => path.slice(path.lastIndexOf('/') + 1) || path;

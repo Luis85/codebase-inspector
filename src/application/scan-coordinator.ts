@@ -94,14 +94,10 @@ export class ScanCoordinator {
 
   constructor(private readonly deps: ScanCoordinatorDeps) {}
 
-  /** The frozen §4.1 shape only -- see `getLifecycle()` for banner/publishedSnapshotId/
-   *  approval, which are task-8-owned (ruling M35), not part of this contract. */
+  /** The frozen §4.1 shape only -- banner/publishedSnapshotId/approval are task-8-owned
+   *  (ruling M35), reached through `subscribe()`, not part of this contract. */
   get state(): InventoryRunState {
     return this.lifecycle.run;
-  }
-
-  getLifecycle(): ScanLifecycleState {
-    return this.lifecycle;
   }
 
   subscribe(listener: (state: ScanLifecycleState) => void): () => void {

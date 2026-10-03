@@ -949,20 +949,22 @@ commit; nothing standing implements it, and a reader of this document must not t
 `analyze` as the instrument. That matters out of proportion to its size, because the
 review methodology recorded throughout this document rests on question 1.
 
-**Accepted baseline at this commit: 9 findings** — 5 unused exports, 1 unused type,
-1 unused class member, 1 duplicate export pair, 1 circular dependency. The count is
+**Accepted baseline at this commit: 4 findings** — 1 unused export, 1 unused type,
+1 duplicate export pair, 1 circular dependency. The count is
 recorded here (review M4) precisely because this gate exits non-zero permanently by
-design: without a baseline, a TENTH finding is indistinguishable from the nine
-already assessed. Each one:
+design: without a baseline, a FIFTH finding is indistinguishable from the four
+already assessed. Gap closure Part C (GRC12) took it from 9 to 4: `LOT_FOOTPRINT`,
+`MAX_DIRECT_SUBDISTRICTS`, `DRAG_THRESHOLD_CSS_PX` and `entityPath` are un-exported
+(each is used inside its own module and no file imports it), and
+`ScanCoordinator.getLifecycle` is deleted (no caller anywhere; the coordinator's
+observers read lifecycle through `subscribe`). Each remaining one:
 
 | Finding | Assessment |
 |---|---|
-| `districts.ts` `LOT_FOOTPRINT`, `MAX_DIRECT_SUBDISTRICTS`; `picking.ts` `DRAG_THRESHOLD_CSS_PX`; `work-items.ts` `entityPath` | used inside their own modules and named by their tests (`layout-districts`, `layout-determinism`, `ui-steps`, `review-state`), which cite them in comments; no test imports them. The WP-02 polish pass (X1) un-exported the three that no test named (`UNAVAILABLE_FOOTPRINT`, `HOVER_DWELL_MS`, `SCALE_NAME`), with the other module-local helpers the tool flagged. Accepted. |
 | `node-access.ts` `fs` | the single Node seam; `fsPromises` is derived from it and `tests/unit/node-access-boundary.test.ts` asserts this file is the only one in `src/` that reaches Node. Accepted. |
 | `model.ts` type `SourceReference` | named by spec §4.1's **frozen** implemented-types list. Only the user may change a §4 contract. Accepted, and must not be "cleaned up". |
 | `renderer-port.ts` `EntityId` duplicating `entity-id.ts` | both are inside frozen §4.2/§4.1 contracts. Accepted. |
 | `city-view.ts → leaf-registry.ts → city-view.ts` cycle | pre-existing and structural (the registry reaches views; views ask the registry to reconcile siblings). Not touched by task 12. |
-| **`ScanCoordinator.getLifecycle`** | **no caller; kept as public coordinator surface.** Nothing in `src/` *or* `tests/` calls it: `tests/acceptance/steps/evidence-steps.ts` names it only in comments. It is an inert accessor, not a fake feature, so it is not instance 10 of the branch's defect class. The WP-02 polish pass kept it (polish QF5, correcting L10). Accepted. |
 
 **`analyze` fetches its tool at run time, deliberately.** `npx --yes fallow@3.27.0`
 pins the exact version but is not a devDependency, so the gate needs network and
@@ -1059,7 +1061,7 @@ check these against the suite and against the matrix itself:
   derived (above); which test the runner skipped is a fact of the run, not of the
   repository, and no test inside the suite can read it. Re-take with `npx vitest run`.
 - The **reference hardware** rows, which describe a machine.
-- The `npm run analyze` **total of 9**. Its internal breakdown is checked, but the figure
+- The `npm run analyze` **total of 4**. Its internal breakdown is checked, but the figure
   itself needs the tool, which is not part of `npm run verify` and needs network.
 - The **living suite's own totals**, now the same figures as the G8 heading itself since
   the WP-03 Part 1 refresh closed the two-vintage gap, refreshed again by the final
@@ -1141,6 +1143,14 @@ three applied to all four, contradicting (b) six lines above it.
 **State these counts in one of the four shapes, with asterisk emphasis, against the
 matrix's own total**, and the guard will tell you when you get one wrong. If you find another way to
 escape it, add it to this list — the list being complete is what makes it useful.
+
+Sweep fingerprint: `6e9200b0`
+
+That is an FNV-1a hash of the source and flags of every sweep regex, and of the phrase
+templates of the negative sweep's two families, in `tests/unit/evidence-numbers.test.ts`.
+It is derived: the test recomputes it and fails when it differs, and it also fails if any
+of items (a), (b) or (c) above goes missing. Editing a sweep regex therefore cannot pass
+silently — re-examine the list above against the new shapes, then update the fingerprint.
 
 ---
 

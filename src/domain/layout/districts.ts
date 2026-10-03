@@ -8,7 +8,7 @@ import { heightFor } from './scale';
 
 /** Equal footprint for every measured / measured-zero lot — footprint never encodes
  *  the height metric (spec 4.3). */
-export const LOT_FOOTPRINT = 10;
+const LOT_FOOTPRINT = 10;
 
 /** Ruling M10/M13: an unavailable lot gets a distinct, SMALLER marker footprint, not
  *  just a neutral colour — a height-only difference is invisible in the top-down
@@ -31,7 +31,7 @@ const DISTRICT_Y = 0;
  * (at most 2 direct subdirectories per level) and comfortably below the stress fixtures
  * that must demonstrate aggregation (60, and incidentally 25).
  */
-export const MAX_DIRECT_SUBDISTRICTS = 20;
+const MAX_DIRECT_SUBDISTRICTS = 20;
 
 export type MetricLookup = (entityId: EntityId) => Observation | undefined;
 

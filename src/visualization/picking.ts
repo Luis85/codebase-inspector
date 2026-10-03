@@ -13,7 +13,7 @@
 // the port. `win` is injected, never a bare global (acceptance criterion 10).
 import type { EntityId } from './renderer-port';
 
-export const DRAG_THRESHOLD_CSS_PX = 5;
+const DRAG_THRESHOLD_CSS_PX = 5;
 const HOVER_DWELL_MS = 200;
 /** Phase 2c, ruling M104. One Chromium/Windows wheel notch is `deltaMode 0, deltaY 100`
  *  (WHEEL_DELTA 120 x the OS "lines to scroll" default of 3 x Chromium's 100/3 px per

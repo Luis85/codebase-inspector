@@ -232,11 +232,9 @@ Whether a factual safety claim belongs in the muted token is for a human looking
 ## Tooling and gates that are deliberately not green
 
 - **`npm run analyze` exits non-zero and is expected to.** The accepted baseline is
-  **9** findings (re-baselined in the WP-02 polish pass, X1) — four exported names their
-  tests cite, the `node-access` seam, an unused type named by frozen §4.1,
-  `ScanCoordinator.getLifecycle` (no caller; kept as public coordinator surface), a
-  duplicate `EntityId` spanning two frozen contracts, and a pre-existing
-  `city-view ↔ leaf-registry` cycle. It is a **review list, not a gate**,
+  **4** findings (re-baselined in gap closure Part C, GRC12, from 9) — the `node-access`
+  seam, an unused type named by frozen §4.1, a duplicate `EntityId` spanning two frozen
+  contracts, and a pre-existing `city-view ↔ leaf-registry` cycle. It is a **review list, not a gate**,
   which is why it sits outside `npm run verify`, and **nobody tuned it to green** — that
   is deliberate, and the baseline is what makes a tenth finding visible. It also
   fetches its tool at run time (`npx --yes fallow@3.27.0`), so it needs network and
@@ -517,7 +515,7 @@ applies to this file identically, to all four counts.
 
 **TRANSCRIBED — reproduce with the command named beside them in the gate-evidence
 document; no test can check these.** Every benchmark figure, the adjacent scan timings,
-the snapshot ceiling, the concurrency comparison and the `npm run analyze` total of 9.
+the snapshot ceiling, the concurrency comparison and the `npm run analyze` total of 4.
 They are cited from `2026-09-17-wp01-gate-evidence.md` and from task 12's benchmark run,
 which writes its results outside this repository by design.
 

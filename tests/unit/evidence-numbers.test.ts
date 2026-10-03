@@ -110,6 +110,48 @@ function wordBounded(phrase: string): RegExp {
   return probe;
 }
 
+const NUMERAL = `\\d{1,2}|${Object.keys(WORDS).join('|')}`;
+
+/** THE SWEEP REGEXES, hoisted out of the tests that run them so one place names them all
+ *  and `sweepFingerprint()` can hash exactly what the sweeps read. The "N of the 14"
+ *  pattern is RESERVED for claims about OPEN rows (the matrix's own convention), and its
+ *  first group is a number or number-word, never a bare word, so "row of the 14" is not
+ *  read as a count. `release` takes the matrix total; the fingerprint passes a token. */
+const SWEEPS = {
+  rowCount: new RegExp(`(${NUMERAL})\\s+of\\s+(?:the\\s+)?(?:matrix's\\s+)?(\\d{1,2}|fourteen)\\b`, 'gi'),
+  fullyPassed: new RegExp(`(${NUMERAL})\\s+(?:rows?\\s+)?(?:is|are)\\s+fully PASSED`, 'gi'),
+  jsdomHalf: new RegExp(`(${NUMERAL})\\s+more\\s+(?:rows\\s+)?(?:have|has)\\s+a PASSED jsdom half`, 'gi'),
+  release: (total: number | string) => new RegExp(`(\\d{1,2})\\s+of\\s+(?:the\\s+)?(?:matrix's\\s+)?${total}\\b`, 'g'),
+};
+
+/** The negative sweep's phrase families for one wrong value: family 1 is the "N of the 14"
+ *  shape, family 2 the open count beside an openness word. ADJACENT, never windowed:
+ *  "Four questions remain open" is a true sentence in the evidence document. */
+function sweepPhrases(spelling: string, total: number | string): string[] {
+  return [
+    `${spelling} of the ${total}`, `${spelling} of ${total}`, `${spelling} of the matrix's ${total}`,
+    `${spelling} of the fourteen`, `${spelling} of fourteen`,
+    `${spelling} outstanding rows`, `${spelling} open rows`,
+    `${spelling} rows remain open`, `${spelling} rows are still open`,
+    `${spelling} remain open`, `${spelling} remains open`,
+    `${spelling} are still open`, `${spelling} rows outstanding`,
+  ];
+}
+
+/** FNV-1a over every sweep regex's `source/flags` and every phrase template, so editing
+ *  any shape the sweeps recognise changes the figure the gate-evidence residual list
+ *  states beside items (a)-(c). */
+function sweepFingerprint(): string {
+  const text = [
+    ...[SWEEPS.rowCount, SWEEPS.fullyPassed, SWEEPS.jsdomHalf, SWEEPS.release('TOTAL')]
+      .map((r) => `${r.source}/${r.flags}`),
+    ...sweepPhrases('N', 'TOTAL'),
+  ].join('\n');
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0;
+  return hash.toString(16).padStart(8, '0');
+}
+
 interface MatrixCounts { total: number; open: number; closed: number; partial: number }
 
 /** The one source of truth for every row claim either document makes. A row is CLOSED
@@ -160,14 +202,9 @@ function countSourceFiles(dir: string): number {
 describe('the evidence documents state the matrix row counts consistently, everywhere', () => {
   it('agrees with the matrix at every site that states the figure', () => {
     const { total, open } = matrixCounts();
-    // The "N of the <total>" shape is RESERVED for claims about OPEN rows — the matrix's
-    // own Numbers block states that convention. The first group is a number or a
-    // number-word and never a bare word, so "row of the 14" is not read as a count.
-    const numeral = `\\d{1,2}|${Object.keys(WORDS).join('|')}`;
-    const pattern = new RegExp(`(${numeral})\\s+of\\s+(?:the\\s+)?(?:matrix's\\s+)?(\\d{1,2}|fourteen)\\b`, 'gi');
     let sites = 0;
     for (const { name, text } of documents()) {
-      for (const match of text.matchAll(pattern)) {
+      for (const match of text.matchAll(SWEEPS.rowCount)) {
         if (asNumber(match[2]!) !== total) continue;        // not a claim about the matrix
         sites += 1;
         expect(asNumber(match[1]!), `${name}: "${match[0]}" contradicts the matrix`).toBe(open);
@@ -189,26 +226,12 @@ describe('the evidence documents state the matrix row counts consistently, every
       for (const value of wrong) {
         for (const spelling of [String(value), Object.keys(WORDS).find((w) => WORDS[w] === value)]) {
           if (!spelling) continue;
-          for (const phrase of [
-            // FAMILY 1 — the "N of the 14" shape. Every one of these is ALSO reachable by
-            // the positive sweep above, so on its own this family adds nothing; it is kept
-            // because it names the wrong answer in the failure message.
-            `${spelling} of the ${total}`, `${spelling} of ${total}`,
-            `${spelling} of the matrix's ${total}`,
-            `${spelling} of the fourteen`, `${spelling} of fourteen`,
-            // FAMILY 2 — the open count stated WITHOUT the "of the total" shape, which is
-            // the only part of this test the positive sweep cannot reach. The document
-            // already does this once ("the thirteen outstanding rows", G4), and a
-            // re-review demonstrated the gap with "…fourteen rows, ten remain open" — the
-            // same fact in the same words, merely reordered, seen by neither sweep.
-            // The phrases are ADJACENT, not windowed: "Four questions remain open" is a
-            // true sentence in this document about something else, and a sweep that
-            // reddens on it gets deleted.
-            `${spelling} outstanding rows`, `${spelling} open rows`,
-            `${spelling} rows remain open`, `${spelling} rows are still open`,
-            `${spelling} remain open`, `${spelling} remains open`,
-            `${spelling} are still open`, `${spelling} rows outstanding`,
-          ]) {
+          // FAMILY 1 (the "N of the 14" shape) is ALSO reachable by the positive sweep above;
+          // it is kept because it names the wrong answer in the failure message. FAMILY 2
+          // is the part the positive sweep cannot reach: the document already says "the
+          // thirteen outstanding rows" (G4), and a re-review demonstrated the gap with
+          // "…fourteen rows, ten remain open" — the same fact, merely reordered.
+          for (const phrase of sweepPhrases(spelling, total)) {
             // WORD-BOUNDED, not a substring: "13 of the 14" contains "3 of the 14", so a
             // plain `toContain` would report the CORRECT text as a stale 3. A sweep that
             // cries wolf gets deleted, which is worse than one that never existed.
@@ -247,12 +270,9 @@ describe('the evidence documents state the matrix row counts consistently, every
     // is residual (a) in the gate-evidence Numbers block and is now named there for
     // these two counts as well as for the open count.
     const { closed, partial } = matrixCounts();
-    const numeral = `\\d{1,2}|${Object.keys(WORDS).join('|')}`;
     const claims: { pattern: RegExp; expected: number; label: string; floor: number }[] = [
-      { pattern: new RegExp(`(${numeral})\\s+(?:rows?\\s+)?(?:is|are)\\s+fully PASSED`, 'gi'),
-        expected: closed, label: 'fully PASSED', floor: 4 },
-      { pattern: new RegExp(`(${numeral})\\s+more\\s+(?:rows\\s+)?(?:have|has)\\s+a PASSED jsdom half`, 'gi'),
-        expected: partial, label: 'PASSED jsdom half', floor: 3 },
+      { pattern: SWEEPS.fullyPassed, expected: closed, label: 'fully PASSED', floor: 4 },
+      { pattern: SWEEPS.jsdomHalf, expected: partial, label: 'PASSED jsdom half', floor: 3 },
     ];
     for (const { pattern, expected, label, floor } of claims) {
       let sites = 0;
@@ -383,11 +403,26 @@ describe('the evidence documents keep their own arithmetic', () => {
     expect(names).toContain('the implementation report');
     expect(names).toContain('the limitations document');
     for (const { name, text } of documents()) {
-      const sites = [...text.replace(/\s+/g, ' ')
-        .matchAll(new RegExp(`(\\d{1,2})\\s+of\\s+(?:the\\s+)?(?:matrix's\\s+)?${total}\\b`, 'g'))];
+      const sites = [...text.replace(/\s+/g, ' ').matchAll(SWEEPS.release(total))];
       expect(sites.length, `${name} states the open-row count nowhere the sweep can read it`)
         .toBeGreaterThanOrEqual(1);
       for (const site of sites) expect(Number(site[1]), `${name}: "${site[0]}"`).toBe(open);
+    }
+  });
+
+  it('ties the sweep regexes to the residual list the gate evidence documents', () => {
+    // GRC13. The residual list (a)-(c) states what the sweeps do not read. Change a sweep
+    // regex and that list may be stale without any count going wrong, so the document
+    // carries the regexes' fingerprint and a change has to be acknowledged there.
+    const raw = readFileSync(EVIDENCE, 'utf8');
+    const stated = /Sweep fingerprint: `([0-9a-f]{8})`/.exec(raw);
+    expect(stated, 'the gate evidence residual list states no "Sweep fingerprint: `<hex>`"').not.toBeNull();
+    expect(stated![1], 'the sweep regexes changed: re-examine the residual list (a)–(c), '
+      + 'then update the fingerprint').toBe(sweepFingerprint());
+    const flat = raw.replace(/[*`]/g, '').replace(/\s+/g, ' ');
+    for (const item of ['(a) A restatement in neither shape', '(b) A restatement that gets the TOTAL wrong',
+      '(c) A count written with underscore emphasis']) {
+      expect(flat, `the residual list lost item ${item.slice(0, 3)}`).toContain(item);
     }
   });
 
