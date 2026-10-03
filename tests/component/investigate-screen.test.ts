@@ -17,6 +17,7 @@ import { computeLayout } from '../../src/domain/layout/layout';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { attachSyntheticReport, type SyntheticReportOptions } from '../fixtures/evidence-report';
 import { inertInvestigationNotes, scriptedSourcePreview } from '../fixtures/fake-investigation';
+import { FALLOW_NOT_ANALYSED_BODY, FALLOW_NOT_ANALYSED_TITLE, INVESTIGATE_NONE_SELECTED } from '../../src/ui/inspector-copy';
 import type { NoteLink } from '../../src/application/investigation/note-index';
 
 function mountScreen() {
@@ -62,6 +63,44 @@ describe('Investigate finding list (WP-04 IN1-IN3, IN6)', () => {
     await more.trigger('click');
     expect(rowEls(w)).toHaveLength(Math.min(total, FINDINGS_PAGE * 2));
     w.unmount();
+  });
+
+  it('changing a filter after Show more resets to the first page (gap closure GRD13)', async () => {
+    await withReport(150);
+    const w = mountScreen();
+    await nextTick();
+    const { investigation } = useReadModels();
+    const total = investigation.value.rows.length;
+    expect(total).toBeGreaterThan(FINDINGS_PAGE);
+    await w.find('.ci-investigate-list__more').trigger('click');
+    expect(rowEls(w).length, 'a second page is shown first').toBe(Math.min(total, FINDINGS_PAGE * 2));
+    expect(rowEls(w).length).toBeGreaterThan(FINDINGS_PAGE);
+
+    // 'all' -> 'open' keeps every row (nothing is reviewed yet), so only the paging reset can change the count.
+    await w.find('.ci-investigate-filters__status').setValue('open');
+    await nextTick();
+    expect(rowEls(w)).toHaveLength(FINDINGS_PAGE);
+    w.unmount();
+  });
+
+  it('idle: no report attached shows the not-analysed copy and no finding list; with a report and no selection the detail shows its idle copy (gap closure GRD13)', async () => {
+    const snap = buildSnapshotFixture({ files: 4, directories: 1 });
+    useCityStore().setCity(snap, computeLayout(snap));
+    useCityStore().navigate('investigate');
+    const idle = mountScreen();
+    await nextTick();
+    expect(idle.find('.ci-not-analysed__title').text()).toBe(FALLOW_NOT_ANALYSED_TITLE);
+    expect(idle.find('.ci-not-analysed__body').text()).toBe(FALLOW_NOT_ANALYSED_BODY);
+    expect(idle.find('.ci-investigate-list').exists()).toBe(false);
+    idle.unmount();
+
+    setActivePinia(createPinia());
+    await withReport(4);
+    const loaded = mountScreen();
+    await nextTick();
+    expect(loaded.find('.ci-not-analysed').exists()).toBe(false);
+    expect(loaded.find('.ci-investigate__none-selected').text()).toBe(INVESTIGATE_NONE_SELECTED);
+    loaded.unmount();
   });
 
   it('no row renders a report value as markup: a hostile symbol shows as text, and the screen holds no img', async () => {

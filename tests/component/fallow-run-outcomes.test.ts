@@ -12,9 +12,8 @@ import { computeLayout } from '../../src/domain/layout/layout';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
-import type { StartOutcome } from '../../src/ui/read-models/fallow-run';
 import {
-  FALLOW_EXE_FORGOTTEN, FALLOW_PROFILE_REMOVED, FALLOW_RUN_BUSY_HINT, FALLOW_RUN_ERROR, FALLOW_TRUST_NOT_STARTED,
+  FALLOW_EXE_FORGOTTEN, FALLOW_PROFILE_REMOVED, FALLOW_RUN_BUSY_HINT, FALLOW_RUN_ERROR,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { createFakeFallowAnalysis, fakeRunReview, type FakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
@@ -101,23 +100,6 @@ describe('final review: a busy answer with no run on screen is announced', () =>
 });
 
 describe('final review: Trust and run never leaves the review silent', () => {
-  it.each<[string, StartOutcome]>([
-    ['choose-executable', { kind: 'choose-executable', read: { kind: 'none' } }],
-    ['review', { kind: 'review', review: REVIEW, reason: 'untrusted' }],
-  ])('an outcome that is neither started nor refused (%s) is shown in the dialog\'s alert', async (_kind, outcome) => {
-    const fake = setup();
-    fake.next.run = { kind: 'review', review: REVIEW, reason: 'untrusted' };
-    fake.next.trustAndRun = outcome;
-    const w = mountS();
-    await flushPromises();
-    await pressRun(w);
-    await w.find('.ci-fallow-installed__trust').trigger('click');
-    await flushPromises();
-    expect(w.find('[role="dialog"]').exists()).toBe(true);
-    expect(w.find('[role="alert"]').text()).toBe(FALLOW_TRUST_NOT_STARTED);
-    w.unmount();
-  });
-
   it('a Trust and run refused as profile-removed shows the removal in the alert', async () => {
     const fake = setup();
     fake.next.run = { kind: 'review', review: REVIEW, reason: 'untrusted' };

@@ -2,6 +2,7 @@ import { describe, expect } from 'vitest';
 import { noteText } from '../../src/application/investigation/note-text';
 import { mdCode } from '../../src/application/markdown-code';
 import { PROBE_ESCAPED, PROBE_HOSTILE } from '../support/probe-strings';
+import { YAML_FACT_VALUES } from '../support/yaml-facts';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import type { NativeBrowser } from './session';
@@ -159,10 +160,7 @@ describe('Obsidian facts the investigation notes rely on', () => {
   });
 
   test('stringifyYaml round-trips the frontmatter value shapes as strings', async ({ native: { browser, directory } }) => {
-    const input: Record<string, string> = {
-      a: 'yes', b: 'null', c: '0012', d: 'a: b', e: 'true', f: '~', g: '#x', h: '[[x]]',
-      i: 'snapshot:p1:2026-09-25T10:00:00.000Z', j: 'src/a.ts#UN-00000001', k: 'file:src/a.ts',
-    };
+    const input: Record<string, string> = { ...YAML_FACT_VALUES };
     const observed = await browser.executeObsidian(({ obsidian }, value): { yaml: string; parsed: unknown } => {
       const yaml = obsidian.stringifyYaml(value);
       return { yaml, parsed: obsidian.parseYaml(yaml) };

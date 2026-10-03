@@ -483,6 +483,12 @@ probe results and spec §3). Recorded by task 18.
     short path is a plausible but unproven cause. Nothing in the plugin depends on this (the
     scan and preview read through the Node port, not the vault index), but a future native
     test that expects Obsidian to notice an externally-made edit needs to account for it.
+    **Amended (gap closure GRD12, 2026-10-03):** the plugin no longer depends on the watcher
+    indexing `node:fs` copies. Since WP-04.2 NPF15 (`ca1a8b7`) the note create uses a folder
+    that exists on disk before Obsidian has indexed it, instead of refusing it as
+    write-failed. The environment fact itself stays: the test vault's watcher still does not
+    index files copied in with `node:fs`, so a native test that needs the vault to know such
+    a file must create it through the vault API.
 
 ---
 

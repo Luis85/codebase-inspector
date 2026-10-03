@@ -223,7 +223,7 @@ The new strings live in **`src/ui/audit-copy/fallow-run.ts`**, which `inspector-
 | `SETTINGS_FALLOW_FORGET` | Forget |
 | `SETTINGS_FALLOW_LIMIT_DESC` | Seconds before a fallow analysis is stopped, from 10 to 1800. |
 | `SETTINGS_FALLOW_LIMIT_INVALID` | Enter a whole number of seconds from 10 to 1800. |
-| `SETTINGS_FALLOW_BUSY` | Cancel the fallow analysis for this codebase first. |
+| `SETTINGS_FALLOW_BUSY` | Cancel the fallow analysis for this codebase first. — superseded: see `src/ui/audit-copy/fallow-run.ts:187` (gap closure GRD14) |
 
 `FALLOW_RUN_ERROR: Record<FallowRunErrorCode, (detail: string) => string>`:
 

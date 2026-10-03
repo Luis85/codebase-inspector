@@ -56,4 +56,4 @@ Read semantic host CSS variables and resolve them into plain color values for Th
 
 Before calling WP-01 complete, demonstrate real view mounting and disposal; actual InstancedMesh mapping and picking; top/3D camera restoration; resize with no implicit Fit; keyboard ownership in split leaves; renderer recovery; shared snapshots with independent view state; correct pop-out migration; and unchanged source files after inventory scanning.
 
-Sources: `07-sources-and-limits.md`.
+Sources: `07-sources-and-limits.md`. The `[T1]`-`[T4]` and `[O1]`-`[O2]` citations were re-fetched on 2026-10-03 and every claim above still holds; `[T3]` moved to `https://threejs.org/manual/pages/cleanup.html` (see the re-fetch table there).

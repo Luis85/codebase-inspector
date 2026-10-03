@@ -28,6 +28,11 @@ describe('sanitising a note name (IN21)', () => {
     expect(noteBaseName('', '', 'CONIN$')).toBe('CONIN$_');
     expect(noteBaseName('', '', `LPT${superscriptTwo}`)).toBe(`LPT${superscriptTwo}_`);
   });
+  it('recognises LPT0 and CONOUT$ as reserved names (gap closure GRD13)', () => {
+    expect(noteBaseName('', '', 'LPT0')).toBe('LPT0_');
+    expect(noteBaseName('', '', 'CONOUT$')).toBe('CONOUT$_');
+    expect(noteBaseName('', '', 'conout$.log')).toBe('conout$_.log');
+  });
   it('cuts at 100 code points', () => {
     expect(Array.from(noteBaseName('', '', 'é'.repeat(150)))).toHaveLength(100);
   });

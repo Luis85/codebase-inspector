@@ -55,6 +55,9 @@ export type StartOutcome =
   | { kind: 'refused'; code: FallowRunErrorCode; detail: string }
   | { kind: 'busy' };
 
+/** Gap closure GRD14: trustAndRun starts or refuses; it never asks for a review or an executable. */
+export type TrustAndRunOutcome = Extract<StartOutcome, { kind: 'started' | 'refused' | 'busy' }>;
+
 export interface FallowAnalysisService {
   /** Polish C1 (K41 amended, L2): the platform's executable name, without reading the binding. */
   readonly executableName: 'fallow.exe' | 'fallow';
@@ -62,7 +65,7 @@ export interface FallowAnalysisService {
   review(profileId: string, snapshot: CodebaseSnapshot, executablePath: string): Promise<ReviewResult>;
   checkTrust(profileId: string, snapshot: CodebaseSnapshot): Promise<TrustCheck>;
   run(profileId: string, snapshot: CodebaseSnapshot): Promise<StartOutcome>;
-  trustAndRun(profileId: string, snapshot: CodebaseSnapshot, review: RunReview): Promise<StartOutcome>;
+  trustAndRun(profileId: string, snapshot: CodebaseSnapshot, review: RunReview): Promise<TrustAndRunOutcome>;
   cancel(profileId: string): void;
   forget(profileId: string): Promise<'forgotten' | 'busy' | 'removed'>;
   setTimeLimit(profileId: string, seconds: number): Promise<'saved' | 'invalid' | 'removed'>;
@@ -152,7 +155,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
   const removed = new Set<string>();
   const purged = (profileId: string): boolean => removed.has(profileId);
   const reserved = (profileId: string): boolean => starting.has(profileId) || isActive(coordinator.stateOf(profileId));
-  async function reserve(profileId: string, body: () => Promise<StartOutcome>): Promise<StartOutcome> {
+  async function reserve<T extends StartOutcome>(profileId: string, body: () => Promise<T>): Promise<T | typeof REMOVED | { kind: 'busy' }> {
     if (purged(profileId)) return REMOVED;
     if (reserved(profileId)) return { kind: 'busy' };
     starting.add(profileId);
@@ -206,7 +209,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
     };
   }
 
-  function startPlan(profileId: string, snapshot: CodebaseSnapshot, subject: TrustSubject, timeoutSeconds: number, trustedVersion: string | null): StartOutcome {
+  function startPlan(profileId: string, snapshot: CodebaseSnapshot, subject: TrustSubject, timeoutSeconds: number, trustedVersion: string | null): TrustAndRunOutcome {
     const started = coordinator.start({
       subject, snapshotId: snapshot.snapshotId, timeoutSeconds,
       onProbePassed: async (version) => {

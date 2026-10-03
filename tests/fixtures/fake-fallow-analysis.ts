@@ -6,7 +6,7 @@
 // scripts what the next read answers.
 import { IDLE, type AnalysisRunState } from '../../src/application/analysis/analysis-state';
 import type { AnalyzerBindingRead } from '../../src/application/analysis/analyzer-record';
-import type { FallowAnalysisService, ReviewResult, RunReview, StartOutcome } from '../../src/application/analysis/fallow-analysis-service';
+import type { FallowAnalysisService, ReviewResult, RunReview, StartOutcome, TrustAndRunOutcome } from '../../src/application/analysis/fallow-analysis-service';
 import { FALLOW_ENV_ALLOW_LIST, FALLOW_RUN_ARGS, FALLOW_VERSION_ARGS } from '../../src/application/analysis/fallow-invocation';
 
 export const HARNESS_EXECUTABLE = 'C:\\Tools\\fallow\\fallow.exe';
@@ -23,7 +23,7 @@ export function fakeRunReview(profileId: string, snapshotId: string, rootPath: s
 export interface FakeFallowAnalysis extends FallowAnalysisService {
   readonly calls: { method: string; profileId: string }[];
   next: {
-    run: StartOutcome; trustAndRun: StartOutcome; review: ReviewResult | null;
+    run: StartOutcome; trustAndRun: TrustAndRunOutcome; review: ReviewResult | null;
     forget: 'forgotten' | 'busy' | 'removed'; setTimeLimit: 'saved' | 'invalid' | 'removed';
   };
   setState(profileId: string, state: AnalysisRunState): void;

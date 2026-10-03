@@ -8,7 +8,7 @@ import { computed, onScopeDispose, ref, shallowRef } from 'vue';
 import type { CodebaseSnapshot } from '../../domain/model';
 import { IDLE, isActive, isCancellable, type AnalysisRunState } from '../../application/analysis/analysis-state';
 import type {
-  AnalyzerBindingView, FallowAnalysisService, ReviewResult, RunReview, StartOutcome,
+  AnalyzerBindingView, FallowAnalysisService, ReviewResult, RunReview, StartOutcome, TrustAndRunOutcome,
 } from '../../application/analysis/fallow-analysis-service';
 
 export const useAnalysisStore = defineStore('fallow-analysis', () => {
@@ -104,7 +104,7 @@ export const useAnalysisStore = defineStore('fallow-analysis', () => {
     const t = target(snapshot);
     return t === null ? null : t.service.run(t.id, snapshot);
   };
-  const trustAndRun = async (snapshot: CodebaseSnapshot, reviewed: RunReview): Promise<StartOutcome | null> => {
+  const trustAndRun = async (snapshot: CodebaseSnapshot, reviewed: RunReview): Promise<TrustAndRunOutcome | null> => {
     const t = target(snapshot);
     return t === null ? null : t.service.trustAndRun(t.id, snapshot, reviewed);
   };

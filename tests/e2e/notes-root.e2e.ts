@@ -16,10 +16,10 @@ import { RECORDING, copyProject, cycleFinding } from './workspace-files';
 import { cycleSelected, storeSnapshot } from './cycle-note';
 import { writeEvidence } from './diagnostics';
 
-/** `cycleSelected`, with `code/` made through the vault API first. Observed (investigation.e2e.ts, and again here):
- *  the session vault's watcher never indexes the project copied in from outside Obsidian, so without this the note's
- *  `code/` segment is unknown to the vault, `createFolder('code')` meets the folder on disk, and the create is refused
- *  as write-failed. A person's vault would have indexed it. */
+/** `cycleSelected`, with `code/` made through the vault API first, so the vault knows the folder as a person's would.
+ *  Observed (investigation.e2e.ts, and again here): the session vault's watcher never indexes the project copied in from
+ *  outside Obsidian. Since NPF15 (ca1a8b7) the create no longer refuses such an unindexed folder (it is used, not refused
+ *  as write-failed); the NPF15 scenario below covers that path, and this helper keeps the other scenarios on the indexed one. */
 async function indexedCycle(native: NativeContext): Promise<string> {
   await native.browser.executeObsidian(async ({ app }) => { await app.vault.createFolder('code'); });
   return cycleSelected(native);

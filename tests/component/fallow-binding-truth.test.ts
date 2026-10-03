@@ -8,6 +8,7 @@ import SourcesScreen from '../../src/ui/screens/SourcesScreen.vue';
 import { InMemoryEvidenceStore } from '../../src/adapters/storage/in-memory-evidence-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { ReviewResult, StartOutcome } from '../../src/ui/read-models/fallow-run';
+import type { TrustAndRunOutcome } from '../../src/application/analysis/fallow-analysis-service';
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
@@ -192,7 +193,7 @@ describe('Polish C10: a request that lands mid-step', () => {
 
   it('a request held during Trust and run is dropped once the run starts and the dialog closes', async () => {
     const fake = setup();
-    const starts: ((outcome: StartOutcome) => void)[] = [];
+    const starts: ((outcome: TrustAndRunOutcome) => void)[] = [];
     fake.trustAndRun = () => new Promise((resolve) => { starts.push(resolve); });
     fake.next.run = { kind: 'choose-executable', read: { kind: 'none' } };
     const w = mountS();
