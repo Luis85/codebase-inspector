@@ -5,8 +5,8 @@
 :where(.codebase-inspector-root) .ci-sources__facts dt { color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-sources__facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-sources__run { display: flex; align-items: flex-start; gap: var(--ci-space-2); margin: 0; }
-:where(.codebase-inspector-root) .ci-sources__run--warning { color: var(--ci-tone-warning); }
-:where(.codebase-inspector-root) .ci-sources__run--success .ci-icon { color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-sources__run--warning { color: var(--ci-text-warning); }
+:where(.codebase-inspector-root) .ci-sources__run--success .ci-icon { color: var(--ci-text-success); }
 :where(.codebase-inspector-root) .ci-sources__cancel { margin-top: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-providers { display: flex; flex-direction: column; gap: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-providers__title { margin: 0; }
@@ -16,7 +16,7 @@
   border: 1px solid var(--ci-border); border-radius: var(--ci-radius-card); background: var(--ci-panel);
 }
 :where(.codebase-inspector-root) .ci-provider__head { display: flex; justify-content: space-between; align-items: center; }
-:where(.codebase-inspector-root) .ci-provider__icon { display: inline-flex; padding: var(--ci-space-2); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); color: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-provider__icon { display: inline-flex; padding: var(--ci-space-2); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); color: var(--ci-text-accent); }
 :where(.codebase-inspector-root) .ci-provider__name { margin: 0; }
 :where(.codebase-inspector-root) .ci-provider__text { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-provider__routes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-top: auto; }
@@ -37,15 +37,15 @@
 }
 :where(.codebase-inspector-root) .ci-clear-dialog { display: grid; gap: var(--ci-space-3); max-width: 32em; }
 :where(.codebase-inspector-root) .ci-clear-dialog h3 { margin: 0; }
-:where(.codebase-inspector-root) .ci-clear-dialog__error { margin: 0; color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-clear-dialog__error { margin: 0; color: var(--ci-text-danger); }
 :where(.codebase-inspector-root) .ci-clear-dialog__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); }
 
 /* Part 5 Task 9: Import review state. */
-:where(.codebase-inspector-root) .ci-settings__import-error { margin: var(--ci-space-2) 0 0; color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-settings__import-error { margin: var(--ci-space-2) 0 0; color: var(--ci-text-danger); }
 :where(.codebase-inspector-root) .ci-import-dialog { display: grid; gap: var(--ci-space-3); max-width: 32em; overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-import-dialog h3,
 :where(.codebase-inspector-root) .ci-import-dialog p { margin: 0; }
-:where(.codebase-inspector-root) .ci-import-dialog__error { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-import-dialog__error { color: var(--ci-text-danger); }
 :where(.codebase-inspector-root) .ci-import-dialog__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); }
 
 /* Part 6 Task 10: the fallow card, its report facts, the S14 dialog and the remove confirmation. */
@@ -73,11 +73,11 @@
 :where(.codebase-inspector-root) .ci-connect-fallow h3:focus { outline: none; }
 :where(.codebase-inspector-root) .ci-connect-fallow__eyebrow {
   font-size: var(--font-ui-smaller, 0.8em); letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--ci-action); font-weight: var(--font-semibold);
+  color: var(--ci-text-accent); font-weight: var(--font-semibold);
 }
 :where(.codebase-inspector-root) .ci-connect-fallow__disclosure { padding: var(--ci-space-3); border-left: 3px solid var(--ci-border); background: var(--ci-panel); }
 :where(.codebase-inspector-root) .ci-connect-fallow__mapping { display: flex; align-items: center; gap: var(--ci-space-2); }
-:where(.codebase-inspector-root) .ci-connect-fallow__error { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-connect-fallow__error { color: var(--ci-text-danger); }
 :where(.codebase-inspector-root) .ci-connect-fallow__actions,
 :where(.codebase-inspector-root) .ci-fallow-remove__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-fallow-remove { display: grid; gap: var(--ci-space-3); padding: var(--ci-space-4); max-width: 32em; }
@@ -92,7 +92,7 @@
 :where(.codebase-inspector-root) .ci-fallow-installed h3 { margin: 0; }
 :where(.codebase-inspector-root) .ci-fallow-installed h3:focus { outline: none; }
 :where(.codebase-inspector-root) .ci-fallow-installed__path { width: 100%; font-family: var(--ci-font-mono); }
-:where(.codebase-inspector-root) .ci-fallow-installed__retrust { margin: 0; color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-fallow-installed__retrust { margin: 0; color: var(--ci-text-warning); }
 :where(.codebase-inspector-root) .ci-fallow-review { display: grid; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-fallow-review__facts { display: grid; grid-template-columns: fit-content(40%) minmax(0, 1fr); gap: var(--ci-space-1) var(--ci-space-3); margin: 0; font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-fallow-review__facts dt { color: var(--ci-text-muted); }

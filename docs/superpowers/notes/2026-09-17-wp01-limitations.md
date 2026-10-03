@@ -200,11 +200,13 @@ Two of those rows carry a known hazard rather than merely an absence:
   change palette under the pointer. A tripwire test blocks the naive fix. A full re-skin
   is a design decision for the user, not a defect to fix quietly.
 
-And one contrast question that is a judgement rather than a measurement: the two shipped
-claims ("Read-only source access", "Source remains unchanged.") render inside
-`.ci-snapshot-status`, whose `color: var(--ci-text-muted)` is the lowest-contrast token
-on that surface. No CSS was added for them, to stay out of M113's specificity fight.
-Whether a factual safety claim belongs in the muted token is for a human looking at it.
+And one contrast question that was a judgement rather than a measurement, now decided:
+the two shipped claims ("Read-only source access", "Source remains unchanged.") render
+inside `.ci-snapshot-status`, which is `color: var(--ci-text-muted)`. The owner ruled
+(gap closure GCO16, GRC4) that a factual safety claim renders in the normal text token,
+so `.ci-snapshot-status__claims` now declares `color: var(--ci-text)`. It is one class at
+(0,1,0) on a `<span>`, which no Obsidian element rule colours, so M113's fight (about
+`<button>`s) does not apply. `tests/unit/contrast-gate.test.ts` pins the declaration.
 
 ---
 

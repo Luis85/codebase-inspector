@@ -7,7 +7,16 @@
   --ci-tone-danger: var(--color-red, #d9707a);
   --ci-sample: var(--color-yellow, #c9a44a);
   --ci-font-mono: var(--font-monospace);
-  --ci-text-faint: var(--text-faint);
+  /* GRC3 (GCO12): text tokens, derived the same way as the fills below. Each mixes a host colour into
+     --text-normal until it reaches 4.5:1 on surface, panel and raised in both default themes
+     (tests/unit/contrast-gate.test.ts computes it). The --ci-tone-* colours stay for fills, borders and
+     marks; every color: declaration uses one of these instead. */
+  --ci-text-faint: color-mix(in srgb, var(--text-faint) 45%, var(--text-normal));
+  --ci-text-accent: color-mix(in srgb, var(--interactive-accent) 50%, var(--text-normal));
+  --ci-text-danger: color-mix(in srgb, var(--color-red, #d9707a) 55%, var(--text-normal));
+  --ci-text-warning: color-mix(in srgb, var(--color-orange, #d99a5b) 50%, var(--text-normal));
+  --ci-text-success: color-mix(in srgb, var(--color-green, #5fb98a) 50%, var(--text-normal));
+  --ci-text-sample: color-mix(in srgb, var(--color-yellow, #c9a44a) 45%, var(--text-normal));
   --ci-radius-card: 8px;
   --ci-nav-width: 220px;
   /* Part 5 V17, contrast decision #4 (option B): plugin-owned DERIVED tokens. They mix
@@ -15,18 +24,25 @@
      colour toward the accent's inverted text colour until text on them reaches 4.5:1
      (measured 6.11/5.04 and 5.10/6.11 dark/light at 80 %). Hover moves further, never
      back, so pointing at a button cannot drop it under the threshold. --ci-hover is a
-     neutral hover surface that can be seen (--ci-raised measured 1.03/1.04). */
+     neutral hover surface that can be seen (--ci-raised measured 1.03/1.04).
+     GRC3: no fill can reach 3:1 against the panel while its text keeps 4.5:1, so the hover
+     indicator is the 1px inset --ci-hover-edge (rule at the end of this file); --ci-hover
+     only softens the row behind it. */
   --ci-action-fill: color-mix(in srgb, var(--interactive-accent) 80%, var(--text-on-accent-inverted, black));
   --ci-action-fill-hover: color-mix(in srgb, var(--interactive-accent) 72%, var(--text-on-accent-inverted, black));
   --ci-danger-fill: color-mix(in srgb, var(--background-modifier-error) 80%, var(--text-on-accent-inverted, black));
   --ci-danger-fill-hover: color-mix(in srgb, var(--background-modifier-error) 72%, var(--text-on-accent-inverted, black));
   --ci-hover: color-mix(in srgb, var(--ci-text) 10%, var(--ci-panel));
-  /* WP-03 N32: relation-arc colours (host aliases with fallbacks, the T32 rule). The
-     Relations list's direction glyphs and a small swatch use the same tokens as the
-     arcs, so text and arcs agree. */
+  --ci-hover-edge: var(--text-muted);
+  /* WP-03 N32: relation-arc colours (host aliases with fallbacks, the T32 rule). A small
+     swatch uses the same tokens as the arcs; the Relations list's direction glyphs use
+     their text variants below (same hue), so text and arcs still agree. */
   --ci-relation-out: var(--color-cyan, #53b8c4);
   --ci-relation-in: var(--color-orange, #d99a5b);
   --ci-relation-cycle: var(--color-red, #d9707a);
+  /* GRC3: the glyphs' text colours, the arc hues mixed into --text-normal to 4.5:1. */
+  --ci-text-relation-out: color-mix(in srgb, var(--ci-relation-out) 45%, var(--text-normal));
+  --ci-text-relation-in: color-mix(in srgb, var(--ci-relation-in) 50%, var(--text-normal));
 }
 /* E40: press-to-disable buttons stay focusable (aria-disabled + a guarded handler), so one
    shared rule gives every one of them the pending/added look. */
@@ -40,10 +56,10 @@
   font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--ci-text-muted);
 }
-:where(.codebase-inspector-root) .ci-provenance--sample { color: var(--ci-sample); }
+:where(.codebase-inspector-root) .ci-provenance--sample { color: var(--ci-text-sample); }
 :where(.codebase-inspector-root) .ci-provenance--stale,
-:where(.codebase-inspector-root) .ci-provenance--partial { color: var(--ci-warning); }
-:where(.codebase-inspector-root) .ci-provenance--failed { color: var(--ci-error); }
+:where(.codebase-inspector-root) .ci-provenance--partial { color: var(--ci-text-warning); }
+:where(.codebase-inspector-root) .ci-provenance--failed { color: var(--ci-text-danger); }
 
 :where(.codebase-inspector-root) .ci-callout {
   display: flex; align-items: flex-start; gap: var(--ci-space-3);
@@ -56,7 +72,7 @@
 :where(.codebase-inspector-root) .ci-callout__text { margin: var(--ci-space-1) 0 0; color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-callout__badge {
   align-self: center; padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small);
-  border: 1px solid var(--ci-sample); color: var(--ci-sample);
+  border: 1px solid var(--ci-sample); color: var(--ci-text-sample);
   font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.06em;
 }
 
@@ -65,7 +81,7 @@
 }
 :where(.codebase-inspector-root) .ci-page-header__eyebrow {
   margin: 0; font-size: var(--font-ui-smaller, 0.8em); letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--ci-action); font-weight: var(--font-semibold);
+  color: var(--ci-text-accent); font-weight: var(--font-semibold);
 }
 :where(.codebase-inspector-root) .ci-page-header__title { margin: var(--ci-space-2) 0 0; font-size: 1.6em; }
 /* Part 5 V7: a focus target after navigation, never a control: no ring (like .ci-shell:focus). */
@@ -93,14 +109,14 @@
   display: flex; flex-direction: column; gap: var(--ci-space-2); min-width: 0;
   padding: var(--ci-space-4); border: 1px solid var(--ci-border);
   border-radius: var(--ci-radius-card); background: var(--ci-panel);
-  --ci-card-tone: var(--ci-tone-accent);
+  --ci-card-tone: var(--ci-tone-accent); --ci-card-text: var(--ci-text-accent);
 }
-:where(.codebase-inspector-root) .ci-metric-card--success { --ci-card-tone: var(--ci-tone-success); }
-:where(.codebase-inspector-root) .ci-metric-card--warning { --ci-card-tone: var(--ci-tone-warning); }
-:where(.codebase-inspector-root) .ci-metric-card--danger { --ci-card-tone: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-metric-card--success { --ci-card-tone: var(--ci-tone-success); --ci-card-text: var(--ci-text-success); }
+:where(.codebase-inspector-root) .ci-metric-card--warning { --ci-card-tone: var(--ci-tone-warning); --ci-card-text: var(--ci-text-warning); }
+:where(.codebase-inspector-root) .ci-metric-card--danger { --ci-card-tone: var(--ci-tone-danger); --ci-card-text: var(--ci-text-danger); }
 :where(.codebase-inspector-root) .ci-metric-card__label { display: flex; align-items: center; gap: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-metric-card__row { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--ci-space-3); }
-:where(.codebase-inspector-root) .ci-metric-card__value { margin: 0; font-size: 2em; font-weight: var(--font-semibold); color: var(--ci-card-tone); }
+:where(.codebase-inspector-root) .ci-metric-card__value { margin: 0; font-size: 2em; font-weight: var(--font-semibold); color: var(--ci-card-text); }
 :where(.codebase-inspector-root) .ci-metric-card__unit { font-size: 0.5em; color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-metric-card__caption,
 :where(.codebase-inspector-root) .ci-metric-card__reason { margin: 0; color: var(--ci-text-faint); font-size: var(--font-ui-smaller, 0.8em); }
@@ -218,10 +234,10 @@
   display: inline-flex; align-items: center; padding: 2px var(--ci-space-2); border: 1px solid var(--ci-border);
   border-radius: var(--ci-radius-small); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em);
 }
-:where(.codebase-inspector-root) .ci-chip--sample { border-color: var(--ci-sample); color: var(--ci-sample); }
-:where(.codebase-inspector-root) .ci-chip--danger { border-color: var(--ci-tone-danger); color: var(--ci-tone-danger); }
-:where(.codebase-inspector-root) .ci-chip--warning { border-color: var(--ci-tone-warning); color: var(--ci-tone-warning); }
-:where(.codebase-inspector-root) .ci-chip--success { border-color: var(--ci-tone-success); color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-chip--sample { border-color: var(--ci-sample); color: var(--ci-text-sample); }
+:where(.codebase-inspector-root) .ci-chip--danger { border-color: var(--ci-tone-danger); color: var(--ci-text-danger); }
+:where(.codebase-inspector-root) .ci-chip--warning { border-color: var(--ci-tone-warning); color: var(--ci-text-warning); }
+:where(.codebase-inspector-root) .ci-chip--success { border-color: var(--ci-tone-success); color: var(--ci-text-success); }
 :where(.codebase-inspector-root) .ci-chip--unknown { border-color: var(--ci-border); color: var(--ci-text-faint); }
 
 /* Part 5 V20/V21: looks more than one screen uses, moved here with their bodies unchanged. */
@@ -233,9 +249,9 @@
 /* Severity pill and reference id (were .ci-finding__severity* and .ci-finding__id, screens-explore.css). */
 :where(.codebase-inspector-root) .ci-severity { padding: 1px var(--ci-space-2); border-radius: var(--ci-radius-small); font-size: var(--font-ui-smaller, 0.8em); font-weight: var(--font-semibold); }
 /* Part 6 Y35 (R6): fallow's own severities. Critical keeps the old high fill; high and moderate are borders; unrated is muted. */
-:where(.codebase-inspector-root) .ci-severity--critical { color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent); }
-:where(.codebase-inspector-root) .ci-severity--high { color: var(--ci-tone-danger); border: 1px solid var(--ci-tone-danger); }
-:where(.codebase-inspector-root) .ci-severity--moderate { color: var(--ci-tone-warning); border: 1px solid var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-severity--critical { color: var(--ci-text-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent); }
+:where(.codebase-inspector-root) .ci-severity--high { color: var(--ci-text-danger); border: 1px solid var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-severity--moderate { color: var(--ci-text-warning); border: 1px solid var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-severity--unrated { color: var(--ci-text-muted); border: 1px solid var(--ci-border); }
 :where(.codebase-inspector-root) .ci-ref-id { color: var(--ci-text-faint); font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
 /* Band legend under a chart (was .ci-scatter__legend / .ci-scatter__key*, screens-explore.css). */
@@ -252,7 +268,7 @@
    — that token is the solid `--color-red`, the same colour as the text, so the score was unreadable. */
 :where(.codebase-inspector-root) .ci-priority {
   padding: 2px var(--ci-space-2); border-radius: var(--ci-radius-small); white-space: nowrap;
-  color: var(--ci-tone-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent);
+  color: var(--ci-text-danger); background: color-mix(in srgb, var(--ci-tone-danger) 16%, transparent);
 }
 
 /* Part 5 V17 (option B). Obsidian paints button.mod-cta and button.mod-warning at (0,1,1)
@@ -282,7 +298,7 @@
   border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small);
   color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); overflow-wrap: anywhere;
 }
-:where(.codebase-inspector-root) .ci-evidence-badge--stale { border-color: var(--ci-warning); color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-evidence-badge--stale { border-color: var(--ci-warning); color: var(--ci-text-warning); }
 :where(.codebase-inspector-root) .ci-evidence-badge--collected { border-color: var(--ci-tone-success); }
 /* Part 6 Y35: NotAnalysed, the kit's empty state with its one action. */
 :where(.codebase-inspector-root) .ci-not-analysed { padding: var(--ci-space-4) 0; }
@@ -304,3 +320,32 @@
 }
 :where(.codebase-inspector-root) .ci-city-findings__text { flex: 1 1 auto; min-width: 0; }
 :where(.codebase-inspector-root) .ci-city-findings__via { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+
+/* GRC3 (GCO12): the hover indicator is an edge, not a fill. A hover fill cannot reach 3:1
+   against the panel while the text on it keeps 4.5:1, so every hover that paints --ci-hover
+   (and the WP-01 file-list row, whose --ci-panel hover is as faint) also draws a 1px inset
+   --ci-hover-edge, which reaches 3:1 on every surface (tests/unit/contrast-gate.test.ts).
+   Each selector already ties or beats Obsidian's own button hover at (0,2,1) and wins on
+   order; a box-shadow rather than a border, so nothing moves. */
+:where(.codebase-inspector-root) button.ci-app__mode-toggle:hover,
+:where(.codebase-inspector-root) button.ci-selection-notice__reveal:hover,
+:where(.codebase-inspector-root) button.ci-selection-notice__clear:hover,
+:where(.codebase-inspector-root) button.ci-app__drawer-close:hover,
+:where(.codebase-inspector-root) button.ci-toolbar__scan:hover,
+:where(.codebase-inspector-root) button.ci-file-list__group-focus:hover,
+:where(.codebase-inspector-root) button.ci-file-list__row:hover,
+:where(.codebase-inspector-root) .ci-camera-controls button:hover,
+:where(.codebase-inspector-root) .ci-table__row:hover,
+:where(.codebase-inspector-root) button.ci-nav__item:hover,
+:where(.codebase-inspector-root) button.ci-toolbar__cancel:hover,
+:where(.codebase-inspector-root) button.ci-investigation:hover,
+:where(.codebase-inspector-root) button.ci-city-summary__card:hover,
+:where(.codebase-inspector-root) button.ci-module-inspector__file:hover,
+:where(.codebase-inspector-root) button.ci-cycle-list__select:hover,
+:where(.codebase-inspector-root) button.ci-file-relations__select:hover,
+:where(.codebase-inspector-root) button.ci-city-relations__select:hover,
+:where(.codebase-inspector-root) button.ci-shortlist__item:hover,
+:where(.codebase-inspector-root) button.ci-file-finding__review:hover,
+:where(.codebase-inspector-root) button.ci-advisory__open:hover { box-shadow: inset 0 0 0 1px var(--ci-hover-edge); }
+/* A static table row has nothing to activate, so it shows no hover at all (E28/E45). */
+:where(.codebase-inspector-root) .ci-table__row--static:hover { box-shadow: none; }

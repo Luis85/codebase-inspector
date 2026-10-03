@@ -13,9 +13,12 @@
      forbids REDEFINING one, which this does not do. */
   --ci-action-hover: var(--interactive-accent-hover);
   --ci-on-action: var(--text-on-accent);
-  --ci-focus: var(--background-modifier-border-focus, var(--interactive-accent));
-  --ci-error: var(--text-error);
-  --ci-warning: var(--text-warning);
+  /* GRC3 (GCO12): the focus ring and the two status colours use kit.css's derived text tokens
+     (focus 3:1, text 4.5:1 in both default themes; tests/unit/contrast-gate.test.ts). The host's
+     --background-modifier-border-focus measured 2.24/1.88 dark/light on the surface. */
+  --ci-focus: var(--ci-text-accent);
+  --ci-error: var(--ci-text-danger);
+  --ci-warning: var(--ci-text-warning);
   --ci-space-1: 4px; --ci-space-2: 8px; --ci-space-3: 12px;
   --ci-space-4: 16px; --ci-space-5: 20px; --ci-space-6: 24px;
   --ci-radius-small: 4px; --ci-radius-control: 6px; --ci-radius-modal: 10px;
@@ -606,7 +609,7 @@
   position: absolute;
   inset: auto var(--ci-space-3) var(--ci-space-3) var(--ci-space-3);
   margin: 0;
-  color: var(--ci-warning);
+  color: var(--ci-text-warning);
   background: var(--ci-surface);
   padding: var(--ci-space-2);
   border-radius: var(--ci-radius-small);
@@ -757,13 +760,17 @@
   color: var(--ci-text-muted);
 }
 /* Task 8: the age line stays exactly as ci-snapshot-status looked before this task
-   (no color/margin change -- docs/superpowers/notes/2026-09-17-wp01-limitations.md
-   records that the two safety claims deliberately inherit the muted token with no
-   CSS of their own, to stay out of ruling M113's specificity fight; this preserves
-   that by not touching color here either). <details>/<summary> get only the spacing
-   they need to sit under the age line -- no color override for the same reason. */
+   (muted, no margin). <details>/<summary> get only the spacing they need to sit under
+   the age line. GRC4 (GCO16): the two safety claims are facts about what the scan did to
+   the user's files, so they render in --ci-text, not the muted token they used to
+   inherit. The rule is one class at (0,1,0) on a <span>: no Obsidian element rule
+   colours a span, so it needs no type bump (ruling M113's fight is about <button>s),
+   and a snippet scoped to the root still overrides it. */
 :where(.codebase-inspector-root) .ci-snapshot-status__age {
   margin: 0;
+}
+:where(.codebase-inspector-root) .ci-snapshot-status__claims {
+  color: var(--ci-text);
 }
 :where(.codebase-inspector-root) .ci-snapshot-status__details {
   margin-top: var(--ci-space-1);

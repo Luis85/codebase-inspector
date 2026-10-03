@@ -56,7 +56,7 @@
 }
 :where(.codebase-inspector-root) button.ci-nav__workspace { color: var(--ci-text); font-weight: var(--font-semibold); }
 :where(.codebase-inspector-root) button.ci-nav__item:hover { background: var(--ci-hover); color: var(--ci-text); }
-:where(.codebase-inspector-root) button.ci-nav__item[aria-current="page"] { background: var(--ci-raised); color: var(--ci-action); }
+:where(.codebase-inspector-root) button.ci-nav__item[aria-current="page"] { background: var(--ci-raised); color: var(--ci-text-accent); }
 :where(.codebase-inspector-root) .ci-nav__label { flex: 1 1 auto; }
 :where(.codebase-inspector-root) .ci-nav__badge {
   padding: 0 var(--ci-space-2); border-radius: var(--ci-radius-small);

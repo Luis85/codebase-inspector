@@ -55,7 +55,7 @@
 :where(.codebase-inspector-root) .ci-rule-table__empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-3); color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-rule-table__show { margin-inline-end: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-rule-status { font-weight: var(--font-semibold); margin-right: var(--ci-space-2); }
-:where(.codebase-inspector-root) .ci-rule-status--violation { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-rule-status--violation { color: var(--ci-text-danger); }
 :where(.codebase-inspector-root) .ci-rule-status--not-evaluated { color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-boundary__id { display: flex; align-items: center; gap: var(--ci-space-2); margin: 0; }
 :where(.codebase-inspector-root) .ci-boundary__rule { margin: var(--ci-space-3) 0 var(--ci-space-1); font-weight: var(--font-semibold); }
@@ -65,7 +65,7 @@
 :where(.codebase-inspector-root) .ci-rule-editor { display: flex; flex-direction: column; gap: var(--ci-space-2); min-width: min(26em, 80vw); padding: var(--ci-space-4); }
 :where(.codebase-inspector-root) .ci-rule-editor__title { margin: 0; }
 :where(.codebase-inspector-root) .ci-rule-editor__hint { margin: 0 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
-:where(.codebase-inspector-root) .ci-rule-editor__error { margin: 0; color: var(--ci-error); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-rule-editor__error { margin: 0; color: var(--ci-text-danger); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-rule-editor__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); margin-top: var(--ci-space-3); }
 /* WP-03 N21/N24: the selected cycle on the Map (the violating-edge style, reused), the Cycles
    and Edges tabs, the cycle inspector and "Configured in fallow". */
@@ -92,7 +92,7 @@
 :where(.codebase-inspector-root) .ci-edge-list__filters { display: flex; flex-wrap: wrap; gap: var(--ci-space-3); }
 :where(.codebase-inspector-root) .ci-edge-list__filter { display: inline-flex; align-items: center; gap: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) button.ci-edge-list__from {
-  height: auto; padding: 0; border: none; box-shadow: none; background: transparent; color: var(--ci-action);
+  height: auto; padding: 0; border: none; box-shadow: none; background: transparent; color: var(--ci-text-accent);
   font-family: var(--ci-font-mono); text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer;
 }
 :where(.codebase-inspector-root) button.ci-edge-list__from:hover { text-decoration: underline; }
@@ -146,8 +146,8 @@
 :where(.codebase-inspector-root) button.ci-city-relations__select:hover { background: var(--ci-hover); }
 :where(.codebase-inspector-root) button.ci-city-relations__select:focus-visible { outline: 2px solid var(--ci-focus); outline-offset: 2px; }
 :where(.codebase-inspector-root) .ci-city-relations__glyph { font-weight: var(--font-semibold); }
-:where(.codebase-inspector-root) .ci-city-relations__glyph--out { color: var(--ci-relation-out); }
-:where(.codebase-inspector-root) .ci-city-relations__glyph--in { color: var(--ci-relation-in); }
+:where(.codebase-inspector-root) .ci-city-relations__glyph--out { color: var(--ci-text-relation-out); }
+:where(.codebase-inspector-root) .ci-city-relations__glyph--in { color: var(--ci-text-relation-in); }
 :where(.codebase-inspector-root) .ci-city-relations__path { flex: 1 1 0; min-width: 0; font-family: var(--ci-font-mono); overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-city-relations__source,
 :where(.codebase-inspector-root) .ci-city-relations__hop,
@@ -171,7 +171,7 @@
 :where(.codebase-inspector-root) .ci-scatter__grid line { stroke: var(--ci-border); stroke-dasharray: 3 4; }
 :where(.codebase-inspector-root) .ci-scatter__grid text { fill: var(--ci-text-faint); font-size: 11px; }
 :where(.codebase-inspector-root) .ci-scatter__quadrant { fill: var(--ci-raised); }
-:where(.codebase-inspector-root) .ci-scatter__quadrant-label { fill: var(--ci-tone-danger); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+:where(.codebase-inspector-root) .ci-scatter__quadrant-label { fill: var(--ci-text-danger); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
 :where(.codebase-inspector-root) .ci-scatter__dot { stroke: var(--ci-surface); stroke-width: 1; opacity: 0.85; cursor: pointer; }
 :where(.codebase-inspector-root) .ci-scatter__dot--low { fill: var(--ci-tone-danger); }
 :where(.codebase-inspector-root) .ci-scatter__dot--mid { fill: var(--ci-tone-warning); }
