@@ -7,6 +7,7 @@ import { FINDING_STATUS_LABEL } from '../../src/ui/audit-copy/quality';
 import { ROUTE_META } from '../../src/ui/routes';
 import { commandAvailable, openPluginSettings } from './host-probes';
 import { createFallowSteps } from './inspector-fallow';
+import { createScanSteps, type ConnectMode } from './inspector-scan';
 import { decodePng, type Png } from './png';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
 
@@ -33,8 +34,6 @@ const settingsRowXpath = (name: string): string => `//*[${hasClass('mod-settings
 const profileRowXpath = (name: string): string =>
   `//*[${hasClass('mod-settings')}]//*[${hasClass('mod-list')}]//*[${hasClass('setting-item')} and ${hasClass('mod-navigable')}]${namedItem(name)}`;
 const PROFILE_NAMES = '.modal.mod-settings .setting-group.mod-list .setting-item.mod-navigable > .setting-item-info > .setting-item-name';
-/** The source modal's two modes a test drives: a vault folder, or an absolute path (the modal's `external`). */
-export type ConnectMode = 'vault-folder' | 'absolute';
 
 /** Fix round 1 (Important 1): the city commands act on the ACTIVE CityView and silently do nothing without one
  *  (commands.ts), and the main window regains focus only some time after the settings window closes. Makes the city
@@ -70,18 +69,10 @@ async function trimmedText(element: { getProperty(name: string): Promise<unknown
 
 export function createInspectorPage(browser: NativeBrowser) {
   const root = () => browser.$(`.workspace-leaf-content[data-type="${CITY_VIEW_TYPE}"] .codebase-inspector-root`);
-  // One selector per call, so a modal that is still closing never scopes the search.
-  const inModal = (selector: string) => browser.$(`.modal-container ${selector}`);
-  /** The source modal: the mode, the folder, Continue. */
-  const chooseSource = async (folder: string, mode: ConnectMode): Promise<void> => {
-    const [value, field] = mode === 'vault-folder' ? ['vault-folder', 'vault-folder-path'] : ['external', 'external-path'];
-    const radio = inModal(`input[type="radio"][name="source-mode"][value="${value}"]`);
-    // A command that did nothing fails here, by name, rather than as a missing element.
-    await expect.poll(() => radio.isExisting()).toBe(true);
-    await radio.click();
-    await inModal(`[data-field="${field}"]`).setValue(folder);
-    await inModal('[data-action="continue"]').click();
-  };
+  /** Before a city command: the city leaf is the main window's active view (see cityActive). */
+  const activateCity = async (): Promise<void> => { await expect.poll(() => cityActive(browser)).toBe(true); };
+  // The source and scope modals (inspector-scan.ts); only scanFolderNoWait is spread into the page.
+  const { inModal, chooseSource, approveScope, ...scanSteps } = createScanSteps(browser, activateCity);
   /** The open profile page in the settings window (NPF7). */
   const settingsPage = () => browser.$('.modal.mod-settings .setting-page.vertical-tab-content');
   /** Connect or Reconnect on the open profile page. Observed (Task 2): the source modal opens in the SETTINGS
@@ -95,9 +86,7 @@ export function createInspectorPage(browser: NativeBrowser) {
     await expect.poll(() => inModal('[data-action="continue"]').isExisting()).toBe(false);
     await expect.poll(() => settingsPage().$('[data-action="clear-binding"]').isExisting()).toBe(true);
   };
-  /** Before a city command: the city leaf is the main window's active view (see cityActive). */
-  const activateCity = async (): Promise<void> => { await expect.poll(() => cityActive(browser)).toBe(true); };
-  const navigate = async (title: string): Promise<void> => {
+  const navigate =async (title: string): Promise<void> => {
     const item = root().$(`.ci-nav__item*=${title}`);
     if (!(await item.isDisplayed())) await root().$('.ci-topbar__menu').click();
     await item.click();
@@ -113,15 +102,6 @@ export function createInspectorPage(browser: NativeBrowser) {
   const scanned = async (before: string | null): Promise<void> => {
     await expect.poll(() => snapshotIdOf(browser), { timeout: 60_000 }).not.toBe(before);
     await expect.poll(() => snapshotIdOf(browser)).not.toBeNull();
-  };
-  /** The scope modal (it must open): the acknowledgement, then Scan once it is enabled. */
-  const approveScope = async (): Promise<void> => {
-    const acknowledge = inModal('[data-field="acknowledge"]');
-    await expect.poll(() => acknowledge.isExisting()).toBe(true);
-    await acknowledge.click();
-    const scan = inModal('[data-action="confirm-scan"]');
-    await expect.poll(() => scan.isEnabled()).toBe(true);
-    await scan.click();
   };
   /** The create dialog's folder field, its exclusion checkbox and the path it plans (O7, IN26, IP26). */
   const folderField = () => root().$('.ci-create-note__folder');
@@ -140,6 +120,7 @@ export function createInspectorPage(browser: NativeBrowser) {
   };
   return {
     ...createFallowSteps(browser, root, navigate),
+    ...scanSteps,
     root,
     screen: (route: string) => root().$(`.ci-screen--${route}`),
     async openCity(): Promise<void> {

@@ -2,9 +2,11 @@
 // Scenario 3: a scanned city is recoloured by Obsidian's own `css-change` (probe d, NPF5) with no rebuild. Probe e
 // (NPF6): the canvas element's WebDriver screenshot is at DPR 2 and its pixel (2,2) is the renderer's clear colour,
 // the resolved `--ci-surface`. A switch to the current theme fires no `css-change`, so the themes always alternate.
+// A MutationObserver on the canvas's parent sees no removal across the switches, and one when the leaf closes (GRD7).
 // Scenario 4: a city leaf on Quality comes back on Quality after `reloadObsidian()` (NPF4), with no scan and no
 // modal, and the no-snapshot state (the snapshot store is in memory, WP-01 §4.5); workspace.json holds no absolute
 // path (WP-01 §4.4), in either of the vault's two spellings (NPF9: 8.3 and `realpathSync.native`'s long form).
+// Its "no scan" probe gets its own positive control: a modal scan started afterwards makes it read true (GRD6).
 // IPF20: nothing here matches Obsidian's own UI text; nav labels come from ROUTE_META (WP-04.2 E6).
 import { realpathSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,7 +16,7 @@ import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import { commandAvailable, setTheme } from './host-probes';
 import { CITY_VIEW_TYPE, type NativeBrowser } from './session';
-import { copyProject } from './workspace-files';
+import { copyProject, writeSyntheticTree } from './workspace-files';
 
 type Rgb = [number, number, number];
 /** A mark set on the canvas element before the first switch: a rebuilt canvas would not carry it. */
@@ -23,6 +25,8 @@ const MARK = 'data-ci-e2e-canvas';
 const TOLERANCE = 3;
 /** NE13's positive control: the two themes' surfaces differ by more than this in some channel. */
 const THEMES_APART = 24;
+/** GRD6: scenario 4's scan-running control scans this many files (NPF8: about 7 s uncancelled, a window to cancel in). */
+const SYNTHETIC_FILES = 2_000;
 
 const distance = (a: readonly number[], b: readonly number[]): number => Math.max(...[0, 1, 2].map((i) => Math.abs((a[i] ?? 0) - (b[i] ?? 0))));
 
@@ -38,6 +42,15 @@ const canvases = (browser: NativeBrowser): Promise<{ all: number; marked: number
   const el = app.workspace.getLeavesOfType(type)[0]?.view.containerEl;
   return { all: el?.querySelectorAll('canvas').length ?? 0, marked: el?.querySelectorAll(`canvas[${mark}]`).length ?? 0 };
 }, CITY_VIEW_TYPE, MARK);
+
+/** GRD7: the observer scenario 3 installs on the canvas's parent (`window.ciCanvasObserver`). */
+type ObserverWindow = Window & { ciCanvasObserver?: { removed: number; observer: MutationObserver } };
+/** How many times the marked canvas has left its parent since the observer was installed. */
+const markedRemovals = (browser: NativeBrowser): Promise<number> => browser.executeObsidian((): number => {
+  const probe = (window as ObserverWindow).ciCanvasObserver;
+  if (!probe) throw new Error('no canvas observer installed');
+  return probe.removed;
+});
 
 /** The first layout node whose view state names the city type: that view state's own `state`, or null. */
 function cityLeafIn(node: unknown): Record<string, unknown> | null {
@@ -88,34 +101,54 @@ describe('the city leaf in the real Obsidian host (WP-04.2 NE12, NE13)', () => {
     await expect.poll(async () => (await leafState(browser)).camera).not.toBeNull();
     const { camera } = await leafState(browser);
     const canvasId = await inspector.root().$('canvas').elementId;
+    // GRD7: the mark, and an observer on the canvas's parent counting every removal of the marked canvas, both before the
+    // first switch. A reconstruct that puts the same element back keeps its identity and mark, but not this count.
     await browser.executeObsidian(({ app }, type, mark) => {
-      app.workspace.getLeavesOfType(type)[0]?.view.containerEl.querySelector('canvas')?.setAttribute(mark, '1');
+      const canvas = app.workspace.getLeavesOfType(type)[0]?.view.containerEl.querySelector('canvas');
+      if (!canvas?.parentElement) throw new Error('the city leaf holds no mounted canvas');
+      canvas.setAttribute(mark, '1');
+      const probe = { removed: 0, observer: new MutationObserver((records) => {
+        for (const record of records) probe.removed += Array.from(record.removedNodes).filter((node) => (node as Element).hasAttribute?.(mark)).length;
+      }) };
+      probe.observer.observe(canvas.parentElement, { childList: true });
+      Object.assign(window, { ciCanvasObserver: probe });
     }, CITY_VIEW_TYPE, MARK);
+    try {
+      // Positive control, first (probe d): the two themes' surfaces are far enough apart for the pixel to tell them apart.
+      const surface: Record<'dark' | 'light', Rgb> = { dark: await inspector.resolvedColor('--ci-surface'), light: [0, 0, 0] };
+      await setTheme(browser, 'light');
+      surface.light = await inspector.resolvedColor('--ci-surface');
+      expect(distance(surface.dark, surface.light)).toBeGreaterThan(THEMES_APART);
 
-    // Positive control, first (probe d): the two themes' surfaces are far enough apart for the pixel to tell them apart.
-    const surface: Record<'dark' | 'light', Rgb> = { dark: await inspector.resolvedColor('--ci-surface'), light: [0, 0, 0] };
-    await setTheme(browser, 'light');
-    surface.light = await inspector.resolvedColor('--ci-surface');
-    expect(distance(surface.dark, surface.light)).toBeGreaterThan(THEMES_APART);
-
-    const observed: { theme: string; resolved: Rgb; pixel: number[]; size: number[]; elementId: string }[] = [];
-    for (const [step, theme] of (['dark', 'light', 'dark'] as const).entries()) {
-      await setTheme(browser, theme);
-      const resolved = await inspector.resolvedColor('--ci-surface');
-      expect(resolved).toEqual(surface[theme]);
-      const file = join(directory, `canvas-${step}-${theme}.png`);
-      await expect.poll(async () => distance((await inspector.canvasShot(file)).pixel(2, 2), resolved)).toBeLessThanOrEqual(TOLERANCE);
-      const shot = await inspector.canvasShot(file);
-      const elementId = await inspector.root().$('canvas').elementId;
-      observed.push({ theme, resolved, pixel: shot.pixel(2, 2), size: [shot.width, shot.height], elementId });
-      // Unchanged by the switch: the same canvas element (no rebuild, no second renderer), camera and selection.
-      expect(elementId).toBe(canvasId);
-      expect(await canvases(browser)).toEqual({ all: 1, marked: 1 });
-      const state = await leafState(browser);
-      expect(state.camera).toEqual(camera);
-      expect(state.selectedEntityId).toBe(selected);
+      const observed: { theme: string; resolved: Rgb; pixel: number[]; size: number[]; elementId: string }[] = [];
+      for (const [step, theme] of (['dark', 'light', 'dark'] as const).entries()) {
+        await setTheme(browser, theme);
+        const resolved = await inspector.resolvedColor('--ci-surface');
+        expect(resolved).toEqual(surface[theme]);
+        const file = join(directory, `canvas-${step}-${theme}.png`);
+        await expect.poll(async () => distance((await inspector.canvasShot(file)).pixel(2, 2), resolved)).toBeLessThanOrEqual(TOLERANCE);
+        const shot = await inspector.canvasShot(file);
+        const elementId = await inspector.root().$('canvas').elementId;
+        observed.push({ theme, resolved, pixel: shot.pixel(2, 2), size: [shot.width, shot.height], elementId });
+        // Unchanged by the switch: the same canvas element (no rebuild, no second renderer), camera and selection.
+        expect(elementId).toBe(canvasId);
+        expect(await canvases(browser)).toEqual({ all: 1, marked: 1 });
+        const state = await leafState(browser);
+        expect(state.camera).toEqual(camera);
+        expect(state.selectedEntityId).toBe(selected);
+      }
+      const removedBySwitches = await markedRemovals(browser);
+      expect(removedBySwitches).toBe(0);
+      // Positive control: closing the city leaf disposes its renderer, whose dispose() removes that very canvas.
+      await browser.executeObsidian(({ app }, type) => { app.workspace.getLeavesOfType(type)[0]?.detach(); }, CITY_VIEW_TYPE);
+      await expect.poll(() => markedRemovals(browser)).toBe(1);
+      await writeEvidence(directory, 'theme', { surface, selected, camera, elementId: canvasId, observed, removedBySwitches });
+    } finally {
+      await browser.executeObsidian(() => {
+        (window as ObserverWindow).ciCanvasObserver?.observer.disconnect();
+        delete (window as ObserverWindow).ciCanvasObserver;
+      });
     }
-    await writeEvidence(directory, 'theme', { surface, selected, camera, elementId: canvasId, observed });
   });
 
   test("restores the city leaf's route after an app restart without scanning", async ({ native: { browser, page, inspector, directory } }) => {
@@ -164,5 +197,17 @@ describe('the city leaf in the real Obsidian host (WP-04.2 NE12, NE13)', () => {
     };
     await writeEvidence(directory, 'restore', { paths, forced, saved, after });
     expect(after).toMatchObject({ leaves: 1, state: { route: 'quality' }, noSnapshot: true, modals: 0, scanning: false });
+
+    // GRD6 (E17): `scanning: false`'s own positive control, in this scenario. A modal scan of a 2 000-file tree, started
+    // without waiting, makes the same probe read true; the cancel makes it read false again.
+    writeSyntheticTree(join(vault, 'big'), SYNTHETIC_FILES);
+    await expect.poll(() => browser.executeObsidian(({ app }) => app.vault.adapter.exists('big/src/index.ts'))).toBe(true);
+    const started = Date.now();
+    await inspector.scanFolderNoWait('big');
+    await expect.poll(() => commandAvailable(browser, 'cancel-scan')).toBe(true);
+    const runningAfterMs = Date.now() - started;
+    await browser.executeObsidianCommand('codebase-inspector:cancel-scan');
+    await expect.poll(() => commandAvailable(browser, 'cancel-scan'), { timeout: 30_000 }).toBe(false);
+    await writeEvidence(directory, 'scan-control', { files: SYNTHETIC_FILES, runningAfterMs, stoppedAfterMs: Date.now() - started });
   }, 300_000);
 });
