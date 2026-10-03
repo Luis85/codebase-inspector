@@ -169,12 +169,12 @@ Four read-only audits checked every row against the code at `1baa572`. **Fix** m
   | Where | Today | Proposed |
   |---|---|---|
   | `CLAIM_SOURCE_UNCHANGED` (WP-04 E29) | "Scanning never changes the source." | "Scans and previews never change source files." |
-  | `RULE_NOT_EVALUATED_REASON` (WP-03 E7) | (current) | "One of this rule's modules is not shown in the module graph, so it cannot be checked." |
-  | `ARCH_MAP_EYEBROW` | (current) | "Module graph · evidenced imports only" |
-  | `ARCH_MATRIX_CAPTION` | (current) | "Evidenced imports from each row module to each column module (cycle and boundary imports only)" |
-  | `ARCH_NODE_LABEL` | "… 1 files …" | "{label}: {n} file(s); evidenced imports: {out} outgoing, {in} incoming" |
-  | `RULES_EMPTY` | (current) | "No boundary rules yet. Add one to check an intended boundary against fallow's evidenced imports." |
-  | `BOUNDARY_INSPECTOR_SUBTITLE` | (current, with "vs.") | "Your rule, checked against evidenced imports." |
+  | `RULE_NOT_EVALUATED_REASON` (WP-03 E7) | "A module in this rule is not in the module graph." | "One of this rule's modules is not shown in the module graph, so it cannot be checked." |
+  | `ARCH_MAP_EYEBROW` | "Module graph · evidenced imports" | "Module graph · evidenced imports only" |
+  | `ARCH_MATRIX_CAPTION` | "Evidenced imports from each row module to each column module" | "Evidenced imports from each row module to each column module (cycle and boundary imports only)" |
+  | `ARCH_NODE_LABEL` | "{label}, {n} files, {out} outgoing, {in} incoming, evidenced imports" (gives "1 files") | "{label}: {n} file(s); evidenced imports: {out} outgoing, {in} incoming" |
+  | `RULES_EMPTY` | "No boundary rules yet. Add one to compare an intended boundary with fallow's evidenced imports." | "No boundary rules yet. Add one to check an intended boundary against fallow's evidenced imports." |
+  | `BOUNDARY_INSPECTOR_SUBTITLE` | "Intended rule vs. evidenced imports." | "Your rule, checked against evidenced imports." |
   | `ARCH_RULES_CAPTION` (JP3) | "{n} rules · {m} not evaluated" (gives "1 rules") | "{n} rule(s) · {m} not evaluated", correctly pluralised. The five cards stay, per WP-03 Polish E4. |
   | `RETRY_3D` (GRA2) | — | "Retry 3D" |
   | Matrix diagonal (GRC8) | "Same module" | "Same module · {n} boundary violation(s) inside" |
