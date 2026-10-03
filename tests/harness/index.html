@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Codebase Inspector — harness</title>
+		<!-- An empty icon, so no browser fetches /favicon.ico on its own: that request
+		     404s, and scripts/harness-shot.mjs treats a console error as a real one. -->
+		<link rel="icon" href="data:," />
+		<!-- The ORDER is load-bearing and tests/harness/harness.test.ts pins it.
+		     Obsidian's real app.css first, so element defaults are the host's; then the
+		     harness chrome; then the plugin's own sheet, which must win over both. -->
+		<link rel="stylesheet" href="./obsidian.css" />
+		<link rel="stylesheet" href="./harness.css" />
+		<link rel="stylesheet" href="/styles.css" />
+	</head>
+	<body class="theme-dark">
+		<script type="module" src="./page.ts"></script>
+	</body>
+</html>

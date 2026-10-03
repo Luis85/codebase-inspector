@@ -1,0 +1,112 @@
+/* WP-02 screens, Configure area: Data & scans and Settings (Part 4). */
+
+/* Part 4 Task 12: Data & scans. */
+:where(.codebase-inspector-root) .ci-sources__facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0 0 var(--ci-space-3); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-sources__facts dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-sources__facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-sources__run { display: flex; align-items: flex-start; gap: var(--ci-space-2); margin: 0; }
+:where(.codebase-inspector-root) .ci-sources__run--warning { color: var(--ci-tone-warning); }
+:where(.codebase-inspector-root) .ci-sources__run--success .ci-icon { color: var(--ci-tone-success); }
+:where(.codebase-inspector-root) .ci-sources__cancel { margin-top: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-providers { display: flex; flex-direction: column; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-providers__title { margin: 0; }
+:where(.codebase-inspector-root) .ci-providers__grid { display: grid; gap: var(--ci-space-4); grid-template-columns: repeat(auto-fill, minmax(16em, 1fr)); }
+:where(.codebase-inspector-root) .ci-provider {
+  display: flex; flex-direction: column; gap: var(--ci-space-2); padding: var(--ci-space-4);
+  border: 1px solid var(--ci-border); border-radius: var(--ci-radius-card); background: var(--ci-panel);
+}
+:where(.codebase-inspector-root) .ci-provider__head { display: flex; justify-content: space-between; align-items: center; }
+:where(.codebase-inspector-root) .ci-provider__icon { display: inline-flex; padding: var(--ci-space-2); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); color: var(--ci-tone-accent); }
+:where(.codebase-inspector-root) .ci-provider__name { margin: 0; }
+:where(.codebase-inspector-root) .ci-provider__text { margin: 0; color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-provider__routes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ci-space-2); margin-top: auto; }
+
+/* Part 4 Task 13: Settings. */
+:where(.codebase-inspector-root) .ci-settings__rows { display: flex; flex-direction: column; }
+:where(.codebase-inspector-root) .ci-setting-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ci-space-4);
+  padding: var(--ci-space-4) 0; border-bottom: 1px solid var(--ci-border);
+}
+:where(.codebase-inspector-root) .ci-setting-row:last-child { border-bottom: none; }
+:where(.codebase-inspector-root) .ci-setting-row h3 { margin: 0 0 var(--ci-space-1); font-size: var(--font-ui-medium, 1em); }
+:where(.codebase-inspector-root) .ci-setting-row--stacked { flex-direction: column; align-items: stretch; }
+:where(.codebase-inspector-root) .ci-settings__shortcuts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0; }
+:where(.codebase-inspector-root) .ci-settings__shortcuts dd { margin: 0; color: var(--ci-text-muted); }
+@container (max-width: 560px) {
+  :where(.codebase-inspector-root) .ci-setting-row { flex-direction: column; align-items: flex-start; }
+}
+:where(.codebase-inspector-root) .ci-clear-dialog { display: grid; gap: var(--ci-space-3); max-width: 32em; }
+:where(.codebase-inspector-root) .ci-clear-dialog h3 { margin: 0; }
+:where(.codebase-inspector-root) .ci-clear-dialog__error { margin: 0; color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-clear-dialog__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); }
+
+/* Part 5 Task 9: Import review state. */
+:where(.codebase-inspector-root) .ci-settings__import-error { margin: var(--ci-space-2) 0 0; color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-import-dialog { display: grid; gap: var(--ci-space-3); max-width: 32em; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-import-dialog h3,
+:where(.codebase-inspector-root) .ci-import-dialog p { margin: 0; }
+:where(.codebase-inspector-root) .ci-import-dialog__error { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-import-dialog__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); }
+
+/* Part 6 Task 10: the fallow card, its report facts, the S14 dialog and the remove confirmation. */
+:where(.codebase-inspector-root) .ci-fallow-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-fallow-card p { margin: 0; }
+:where(.codebase-inspector-root) .ci-fallow-card__actions { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); }
+/* E46: in the ~200px card a label column starved the values to one character, so labels
+   stack over values; only the wide S14 review step sets them side by side, the label
+   column bounded so a value never has less than 60% of the row. */
+:where(.codebase-inspector-root) .ci-fallow-facts {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 0;
+  align-self: stretch; margin: 0; font-size: var(--font-ui-small, 0.9em);
+}
+:where(.codebase-inspector-root) .ci-fallow-facts dd + dt { margin-top: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-fallow-facts--wide { grid-template-columns: fit-content(40%) minmax(0, 1fr); gap: var(--ci-space-1) var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-fallow-facts--wide dd + dt { margin-top: 0; }
+:where(.codebase-inspector-root) .ci-fallow-facts dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-fallow-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-fallow-facts__list { margin: 0; padding-left: 1.2em; }
+:where(.codebase-inspector-root) .ci-fallow-facts__more { margin: 0; }
+:where(.codebase-inspector-root) .ci-connect-fallow { display: grid; gap: var(--ci-space-3); padding: var(--ci-space-4); overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-connect-fallow h3,
+:where(.codebase-inspector-root) .ci-connect-fallow p { margin: 0; }
+/* A focus target after the step changes, never a control: no ring (like .ci-page-header__title). */
+:where(.codebase-inspector-root) .ci-connect-fallow h3:focus { outline: none; }
+:where(.codebase-inspector-root) .ci-connect-fallow__eyebrow {
+  font-size: var(--font-ui-smaller, 0.8em); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ci-action); font-weight: var(--font-semibold);
+}
+:where(.codebase-inspector-root) .ci-connect-fallow__disclosure { padding: var(--ci-space-3); border-left: 3px solid var(--ci-border); background: var(--ci-panel); }
+:where(.codebase-inspector-root) .ci-connect-fallow__mapping { display: flex; align-items: center; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-connect-fallow__error { color: var(--ci-tone-danger); }
+:where(.codebase-inspector-root) .ci-connect-fallow__actions,
+:where(.codebase-inspector-root) .ci-fallow-remove__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-fallow-remove { display: grid; gap: var(--ci-space-3); padding: var(--ci-space-4); max-width: 32em; }
+:where(.codebase-inspector-root) .ci-fallow-remove h3,
+:where(.codebase-inspector-root) .ci-fallow-remove p { margin: 0; }
+/* Part 7 Z29–Z33: the installed route, the review, and the fallow card's run panel. */
+:where(.codebase-inspector-root) .ci-connect-fallow__route { display: grid; gap: var(--ci-space-2); padding: var(--ci-space-3); border: 1px solid var(--ci-border); border-radius: var(--ci-radius-small); }
+:where(.codebase-inspector-root) .ci-connect-fallow__route h4 { margin: 0; font-size: var(--font-ui-medium, 1em); }
+:where(.codebase-inspector-root) .ci-connect-fallow__route .mod-cta,
+:where(.codebase-inspector-root) .ci-connect-fallow__use-installed { justify-self: start; }
+:where(.codebase-inspector-root) .ci-fallow-installed { display: grid; gap: var(--ci-space-3); }
+:where(.codebase-inspector-root) .ci-fallow-installed h3 { margin: 0; }
+:where(.codebase-inspector-root) .ci-fallow-installed h3:focus { outline: none; }
+:where(.codebase-inspector-root) .ci-fallow-installed__path { width: 100%; font-family: var(--ci-font-mono); }
+:where(.codebase-inspector-root) .ci-fallow-installed__retrust { margin: 0; color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-fallow-review { display: grid; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-fallow-review__facts { display: grid; grid-template-columns: fit-content(40%) minmax(0, 1fr); gap: var(--ci-space-1) var(--ci-space-3); margin: 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-fallow-review__facts dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-fallow-review__facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-fallow-review__argv { margin: 0; padding-left: 1.4em; }
+:where(.codebase-inspector-root) .ci-fallow-review h4 { margin: 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-fallow-review__effects { margin: 0; padding-left: 1.2em; }
+:where(.codebase-inspector-root) .ci-fallow-review__inside { margin: 0; padding: var(--ci-space-2) var(--ci-space-3); border-left: 3px solid var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-fallow-run { display: grid; gap: var(--ci-space-2); align-self: stretch; }
+:where(.codebase-inspector-root) .ci-fallow-run p { margin: 0; }
+:where(.codebase-inspector-root) .ci-fallow-run__banner { display: grid; gap: var(--ci-space-1); padding: var(--ci-space-2); border-left: 3px solid var(--ci-border); }
+:where(.codebase-inspector-root) .ci-fallow-run__banner--warning { border-left-color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-fallow-run__log pre { margin: 0; max-height: 12em; overflow: auto; white-space: pre-wrap; font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-fallow-run__facts { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; font-size: var(--font-ui-small, 0.9em); }
+:where(.codebase-inspector-root) .ci-fallow-run__facts dt { color: var(--ci-text-muted); }
+:where(.codebase-inspector-root) .ci-fallow-run__facts dd { margin: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-fallow-run__actions { display: flex; flex-wrap: wrap; gap: var(--ci-space-2); }

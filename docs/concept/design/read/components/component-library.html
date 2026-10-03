@@ -1,0 +1,343 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Component library</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../components/component-library.md">Markdown source</a></header><main><h1>Component library</h1>
+<p>Build these as reusable components behind the host adapter. The registry defines design-level interfaces, not a committed TypeScript API. Consolidate names and shapes with the implementation model before coding.</p>
+<h2>Shared contract</h2>
+<p>Presentation components receive immutable view models and emit user intents. The application layer checks authorization, source identity, job ordering, and note-write safety. DOM/GPU objects are view-scoped. All interactive elements have accessible names, focus-visible states, disabled reasons when relevant, and a keyboard/non-drag route. Never globally reset Obsidian styles.</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Component</th>
+<th>Surface</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C01</td>
+<td>InspectorWorkspace</td>
+<td>ItemView + Vue root</td>
+</tr>
+<tr>
+<td>C02</td>
+<td>ProfileSelector</td>
+<td>Native menu / compact toolbar</td>
+</tr>
+<tr>
+<td>C03</td>
+<td>SourceSelector</td>
+<td>Native Modal + validated fields</td>
+</tr>
+<tr>
+<td>C04</td>
+<td>ScopeReview</td>
+<td>Native Modal / settings detail</td>
+</tr>
+<tr>
+<td>C05</td>
+<td>ScanProgress</td>
+<td>Progressbar + status + cancel</td>
+</tr>
+<tr>
+<td>C06</td>
+<td>FileSearch</td>
+<td>Labeled search input</td>
+</tr>
+<tr>
+<td>C07</td>
+<td>CodebaseFileList</td>
+<td>HTML list / accessible virtual list</td>
+</tr>
+<tr>
+<td>C08</td>
+<td>CityViewport</td>
+<td>Three.js renderer port + HTML wrapper</td>
+</tr>
+<tr>
+<td>C09</td>
+<td>CameraControls</td>
+<td>Labeled button group</td>
+</tr>
+<tr>
+<td>C10</td>
+<td>FileInspector</td>
+<td>Complementary panel / nonmodal drawer</td>
+</tr>
+<tr>
+<td>C11</td>
+<td>MetricLegend</td>
+<td>HTML text and swatches</td>
+</tr>
+<tr>
+<td>C12</td>
+<td>SnapshotStatus</td>
+<td>Compact footer + details</td>
+</tr>
+<tr>
+<td>C13</td>
+<td>EvidenceBadge</td>
+<td>Text badge + details popover</td>
+</tr>
+<tr>
+<td>C14</td>
+<td>ProviderConnection</td>
+<td>Native setup panel</td>
+</tr>
+<tr>
+<td>C15</td>
+<td>DialogFrame</td>
+<td>Native Modal</td>
+</tr>
+<tr>
+<td>C16</td>
+<td>StatusBanner</td>
+<td>Status / alert / inline feedback</td>
+</tr>
+<tr>
+<td>C17</td>
+<td>EmptyState</td>
+<td>HTML content + primary action</td>
+</tr>
+<tr>
+<td>C18</td>
+<td>ResponsivePanelHost</td>
+<td>Container-query panel composition</td>
+</tr>
+<tr>
+<td>C19</td>
+<td>EvidenceTable</td>
+<td>Semantic table</td>
+</tr>
+<tr>
+<td>C20</td>
+<td>InspectorSettings</td>
+<td>Native Setting controls</td>
+</tr>
+<tr>
+<td>C21</td>
+<td>DependencyNeighborhood</td>
+<td>Edge query + city overlay + HTML list</td>
+</tr>
+<tr>
+<td>C22</td>
+<td>FindingWorkbench</td>
+<td>Queue + evidence details</td>
+</tr>
+<tr>
+<td>C23</td>
+<td>InvestigationComposer</td>
+<td>Native Modal + Markdown preview</td>
+</tr>
+<tr>
+<td>C24</td>
+<td>SnapshotComparison</td>
+<td>Selectors + linked city/table</td>
+</tr>
+<tr>
+<td>C25</td>
+<td>EvidenceOverview</td>
+<td>Independent cards + investigation queue</td>
+</tr>
+<tr>
+<td>C26</td>
+<td>FocusedNoteEmbed</td>
+<td>Markdown renderer integration + static preview</td>
+</tr>
+<tr>
+<td>C27</td>
+<td>ArtifactAndWatchPanel</td>
+<td>Artifact form + separate session controls</td>
+</tr>
+</tbody>
+</table>
+<h2>C01 — InspectorWorkspace</h2>
+<p><strong>Surface:</strong> ItemView + Vue root.</p>
+<p><strong>Inputs:</strong> <code>profile, snapshot, capabilities, leafState</code>.</p>
+<p><strong>Events:</strong> <code>modeRequested; closeRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> empty, restoring, ready, unavailable.</p>
+<p><strong>Behavior:</strong> Own one renderer/UI scope per leaf. Keep shared data immutable; never share camera or focus across leaves.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C02 — ProfileSelector</h2>
+<p><strong>Surface:</strong> Native menu / compact toolbar.</p>
+<p><strong>Inputs:</strong> <code>profiles, activeId, localBindings</code>.</p>
+<p><strong>Events:</strong> <code>profileSelected; sourceEditRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> none, bound, unbound, invalid.</p>
+<p><strong>Behavior:</strong> Selection changes presentation context; it is not source authorization. Long roots belong in details, not truncated identity labels.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C03 — SourceSelector</h2>
+<p><strong>Surface:</strong> Native Modal + validated fields.</p>
+<p><strong>Inputs:</strong> <code>sourceKind, typedPath, validation</code>.</p>
+<p><strong>Events:</strong> <code>sourceChanged; validateRequested; continueRequested; cancelled</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> editing, validating, valid, invalid.</p>
+<p><strong>Behavior:</strong> Validate path data through a port; do not interpolate into commands. Restore typed values and focus on errors.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C04 — ScopeReview</h2>
+<p><strong>Surface:</strong> Native Modal / settings detail.</p>
+<p><strong>Inputs:</strong> <code>resolvedRoot, exclusions, limits, consent</code>.</p>
+<p><strong>Events:</strong> <code>consentChanged; scanRequested; backRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> unapproved, approved, invalidated.</p>
+<p><strong>Behavior:</strong> Consent defaults false and binds to reviewed inputs. It does not authorize analyzers or note creation.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C05 — ScanProgress</h2>
+<p><strong>Surface:</strong> Progressbar + status + cancel.</p>
+<p><strong>Inputs:</strong> <code>stage, counts, optionalTotal, jobId, priorSnapshot</code>.</p>
+<p><strong>Events:</strong> <code>cancelRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> indeterminate, determinate, cancelling, complete, failed.</p>
+<p><strong>Behavior:</strong> Publish meaningful totals only. Throttle announcements; never swap a cancelled partial snapshot into the city.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C06 — FileSearch</h2>
+<p><strong>Surface:</strong> Labeled search input.</p>
+<p><strong>Inputs:</strong> <code>query, matchCount, totalCount</code>.</p>
+<p><strong>Events:</strong> <code>queryChanged; clearRequested; focusResultsRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> idle, typing, matches, no-matches.</p>
+<p><strong>Behavior:</strong> WP-01 searches paths, not all symbols. Preserve geometry and selected identity across search changes.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C07 — CodebaseFileList</h2>
+<p><strong>Surface:</strong> HTML list / accessible virtual list.</p>
+<p><strong>Inputs:</strong> <code>fileIds, grouping, selection, filters</code>.</p>
+<p><strong>Events:</strong> <code>selectionRequested; directoryFocusRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> loaded, filtered, empty, partial.</p>
+<p><strong>Behavior:</strong> All files remain accessible; native list buttons are preferable to an incomplete ARIA tree. Disambiguate duplicate basenames.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C08 — CityViewport</h2>
+<p><strong>Surface:</strong> Three.js renderer port + HTML wrapper.</p>
+<p><strong>Inputs:</strong> <code>snapshot, layout, palette, selection, lens</code>.</p>
+<p><strong>Events:</strong> <code>entityPicked; hoverChanged; cameraChanged; rendererStateChanged</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> initializing, ready, paused, lost, fallback.</p>
+<p><strong>Behavior:</strong> Consumes normalized data only. No direct filesystem or process access. Cap labels, isolate GPU objects from deep Vue reactivity.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C09 — CameraControls</h2>
+<p><strong>Surface:</strong> Labeled button group.</p>
+<p><strong>Inputs:</strong> <code>cameraMode, zoomBounds, selection, reducedMotion</code>.</p>
+<p><strong>Events:</strong> <code>fitRequested; focusRequested; topRequested; stepRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> enabled, at-bound, no-selection.</p>
+<p><strong>Behavior:</strong> Every gesture has a non-drag alternative. Bind keys only to the active camera region, not the host window.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C10 — FileInspector</h2>
+<p><strong>Surface:</strong> Complementary panel / nonmodal drawer.</p>
+<p><strong>Inputs:</strong> <code>fileRecord, observations, findings, sourceBinding</code>.</p>
+<p><strong>Events:</strong> <code>focusRequested; pathCopyRequested; sourceOpenRequested; closeRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> selected, unavailable-metric, stale, removed.</p>
+<p><strong>Behavior:</strong> Keep exact raw values and scope. Hiding panel does not clear selection; Clear selection is distinct.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C11 — MetricLegend</h2>
+<p><strong>Surface:</strong> HTML text and swatches.</p>
+<p><strong>Inputs:</strong> <code>metricDefinition, scale, units, bins, missingStates</code>.</p>
+<p><strong>Events:</strong> <code>definitionRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> category, numeric, binned, unavailable.</p>
+<p><strong>Behavior:</strong> Names the raw metric, aggregation, scale, and cap. Color alone is insufficient; unknown is never zero.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C12 — SnapshotStatus</h2>
+<p><strong>Surface:</strong> Compact footer + details.</p>
+<p><strong>Inputs:</strong> <code>snapshotId, observedAt, scope, jobState</code>.</p>
+<p><strong>Events:</strong> <code>provenanceRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> complete-for-scope, retained, partial.</p>
+<p><strong>Behavior:</strong> Absolute time and scope are available in details. Important errors also appear near the affected content.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C13 — EvidenceBadge</h2>
+<p><strong>Surface:</strong> Text badge + details popover.</p>
+<p><strong>Inputs:</strong> <code>provider, status, freshness, availability, sourceMatch</code>.</p>
+<p><strong>Events:</strong> <code>detailsRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> current, imported, stale, unknown, mismatch.</p>
+<p><strong>Behavior:</strong> Do not reduce execution state, quality verdict, and freshness to one colored dot.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C14 — ProviderConnection</h2>
+<p><strong>Surface:</strong> Native setup panel.</p>
+<p><strong>Inputs:</strong> <code>capabilities, importState, executableConfig</code>.</p>
+<p><strong>Events:</strong> <code>importRequested; runReviewRequested; disconnectRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> unconfigured, importing, configured, running, failed.</p>
+<p><strong>Behavior:</strong> Only installed trusted executables; no auto-install/update. Report content cannot create execution authority.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C15 — DialogFrame</h2>
+<p><strong>Surface:</strong> Native Modal.</p>
+<p><strong>Inputs:</strong> <code>title, initialFocus, dirtyState, actions</code>.</p>
+<p><strong>Events:</strong> <code>confirmRequested; cancelRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> pristine, dirty, submitting, failed.</p>
+<p><strong>Behavior:</strong> Use real modal focus containment, safe Escape, and focus restoration; preserve drafts on errors.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C16 — StatusBanner</h2>
+<p><strong>Surface:</strong> Status / alert / inline feedback.</p>
+<p><strong>Inputs:</strong> <code>cause, consequence, recoveryActions</code>.</p>
+<p><strong>Events:</strong> <code>recoveryRequested; dismissed</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> info, warning, blocking-error.</p>
+<p><strong>Behavior:</strong> Explain what remains usable. No operational failure is turned into a clean result. Escape unsafe source strings.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C17 — EmptyState</h2>
+<p><strong>Surface:</strong> HTML content + primary action.</p>
+<p><strong>Inputs:</strong> <code>reason, contextCounts, recovery</code>.</p>
+<p><strong>Events:</strong> <code>primaryRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> no-profile, no-files, no-matches, no-baseline.</p>
+<p><strong>Behavior:</strong> Different causes need different copy and actions. Do not show an empty city after a failed scan.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C18 — ResponsivePanelHost</h2>
+<p><strong>Surface:</strong> Container-query panel composition.</p>
+<p><strong>Inputs:</strong> <code>leafWidth, panelWidths, openDrawer, selectedId</code>.</p>
+<p><strong>Events:</strong> <code>panelVisibilityChanged; panelSizeChanged</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> docked, collapsed, drawer, list-first.</p>
+<p><strong>Behavior:</strong> Use leaf dimensions, not entire app width. Keep one narrow overlay at a time and preserve focus/selection.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C19 — EvidenceTable</h2>
+<p><strong>Surface:</strong> Semantic table.</p>
+<p><strong>Inputs:</strong> <code>columns, rows, sort, pagination</code>.</p>
+<p><strong>Events:</strong> <code>rowSelected; sortChanged; pageChanged</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> loaded, empty, partial, unmapped.</p>
+<p><strong>Behavior:</strong> Column headings name units/scope. Sort numeric values as numbers and give missing values an explicit policy.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C20 — InspectorSettings</h2>
+<p><strong>Surface:</strong> Native Setting controls.</p>
+<p><strong>Inputs:</strong> <code>validatedSettings, profiles, storageSummary</code>.</p>
+<p><strong>Events:</strong> <code>settingsChanged; sourceRequested; clearBindingRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> valid, invalid, saving, error.</p>
+<p><strong>Behavior:</strong> Do not render future-release settings. Changes save configuration without starting scans or analyzers.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C21 — DependencyNeighborhood</h2>
+<p><strong>Surface:</strong> Edge query + city overlay + HTML list.</p>
+<p><strong>Inputs:</strong> <code>edges, direction, hops, cap, hiddenCount</code>.</p>
+<p><strong>Events:</strong> <code>edgeSelected; directionChanged; expandRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> bounded, truncated, cycle, unresolved.</p>
+<p><strong>Behavior:</strong> Importer → imported target. Type-only, import, co-change and runtime relations are distinct, not interchangeable.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C22 — FindingWorkbench</h2>
+<p><strong>Surface:</strong> Queue + evidence details.</p>
+<p><strong>Inputs:</strong> <code>findings, selectedFinding, provenance, sourceMatch</code>.</p>
+<p><strong>Events:</strong> <code>findingSelected; sourceReadRequested; noteRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> loaded, no-matches, stale, missing-source.</p>
+<p><strong>Behavior:</strong> Evidence supports and limitations are visible. No safe-to-delete score, automatic fix, or tests-will-pass claim.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C23 — InvestigationComposer</h2>
+<p><strong>Surface:</strong> Native Modal + Markdown preview.</p>
+<p><strong>Inputs:</strong> <code>draft, vaultDestination, evidenceRefs, sourceInclusion</code>.</p>
+<p><strong>Events:</strong> <code>draftChanged; createRequested; discardRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> editing, validating, writing, collision, failed.</p>
+<p><strong>Behavior:</strong> Write human notes only on explicit action. No absolute machine paths/source text by default; never overwrite silently.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C24 — SnapshotComparison</h2>
+<p><strong>Surface:</strong> Selectors + linked city/table.</p>
+<p><strong>Inputs:</strong> <code>baseline, current, compatibility, deltas, cameraLock</code>.</p>
+<p><strong>Events:</strong> <code>baselineChanged; selectionRequested; cameraLockChanged</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> compatible, incompatible, missing-provider.</p>
+<p><strong>Behavior:</strong> Shared layout/scale and explicit matching. Deleted/excluded/unavailable are distinct; provider failure is not resolution.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C25 — EvidenceOverview</h2>
+<p><strong>Surface:</strong> Independent cards + investigation queue.</p>
+<p><strong>Inputs:</strong> <code>metrics, definitions, providerStates, orderingRules</code>.</p>
+<p><strong>Events:</strong> <code>evidenceRequested; priorityRuleChanged</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> inventory-only, partial-providers, complete-context.</p>
+<p><strong>Behavior:</strong> Every priority explains its inputs. Do not manufacture an aggregate quality percentage.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C26 — FocusedNoteEmbed</h2>
+<p><strong>Surface:</strong> Markdown renderer integration + static preview.</p>
+<p><strong>Inputs:</strong> <code>pinnedReference, preview, availableSnapshot</code>.</p>
+<p><strong>Events:</strong> <code>openFocusRequested; artifactImportRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> static, unavailable, activated.</p>
+<p><strong>Behavior:</strong> No scan on render; bound renderer budget; no executable parameters. Human notes stay authoritative.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>C27 — ArtifactAndWatchPanel</h2>
+<p><strong>Surface:</strong> Artifact form + separate session controls.</p>
+<p><strong>Inputs:</strong> <code>artifactValidation, sourceBinding, watchSession, jobs</code>.</p>
+<p><strong>Events:</strong> <code>artifactImportRequested; watchReviewRequested; stopRequested</code>. Events carry <code>viewId</code> and appropriate <code>profileId</code>, <code>snapshotId</code>, and entity/finding/job identifiers; never raw command strings as UI authority.</p>
+<p><strong>States:</strong> unbound, ready, watching, stopping, failed.</p>
+<p><strong>Behavior:</strong> Import is not execution consent. Explicit source/scope/session lifetime, debounce, cancellation, newest-result ordering.</p>
+<p><strong>Verification:</strong> test empty/loaded/error variants, keyboard focus, increased text size, dark/light palette inheritance, and cleanup when the owning view closes. Use a fixture with long Unicode paths and missing evidence. Confirm no hidden work occurs simply because this component mounts.</p>
+<h2>States and component variants</h2>
+<p>Standard controls have default, hover, focus-visible, pressed/selected, disabled, and busy states. Busy is not disabled-by-default: keep Cancel available where work is cancellable. Selected, keyboard focus, and hovered are distinct visuals. A popover cannot be the sole source of a critical value.</p>
+<p>Native host components may have their own visual density; adapt to their semantics rather than reproducing a screenshot through global styles. Virtualization, popup focus, and persisted state require contract tests, not only screenshot tests.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

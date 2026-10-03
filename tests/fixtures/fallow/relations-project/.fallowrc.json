@@ -1,0 +1,11 @@
+{ "boundaries": {
+    "zones": [
+      { "name": "ui", "patterns": ["src/ui/**"] },
+      { "name": "core", "patterns": ["src/core/**"] },
+      { "name": "data", "patterns": ["src/data/**"] }
+    ],
+    "rules": [
+      { "from": "ui", "allow": ["core"], "allowTypeOnly": ["data"] },
+      { "from": "core", "allow": [] },
+      { "from": "data", "allow": [] }
+    ] } }

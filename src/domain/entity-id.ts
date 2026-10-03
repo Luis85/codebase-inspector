@@ -1,0 +1,20 @@
+export type EntityId = string;
+export type EntityKind = 'repository' | 'directory' | 'file';
+
+const SEP = '\0';
+
+/** Identity is repository id + entity kind + POSIX root-relative path, NUL-joined.
+ *  Stable across rescans, NO HASH. Hashing is used only for fileSetDigest and
+ *  contentHash; a content hash is a revision marker and never participates in identity. */
+export function makeEntityId(repositoryId: string, kind: EntityKind, path: string): EntityId {
+  if (repositoryId.includes(SEP) || path.includes(SEP)) {
+    throw new Error('An entity id component must not contain NUL.');
+  }
+  return `${repositoryId}${SEP}${kind}${SEP}${path}`;
+}
+
+export function parseEntityId(id: EntityId): { repositoryId: string; kind: EntityKind; path: string } {
+  const parts = id.split(SEP);
+  if (parts.length !== 3) throw new Error('Malformed entity id.');
+  return { repositoryId: parts[0]!, kind: parts[1] as EntityKind, path: parts[2]! };
+}

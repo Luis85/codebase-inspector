@@ -1,0 +1,197 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>State model, feedback, and recovery</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../interactions/02-states-and-recovery.md">Markdown source</a></header><main><h1>State model, feedback, and recovery</h1>
+<p>Treat inventory state, renderer state, provider state, evidence freshness, and quality verdict as independent axes. A valid report with findings is not an execution failure; a failed provider does not invalidate the filesystem city.</p>
+<h2>Inventory state machine</h2>
+<pre><code class="language-mermaid">stateDiagram-v2
+    [*] --&gt; NoProfile
+    NoProfile --&gt; SourceEditing: select source
+    SourceEditing --&gt; ScopeReview: valid resolved root
+    SourceEditing --&gt; SourceEditing: invalid input
+    ScopeReview --&gt; Scanning: approve and scan
+    Scanning --&gt; Cancelled: cancel
+    Scanning --&gt; Failed: blocking error
+    Scanning --&gt; Partial: completed with exclusions or read gaps
+    Scanning --&gt; Complete: validated snapshot
+    Cancelled --&gt; ScopeReview: review and retry
+    Failed --&gt; SourceEditing: repair source
+    Complete --&gt; ScopeReview: explicit rescan
+    Partial --&gt; ScopeReview: explicit rescan
+</code></pre>
+<p>Intentional configured exclusions do not automatically mean an incomplete scan; differentiate expected excluded scope from unexpected unreadable/skipped content. A complete scan can be complete <strong>for its configured scope</strong>, not complete for every file on disk.</p>
+<h2>State catalogue</h2>
+<table>
+<thead>
+<tr>
+<th>State ID</th>
+<th>User-facing state</th>
+<th>Required content</th>
+<th>Primary recovery</th>
+<th>Retained state</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ST-01</td>
+<td>No source selected</td>
+<td>What the plugin does; source options; no automatic scan</td>
+<td>Select codebase</td>
+<td>Presentation preferences</td>
+</tr>
+<tr>
+<td>ST-02</td>
+<td>Invalid directory</td>
+<td>Specific cause near field</td>
+<td>Edit path</td>
+<td>Typed path and profile label</td>
+</tr>
+<tr>
+<td>ST-03</td>
+<td>External read not approved</td>
+<td>Resolved root; purpose; exclusions</td>
+<td>Approve/read or cancel</td>
+<td>Previous complete snapshot</td>
+</tr>
+<tr>
+<td>ST-04</td>
+<td>Scanning, total unknown</td>
+<td>Current stage, counts so far, Cancel</td>
+<td>Cancel</td>
+<td>Last complete result</td>
+</tr>
+<tr>
+<td>ST-05</td>
+<td>Scanning, denominator known</td>
+<td>Meaningful completed/total and stage</td>
+<td>Cancel</td>
+<td>Last complete result</td>
+</tr>
+<tr>
+<td>ST-06</td>
+<td>Cancelled</td>
+<td>“Incomplete result discarded”</td>
+<td>Scan again</td>
+<td>Previous snapshot and selection</td>
+</tr>
+<tr>
+<td>ST-07</td>
+<td>Empty included scope</td>
+<td>0 included files; exclusions and root</td>
+<td>Review scope</td>
+<td>Profile and filters</td>
+</tr>
+<tr>
+<td>ST-08</td>
+<td>No search matches</td>
+<td>Match count vs snapshot count</td>
+<td>Clear search</td>
+<td>Snapshot and geometry</td>
+</tr>
+<tr>
+<td>ST-09</td>
+<td>Partial read evidence</td>
+<td>Known coverage and failed paths/reasons</td>
+<td>Review gaps / retry</td>
+<td>Valid measured observations</td>
+</tr>
+<tr>
+<td>ST-10</td>
+<td>Root moved or unavailable</td>
+<td>Missing binding/path; no fallback scanning</td>
+<td>Rebind source</td>
+<td>Offline snapshot</td>
+</tr>
+<tr>
+<td>ST-11</td>
+<td>3D unavailable</td>
+<td>Cause category; HTML equivalent</td>
+<td>Retry 3D / use list</td>
+<td>All normalized records</td>
+</tr>
+<tr>
+<td>ST-12</td>
+<td>WebGL context lost</td>
+<td>Pause rendering; no scan restart</td>
+<td>Rebuild renderer / list</td>
+<td>Snapshot and camera if recoverable</td>
+</tr>
+<tr>
+<td>ST-13</td>
+<td>Provider not connected</td>
+<td>Optional capability, setup choices</td>
+<td>Import/connect</td>
+<td>Structural city</td>
+</tr>
+<tr>
+<td>ST-14</td>
+<td>Invalid/unsupported report</td>
+<td>Version/schema reason, no invented parsed metrics</td>
+<td>Choose supported artifact</td>
+<td>Existing evidence</td>
+</tr>
+<tr>
+<td>ST-15</td>
+<td>Provider running</td>
+<td>Name, phase, source, cancel action</td>
+<td>Cancel provider</td>
+<td>Existing evidence marked retained</td>
+</tr>
+<tr>
+<td>ST-16</td>
+<td>Provider failed</td>
+<td>Operational error, safe log excerpt, scope</td>
+<td>Review configuration / retry</td>
+<td>Old evidence visibly stale</td>
+</tr>
+<tr>
+<td>ST-17</td>
+<td>Evidence mismatch</td>
+<td>Source/build/config/snapshot mismatch</td>
+<td>Rebind or use separately</td>
+<td>Report preserved, not silently merged</td>
+</tr>
+<tr>
+<td>ST-18</td>
+<td>Note destination invalid</td>
+<td>Specific validation message</td>
+<td>Edit folder/title</td>
+<td>Composer draft</td>
+</tr>
+<tr>
+<td>ST-19</td>
+<td>Note write failed</td>
+<td>Honest failure, no success notice</td>
+<td>Retry / copy draft</td>
+<td>Full draft and evidence references</td>
+</tr>
+<tr>
+<td>ST-20</td>
+<td>Snapshot incompatible</td>
+<td>Which definitions or scopes differ</td>
+<td>Pick compatible baseline</td>
+<td>Both snapshots inspectable separately</td>
+</tr>
+<tr>
+<td>ST-21</td>
+<td>Referenced file removed</td>
+<td>Old identity/path and snapshot</td>
+<td>View baseline / clear selection</td>
+<td>Investigation context</td>
+</tr>
+<tr>
+<td>ST-22</td>
+<td>No local source binding</td>
+<td>Artifact can be read; source action unavailable</td>
+<td>Bind source explicitly</td>
+<td>Imported snapshot</td>
+</tr>
+</tbody>
+</table>
+<h2>Evidence badge axes</h2>
+<p>Do not compress all states into one colored dot. A provider may have <code>runStatus=complete</code>, <code>verdict=findings</code>, and <code>freshness=stale</code>. A file may have <code>lineCoverage=0/98</code> while another file has <code>measurementState=not-instrumented</code>. Tooltips and inspector text expose the axes.</p>
+<p>A compact badge can show “Imported · 16 Sep” with a labeled stale warning. In details: provider/version, observed time, snapshot/content identity, configuration/scope digest, data availability, and normalization warnings. Display time zone in detailed provenance; “2 hours ago” alone is insufficient for pinned historical evidence.</p>
+<h2>Feedback hierarchy</h2>
+<p>Use inline field errors for input. Use banners for ongoing actionable problems. Use status text for ordinary progress. Use notices/toasts for completed user actions, with an accessible equivalent; they must not be the only durable trace of an error. Use a modal only for source/execution authorization, deliberate writes with meaningful consequences, or a blocking choice.</p>
+<p>No indefinite spinner without a cancel/recovery path. After a slow threshold, report the stage and offer cancellation, not a fake ETA. In production, actual job timeouts are explicit adapter settings; the UI never interprets timeout as zero findings.</p>
+<h2>Async race and teardown</h2>
+<p>Every operation carries jobId/profileId/snapshot lineage. Source changes make prior jobs irrelevant to the current view. Cancelling a renderer task stops UI publication even when an external process needs additional time to terminate. Closed views ignore late completions. Shared immutable snapshots may outlive a view; DOM/GPU resources do not.</p>
+<p>The user must be able to tell which snapshot is on screen throughout cancellation, retry, profile change, pop-out migration, and plugin reload.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

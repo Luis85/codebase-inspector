@@ -1,0 +1,112 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Information architecture and host ownership</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../foundations/02-information-architecture.md">Markdown source</a></header><main><h1>Information architecture and host ownership</h1>
+<h2>Host versus plugin</h2>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Owner</th>
+<th>Contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vault file explorer, global ribbon, workspace tabs, command palette</td>
+<td>Obsidian</td>
+<td>Do not reimplement, reorder, or hijack</td>
+</tr>
+<tr>
+<td>Codebase Inspector ItemView</td>
+<td>Plugin host adapter</td>
+<td>Create one UI/rendering scope per leaf; register through supported API</td>
+</tr>
+<tr>
+<td>Source modal and settings rows</td>
+<td>Obsidian adapter</td>
+<td>Native Modal/Setting patterns; explicit focus and teardown</td>
+</tr>
+<tr>
+<td>Codebase file list, inspector, quality lenses</td>
+<td>Plugin UI</td>
+<td>These concern the selected codebase, not the vault’s note navigation</td>
+</tr>
+<tr>
+<td>Codebase snapshot and evidence</td>
+<td>Application/domain</td>
+<td>Validated immutable records, no DOM or GPU references</td>
+</tr>
+<tr>
+<td>Three.js city</td>
+<td>Visualization module</td>
+<td>Geometry and rendering from normalized data, never direct filesystem access</td>
+</tr>
+<tr>
+<td>Markdown investigations</td>
+<td>Vault</td>
+<td>Create/update only through explicit actions and supported Vault operations</td>
+</tr>
+</tbody>
+</table>
+<p>A visible host file explorer and a plugin codebase file list are not duplicate global navigation: one browses notes, the other the inspected source. Label the latter “Codebase files.” Let users collapse it. The host explorer can be closed independently.</p>
+<h2>Navigation by capability</h2>
+<p>WP-01 has one city view. It does not need a navigation strip with one item. Commands: Open codebase city, Scan codebase, Cancel scan. Plugin settings are available through Obsidian Settings and the compact in-view settings action.</p>
+<p>WP-02 adds evidence lenses and source-provider setup. WP-04 adds a local Findings mode. WP-05 adds Compare. WP-09 adds Overview. These modes belong to the same contextual inspection workspace; no permanent second global sidebar is required. A mode preserves its selected profile and compatible snapshot.</p>
+<p>The review prototype’s scenario selector is <strong>not product UI</strong>. It is a design-review harness for jumping between states and release increments. Its host-theme preview button is also outside the product.</p>
+<h2>Entity relationships</h2>
+<p><code>CodebaseProfile → local SourceBinding → ScanJob → Snapshot → FileRecord</code></p>
+<p><code>ProviderRun → Finding / MetricObservation / Relationship → Snapshot</code></p>
+<p><code>InvestigationNote → profileId + snapshotId + findingIds + relative source references</code></p>
+<p>Absolute source paths are local bindings. A relative path is not globally unique without the codebase identity. Imported snapshots can be browsed without a local source binding; source-reading actions then need explicit binding and verification.</p>
+<h2>State ownership and persistence</h2>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Scope</th>
+<th>Persistence policy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Profile label, source mode, exclusions</td>
+<td>Plugin settings / local binding</td>
+<td>Small validated data; do not serialize source text here</td>
+</tr>
+<tr>
+<td>Approved root and execution consent</td>
+<td>Explicit operation/session</td>
+<td>Never restored as authority from an imported report or deep link</td>
+</tr>
+<tr>
+<td>Snapshot</td>
+<td>Application store</td>
+<td>Immutable; separate from ordinary settings; retention user-visible</td>
+</tr>
+<tr>
+<td>Camera, selected file, focused directory, query, panel widths</td>
+<td>Workspace leaf</td>
+<td>Presentation only; restore IDs if still valid</td>
+</tr>
+<tr>
+<td>Provider connection</td>
+<td>Local configuration</td>
+<td>Restore configuration, not an approved pending execution</td>
+</tr>
+<tr>
+<td>Draft investigation text</td>
+<td>Composer draft</td>
+<td>Preserve on recoverable error; confirm before intentional discard</td>
+</tr>
+<tr>
+<td>Note embed</td>
+<td>Markdown + bounded preview</td>
+<td>Pin snapshot/reference; no scan or analyzer run on reading</td>
+</tr>
+</tbody>
+</table>
+<p>Opening the ribbon action should reveal an existing inspector leaf when sensible. “Open in new pane” is explicit. Never silently target another leaf’s source for scan commands. Resolve the active inspector leaf; otherwise ask for the profile.</p>
+<h2>Return paths</h2>
+<p>Source selection returns to the prior leaf and preserves its last complete snapshot until a replacement is ready. Findings → city retains the finding/file context. Note → city resolves the pinned snapshot first, then the entity. A missing snapshot offers Import artifact or Select another snapshot; it does not silently resolve to a different revision. Settings close without starting a scan.</p>
+<h2>Capability boundaries</h2>
+<p>An unimplemented feature is absent. A shipped feature with missing setup is discoverable in context, with a specific explanation. A disconnected provider disables only its lens, not the structural city. Importing older evidence is allowed when correctly marked; a mismatch must not be presented as current data.</p>
+<p>References: [S1], [S3], [S4] in the <a href="../sources/sources.html">source register</a>.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

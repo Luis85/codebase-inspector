@@ -1,0 +1,37 @@
+views:
+  - type: product-backlog
+    name: Product Backlog
+    order:
+      - file.name
+      - id
+      - status
+      - dependsOn
+    stateProperty: note.status
+    startedDateProperty: note.started
+    finishedDateProperty: note.finished
+    horizonProperty: note.horizon
+    startProperty: note.start
+    targetProperty: note.due
+    riskProperty: note.risk
+    priorityProperty: note.priority
+    assigneeProperty: note.assignee
+    dependsOnProperty: note.dependsOn
+    iterationProperty: note.iteration
+    iterationGoalProperty: note.goal
+    releaseProperty: note.release
+  - type: table
+    name: Data Quality
+    groupBy:
+      property: type
+      direction: ASC
+    order:
+      - file.name
+      - id
+      - order
+      - dependsOn
+      - type
+    sort:
+      - property: order
+        direction: ASC
+    columnSize:
+      note.order: 92

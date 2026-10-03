@@ -1,0 +1,152 @@
+{
+  "scope": "Offline browser interaction reference only; not Obsidian, Three.js, or filesystem analysis",
+  "browser": "144.0.7559.96",
+  "platform": "Linux-6.18.44-x86_64-with-glibc2.41",
+  "rendering": "dependency-free Canvas 2D projection simulator",
+  "passed": 28,
+  "failed": 0,
+  "pageErrors": [],
+  "networkRequests": [],
+  "tests": [
+    {
+      "name": "B01 Offline initial inventory has 144 files and no selected file",
+      "status": "passed",
+      "durationMs": 416
+    },
+    {
+      "name": "B02 Selection preserves camera and keyboard focus",
+      "status": "passed",
+      "durationMs": 316
+    },
+    {
+      "name": "B03 Closing and reopening inspector preserves selection",
+      "status": "passed",
+      "durationMs": 312
+    },
+    {
+      "name": "B04 Search keeps selected nonmatch and exact camera state",
+      "status": "passed",
+      "durationMs": 322
+    },
+    {
+      "name": "B05 Search Escape clears only the query",
+      "status": "passed",
+      "durationMs": 266
+    },
+    {
+      "name": "B06 Sibling note owns its typing, slash, and Escape",
+      "status": "passed",
+      "durationMs": 422
+    },
+    {
+      "name": "B07 Top-to-3D round trip restores prior camera",
+      "status": "passed",
+      "durationMs": 405
+    },
+    {
+      "name": "B08 Canvas Enter focuses and F fits without clearing selection",
+      "status": "passed",
+      "durationMs": 255
+    },
+    {
+      "name": "B09 Drag changes camera but never selects on release",
+      "status": "passed",
+      "durationMs": 382
+    },
+    {
+      "name": "B10 Pointer picking selects the visible file identity",
+      "status": "passed",
+      "durationMs": 367
+    },
+    {
+      "name": "B11 Simulated rendering failure preserves complete HTML inventory",
+      "status": "passed",
+      "durationMs": 364
+    },
+    {
+      "name": "B12 Narrow drawer Escape closes only inspector and restores focus",
+      "status": "passed",
+      "durationMs": 491
+    },
+    {
+      "name": "B13 Modal traps focus and Escape returns without losing context",
+      "status": "passed",
+      "durationMs": 415
+    },
+    {
+      "name": "B14 Scan consent is reset for every new scope review",
+      "status": "passed",
+      "durationMs": 296
+    },
+    {
+      "name": "B15 Cancellation rejects late completion and retains the snapshot",
+      "status": "passed",
+      "durationMs": 4280
+    },
+    {
+      "name": "B16 Failed refresh never replaces the last valid snapshot",
+      "status": "passed",
+      "durationMs": 3937
+    },
+    {
+      "name": "B17 Valid simulated refresh publishes exactly one new revision",
+      "status": "passed",
+      "durationMs": 3904
+    },
+    {
+      "name": "B18 Zero results never clear selection or move the camera",
+      "status": "passed",
+      "durationMs": 246
+    },
+    {
+      "name": "B19 Non-ASCII path lookup and selection work",
+      "status": "passed",
+      "durationMs": 238
+    },
+    {
+      "name": "B20 Simulator does not continuously render while idle",
+      "status": "passed",
+      "durationMs": 1068
+    },
+    {
+      "name": "B21 Theme preview preserves every interaction state field",
+      "status": "passed",
+      "durationMs": 397
+    },
+    {
+      "name": "B22 Every button has visible text or an accessible label",
+      "status": "passed",
+      "durationMs": 207
+    },
+    {
+      "name": "B23 Clipboard failure exposes selectable relative path",
+      "status": "passed",
+      "durationMs": 262
+    },
+    {
+      "name": "B24 Narrow review preserves selection without document overflow",
+      "status": "passed",
+      "durationMs": 468
+    },
+    {
+      "name": "B25 Search does not re-layout file coordinates",
+      "status": "passed",
+      "durationMs": 295
+    },
+    {
+      "name": "B26 IME composition does not dispatch Escape",
+      "status": "passed",
+      "durationMs": 251
+    },
+    {
+      "name": "B27 No external network requests are made",
+      "status": "passed",
+      "durationMs": 199
+    },
+    {
+      "name": "B28 No browser script errors occurred",
+      "status": "passed",
+      "durationMs": 199
+    }
+  ]
+}

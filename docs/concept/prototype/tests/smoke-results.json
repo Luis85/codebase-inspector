@@ -1,0 +1,96 @@
+{
+  "screens": [
+    {
+      "route": "city",
+      "title": "Code city",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "overview",
+      "title": "A clearer picture of your codebase.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "architecture",
+      "title": "Architecture, without the guesswork.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "hotspots",
+      "title": "Focus effort where it can matter.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "quality",
+      "title": "From findings to decisions.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "tests",
+      "title": "Measure confidence, not just coverage.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "dependencies",
+      "title": "Know what your code depends on.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "security",
+      "title": "Make security evidence actionable.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "evolution",
+      "title": "See the direction, not just the snapshot.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "ownership",
+      "title": "Make knowledge resilient.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "workbench",
+      "title": "Turn evidence into a refactoring plan.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "report",
+      "title": "An audit you can explain.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "sources",
+      "title": "Know where every signal comes from.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "settings",
+      "title": "A workspace that fits your review.",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    },
+    {
+      "route": "file",
+      "title": "CostEngine.ts",
+      "unknownActions": [],
+      "horizontalOverflow": false
+    }
+  ],
+  "jsErrors": [],
+  "networkRequests": []
+}

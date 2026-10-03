@@ -1,0 +1,281 @@
+<!--
+  WP-04 IN1-IN6, IN14-IN17: the Investigate route. Task 1 laid the empty and gone states;
+  this task adds the finding list, filters, evidence bundle, uncertainty panel and Add
+  work item. Selecting a finding changes neither the city selection nor the camera (IP20);
+  only Open file detail selects the anchor and navigates (IP20).
+-->
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue';
+import type { EntityId } from '../../domain/entity-id';
+import { useReadModels } from '../read-models/use-read-models';
+import { DEFAULT_INVESTIGATION_FILTER, filterInvestigation, type InvestigationFilter } from '../read-models/investigation';
+import { evidenceBundleFor, uncertaintiesFor, checklistFor } from '../read-models/investigation-evidence';
+import { FINDINGS_PAGE } from '../read-models/findings';
+import { useCityStore } from '../stores/city-store';
+import { useInvestigationStore } from '../stores/investigation-store';
+import { useImportReport } from './use-import-report';
+import { reannounce } from '../kit/reannounce';
+import {
+  FINDING_KIND_LABEL, FINDING_LINE_TEXT, INVESTIGATE_COUNTS, INVESTIGATE_EYEBROW, INVESTIGATE_FINDING_GONE, INVESTIGATE_LIST_TITLE,
+  INVESTIGATE_NONE_SELECTED, INVESTIGATE_SUBTITLE, INVESTIGATE_TITLE, INVESTIGATE_WORK_NOTES, INVESTIGATE_WORK_TITLE, RULE_TEXT,
+} from '../inspector-copy';
+import PageHeader from '../kit/PageHeader.vue';
+import Panel from '../kit/Panel.vue';
+import Callout from '../kit/Callout.vue';
+import NotAnalysed from '../kit/NotAnalysed.vue';
+import NoSnapshot from './NoSnapshot.vue';
+import InvestigationFilters from './investigate/InvestigationFilters.vue';
+import InvestigationList from './investigate/InvestigationList.vue';
+import EvidencePanel from './investigate/EvidencePanel.vue';
+import UncertaintyPanel from './investigate/UncertaintyPanel.vue';
+import SourcePreviewPanel from './investigate/SourcePreviewPanel.vue';
+import NotesPanel from './investigate/NotesPanel.vue';
+import CreateNoteDialog from './investigate/CreateNoteDialog.vue';
+import { useInvestigationNotes } from './investigate/use-investigation-notes';
+import { useInvestigationPreview } from './investigate/use-investigation-preview';
+import { useNoteRefresh } from './investigate/use-note-refresh';
+import RefreshNoteDialog from './investigate/RefreshNoteDialog.vue';
+import OrphanNotesPanel from './investigate/OrphanNotesPanel.vue';
+import FindingReviewDialog from './quality/FindingReviewDialog.vue';
+import WorkItemEditor from './workbench/WorkItemEditor.vue';
+
+const store = useCityStore();
+const investigationStore = useInvestigationStore();
+const importReport = useImportReport();
+const { quality, investigation, files } = useReadModels();
+const report = computed(() => quality.value.evidence.report);
+const liveMessage = ref('');
+
+const filter = ref<InvestigationFilter>({ ...DEFAULT_INVESTIGATION_FILTER });
+const shown = ref(FINDINGS_PAGE);
+const reviewing = ref<string | null>(null);
+const addingWorkItem = ref(false);
+
+const model = computed(() => investigation.value);
+const rows = computed(() => filterInvestigation(model.value.rows, filter.value));
+const selectedRow = computed(() => (investigationStore.selectedFingerprint === null
+  ? null : model.value.byFingerprint.get(investigationStore.selectedFingerprint) ?? null));
+const bundle = computed(() => (selectedRow.value ? evidenceBundleFor(selectedRow.value, model.value.evidence, files.value) : null));
+/** The source preview's verdict, read trigger, Reload and Open in Obsidian (IN7-IN13). */
+const { verdict, notePath, opening, openFailed, reloadPreview, openInObsidian } = useInvestigationPreview({ row: selectedRow, model });
+const uncertainties = computed(() => (selectedRow.value && bundle.value ? uncertaintiesFor(selectedRow.value, bundle.value, verdict.value) : []));
+const checklist = computed(() => (selectedRow.value ? checklistFor(selectedRow.value.kind) : []));
+const { root, creating, createInput, opening: openingNote, openFailed: noteOpenFailed, openCreate, closeCreate, submitCreate, openLinked } =
+  useInvestigationNotes({ row: selectedRow, bundle, uncertainties, live: liveMessage });
+/** IN31-IN34: Refresh evidence for a linked note or a note whose finding is not in this report. */
+const { refreshInput, openRefresh, closeRefresh, submitRefresh } = useNoteRefresh({ row: selectedRow, bundle, uncertainties, model, live: liveMessage });
+const showOrphans = computed(() => model.value.orphanNotes.length > 0 || model.value.malformedNotes > 0);
+const listCounts = computed(() => INVESTIGATE_COUNTS(model.value.rows.length, model.value.withNotes, model.value.orphanNotes.length, model.value.malformedNotes));
+const workDraft = computed(() => {
+  const row = selectedRow.value;
+  if (!row) return null;
+  return {
+    title: INVESTIGATE_WORK_TITLE(row.id, row.file.name),
+    notes: INVESTIGATE_WORK_NOTES(FINDING_KIND_LABEL[row.kind], RULE_TEXT(row.rule), row.anchorPath, FINDING_LINE_TEXT(row.line, row.endLine)),
+  };
+});
+
+/** IN4/IN34: a re-import that no longer reports the selected fingerprint clears the
+ *  selection and raises the gone notice. Reads the investigation model's own map (Task 11),
+ *  which shares quality's keys. E17: announce only the real outcome, through reannounce. */
+watch(() => {
+  const fp = investigationStore.selectedFingerprint;
+  return fp !== null && report.value !== null && !model.value.byFingerprint.has(fp);
+}, (gone) => {
+  if (!gone) return;
+  investigationStore.markGone();
+  void reannounce(liveMessage, INVESTIGATE_FINDING_GONE);
+}, { immediate: true });
+
+/** IN4/IP19/IPF7: an entry point that selects a finding resets the filter when it hides
+ *  the row, and ALWAYS pages so the row's page is shown, whether or not a reset was
+ *  needed — the early return below skips only the filter reset, never the paging.
+ *  `immediate`: a real entry point sets the fingerprint before this screen mounts, so the
+ *  first run must not wait for a later change. `shown` is otherwise only reset by the
+ *  filter UI itself (updateFilter/resetFilters below), never by a bare `watch(filter,
+ *  …)` — that would also fire on THIS watcher's own reset and erase the page it just set,
+ *  in the same flush. */
+watch(() => investigationStore.selectedFingerprint, (fp) => {
+  if (fp === null || !model.value.byFingerprint.has(fp)) return;
+  if (!rows.value.some((r) => r.fingerprint === fp)) filter.value = { ...DEFAULT_INVESTIGATION_FILTER };
+  const i = rows.value.findIndex((r) => r.fingerprint === fp);
+  if (i >= 0 && i >= shown.value) shown.value = Math.ceil((i + 1) / FINDINGS_PAGE) * FINDINGS_PAGE;
+}, { immediate: true });
+
+function updateFilter(next: InvestigationFilter): void {
+  filter.value = next;
+  shown.value = FINDINGS_PAGE;
+}
+
+function resetFilters(): void {
+  filter.value = { ...DEFAULT_INVESTIGATION_FILTER };
+  shown.value = FINDINGS_PAGE;
+}
+
+function select(fingerprint: string): void {
+  investigationStore.open(fingerprint);
+}
+
+function openReview(): void {
+  if (selectedRow.value) reviewing.value = selectedRow.value.fingerprint;
+}
+
+function closeReview(): void {
+  reviewing.value = null;
+}
+
+/** IP20: Open file detail is the only Investigate control that selects the anchor and
+ *  navigates; it never touches the camera (there is no renderer call here). */
+function openFile(id?: EntityId): void {
+  reviewing.value = null;
+  const target = id ?? selectedRow.value?.file.id;
+  if (!target) return;
+  store.select(target);
+  store.navigate('file');
+}
+
+function openWorkItemEditor(): void {
+  if (selectedRow.value) addingWorkItem.value = true;
+}
+
+function closeWorkItemEditor(): void {
+  addingWorkItem.value = false;
+}
+
+async function workItemDone(message: string): Promise<void> {
+  addingWorkItem.value = false;
+  await reannounce(liveMessage, message);
+}
+</script>
+
+<template>
+  <div
+    ref="root"
+    class="ci-screen ci-screen--investigate"
+  >
+    <PageHeader
+      :eyebrow="INVESTIGATE_EYEBROW"
+      :title="INVESTIGATE_TITLE"
+      :subtitle="INVESTIGATE_SUBTITLE"
+    />
+    <p
+      class="visually-hidden ci-investigate__live"
+      role="status"
+    >
+      {{ liveMessage }}
+    </p>
+    <NoSnapshot v-if="!store.snapshot" />
+    <template v-else>
+      <Callout
+        v-if="investigationStore.findingGone"
+        tone="warning"
+        :title="INVESTIGATE_FINDING_GONE"
+      />
+      <NotAnalysed
+        v-if="!report"
+        @import="importReport"
+      />
+      <div
+        v-else
+        class="ci-investigate__layout"
+      >
+        <div class="ci-investigate__main">
+          <Panel
+            :title="INVESTIGATE_LIST_TITLE"
+            :subtitle="listCounts"
+          >
+            <InvestigationFilters
+              :filter="filter"
+              :rules="model.rules"
+              :severities="model.severities"
+              @update:filter="updateFilter"
+              @reset="resetFilters"
+            />
+            <InvestigationList
+              :rows="rows"
+              :limit="shown"
+              :selected="investigationStore.selectedFingerprint"
+              @select="select"
+              @more="shown += FINDINGS_PAGE"
+            />
+          </Panel>
+          <OrphanNotesPanel
+            v-if="showOrphans"
+            :notes="model.orphanNotes"
+            :malformed="model.malformedNotes"
+            :opening="openingNote"
+            :open-failed="noteOpenFailed"
+            @open="openLinked"
+            @refresh="openRefresh"
+          />
+        </div>
+        <div class="ci-investigate__detail">
+          <template v-if="selectedRow && bundle">
+            <EvidencePanel
+              :row="selectedRow"
+              :bundle="bundle"
+              @review="openReview"
+              @open-file="openFile()"
+              @add-work-item="openWorkItemEditor"
+            />
+            <SourcePreviewPanel
+              :row="selectedRow"
+              :state="investigationStore.preview"
+              :verdict="verdict"
+              :note-path="notePath"
+              :opening="opening"
+              :open-failed="openFailed"
+              @reload="reloadPreview"
+              @open-in-obsidian="openInObsidian"
+            />
+            <UncertaintyPanel
+              :uncertainties="uncertainties"
+              :checklist="checklist"
+            />
+            <NotesPanel
+              :notes="selectedRow.notes"
+              :create-blocked="createInput === null || creating"
+              :opening="openingNote"
+              :open-failed="noteOpenFailed"
+              @create="openCreate"
+              @open="openLinked"
+              @refresh="openRefresh"
+            />
+          </template>
+          <p
+            v-else
+            class="ci-note ci-investigate__none-selected"
+          >
+            {{ INVESTIGATE_NONE_SELECTED }}
+          </p>
+        </div>
+      </div>
+    </template>
+    <FindingReviewDialog
+      v-if="reviewing"
+      :fingerprint="reviewing"
+      @close="closeReview"
+      @open-file="openFile"
+    />
+    <WorkItemEditor
+      v-if="addingWorkItem && selectedRow"
+      :item-id="null"
+      :new-file="selectedRow.file"
+      :draft="workDraft"
+      @close="closeWorkItemEditor"
+      @done="workItemDone"
+    />
+    <CreateNoteDialog
+      v-if="creating && createInput"
+      v-bind="createInput"
+      :submit="submitCreate"
+      @close="closeCreate"
+    />
+    <RefreshNoteDialog
+      v-if="refreshInput"
+      v-bind="refreshInput"
+      :submit="submitRefresh"
+      @close="closeRefresh"
+    />
+  </div>
+</template>

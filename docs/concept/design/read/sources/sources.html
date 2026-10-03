@@ -1,0 +1,79 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Source register</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../sources/sources.md">Markdown source</a></header><main><h1>Source register</h1>
+<p>Reviewed 17 September 2026. Product behavior described as “must,” “should,” or “proposed” is a design decision unless explicitly attributed below. Screens contain synthetic data and are not evidence about the user’s codebase. Current provider/version compatibility still needs to be verified in implementation.</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Primary source</th>
+<th>What it grounds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S1</td>
+<td><a href="https://github.com/obsidianmd/obsidian-developer-docs/blob/main/en/Plugins/User%20interface/Views.md">Obsidian — custom views</a></td>
+<td>ItemView, registration, lifecycle and multiple view instances; source content was present in the preceding project discussion</td>
+</tr>
+<tr>
+<td>S2</td>
+<td><a href="https://docs.obsidian.md/Reference/CSS%20variables/Foundations/Colors">Obsidian — Colors</a></td>
+<td>Host semantic surface/text/action variables; theme-owned palette; current color representation guidance</td>
+</tr>
+<tr>
+<td>S3</td>
+<td><a href="https://docs.obsidian.md/plugins/guides/pop-out-windows">Obsidian — Pop-out windows</a></td>
+<td>Owning window/document, cross-window handling, renderer migration</td>
+</tr>
+<tr>
+<td>S4</td>
+<td><a href="https://docs.obsidian.md/community-directory/developer-policies">Obsidian — Developer policies</a></td>
+<td>No dependency auto-install/update; external-file/network disclosures; client telemetry policy</td>
+</tr>
+<tr>
+<td>S5</td>
+<td><a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">W3C — Contrast minimum</a></td>
+<td>Normal and large-text contrast criteria</td>
+</tr>
+<tr>
+<td>S6</td>
+<td><a href="https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html">W3C — Non-text contrast</a></td>
+<td>Meaningful controls/graphics contrast</td>
+</tr>
+<tr>
+<td>S7</td>
+<td><a href="https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html">W3C — Target size minimum</a></td>
+<td>24 CSS px criterion and exceptions; larger project design defaults remain recommendations</td>
+</tr>
+<tr>
+<td>S8</td>
+<td><a href="https://www.w3.org/WAI/WCAG22/Understanding/dragging-movements">W3C — Dragging movements</a></td>
+<td>Non-drag single-pointer alternative requirement</td>
+</tr>
+<tr>
+<td>S9</td>
+<td><a href="https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/">WAI-ARIA APG — Modal dialog</a></td>
+<td>Dialog focus, keyboard and semantic guidance</td>
+</tr>
+<tr>
+<td>S10</td>
+<td><a href="https://threejs.org/docs/pages/OrbitControls.html">Three.js — OrbitControls</a></td>
+<td>Orbit/pan/dolly primitives, configurable inputs and lifecycle</td>
+</tr>
+<tr>
+<td>S11</td>
+<td><a href="https://docs.fallow.tools/cli/health">fallow — health CLI</a></td>
+<td>Thresholded complexity findings and different optional evidence sections</td>
+</tr>
+<tr>
+<td>S12</td>
+<td><a href="https://www.w3.org/WAI/ARIA/apg/patterns/tabs/">WAI-ARIA APG — Tabs</a></td>
+<td>Accessible tab semantics and keyboard handling when true tab patterns are used</td>
+</tr>
+</tbody>
+</table>
+<p>The actual production minimum Obsidian version, Three.js version, and supported fallow report versions are intentionally not invented in this design pack. Select and verify them in the implementation repository. A design concern such as “keep selection stable on theme change” is a proposed acceptance condition, not a claim the host implements it for the plugin.</p>
+<h2>Input documents</h2>
+<p>The existing <code>codebase-inspector-obsidian-implementation-kit</code> and its WP-01 native-city specification, supplied earlier in this conversation, establish the 12 implementation packages and the plugin-first architecture. This design package is a companion, not a rewrite of their safety and data contracts.</p>
+<h2>Non-evidence</h2>
+<p>No interviews, analytics, user testing, production screenshots, actual code scans, Figma source, or compiled plugin were supplied or produced as research evidence. The role/job model and usability targets are hypotheses. The prototype is locally authored and uses a synthetic 144-file fixture; its city is an SVG stand-in, not a Three.js implementation.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

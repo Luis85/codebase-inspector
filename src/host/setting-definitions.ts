@@ -1,0 +1,228 @@
+// The declarative half of the hybrid the open question resolved as unnecessary — see
+// docs/superpowers/notes/2026-09-17-setting-definitions-verification.md: the verified
+// branch is FULL DECLARATIVE, so this file builds the plugin's ENTIRE settings surface
+// as a SettingDefinitionItem[] tree, not just the scalar settings spec 4.4 originally
+// scoped to it. Pure and side-effect-free except through the callbacks it is given —
+// every mutation (save, remove, reconnect, clear) is the caller's (settings-tab.ts's)
+// responsibility, which is what keeps this file unit-testable without any DOM at all.
+import type { Setting, SettingDefinitionItem, SettingDefinitionPage } from 'obsidian';
+import type { CodebaseProfile, LocalBinding } from '../domain/model';
+import type { AnalyzerBindingRead } from '../application/analysis/analyzer-record';
+import { FALLOW_TESTED_VERSIONS } from '../application/analysis/fallow-invocation';
+import { COPY_28 } from '../ui/copy';
+import {
+  FALLOW_EXE_INVALID, FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE, FALLOW_EXE_UNSUPPORTED, FALLOW_TRUST_VALUE,
+  NOTES_FOLDER_SETTING_DESC, NOTES_FOLDER_SETTING_NAME,
+  SETTINGS_FALLOW_EXECUTABLE_NAME, SETTINGS_FALLOW_FORGET, SETTINGS_FALLOW_LIMIT_DESC, SETTINGS_FALLOW_LIMIT_NAME,
+} from '../ui/inspector-copy';
+
+/** A profile paired with its resolved binding. `binding` is null both when the profile
+ *  has no bindingId yet AND when LocalBindingStore.get() reports the binding
+ *  unavailable on this machine (COPY-28) — buildBindingStatusRow tells the two cases
+ *  apart using `profile.bindingId` itself, which is present in the first case. */
+export interface ProfileEntry {
+  profile: CodebaseProfile;
+  binding: LocalBinding | null;
+  /** Part 7 Z12: this profile's fallow executable record, as read from data.json. */
+  analyzer: AnalyzerBindingRead;
+  /** WP-04 Task 8 (IN19): the stored investigation notes folder, or the default. */
+  investigationFolder: string;
+}
+
+export interface SettingDefinitionsCallbacks {
+  onAddProfile: () => void;
+  onDeleteProfile: (profileId: string) => void;
+  onRenameProfile: (profileId: string, name: string) => void;
+  onExclusionsChange: (profileId: string, rawLines: string) => void;
+  onMaxFileBytesChange: (profileId: string, rawValue: string) => void;
+  onReconnect: (profileId: string) => void;
+  onClearBinding: (profileId: string) => void;
+  /** Part 7 Z11: Forget the fallow executable (refused while a run is active). */
+  onForgetAnalyzer: (profileId: string) => void;
+  /** Part 7 Z10: the typed time limit, validated by the service. */
+  onAnalyzerTimeoutChange: (profileId: string, rawValue: string) => void;
+  /** WP-04 Task 8 (IN19): the typed folder, validated by settings-tab.ts. */
+  onInvestigationFolderChange: (profileId: string, rawValue: string) => void;
+}
+
+// COPY-28, from the ONE catalogue (final whole-branch review, minor 1). This used to be
+// the catalogue sentence RETYPED here, so the shipped settings row and src/ui/copy.ts
+// could drift apart with nothing to notice — and the only test over it asserted against
+// this constant, so the assertion was self-referential and arbitrary copy passed. Same
+// fix COPY-03…COPY-07 and COPY-09 already got: import it. Re-exported under the old name
+// because settings-tab.ts and its tests read it by that name.
+export const BINDING_MISSING_TEXT = COPY_28;
+
+// Neither "Read-only source access" nor "Scanning never changes the source" appears
+// here — ruling M25: those two strings ship only after task 12 records the G2 evidence
+// (the second reworded by WP-04 ruling E29).
+export const STORAGE_DISCLOSURE_TEXT =
+  'Codebase profiles, local folder bindings and each codebase’s review decisions (work items, ' +
+  'boundary rules and finding decisions) are stored in this vault, in this plugin’s own data ' +
+  'file, and survive restarts. When you choose a fallow executable for a codebase, its path, ' +
+  'its time limit and a fingerprint of what you trusted (the executable’s path, size and ' +
+  'modification time, the folder, the arguments and the fallow version) are stored there too, ' +
+  'marked with this device: another device never runs it without asking again. Each codebase’s ' +
+  'investigation notes folder is stored there too. Removing a profile removes its review ' +
+  'decisions, its executable setting and its notes folder setting; it never deletes the ' +
+  'investigation notes you created. fallow findings, imported or collected, are kept for this ' +
+  'session only. Nothing about them is sent anywhere else.';
+
+export const SYMLINK_POLICY_TEXT =
+  'Symbolic links and junctions are never followed. They are reported as skipped, with a reason.';
+
+function renderNameRow(setting: Setting, profile: CodebaseProfile, onChange: (name: string) => void): void {
+  setting.setName('Name').setDesc('Shown in the profile list.');
+  const input = setting.controlEl.createEl('input', { attr: { type: 'text', value: profile.name } });
+  input.addEventListener('change', () => { onChange(input.value); });
+}
+
+function renderExclusionsRow(setting: Setting, profile: CodebaseProfile, onChange: (rawLines: string) => void): void {
+  // Fix wave item 1 (M1): NOT "or pattern" -- walker.ts's isExcluded does exact
+  // segment/prefix matching with no glob support at all, so a pattern typed here was
+  // accepted by the validator, persisted, redisplayed on the consent screen as an
+  // approved exclusion, and excluded nothing. Spec 1 forbids a rendered control for
+  // unimplemented behaviour; the label now describes only what the walk can honour, and
+  // normalizeExclusion (path-safety.ts) refuses a * or ? with a visible reason.
+  setting.setName('Excluded paths').setDesc('One relative path per line.');
+  const textarea = setting.controlEl.createEl('textarea', { text: profile.exclusions.join('\n') });
+  textarea.addEventListener('change', () => { onChange(textarea.value); });
+}
+
+/** WP-04 Task 8 (IN19): the investigation notes folder row, right after Excluded paths.
+ *  `entry.investigationFolder` is always the stored value or the default (settings-
+ *  tab.ts's refresh()); a refusal (IN19) never persists, so refresh() puts that same
+ *  value back in the field. */
+function renderInvestigationFolderRow(setting: Setting, entry: ProfileEntry, onChange: (rawValue: string) => void): void {
+  setting.setName(NOTES_FOLDER_SETTING_NAME).setDesc(NOTES_FOLDER_SETTING_DESC);
+  const input = setting.controlEl.createEl('input', { attr: { type: 'text', value: entry.investigationFolder } });
+  input.addEventListener('change', () => { onChange(input.value); });
+}
+
+function renderMaxFileBytesRow(setting: Setting, profile: CodebaseProfile, onChange: (rawValue: string) => void): void {
+  setting.setName('Maximum file size to read').setDesc('Files larger than this are skipped, never truncated.');
+  const input = setting.controlEl.createEl('input', { attr: { type: 'number', value: String(profile.maxFileBytes) } });
+  input.addEventListener('change', () => { onChange(input.value); });
+}
+
+/** The one row that needs a genuine custom render rather than a plain control: its
+ *  content (text vs. button label vs. data-action) depends on binding state, which no
+ *  SettingDefinitionControl can express. Reconnect/Connect are wired to a real, ENABLED
+ *  callback (never a disabled placeholder — spec 1): settings-tab.ts's reconnect()
+ *  opens the real source-selection modal (ruling M30). Clear binding is fully
+ *  implemented here: settings-tab.ts
+ *  opens ClearBindingModal before calling onClearBinding, so this row itself never
+ *  mutates anything (acceptance criterion 6). */
+function renderBindingStatusRow(setting: Setting, entry: ProfileEntry, callbacks: SettingDefinitionsCallbacks): void {
+  setting.setName('Source folder');
+  const { profile, binding } = entry;
+  if (profile.bindingId === null) {
+    setting.setDesc('Not yet connected to a folder.');
+    setting.addButton((btn) => {
+      btn.setButtonText('Connect');
+      btn.buttonEl.setAttribute('data-action', 'connect');
+      btn.onClick(() => { callbacks.onReconnect(profile.profileId); });
+    });
+    return;
+  }
+  if (binding === null) {
+    setting.setDesc(BINDING_MISSING_TEXT);
+    setting.addButton((btn) => {
+      btn.setButtonText('Reconnect');
+      btn.buttonEl.setAttribute('data-action', 'reconnect');
+      btn.onClick(() => { callbacks.onReconnect(profile.profileId); });
+    });
+    return;
+  }
+  setting.setDesc(binding.rootPath);
+  setting.addButton((btn) => {
+    btn.setButtonText('Clear binding');
+    btn.buttonEl.setAttribute('data-action', 'clear-binding');
+    btn.onClick(() => { callbacks.onClearBinding(profile.profileId); });
+  });
+}
+
+/** Part 7 Z12: what the "fallow executable" row says for each record kind. */
+export function analyzerDescription(read: AnalyzerBindingRead): string {
+  switch (read.kind) {
+    case 'none': return FALLOW_EXE_NONE;
+    case 'other-machine': return FALLOW_EXE_OTHER_DEVICE;
+    case 'invalid': return FALLOW_EXE_INVALID;
+    case 'unsupported': return FALLOW_EXE_UNSUPPORTED;
+    default: {
+      const version = read.binding.trust?.version ?? null;
+      return `${read.binding.executablePath} · ${FALLOW_TRUST_VALUE(version, version !== null && FALLOW_TESTED_VERSIONS.includes(version))}`;
+    }
+  }
+}
+
+/** Part 7 Z12: choosing an executable needs the folder and the review, so it lives in Data &
+ *  scans; here the record is shown, and Forget is offered when there is one to remove. A
+ *  newer-format record is read-only (Z2), so it has no Forget. */
+function renderAnalyzerRow(setting: Setting, entry: ProfileEntry, callbacks: SettingDefinitionsCallbacks): void {
+  setting.setName(SETTINGS_FALLOW_EXECUTABLE_NAME);
+  setting.setDesc(analyzerDescription(entry.analyzer));
+  if (entry.analyzer.kind === 'none' || entry.analyzer.kind === 'unsupported') return;
+  setting.addButton((btn) => {
+    btn.setButtonText(SETTINGS_FALLOW_FORGET);
+    btn.buttonEl.setAttribute('data-action', 'forget-analyzer');
+    btn.onClick(() => { callbacks.onForgetAnalyzer(entry.profile.profileId); });
+  });
+}
+
+function renderAnalyzerLimitRow(setting: Setting, seconds: number, onChange: (rawValue: string) => void): void {
+  setting.setName(SETTINGS_FALLOW_LIMIT_NAME).setDesc(SETTINGS_FALLOW_LIMIT_DESC);
+  const input = setting.controlEl.createEl('input', { attr: { type: 'number', min: '10', max: '1800', step: '1', value: String(seconds) } });
+  input.addEventListener('change', () => { onChange(input.value); });
+}
+
+function buildProfilePage(entry: ProfileEntry, callbacks: SettingDefinitionsCallbacks): SettingDefinitionPage {
+  const { profile } = entry;
+  // Part 7 Z12: the time-limit row exists only for a usable record (no disabled control).
+  const limit = entry.analyzer.kind === 'bound' ? entry.analyzer.binding.timeoutSeconds : null;
+  return {
+    type: 'page',
+    name: profile.name,
+    desc: profile.bindingId === null ? 'Not yet connected' : undefined,
+    items: [
+      { name: 'Name', render: (setting) => { renderNameRow(setting, profile, (name) => { callbacks.onRenameProfile(profile.profileId, name); }); } },
+      { name: 'Excluded paths', render: (setting) => { renderExclusionsRow(setting, profile, (raw) => { callbacks.onExclusionsChange(profile.profileId, raw); }); } },
+      { name: NOTES_FOLDER_SETTING_NAME, render: (setting) => { renderInvestigationFolderRow(setting, entry, (raw) => { callbacks.onInvestigationFolderChange(profile.profileId, raw); }); } },
+      { name: 'Maximum file size to read', render: (setting) => { renderMaxFileBytesRow(setting, profile, (raw) => { callbacks.onMaxFileBytesChange(profile.profileId, raw); }); } },
+      { name: 'Source folder', render: (setting) => { renderBindingStatusRow(setting, entry, callbacks); } },
+      { name: 'fallow executable', render: (setting) => { renderAnalyzerRow(setting, entry, callbacks); } },
+      ...(limit === null ? [] : [{
+        name: 'fallow time limit',
+        render: (setting: Setting) => { renderAnalyzerLimitRow(setting, limit, (raw) => { callbacks.onAnalyzerTimeoutChange(profile.profileId, raw); }); },
+      }]),
+    ],
+  };
+}
+
+/** The plugin's ENTIRE settings surface (verification decision: FULL DECLARATIVE).
+ *  Recomputed every time settings-tab.ts calls this — never memoised here — which is
+ *  what lets the profile list stay live (settings-tab.ts calls the setting tab's own
+ *  `update()` after any mutation; see obsidian.d.ts's getSettingDefinitions doc: "Called
+ *  on every display() and once when the tab is added"). */
+export function buildSettingDefinitions(
+  entries: readonly ProfileEntry[],
+  callbacks: SettingDefinitionsCallbacks,
+): SettingDefinitionItem[] {
+  return [
+    {
+      type: 'list',
+      heading: 'Codebase profiles',
+      emptyState: 'No codebase profiles yet.',
+      items: entries.map((entry) => buildProfilePage(entry, callbacks)),
+      onDelete: (index) => {
+        const entry = entries[index];
+        if (entry) callbacks.onDeleteProfile(entry.profile.profileId);
+      },
+      addItem: { name: 'Add profile', action: () => { callbacks.onAddProfile(); } },
+    },
+    // Static explanatory text — no control, action or render at all (spec 1 forbids a
+    // rendered-but-disabled control; this has no control to disable in the first place).
+    { name: 'Follow symbolic links', desc: SYMLINK_POLICY_TEXT },
+    { name: 'Storage', desc: STORAGE_DISCLOSURE_TEXT },
+  ];
+}

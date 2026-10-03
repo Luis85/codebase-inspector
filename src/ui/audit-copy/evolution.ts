@@ -1,0 +1,65 @@
+// Part 3: strings for the Evolution screen (Task 12 adds the rest). Re-exported by
+// inspector-copy.ts.
+export const COMPARE_LINES_UNKNOWN = 'Line totals are not known for both snapshots.';
+export const COMPARE_MODULE_ABSENT = 'Module not present in this snapshot.';
+
+export const EVOLUTION_EYEBROW = 'Audit / Evolution';
+export const EVOLUTION_TITLE = 'See the direction, not just the snapshot.';
+export const EVOLUTION_SUBTITLE = 'Compare structure, quality signals and change patterns over time.';
+export const EVOLUTION_WINDOW_LABEL = 'Change window';
+export const EVOLUTION_WINDOW = (days: number): string => `${days} days`;
+export const EVOLUTION_COMPARE = 'Compare snapshots';
+export const EVOLUTION_CARD_SIZE = 'Source size';
+export const EVOLUTION_CARD_SIZE_CAPTION = 'Physical lines in this snapshot';
+export const EVOLUTION_CARD_WINDOW = 'Change window';
+// E23/E37: a sample of the activity series, not a UI setting presented as collected evidence.
+export const EVOLUTION_CARD_WINDOW_CAPTION = (days: number): string => `Sample commits in the last ${days} days; no author comparisons`;
+export const EVOLUTION_CARD_SNAPSHOTS = 'Snapshots this session';
+export const EVOLUTION_CARD_SNAPSHOTS_CAPTION = 'Kept in memory; history is not saved yet';
+export const EVOLUTION_CARD_CHANGED = 'Files changed since previous';   // E22
+export const EVOLUTION_CARD_CHANGED_CAPTION = (added: number, removed: number): string => `${added} added · ${removed} removed since the previous snapshot`;
+export const NEEDS_SECOND_SNAPSHOT = 'Needs a second snapshot in this session. Rescan to compare.';
+export const EVOLUTION_ACTIVITY_TITLE = 'Change activity';
+export const EVOLUTION_ACTIVITY_SUBTITLE = 'Sample repository commits per interval.';
+export const EVOLUTION_ACTIVITY_LABEL = 'Sample commits per interval';
+export const EVOLUTION_ACTIVITY_VALUE = 'Commits';
+export const EVOLUTION_COVERAGE_TITLE = 'Coverage trend';
+export const EVOLUTION_COVERAGE_SUBTITLE = 'Weighted branch coverage, sample history.';
+export const EVOLUTION_COVERAGE_SERIES = 'Branch coverage (%)';
+export const EVOLUTION_COVERAGE_NONE = 'Coverage is unknown, so there is no trend to draw.';
+export const EVOLUTION_COVERAGE_LABEL = 'Sample coverage trend: weighted branch coverage (%) per interval';
+export const EVOLUTION_COUPLING_TITLE = 'Change coupling';
+export const EVOLUTION_COUPLING_SUBTITLE = 'Files that often change in the same commits. Correlation, not a causal dependency.';
+export const EVOLUTION_COUPLING_FOOTNOTE = 'Co-change rate: shared commits / commits touching either file · sample.';
+export const EVOLUTION_COUPLING_CAPTION = 'Sample change coupling between file pairs';
+export const EVOLUTION_COUPLING_ROW_NOTE = 'Correlation, not a causal dependency';
+export const EVOLUTION_COL_PAIR = 'File pair';
+export const EVOLUTION_COL_RATE = 'Co-change rate';
+export const EVOLUTION_COL_SHARED = 'Shared commits';
+export const EVOLUTION_COUPLING_NONE = 'No module has two files to pair.';
+export const EVOLUTION_JOURNAL_TITLE = 'Snapshot journal';
+export const EVOLUTION_JOURNAL_SUBTITLE = 'The snapshots this view has shown in this session.';
+export const EVOLUTION_JOURNAL_ENTRY = (files: number, lines: string): string => `${files} files · ${lines} lines`;
+export const EVOLUTION_JOURNAL_CURRENT = 'On screen';
+export const EVOLUTION_JOURNAL_COMPARE = 'Compare with current';
+export const EVOLUTION_JOURNAL_ONE = 'Only one snapshot so far. Rescan to compare.';
+export const COMPARE_TITLE = 'Compare snapshots';
+export const COMPARE_SUBTITLE = 'Stable file identities make changes easier to follow. Every value here comes from the inventory.';
+export const COMPARE_BASE_LABEL = 'Compare with';
+export const COMPARE_COL_SIGNAL = 'Signal';
+export const COMPARE_COL_BEFORE = 'Earlier';
+export const COMPARE_COL_AFTER = 'Current';
+export const COMPARE_COL_CHANGE = 'Change';
+export const COMPARE_FILES = 'Files';
+export const COMPARE_LINES = 'Source lines';
+export const COMPARE_ADDED = 'Files added';
+export const COMPARE_REMOVED = 'Files removed';
+export const COMPARE_MODULES_CAPTION = 'Files and lines per module, earlier and current';
+export const COMPARE_COL_MODULE = 'Module';
+export const COMPARE_MODULES_NONE = 'No module changed between these snapshots.';
+export const COMPARE_NEEDS_TWO = 'Comparison needs an earlier snapshot of this codebase in this session.';
+export const COMPARE_CLOSE = 'Close';
+// Fix round 1: collector ids are `snapshot:<repo>:<capturedAt>`, so a prefix of the id
+// never tells two scans apart; the capture date and UTC time do.
+export const SNAPSHOT_ENTRY_LABEL = (date: string, time: string): string => `${date} · ${time} UTC`;
+export const SIGNED = (n: number): string => (n > 0 ? `+${n.toLocaleString('en-US')}` : n.toLocaleString('en-US'));

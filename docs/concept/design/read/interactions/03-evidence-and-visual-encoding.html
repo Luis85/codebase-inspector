@@ -1,0 +1,78 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Visual encoding and evidence semantics</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../interactions/03-evidence-and-visual-encoding.md">Markdown source</a></header><main><h1>Visual encoding and evidence semantics</h1>
+<h2>Structural city: WP-01</h2>
+<p>City = selected codebase. District = configured directory grouping. Building = included file. Footprint = equal file lot. Height = physical text lines. Color = file category. Scope and exclusions are always inspectable.</p>
+<p>For the reference fixture, use <code>height = 8 + 120 * sqrt(min(lines, 600) / 600)</code> in scene units. The 8-unit base keeps an empty measured file selectable. Label the display “physical lines · square-root scale.” The reference fixture uses only values below the 600-line cap. Production may choose another explicit scale, but it must preserve the metric definition, display cap, exact raw values, and legend. Do not silently apply a different scale in each district.</p>
+<p>Physical line counting: empty file = 0; CRLF counts as one separator; final newline does not invent an additional phantom line; blank/comment lines count. Binary, invalid encoding, unreadable, or oversized content retains available metadata but its physical line count is unavailable. Do not use a 0-height building as a proxy for unknown. Use a neutral minimum-height shape with a question marker and expose the reason.</p>
+<p>Top-down removes visible height cues; the inspector/list preserve all values. It is not a different metric. Changes to color lens preserve layout and camera. Changes to a snapshot may change layout in WP-01; stable cross-snapshot anchors are a WP-05 capability.</p>
+<h2>Evidence lenses</h2>
+<table>
+<thead>
+<tr>
+<th>Lens</th>
+<th>Data required</th>
+<th>Encoding</th>
+<th>Must not imply</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reported findings</td>
+<td>Validated finding records and matching scope</td>
+<td>Binned count / finding category, clear denominator</td>
+<td>Files with no records are universally defect-free</td>
+</tr>
+<tr>
+<td>Cognitive/cyclomatic complexity</td>
+<td>Explicit function measurements or thresholded findings</td>
+<td>Per-function or named aggregate with exact definition</td>
+<td>Physical lines equal complexity; omitted function = 0</td>
+</tr>
+<tr>
+<td>Duplication</td>
+<td>Clone groups and source spans</td>
+<td>Linked members and unique grouped findings</td>
+<td>Sum of per-file duplicated lines is unique duplicated code</td>
+</tr>
+<tr>
+<td>Architecture</td>
+<td>Typed directional dependency edges and rules</td>
+<td>Focused arcs, edge list, boundary labels</td>
+<td>Imports are call order or proven runtime impact</td>
+</tr>
+<tr>
+<td>Coverage</td>
+<td>Mapped covered/total observations by metric</td>
+<td>Measured percentage, explicit zero, unknown hatch</td>
+<td>Unknown means 0%; high coverage proves correct tests</td>
+</tr>
+<tr>
+<td>Diagnostics/security</td>
+<td>Original rule/advisory identities, target, severity</td>
+<td>Source finding or package record, not indiscriminate heat</td>
+<td>Dependency presence proves application exploitability</td>
+</tr>
+<tr>
+<td>Bundle contribution</td>
+<td>Exact build/chunk/module identities and units</td>
+<td>Build treemap or city-linked contribution</td>
+<td>Source size equals shipped size or runtime cost</td>
+</tr>
+<tr>
+<td>Runtime observation</td>
+<td>Build, source map, window, environment, sampling</td>
+<td>Observed / not observed / not instrumented / unmapped</td>
+<td>No observation means unused forever</td>
+</tr>
+</tbody>
+</table>
+<p>Fallow’s health command documents thresholded complexity findings and additional health/coverage sections [S11]. The adapter must inspect the actual report contract before claiming complete measurements. Do not repurpose a vendor grade as a composite product-health score.</p>
+<h2>Aggregation rules</h2>
+<p>Count findings by stable canonical identity and distinguish groups, spans, files, symbols, and package advisories. The review fixture has 12 canonical findings across 11 files; its family breakdown is illustrative. Do not sum cards with different units as if they were a single defect count.</p>
+<p>Coverage: sum covered and total observations of the same metric/scope before division. Never average file percentages. Show a zero denominator as not applicable/unavailable, not 0% or 100%. The same file must not be counted twice through overlapping source maps.</p>
+<p>Complexity: a district aggregate must name <code>max function cognitive complexity</code>, <code>median measured function complexity</code>, or another defined statistic. Do not label an average of a thresholded subset “average codebase complexity.” Prefer counts of reported findings when the complete measurement universe is unknown.</p>
+<p>Dependency graph: default to outgoing imports and one hop. Define importer → imported module. Distinguish import, type-only import, co-change, and runtime-call edges. Show edge caps and hidden counts. Expand only after explicit action; use a list for dense relationships.</p>
+<p>Comparisons: require compatible definitions, scope, identity mapping, and provider configuration or show a mismatch. A failed provider cannot resolve earlier findings. Deleted, excluded, renamed, and unavailable files are different. Keep visual scales shared between before/after views.</p>
+<h2>Always-visible evidence language</h2>
+<p>Prefer “No finding reported in this scope,” “Not measured,” “Measured zero,” “Not instrumented,” “Imported report,” “Source mismatch,” “Retained snapshot,” and “Not observed during this window.” Do not use “Safe to delete,” “Tests will pass,” “Healthy code,” or “No risk” without evidence supporting that precise claim.</p>
+<p>An action recommendation is a next investigation step, not a correctness guarantee. Its explanation names contributing facts and missing evidence. An opaque confidence ring is excluded.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

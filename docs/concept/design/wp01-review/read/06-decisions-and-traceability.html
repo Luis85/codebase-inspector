@@ -1,0 +1,161 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>06-decisions-and-traceability — Codebase Inspector</title><style>body{margin:0;background:#f5f4f8;color:#2f2939;font:15px/1.65 system-ui,sans-serif}header{background:#242229;color:#f2eff6;padding:42px 6vw}header p{max-width:880px;color:#c7c0d1}h1{font-size:36px;line-height:1.2;letter-spacing:-.025em}h2{font-size:24px}main{max-width:1320px;margin:auto;padding:26px 34px 60px}a{color:#684199}header a{color:#eadbff}.button{display:inline-block;background:#7451ad;color:white;padding:10px 17px;border-radius:6px;text-decoration:none;margin-right:10px;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.card{background:white;border:1px solid #ded9e6;border-radius:8px;overflow:hidden}.card img{display:block;width:100%;height:240px;object-fit:contain;background:#252429}.card section{padding:14px 18px}.card h3{margin:0;font-size:17px}.card p{font-size:13px;color:#675e72;line-height:1.6}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:10px 12px;text-align:left;border:1px solid #ded9e6;vertical-align:top}th{background:#eeebf3}pre{padding:17px;background:#eeebf3;overflow:auto;border-radius:6px}code{font-size:13px}blockquote{border-left:3px solid #9471bd;padding:10px 17px;background:#eeebf3}.notice{padding:16px 20px;background:#eae3f3;border-left:3px solid #8058b6;margin:20px 0}.doc{max-width:1030px}.doc img{max-width:100%}@media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.grid{grid-template-columns:1fr}main{padding:20px}.card img{height:auto}h1{font-size:29px}table{display:block;overflow:auto}}</style></head><body><header><div>CODEBASE INSPECTOR · WP-01 · 1.1</div><nav><a href="../gallery.html">Review library</a> · <a href="../index.html">Interactive reference</a></nav></header><main class="doc"><h1>Decisions and traceability — WP-01 refinement</h1>
+<p>These are implementation defaults proposed in this continuation, not a record of a user approval meeting. They preserve the existing visual direction and the requirement to build a native Obsidian plugin with Three.js.</p>
+<table>
+<thead>
+<tr>
+  <th>ID</th>
+  <th>Decision</th>
+  <th>Why it resolves ambiguity</th>
+  <th>Reference evidence / future gate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>D01</td>
+  <td>Select and Focus are separate</td>
+  <td>Prevents accidental camera travel while reading a list</td>
+  <td>State tests; B02/B08; actual Three framing still required</td>
+</tr>
+<tr>
+  <td>D02</td>
+  <td>Empty canvas click is a no-op</td>
+  <td>Removes accidental loss of context after navigating</td>
+  <td>Renderer click classification; production picking gate</td>
+</tr>
+<tr>
+  <td>D03</td>
+  <td>Close inspector preserves selection</td>
+  <td>Panel visibility is not data selection</td>
+  <td>B03</td>
+</tr>
+<tr>
+  <td>D04</td>
+  <td>Search dims without relocating lots</td>
+  <td>Keeps spatial identity stable while narrowing attention</td>
+  <td>B04/B25</td>
+</tr>
+<tr>
+  <td>D05</td>
+  <td>Selected nonmatch remains inspectable</td>
+  <td>Avoids silent disappearance when refining a query</td>
+  <td>B04/B18</td>
+</tr>
+<tr>
+  <td>D06</td>
+  <td>Escape belongs to the focused context</td>
+  <td>Prevents conflicts with Obsidian and sibling notes</td>
+  <td>B05/B06/B12/B13/B26; real host gate remains</td>
+</tr>
+<tr>
+  <td>D07</td>
+  <td>Store complete 3D bookmark for top-view return</td>
+  <td>Top-view exploration must not destroy a previous viewpoint</td>
+  <td>B07; production bookmark integration required</td>
+</tr>
+<tr>
+  <td>D08</td>
+  <td>Fit city always means entire current inventory</td>
+  <td>Removes uncertainty between filtered results and the full city</td>
+  <td>State test + B08; keep explicit label</td>
+</tr>
+<tr>
+  <td>D09</td>
+  <td>Refresh keeps a compatible previous snapshot</td>
+  <td>Progress/failure is distinct from codebase evidence</td>
+  <td>B15/B16/B17; real profile/scope guards remain</td>
+</tr>
+<tr>
+  <td>D10</td>
+  <td>Cancel invalidates publication immediately</td>
+  <td>Prevents late asynchronous results from reappearing</td>
+  <td>Run-ID tests + B15; real worker stop still required</td>
+</tr>
+<tr>
+  <td>D11</td>
+  <td>HTML inventory is a first-class path</td>
+  <td>Core information must not require graphics or dragging</td>
+  <td>B11; real context loss/accessibility remain</td>
+</tr>
+<tr>
+  <td>D12</td>
+  <td>Responsive behavior is measured on the leaf</td>
+  <td>A wide desktop may contain a very narrow plugin pane</td>
+  <td>Container styles/B12/B24; real split-leaf gate</td>
+</tr>
+<tr>
+  <td>D13</td>
+  <td>Review controls never become product navigation</td>
+  <td>Avoids leaking synthetic states and an independent theme UI</td>
+  <td>IP-08 distribution review</td>
+</tr>
+<tr>
+  <td>D14</td>
+  <td>Defer double-click focus</td>
+  <td>Reduces conflicting gesture handling in the first release</td>
+  <td>Explicit button/Enter equivalent already exists</td>
+</tr>
+<tr>
+  <td>D15</td>
+  <td>No Three.js implementation is claimed here</td>
+  <td>Dependency fetch was unavailable; a contract is not a running integration</td>
+  <td>Sources/limits; adapter declaration only</td>
+</tr>
+</tbody>
+</table>
+<h2>Corrections made during review</h2>
+<p>The earlier all-package SVG prototype used document-level keyboard handling and broad re-render paths. The new WP-01 reference scopes input to the plugin region, preserves the active file control during selection, keeps camera bookmarks separate, and uses modal-specific return focus. The original prototype has not been rewritten globally; it remains a later-capability visual fixture, not the updated behavior source.</p>
+<p>The new browser run initially revealed a scope-modal focus-cycle failure in the reference and an incorrect test expectation for the fixture's full path. An explicit boundary-cycle handler was added to the modal; the path expectation now matches <code>src/visualization/layout/city-layout.ts</code>. The fixture category <code>Test</code> was also reconciled with the Tests legend color. Final results are saved after rerunning the suite.</p>
+<h2>Screen linkage</h2>
+<table>
+<thead>
+<tr>
+  <th>Earlier screens</th>
+  <th>New reference/capture</th>
+  <th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>S02–S04</td>
+  <td>08 scope review + simulated running state</td>
+  <td>Review interaction; no real picker, root validation, or scan</td>
+</tr>
+<tr>
+  <td>S05–S07</td>
+  <td>01 city, 02 selected, 11 light theme</td>
+  <td>Structural presentation/selection</td>
+</tr>
+<tr>
+  <td>S08 + S23</td>
+  <td>03 selected outside search; empty/non-ASCII test cases</td>
+  <td>Path filtering and preserved selection</td>
+</tr>
+<tr>
+  <td>S09</td>
+  <td>05 top-down</td>
+  <td>Camera-mode return behavior</td>
+</tr>
+<tr>
+  <td>S10</td>
+  <td>07 narrow drawer, 12 constrained leaf</td>
+  <td>Responsive controls and focus</td>
+</tr>
+<tr>
+  <td>S11</td>
+  <td>06 HTML fallback</td>
+  <td>Equivalent inventory under simulated rendering failure</td>
+</tr>
+<tr>
+  <td>S12</td>
+  <td>09 cancelled, 10 failed refresh</td>
+  <td>Last-valid-snapshot retention</td>
+</tr>
+<tr>
+  <td>Host integration</td>
+  <td>04 sibling note</td>
+  <td>Local keyboard ownership; host is simulated</td>
+</tr>
+</tbody>
+</table>
+<p>The first-run screen and production settings are still specified in S01 and S13. The new reference does not replace every screen or implement every state. Later-release screens S14 onward stay assigned to their original packages.</p>
+</main></body></html>
