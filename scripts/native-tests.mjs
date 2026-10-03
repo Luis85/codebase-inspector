@@ -3,6 +3,13 @@ import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { awaitQuietMachine, sampleCpuPercent } from './native-load-gate.mjs';
+import { libuvAtLeast } from './native-node-guard.mjs';
+
+// GRD1 step 7 / GCN7 (ruling E6): refuse before the gate and the build on a Node whose libuv has the Windows TCP-connect crash.
+if (!libuvAtLeast(process.versions.uv, '1.52.0')) {
+  console.error(`Native run refused: this Node (${process.version}, libuv ${process.versions.uv}) has the libuv Windows TCP-connect crash (0xC0000409); run the native suite with Node 24.16.0 or newer (libuv 1.52+).`);
+  process.exit(4);
+}
 
 // IN43: build, run the native project, then ALWAYS run the gate. Never part of `npm run verify`.
 // GRD1/GRD4: every run owns a directory (evidence, breadcrumbs, Node reports) and starts only on a quiet machine.
