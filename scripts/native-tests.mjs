@@ -5,8 +5,15 @@ import { fileURLToPath } from 'node:url';
 import { awaitQuietMachine, sampleCpuPercent } from './native-load-gate.mjs';
 import { libuvAtLeast } from './native-node-guard.mjs';
 
-// GRD1 step 7 / GCN7 (ruling E6): refuse before the gate and the build on a Node whose libuv has the Windows TCP-connect crash.
-if (!libuvAtLeast(process.versions.uv, '1.52.0')) {
+// Every run starts by removing the previous top-level reports: a refusal (exit 4 or 3), a failed build or a run that
+// crashes before writing its report must never leave an older green report at the gate's path, nor copy an older
+// junit.xml into this run's directory.
+await rm('reports/native/vitest-results.json', { force: true });
+await rm('reports/native/junit.xml', { force: true });
+
+// GRD1 step 7 / GCN7 (ruling E6): refuse before the gate and the build on a Windows Node whose libuv has the
+// TCP-connect crash (the fault is in libuv's Windows uv_tcp_connect; tests/e2e/vitest.config.mts guards hand-started runs).
+if (process.platform === 'win32' && !libuvAtLeast(process.versions.uv, '1.52.0')) {
   console.error(`Native run refused: this Node (${process.version}, libuv ${process.versions.uv}) has the libuv Windows TCP-connect crash (0xC0000409); run the native suite with Node 24.16.0 or newer (libuv 1.52+).`);
   process.exit(4);
 }
@@ -39,8 +46,6 @@ const build = process.platform === 'win32'
   : spawnSync('npm', ['run', 'build'], { stdio: 'inherit' });
 if (build.status !== 0) process.exit(build.status ?? 1);
 await mkdir('reports/native', { recursive: true });
-// A run that crashes before writing its report must never be verified against an older one.
-await rm('reports/native/vitest-results.json', { force: true });
 const vitest = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url));
 const run = spawnSync(process.execPath, [vitest, 'run', '--config', 'tests/e2e/vitest.config.mts'], { stdio: 'inherit' });
 // The run directory keeps its own copy of the reports; the gate below still reads the top-level one.

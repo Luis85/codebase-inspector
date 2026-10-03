@@ -1,6 +1,12 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vitest/config';
+import { libuvAtLeast } from '../../scripts/native-node-guard.mjs';
+
+// GCN7 (ruling E6): a hand-started native run on a Windows Node with the libuv TCP-connect crash fails at config load.
+if (process.platform === 'win32' && !libuvAtLeast(process.versions.uv, '1.52.0')) {
+  throw new Error(`Native run refused: this Node (${process.version}, libuv ${process.versions.uv}) has the libuv Windows TCP-connect crash (0xC0000409); run the native suite with Node 24.16.0 or newer (libuv 1.52+).`);
+}
 
 // Node does not create --report-directory, and a fatal report into a missing folder is silently lost.
 const reportDirectory = path.join(process.env.NATIVE_RUN_DIR ?? path.resolve('reports/native'), 'node-reports');

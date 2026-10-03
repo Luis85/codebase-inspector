@@ -2515,12 +2515,15 @@ still across the same 13 files, and changes how native runs are made and recorde
 - **The load gate and run-scoped evidence** (task 1, `727e066` and `6de9207`).
   `npm run test:e2e` runs `scripts/native-load-gate.mjs` first: it samples the machine's CPU
   for 10 s, waits up to 15 minutes for the load to fall below 50 %, and otherwise refuses with
-  exit 3 and no report (`tests/unit/native-load-gate.test.ts`, 3 cases). Each run writes its
+  exit 3 and writes no native Vitest report (only the run's `load-gate.json`)
+  (`tests/unit/native-load-gate.test.ts`, 3 cases). Each run writes its
   evidence under `reports/native/runs/<UTC>-<version>/` (`NATIVE_RUN_DIR`): the Vitest JSON
   and JUnit reports, `load-gate.json`, per-case `environment.json` files (now also `node`,
   `uv`, `v8` and `chromedriver`), `breadcrumbs.ndjson` (`tests/e2e/breadcrumbs.ts`:
   crash-safe NDJSON breadcrumbs per session phase) and a `node-reports/` folder that the
-  Vitest workers' `--report-on-fatalerror` and `--report-uncaught-exception` write into.
+  Vitest workers' `--report-on-fatalerror` and `--report-uncaught-exception` write into; the
+  recorded `__fastfail` crash produced none there (a fast-fail bypasses Node's report, and the
+  dump came from procdump).
   `tests/unit/native-results-gate.test.ts` gains a crash-shaped case.
 - **Z38 best-of-3** (task 2, `578fc6a`): `tests/integration/fallow-no-freeze.test.ts` runs
   each mode 3 times and asserts that the smallest of the three largest gaps is below 50 ms;
@@ -2546,6 +2549,10 @@ still across the same 13 files, and changes how native runs are made and recorde
   `uv__insert_pending_req`), on Node 24.15.0 / libuv 1.51.0. `scripts/native-node-guard.mjs`
   (`libuvAtLeast`, `tests/unit/native-node-guard.test.ts`, 7 cases) makes
   `scripts/native-tests.mjs` refuse, with exit 4, a Node whose libuv is older than 1.52.
+  Every run now first removes the previous top-level `vitest-results.json` and `junit.xml`,
+  so a refusal or a failed build never leaves an older report at the gate's path, and the
+  libuv guard applies on Windows only, where `tests/e2e/vitest.config.mts` also stops a
+  hand-started native run at config load.
   Under Node 24.21.0 (libuv 1.52.1), task 7 recorded 11 consecutive green 1.13.4 runs
   (41 of 41) and one `latest` run.
 

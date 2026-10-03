@@ -86,7 +86,7 @@ export function createInspectorPage(browser: NativeBrowser) {
     await expect.poll(() => inModal('[data-action="continue"]').isExisting()).toBe(false);
     await expect.poll(() => settingsPage().$('[data-action="clear-binding"]').isExisting()).toBe(true);
   };
-  const navigate =async (title: string): Promise<void> => {
+  const navigate = async (title: string): Promise<void> => {
     const item = root().$(`.ci-nav__item*=${title}`);
     if (!(await item.isDisplayed())) await root().$('.ci-topbar__menu').click();
     await item.click();

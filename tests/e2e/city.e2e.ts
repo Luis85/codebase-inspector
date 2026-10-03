@@ -144,10 +144,11 @@ describe('the city leaf in the real Obsidian host (WP-04.2 NE12, NE13)', () => {
       await expect.poll(() => markedRemovals(browser)).toBe(1);
       await writeEvidence(directory, 'theme', { surface, selected, camera, elementId: canvasId, observed, removedBySwitches });
     } finally {
+      // A dead session must not mask the original failure.
       await browser.executeObsidian(() => {
         (window as ObserverWindow).ciCanvasObserver?.observer.disconnect();
         delete (window as ObserverWindow).ciCanvasObserver;
-      });
+      }).catch(() => undefined);
     }
   });
 

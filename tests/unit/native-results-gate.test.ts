@@ -57,12 +57,12 @@ describe('executed native acceptance gate', () => {
     await expectRejected({ ...successful(), success: false }, 'Native Vitest did not report success.');
   });
 
-  it('rejects a crash-shaped report: a pending file, no success and too few cases (GRD1)', async () => {
-    const report = {
-      success: false,
-      testResults: [{ assertionResults: required.slice(0, 1).map(title => ({ title, status: 'passed' })) }, { assertionResults: [{ title: 'Died with the worker', status: 'pending' }] }],
-    };
-    await expectRejected(report, 'Native Vitest did not report success.');
+  it('rejects the recorded crash: success, every required case once, one of them pending (GRD1)', async () => {
+    // Vitest 5 reports success: true when a fork worker dies; the pending case is what fails the gate.
+    const crashed = 'the finding list pages through a report longer than one page and leaves out unmatched findings';
+    expect(required.filter(title => title === crashed)).toHaveLength(1);
+    const report = { success: true, testResults: [{ assertionResults: required.map(title => ({ title, status: title === crashed ? 'pending' : 'passed' })) }] };
+    await expectRejected(report, 'Skipped, pending or failed native cases cannot satisfy acceptance.');
   });
 
   it.each([

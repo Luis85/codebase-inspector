@@ -7,7 +7,7 @@ import { join, relative, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const SRC = resolve(process.cwd(), 'src');
-const LAYOUT_CHANGE = /['"]layout-change['"]/u;
+const LAYOUT_CHANGE = /['"`]layout-change['"`]/u;
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -27,6 +27,7 @@ describe('no layout-change listener (gap closure GRD8, E4)', () => {
   it('catches the registration it guards against (positive control)', () => {
     expect(LAYOUT_CHANGE.test("this.registerEvent(this.app.workspace.on('layout-change', () => {}));")).toBe(true);
     expect(LAYOUT_CHANGE.test('workspace.on("layout-change", refresh)')).toBe(true);
+    expect(LAYOUT_CHANGE.test('workspace.on(`layout-change`, refresh)')).toBe(true);
   });
 
   it('no src file names layout-change', () => {

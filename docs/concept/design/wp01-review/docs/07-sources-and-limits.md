@@ -13,7 +13,7 @@ Consulted for this continuation on 17 September 2026. URLs point to primary docu
 | A1 | W3C WAI-ARIA APG, Dialog (Modal) Pattern: https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/ | Modal focus containment, Escape, focus return |
 | A2 | W3C technique H102: https://www.w3.org/WAI/WCAG21/Techniques/html/H102 | Native HTML dialog behavior in the browser reference |
 
-## Citations re-fetched 2026-10-03 (gap closure GRD11)
+## Citations re-fetched 2026-10-03 (gap closure GRD12)
 
 Each `[T1]`-`[T4]` and `[O1]`-`[O2]` source cited by `03-threejs-and-obsidian-bridge.md` was fetched again on 2026-10-03. The claim each citation supports was compared with what the page says now.
 
