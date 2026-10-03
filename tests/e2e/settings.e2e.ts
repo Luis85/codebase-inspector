@@ -1,6 +1,7 @@
 // WP-04.2 spec §5 rows 10–14 (NE9) and polish row 38 (PN4): the plugin's settings tab in the real settings renderer.
 // NPF7: the settings render in their own window, so every `pluginData` read happens before openPluginSettings or
-// after closeSettings (scenario 38 switches to the main window with the settings still open, for its write elsewhere).
+// after closeSettings (scenarios 38 and 41 switch to the main window with the settings still open, for a write elsewhere).
+// Scenario 41 (gap closure GRD3, Ruling E1) reads the settings search through `app.setting`, from the main window.
 // Observed here: a Notice the tab raises, and the source and clear-binding modals it opens, all render in the
 // settings window. IPF20: the plugin's own words only through its copy constants; everything else by selector.
 import { describe, expect } from 'vitest';
@@ -8,6 +9,7 @@ import { Key } from 'webdriverio';
 import { defaultNoteFolder } from '../../src/application/investigation/note-path';
 import { exclusionInputReasons } from '../../src/domain/validator';
 import { NOTES_FOLDER_PROBLEM, NOTES_FOLDER_SETTING_NAME } from '../../src/ui/audit-copy/investigation';
+import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import { closeSettings, onlyProfile, openPluginSettings, pluginData, savedBindings, savedProfiles } from './host-probes';
 import { PLUGIN_ID, type NativeBrowser } from './session';
@@ -35,7 +37,8 @@ async function switchToMainWindow(browser: NativeBrowser, settingsWindow: string
 type OpenTab = {
   id?: string;
   investigations?: { write(profileId: string, folder: string): Promise<void> };
-  entries?: { profile: { profileId: string }; investigationFolder: string }[];
+  profileStore?: { update(profileId: string, mutate: (profile: { name: string }) => { name: string }): Promise<void> };
+  entries?: { profile: { profileId: string; name: string }; investigationFolder: string }[];
 };
 /** Scenario 38's write elsewhere, from the main window: the plugin's one investigation folder store (main.ts passes
  *  its instance to the tab; the plugin instance holds none) writes the watched `investigations` slice through
@@ -55,6 +58,63 @@ function tabNotesFolder(browser: NativeBrowser, profileId: string): Promise<stri
     const tab = (app as unknown as { setting: { activeTab?: OpenTab | null } }).setting.activeTab;
     return tab?.entries?.find((entry) => entry.profile.profileId === profile)?.investigationFolder ?? null;
   }, profileId);
+}
+
+/** Scenario 41 (Ruling Gap-closure E1): a rename elsewhere, from the main window, through the open tab's private
+ *  profile store (the polish E5 precedent). A page's name is in Obsidian's settings search index; a row's value is not. */
+async function renameElsewhere(browser: NativeBrowser, profileId: string, name: string): Promise<void> {
+  await browser.executeObsidian(async ({ app }, id, profile, value) => {
+    const tab = (app as unknown as { setting: { activeTab?: OpenTab | null } }).setting.activeTab;
+    if (tab?.id !== id || tab.profileStore === undefined) throw new Error(`the open settings tab is not ${id}`);
+    await tab.profileStore.update(profile, (saved) => ({ ...saved, name: value }));
+  }, PLUGIN_ID, profileId, name);
+}
+
+/** The profile name the open tab's last refresh() read for `profileId` (from the main window). */
+function tabProfileName(browser: NativeBrowser, profileId: string): Promise<string | null> {
+  return browser.executeObsidian(({ app }, profile) => {
+    const tab = (app as unknown as { setting: { activeTab?: OpenTab | null } }).setting.activeTab;
+    return tab?.entries?.find((entry) => entry.profile.profileId === profile)?.profile.name ?? null;
+  }, profileId);
+}
+
+const SEARCH = '.modal.mod-settings .setting-search-container input[type="search"]';
+const SEARCH_RESULTS = '.modal.mod-settings .setting-search-results';
+type SearchItem = { tab: { id: string }; isPage?: boolean; el: HTMLElement };
+type SettingsSearch = {
+  activeTab?: { id?: string } | null; searchNavItems?: SearchItem[]; pluginTabs?: { id: string; settingItems?: { name?: string; items?: { name?: string }[] }[] }[];
+};
+/** Scenario 41, from the main window (probed on 1.13.4): the settings search's nav items for our tab's page named
+ *  `name` (its result group's header item; `name` is test data), the open tab, and what our tab's update() stored. */
+function searchState(browser: NativeBrowser, name: string): Promise<{ ourPage: number; activeTab: string | null; storedPages: string[]; settingItems: number }> {
+  return browser.executeObsidian(({ app }, id, page) => {
+    const setting = (app as unknown as { setting: SettingsSearch }).setting;
+    const stored = setting.pluginTabs?.find((tab) => tab.id === id)?.settingItems ?? [];
+    return {
+      ourPage: (setting.searchNavItems ?? []).filter((item) => item.tab.id === id && item.isPage === true
+        && item.el.querySelector('.setting-search-result-tab-label')?.textContent === page).length,
+      activeTab: setting.activeTab?.id ?? null,
+      storedPages: stored.flatMap((item) => (item.items ?? []).map((child) => child.name ?? '')),
+      settingItems: stored.length,
+    };
+  }, PLUGIN_ID, name);
+}
+
+/** Scenario 41: types `query` into the settings search (settings window) and waits until it shows results for it. */
+async function searchSettings(browser: NativeBrowser, query: string): Promise<number> {
+  await expect.poll(() => browser.$(SEARCH).isClickable()).toBe(true);
+  await browser.$(SEARCH).click();
+  await browser.$(SEARCH).addValue(query);
+  await expect.poll(async () => await browser.$(SEARCH).getValue() === query && await browser.$(SEARCH_RESULTS).isDisplayed()).toBe(true);
+  return browser.$$(`${SEARCH_RESULTS} .setting-search-result-group`).length;
+}
+
+/** Scenario 41: empties the settings search (settings window); the tab list shows again. */
+async function clearSettingsSearch(browser: NativeBrowser): Promise<void> {
+  await browser.$(SEARCH).click();
+  await browser.keys([Key.Ctrl, 'a']);
+  await browser.keys(Key.Backspace);
+  await expect.poll(() => browser.$(SEARCH_RESULTS).isDisplayed()).toBe(false);
 }
 
 describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
@@ -212,5 +272,48 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     await expect.poll(() => inspector.settingsRow(NOTES_FOLDER_SETTING_NAME).$('input').getValue()).toBe(elsewhere);
     await closeSettings(browser);
     await expect.poll(async () => savedProfiles(await pluginData(browser))[0]?.exclusions).toContain('first-halfsecond-half');
+  });
+
+  test('a render waiting in the settings tab is released when another settings tab is opened', async ({ native: { browser, page, inspector, directory } }) => {
+    copyProject(page.getVaultPath(), 'code');
+    await inspector.openCity();
+    await inspector.scanFolder('code');
+    const profile = onlyProfile(await pluginData(browser));
+    const renamed = `Renamed-${Date.now()}`;
+    const excluded = () => inspector.settingsPage().$('textarea');
+    await inspector.openCodebaseSettings(profile.name);
+    const settingsWindow = await browser.getWindowHandle();
+    const fromMain = async <T>(read: () => Promise<T>): Promise<T> => {
+      await switchToMainWindow(browser, settingsWindow);
+      const value = await read();
+      await browser.switchToWindow(settingsWindow);
+      return value;
+    };
+    await expect.poll(() => excluded().isClickable()).toBe(true);
+    await excluded().click();
+    await browser.keys([Key.Ctrl, Key.End]);
+    await excluded().addValue('\nfirst-half');
+    // The field keeps focus (scenario 38): the rename's refresh asks for a render, and the render waits.
+    await switchToMainWindow(browser, settingsWindow);
+    await renameElsewhere(browser, profile.profileId, renamed);
+    await expect.poll(async () => savedProfiles(await pluginData(browser))[0]?.name).toBe(renamed);
+    await expect.poll(() => tabProfileName(browser, profile.profileId)).toBe(renamed);
+    await browser.switchToWindow(settingsWindow);
+    // Positive control: while the wait holds (focus moves to the search field, another field of the settings), the
+    // definitions our tab stored are stale, so the search does not find the renamed page.
+    const staleGroups = await searchSettings(browser, renamed);
+    const stale = await fromMain(() => searchState(browser, renamed));
+    expect(stale.ourPage).toBe(0);
+    expect(stale.storedPages).toEqual([profile.name]);
+    await clearSettingsSearch(browser);
+    // Another settings tab: focus moves to its nav item (tabIndex -1, still inside the settings document), so no
+    // focusout releases the wait; Obsidian's openTab() calls our hide(), which does.
+    await browser.$('.modal.mod-settings [data-setting-id="appearance"]').click();
+    await expect.poll(() => fromMain(() => searchState(browser, renamed).then((state) => state.activeTab))).toBe('appearance');
+    const freshGroups = await searchSettings(browser, renamed);
+    await expect.poll(() => fromMain(() => searchState(browser, renamed).then((state) => state.ourPage))).toBe(1);
+    const fresh = await fromMain(() => searchState(browser, renamed));
+    await writeEvidence(directory, 'hide-release', { renamed, staleGroups, stale, freshGroups, fresh });
+    await closeSettings(browser);
   });
 });
