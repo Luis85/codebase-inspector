@@ -10,6 +10,8 @@ import { awaitQuietMachine, sampleCpuPercent } from './native-load-gate.mjs';
 // keeps that free of DEP0190's unescaped-arguments warning.
 const runDir = path.resolve('reports/native/runs', `${new Date().toISOString().replace(/[:.]/gu, '-')}-${process.env.OBSIDIAN_VERSION ?? 'baseline'}`);
 await mkdir(runDir, { recursive: true });
+// Node does not create --report-directory (tests/e2e/vitest.config.mts); without it a fatal report is silently lost.
+await mkdir(path.join(runDir, 'node-reports'), { recursive: true });
 process.env.NATIVE_RUN_DIR = runDir;
 const THRESHOLD = 50;
 const gate = await awaitQuietMachine({

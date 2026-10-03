@@ -1,5 +1,10 @@
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vitest/config';
+
+// Node does not create --report-directory, and a fatal report into a missing folder is silently lost.
+const reportDirectory = path.join(process.env.NATIVE_RUN_DIR ?? path.resolve('reports/native'), 'node-reports');
+mkdirSync(reportDirectory, { recursive: true });
 
 // Deliberately independent of the root jsdom/Obsidian-mock configuration.
 export default defineConfig({
@@ -8,7 +13,7 @@ export default defineConfig({
     include: ['tests/e2e/**/*.e2e.ts'],
     pool: 'forks', maxWorkers: 1, fileParallelism: false,
     // GRD1: a worker that dies by an uncatchable fatal leaves a Node diagnostic report in the run's folder.
-    execArgv: ['--report-on-fatalerror', '--report-uncaught-exception', `--report-directory=${path.join(process.env.NATIVE_RUN_DIR ?? path.resolve('reports/native'), 'node-reports')}`],
+    execArgv: ['--report-on-fatalerror', '--report-uncaught-exception', `--report-directory=${reportDirectory}`],
     sequence: { concurrent: false }, isolate: true, retry: 0,
     testTimeout: 120_000, hookTimeout: 180_000,
     expect: { poll: { timeout: 10_000, interval: 100 } },
