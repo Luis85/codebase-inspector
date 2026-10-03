@@ -3,6 +3,13 @@ import { createNativeSession, requestedVersion, type NativeBrowser } from './ses
 import { captureBrowser, caseDirectory, writeEvidence } from './diagnostics';
 import { createInspectorPage, type InspectorPage } from './inspector';
 import { withSession } from '../support/session-lifecycle';
+import { breadcrumb, hostProcessCounts } from './breadcrumbs';
+
+/** The chromedriver version when the session's capabilities expose one, else the raw browserVersion (GRD1). */
+function chromedriverVersion(browser: NativeBrowser): string | undefined {
+  const capabilities: { browserVersion?: string; chrome?: { chromedriverVersion?: string } } = browser.capabilities;
+  return capabilities.chrome?.chromedriverVersion ?? capabilities.browserVersion;
+}
 
 export interface NativeContext {
   browser: NativeBrowser;
@@ -14,6 +21,7 @@ export interface NativeContext {
 export const test = base.extend<{ native: NativeContext }>({
   native: async ({ task, signal }, use) => {
     const directory = await caseDirectory(task.id, task.name);
+    breadcrumb('case:start', { file: task.file?.filepath, test: task.name, processes: hostProcessCounts() });
     const session = createNativeSession();
     let abortCleanup: Promise<void> | undefined;
     const cancel = (): void => {
@@ -32,6 +40,8 @@ export const test = base.extend<{ native: NativeContext }>({
           platform: process.platform, runner: 'vitest',
           commit: process.env.SOURCE_COMMIT ?? 'local',
           vault: page.getVaultPath(),
+          node: process.versions.node, uv: process.versions.uv, v8: process.versions.v8,
+          chromedriver: chromedriverVersion(browser),
         });
         try {
           await use({ browser, page, inspector: createInspectorPage(browser), directory });
@@ -49,6 +59,7 @@ export const test = base.extend<{ native: NativeContext }>({
       throw error;
     } finally {
       signal.removeEventListener('abort', cancel);
+      breadcrumb('case:end', { test: task.name, state: task.result?.state ?? 'unknown', processes: hostProcessCounts() });
     }
   },
 });

@@ -2,9 +2,12 @@ import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import type { NativeBrowser } from './session';
 
+/** GRD1: the run's own directory (set by scripts/native-tests.mjs); the shared folder only for a hand-started Vitest. */
+export function runDirectory(): string { return process.env.NATIVE_RUN_DIR ?? path.resolve('reports/native'); }
+
 export async function caseDirectory(id: string, name: string): Promise<string> {
   const safe = `${id}-${name}`.replace(/[^a-z0-9_-]+/giu, '-').slice(0, 160);
-  const directory = path.resolve('reports/native/cases', safe);
+  const directory = path.join(runDirectory(), 'cases', safe);
   await mkdir(directory, { recursive: true });
   return directory;
 }

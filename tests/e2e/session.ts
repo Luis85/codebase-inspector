@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { remote } from 'webdriverio';
 import ObsidianWorkerService, { launcher, type startWdioSession } from 'wdio-obsidian-service';
 import { SessionLifecycle } from '../support/session-lifecycle';
+import { breadcrumb } from './breadcrumbs';
 
 export type NativeBrowser = Awaited<ReturnType<typeof startWdioSession>>;
 type SessionConfig = Parameters<typeof startWdioSession>[0];
@@ -34,15 +35,33 @@ export function createNativeSession(afterReady: (browser: NativeBrowser) => Prom
   const worker = new ObsidianWorkerService({}, capabilities, config);
   return new SessionLifecycle({
     async prepare() {
+      breadcrumb('prepare:start');
       await preparation.onPrepare(config, [capabilities]);
       await worker.beforeSession(config, capabilities);
+      breadcrumb('prepare:end');
     },
-    connect: () => remote(config),
+    async connect() {
+      breadcrumb('connect:start');
+      const browser = await remote(config);
+      breadcrumb('connect:end');
+      return browser;
+    },
     async initialize(browser) {
+      breadcrumb('initialize:start');
       await worker.before(capabilities, [], browser);
       await afterReady(browser);
+      breadcrumb('initialize:end');
     },
-    disconnect: (browser) => browser.deleteSession(),
-    cleanup: () => worker.afterSession(),
+    async disconnect(browser) {
+      breadcrumb('disconnect:start');
+      const deleted = await browser.deleteSession();
+      breadcrumb('disconnect:end');
+      return deleted;
+    },
+    async cleanup() {
+      breadcrumb('cleanup:start');
+      await worker.afterSession();
+      breadcrumb('cleanup:end');
+    },
   });
 }

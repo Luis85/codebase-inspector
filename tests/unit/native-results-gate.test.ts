@@ -57,6 +57,14 @@ describe('executed native acceptance gate', () => {
     await expectRejected({ ...successful(), success: false }, 'Native Vitest did not report success.');
   });
 
+  it('rejects a crash-shaped report: a pending file, no success and too few cases (GRD1)', async () => {
+    const report = {
+      success: false,
+      testResults: [{ assertionResults: required.slice(0, 1).map(title => ({ title, status: 'passed' })) }, { assertionResults: [{ title: 'Died with the worker', status: 'pending' }] }],
+    };
+    await expectRejected(report, 'Native Vitest did not report success.');
+  });
+
   it.each([
     [undefined, 'No native Vitest report at reports/native/vitest-results.json.'],
     [{}, 'The native Vitest report has no testResults.'],
