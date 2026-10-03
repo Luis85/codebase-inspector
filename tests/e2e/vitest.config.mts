@@ -14,6 +14,8 @@ export default defineConfig({
     pool: 'forks', maxWorkers: 1, fileParallelism: false,
     // GRD1: a worker that dies by an uncatchable fatal leaves a Node diagnostic report in the run's folder.
     execArgv: ['--report-on-fatalerror', '--report-uncaught-exception', `--report-directory=${reportDirectory}`],
+    // GCO25: each worker evaluates this; it only acts when NATIVE_PROCDUMP is set.
+    setupFiles: ['tests/e2e/procdump-setup.ts'],
     sequence: { concurrent: false }, isolate: true, retry: 0,
     testTimeout: 120_000, hookTimeout: 180_000,
     expect: { poll: { timeout: 10_000, interval: 100 } },
