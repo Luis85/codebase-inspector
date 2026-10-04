@@ -224,10 +224,9 @@ function applySize(): void {
   // forever: "the canvas grows in height all the time". `clientWidth`/`clientHeight`
   // ARE the content box (this element has a border and no padding), so the canvas is
   // sized to exactly the box it lives in and the next measurement returns the SAME
-  // number: a fixed point that terminates on the first tick, not a ratchet. Used for
-  // every guard below too, so there is ONE measurement rule here and not two -- the
-  // observer's own `contentBoxSize` would only cover the observer path, leaving mount,
-  // the context-loss rebuild and the cross-window migration on the other rule.
+  // number: a fixed point that terminates on the first tick, not a ratchet. Every guard
+  // below uses it too (ONE measurement rule): the observer's own `contentBoxSize` covers
+  // only the observer path, leaving mount, context-loss rebuild and migration on another.
   const width = el.clientWidth;
   const height = el.clientHeight;
   // Task 11 (task-11-context.md section 1): a leaf hidden behind a sibling tab
@@ -365,6 +364,7 @@ defineExpose({ stageEl, cityRendererHandle, unavailableReason });
       data-ci-role="stage"
       class="ci-viewport__stage"
       tabindex="0"
+      role="region"
       aria-label="Codebase city — 3D view"
       aria-describedby="ci-viewport-help"
     />

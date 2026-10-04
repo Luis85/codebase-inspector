@@ -160,6 +160,7 @@ function guardedOpen(): void {
       <pre
         class="ci-source-preview__text"
         tabindex="0"
+        role="region"
         :aria-label="PREVIEW_TITLE"
         :aria-describedby="highlightLine !== null ? lineLabelId : undefined"
       ><span

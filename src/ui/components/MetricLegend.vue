@@ -54,6 +54,7 @@ const reportedCategories = computed(() => {
 <template>
   <div
     class="ci-legend"
+    role="group"
     aria-label="Metric legend"
   >
     <p
