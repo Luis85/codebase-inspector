@@ -101,8 +101,10 @@ section, where that gap is stated rather than closed.
   smallest candidate at which the three-column city (the city at content = T, the leaf at
   T + 220 with the navigation inline) and the navigation band clip nothing and the stage
   keeps at least 320 px, set in all four places that carry it and pinned by
-  `tests/unit/drawer-threshold.test.ts`. The stage margin at 760 is small (the stage
-  measures 324 px against the 320 floor in the harness).
+  `tests/unit/drawer-threshold.test.ts`. The stage margin at 760 is small, and it is
+  decided on the stage's content box (`clientWidth`, which is what `CityViewport`'s 320
+  floor reads): in the harness the border box measures 324 px and the content box 322 px,
+  so the margin is 2 px.
 - **The snapshot size ceiling is a hard failure, not a degradation.** The validator
   rejects a snapshot above 200,000 entities + observations, which is roughly 65,000
   in-scope files. The development vault sits at about 61% of that. A larger root fails
@@ -124,7 +126,8 @@ section, where that gap is stated rather than closed.
 - **`root-unavailable` was a spec §7 state with no producer.** *Resolved: gap closure
   (GRA4).* A refresh that finds the root gone or no longer a directory now emits it: the
   status banner reads COPY-28, the snapshot stays readable, and a refresh never asks to
-  approve a missing folder (native scenario 42). An existing root whose listing fails
+  approve a missing folder (the host tests, `tests/host/scan-flow-root-unavailable.test.ts`;
+  native scenario 42 pins the banner). An existing root whose listing fails
   (for example `EACCES`) stays a generic scan failure; "unreadable" as its own state is
   Part B's GRB17.
 - **An edge drag took no `setPointerCapture`** (ruling M95), so an unclamped canvas
@@ -145,10 +148,15 @@ section, where that gap is stated rather than closed.
   `src/domain/layout/pack.ts`). About 28 % of the root's extent is still empty on that
   tree, and positions differ from the shelf layout, so a city read before and after the
   change does not compare.
-- **The topbar clips at 360 and 480 px leaves with the navigation as a drawer (found by
-  gap closure Task 7, not fixed).** Below a content width of about 540 px the
-  `.ci-shell__topbar` overflows. It is independent of the collapse threshold, is not one of
-  Part A's rows and is carried as a follow-up.
+- **The topbar clips in narrow leaves with the navigation as a drawer (found by gap
+  closure Task 7, not fixed).** At 360 and 480 px the `.ci-shell__topbar` itself overflows
+  (measured in the harness: its scroll width exceeds its client width up to a 540 px leaf).
+  Above that the topbar box fits, but its breadcrumb still truncates: the 700 px S10 leaf, in
+  drawer mode, shows "Workspace / roo" because the search field, the sample-data chip and
+  the snapshot selector take the room first. So there is no single bound at about 540 px:
+  the breadcrumb is clipped at every drawer-mode width looked at (360, 480 and 700 px),
+  and the wide captures (1280 px and up, navigation inline) show it whole. It is independent of the collapse threshold, is not one of Part A's
+  rows and is carried as a follow-up.
 - **The arrowhead cones on a relation arc are 1–2 px at the fit zoom (gap closure GRA7,
   not fixed).** The selected file's arcs and cones now draw above the buildings, but the
   cones (radius 0.35, height 1.1) are not scaled with the city, so the direction of an arc
@@ -217,9 +225,9 @@ section, where that gap is stated rather than closed.
   re-initialising, and a false claim. *Resolved: gap closure (GCP6), reversing the earlier
   "disclosed rather than suppressed" stance.* `onunload` now calls `releaseThreeMarker`
   (`src/visualization/three-marker.ts`) on the main window, which deletes the marker **only
-  when it equals this bundle's own Three.js `REVISION`**. A marker written by a different
-  revision, or by another plugin's Three.js, is left alone, and a genuine double bundle in
-  one session still warns. Verified natively by the plugin-lifecycle scenario, which reads
+  when it equals this bundle's own Three.js `REVISION`**. A marker with the same revision is cleared, whoever wrote it; a marker
+  written by a different revision is left alone, and a genuine double bundle in one
+  session still warns. Verified natively by the plugin-lifecycle scenario, which reads
   the marker before and after a real disable.
 - **Nothing in the last several rounds was seen in a browser.** The stage-height fix,
   the file-list row rendering and the selected-row highlight all rest on a cascade read
@@ -270,7 +278,9 @@ so `.ci-snapshot-status__claims` now declares `color: var(--ci-text)`. It is one
   opened" survives but "a cancelled run opens nothing further" does not. **This is a
   trade for the user to make**, not a defect.
 - **Whether the city feels too small** at a wide (~1,876 px) leaf: the panel caps moved
-  the stage from 1,280 px to 1,140 px there.
+  the stage from 1,280 px to 1,140 px there; after GRA5 (list 15 %, inspector 12 %) the
+  stage's content box measures 1,154 px (border box 1,156.4 px) at a 1,876 px leaf with
+  the inspector open.
 - **The new hover contrast on three controls — decided in WP-02 Part 5 (option B).**
   The skinned hovers no longer paint `--ci-raised`; they paint the plugin-owned
   `--ci-hover`, and text-on-colour buttons use darkened fills. See

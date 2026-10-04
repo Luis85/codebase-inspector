@@ -1,7 +1,7 @@
 // WP-02 Part 5 (V4, V5; Part 2 deferral): ONE leaf measurement per leaf. App's
 // `useLeafWidth` ResizeObserver is the only observer on the leaf. Everything else that
 // depends on the leaf's width reacts to `layoutTick` instead of observing the leaf again:
-// the city's 320 px floor and 820 px drawer threshold (screens/city/use-city-floor.ts), and
+// the city's 320 px floor and drawer threshold (DRAWER_MAX_INLINE_SIZE) (screens/city/use-city-floor.ts), and
 // CameraControls' steps default.
 //
 // `layoutTick` advances in a `flush: 'post'` watcher, so a reader measures AFTER the nav

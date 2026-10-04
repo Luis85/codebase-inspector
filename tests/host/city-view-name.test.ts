@@ -31,9 +31,15 @@ async function build() {
   const deps: CityViewDeps = { profileStore: harness.store, getFilesystem: () => port, snapshotStore, clock: createFixedClock(), ...dataPortDeps() };
   const data: Record<string, unknown> = {};
   const plugin = { ...makePluginDouble(), loadData: vi.fn(async () => data), saveData: vi.fn(async (next: Record<string, unknown>) => { Object.assign(data, next); }) };
+  const { view, nameOf } = openLeaf(plugin, deps);
+  return { view, plugin, get, nameOf, harness, deps };
+}
+
+/** One more leaf on the same plugin data and the same profile store (a second pane). */
+function openLeaf(plugin: ReturnType<typeof makePluginDouble>, deps: CityViewDeps) {
   const view = new CityView({ width: 1000 } as never, plugin as never, deps);
   const nameOf = (): string | undefined => useCityStore((view as unknown as { pinia: Pinia }).pinia).name;
-  return { view, plugin, get, nameOf };
+  return { view, nameOf };
 }
 
 async function settle(): Promise<void> {
@@ -87,5 +93,26 @@ describe('the codebase name resolves in either setState/onOpen order (GRA8)', ()
     await writePluginDataSlice(plugin as never, 'profiles', () => [{ profileId: 'p1' }, { profileId: 'p2' }]);
     await settle();
     expect(get.mock.calls.length).toBe(whileOpen);
+  });
+
+  // Final review RF4: the name belongs to the PROFILE, so two leaves on one profile both follow a
+  // rename made elsewhere (Settings writes the profiles slice); each leaf holds its own watcher.
+  it('(e) two leaves on the same profile both show a rename', async () => {
+    const first = await build();
+    const second = openLeaf(first.plugin, first.deps);
+    await first.view.setState(PERSISTED, {} as never);
+    await first.view.onOpen();
+    await second.view.setState(PERSISTED, {} as never);
+    await second.view.onOpen();
+    await settle();
+    expect(first.nameOf()).toBe('Current name');
+    expect(second.nameOf()).toBe('Current name');
+    await first.harness.store.save({ profileId: 'p1', name: 'Renamed', bindingId: null, exclusions: [], maxFileBytes: 5_000_000 });
+    await writePluginDataSlice(first.plugin as never, 'profiles', () => [{ profileId: 'p1' }]);
+    await settle();
+    expect(first.nameOf()).toBe('Renamed');
+    expect(second.nameOf()).toBe('Renamed');
+    await first.view.onClose();
+    await second.view.onClose();
   });
 });

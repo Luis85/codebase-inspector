@@ -1,7 +1,7 @@
 // Phase 2c, B1 (Critical-class, ruling M105) -- THE SAFE-WIDTH INVARIANT.
 //
 // Two numbers were each chosen correctly against the handoff and never reconciled with
-// each other: `DRAWER_MAX_INLINE_SIZE` (820) is the width at or above which the
+// each other: `DRAWER_MAX_INLINE_SIZE` (820 when this was written; 760 since GRA6) is the width at or above which the
 // three-column layout appears, and `MIN_INLINE_SIZE` (320) is the width below which the
 // stage creates no WebGL context at all and disposes any it has. The first is applied to
 // the LEAF, the second to the STAGE, and nothing checked that the second was satisfiable
@@ -116,9 +116,9 @@ const STAGE_BORDER = lengthOf(topLevelRuleFor('.ci-viewport__stage'), 'border');
 // still holds. Obsidian's `.workspace-leaf-content .view-content` adds 24 px of horizontal
 // padding (verified in the shipped obsidian.asar), but that padding is OUTSIDE the box
 // this budget is measured in: `container-type: inline-size` sits on `.view-content`
-// itself (spec 4.4), so `@container (min-width: 820px)` compares its CONTENT box, and
-// everything summed below -- `.ci-app`'s own padding included -- lives inside that 820.
-// The 24 px therefore does not enter the sum and the 820-917 px dead band does not
+// itself (spec 4.4), so the drawer threshold's `@container (min-width: …)` compares its
+// CONTENT box, and everything summed below -- `.ci-app`'s own padding included -- lives inside that threshold.
+// The 24 px therefore does not enter the sum and the (then) 820-917 px dead band does not
 // reopen. What WAS wrong is that App.vue compared the BORDER box against the same
 // constant, so the two halves of the rule disagreed across a 24 px band; that is fixed in
 // src/ui/container-box.ts and pinned by tests/component/container-box.test.ts, which is

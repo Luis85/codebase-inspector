@@ -30,7 +30,7 @@ const NAV_WIDTH = 220;
 const NAV_BAND = ['.ci-shell__nav', '.ci-shell__topbar'];
 /** Gap closure E18: how `chosen` is picked. Written into the fixture so the test recomputes it. */
 const RULE = 'smallest T where, on s05 and s07, (a) the city at content = T (leaf = T + 220) is in the '
-  + 'three-column layout with no clipped city box and a stage >= 320, and (b) the nav band at leaf = T '
+  + 'three-column layout with no clipped city box and a stage content box (clientWidth) >= 320 with no floor notice, and (b) the nav band at leaf = T '
   + '(nav inline) does not clip';
 const SCREENS = ['s05', 's07'];
 const VIEWPORT_HEIGHT = 900;
@@ -53,6 +53,7 @@ const EXPECTED_MAX_COUNT = 2;
 const WIDTH_BOXES = {
   nav: '.ci-shell__nav',
   content: '.ci-shell__content',
+  body: '.ci-app__body',          // the flex container the list/inspector percentages resolve against
   list: '.ci-app__list-wrapper',
   inspector: '.ci-inspector',
   stageColumn: '.ci-app__stage-column',
@@ -127,6 +128,10 @@ function readBoxes({ widthBoxes, clipSelectors }) {
     const el = document.querySelector(selector);
     widths[name] = el ? Math.round(el.getBoundingClientRect().width * 10) / 10 : null;
   }
+  // Gap closure E24: GRA5/GRA6 mean the stage's CONTENT box, which is what CityViewport
+  // measures (clientWidth) and the canvas fills; the border box above is kept beside it.
+  const stageEl = document.querySelector('.ci-viewport__stage');
+  const stageClient = stageEl ? stageEl.clientWidth : null;
   const clipped = clipSelectors.filter((selector) => Array.from(document.querySelectorAll(selector))
     .some((el) => el.scrollWidth > el.clientWidth + 1));
   const containerConditions = [];
@@ -137,6 +142,7 @@ function readBoxes({ widthBoxes, clipSelectors }) {
   }
   return {
     widths,
+    stageClient,
     clipped,
     floorNotice: document.querySelector('.ci-viewport__notice') !== null,
     navInline: document.querySelector('.ci-shell--nav-inline') !== null,
@@ -191,6 +197,7 @@ function reading(leaf, boxes) {
     clipped: boxes.clipped.filter((selector) => !NAV_BAND.includes(selector)),
     navBandClipped: boxes.clipped.filter((selector) => NAV_BAND.includes(selector)),
     stage: boxes.widths.stage,
+    stageClient: boxes.stageClient,
     floorNotice: boxes.floorNotice,
     navInline: boxes.navInline,
     threeColumn: boxes.threeColumn,
@@ -210,7 +217,9 @@ function assertApplied(threshold, boxes) {
 
 function passes(candidate) {
   const { city, nav } = candidate;
-  return city.clipped.length === 0 && city.threeColumn && city.stage !== null && city.stage >= STAGE_FLOOR
+  // E24: decided on the stage's content box (stageClient), and no floor notice.
+  return city.clipped.length === 0 && city.threeColumn && !city.floorNotice
+    && city.stageClient !== null && city.stageClient >= STAGE_FLOOR
     && nav.navInline && nav.navBandClipped.length === 0;
 }
 
@@ -240,7 +249,7 @@ async function sweep() {
           if (!cityBoxes.threeColumn) throw new Error(`harness-measure: the city is not three-column at content=${threshold}px`);
           const candidate = { threshold, screen, city: reading(threshold + NAV_WIDTH, cityBoxes), nav: reading(threshold, navBoxes) };
           candidates.push(candidate);
-          console.log(`harness-measure: T=${threshold} ${screen} city clipped=[${candidate.city.clipped}] stage=${candidate.city.stage} notice=${candidate.city.floorNotice} | nav band clipped=[${candidate.nav.navBandClipped}]`);
+          console.log(`harness-measure: T=${threshold} ${screen} city clipped=[${candidate.city.clipped}] stage=${candidate.city.stage} stageClient=${candidate.city.stageClient} notice=${candidate.city.floorNotice} | nav band clipped=[${candidate.nav.navBandClipped}]`);
         }
       });
     }

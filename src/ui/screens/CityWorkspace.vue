@@ -13,8 +13,8 @@
   StatusBanner/EmptyState. See task-9-report.md for the two states
   (invalid-directory, read-not-approved) this derivation cannot yet reach.
 
-  Part 5 (V2): the Escape chain (city/use-city-escape.ts), the 320 px floor and 820 px
-  drawer wiring (city/use-city-floor.ts) and the COPY-30 notice
+  Part 5 (V2): the Escape chain (city/use-city-escape.ts), the 320 px floor and drawer-threshold
+  wiring (city/use-city-floor.ts) and the COPY-30 notice
   (city/CitySelectionNotice.vue) live beside this file, moved without behaviour change.
 -->
 <script setup lang="ts">
@@ -49,10 +49,10 @@ const inspectorOpenerHandle = provideInspectorOpener();
 const store = useCityStore();
 const runStore = useRunStore();
 
-// Task 9 fix round 1, item 7 (Important): the <820px layout's Files overlay —
+// Task 9 fix round 1, item 7 (Important): the below-threshold layout's Files overlay —
 // unlike the Inspector, which already has `store.inspectorOpen` — had no
 // state of its own at all, no opener and no close control. Purely a narrow-
-// layout UI concern (never persisted, never meaningful at >=820px, where CSS
+// layout UI concern (never persisted, never meaningful at or above the threshold, where CSS
 // ignores it entirely), so it stays local here rather than in the Pinia store.
 const filesDrawerOpen = ref(false);
 const filesDrawerOpener = ref<HTMLElement | null>(null);
@@ -72,7 +72,7 @@ function closeFilesDrawer(): void {
 watch(() => store.inspectorOpen, (open) => { if (open) filesDrawerOpen.value = false; });
 
 const rootEl = ref<HTMLElement | null>(null);
-// Phase 2 fix wave I2 and R1: the 320 px list-first floor and the 820 px drawer threshold.
+// Phase 2 fix wave I2 and R1: the 320 px list-first floor and the drawer threshold (DRAWER_MAX_INLINE_SIZE).
 const { narrowDrawer } = useCityFloor(rootEl, store, filesDrawerOpen);
 // Task 9 fix rounds 2 and 3, task 11 fix round 1 item 3: the leaf-scoped Escape chain.
 useCityEscape({
@@ -139,10 +139,10 @@ defineExpose({ rendererHost });
          real buttons. See city/CitySelectionNotice.vue (Part 5 V2). -->
     <CitySelectionNotice />
     <div class="ci-app__body">
-      <!-- Rendered per the container-query layout (styles.css's 820px threshold),
-           never per viewMode: the >=820px layout is "list + canvas + inspector"
+      <!-- Rendered per the container-query layout (styles.css's drawer threshold),
+           never per viewMode: the at-or-above-threshold layout is "list + canvas + inspector"
            together, regardless of which spatial mode the camera is in. Below
-           820px it is a drawer instead, gated by `filesDrawerOpen` (item 7) —
+           the threshold it is a drawer instead, gated by `filesDrawerOpen` (item 7) —
            mutually exclusive with the Inspector drawer, never both at once. -->
       <div
         class="ci-app__list-wrapper"

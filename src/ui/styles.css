@@ -194,7 +194,7 @@
   overflow-y: auto;
 }
 /* Item 4 sweep -- same rule, same two reasons. (The `display: none` copy of this selector
-   inside the >=820px container query stays at (0,1,0): it only has to beat
+   inside the at-or-above-threshold container query stays at (0,1,0): it only has to beat
    `button { display: inline-flex }`, which is (0,0,1).) */
 :where(.codebase-inspector-root) button.ci-app__drawer-close {
   align-self: flex-end;
@@ -212,9 +212,9 @@
   background: var(--ci-raised);
 }
 /* One collapse threshold at 760 CSS px (measured, gap closure GRA6: tests/fixtures/
-   drawer-threshold-measure.json; was a provisional 820), measured on the leaf via container
-   queries (spec 5.2). It is evaluated on `.ci-shell__content`, which is the leaf minus the
-   220 px nav column once the nav is inline. At
+   drawer-threshold-measure.json; was a provisional 820), gated by container queries (spec 5.2)
+   on `.ci-shell__content` -- the leaf minus the 220 px nav column once the nav is inline --
+   so the three-column city needs that content box, not the leaf, to reach it. At
    or above it: list + canvas + inspector side by side. Below it: canvas-first;
    list and inspector become full overlays, ONE AT A TIME (item 7 — App.vue's
    own `filesDrawerOpen` state and the mutual-exclusivity watcher are what
@@ -247,7 +247,7 @@
      definite floor is both what the budget needs and what removes the content-based
      flex-blowout risk on the list's long unbroken paths. */
   :where(.codebase-inspector-root) .ci-app__list-wrapper {
-    flex: 0 1 clamp(180px, 16%, 320px);
+    flex: 0 1 clamp(180px, 15%, 320px);
     min-width: 180px;
   }
   /* No drawer concept at all above the threshold. */

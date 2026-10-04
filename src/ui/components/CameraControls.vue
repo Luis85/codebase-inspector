@@ -47,7 +47,7 @@ const props = withDefaults(defineProps<{ stepsCollapsed?: boolean }>(), { stepsC
 
 // Task 10: the six STEP controls (Rotate x2, Pan x4 — named for the STEP increments
 // this file already defines, BUTTON_ROTATE_STEP/BUTTON_PAN_STEP, unlike
-// BUTTON_ZOOM_FACTOR) collapse behind a disclosure below the SAME 820px leaf
+// BUTTON_ZOOM_FACTOR) collapse behind a disclosure below the SAME drawer
 // threshold App.vue's own Files drawer already uses (DRAWER_MAX_INLINE_SIZE) — one
 // definition of "narrow" for the whole shell, not a second number invented here.
 // `v-if` in the template below, never `hidden`/`v-show`: the cascade trap this
@@ -216,7 +216,7 @@ onBeforeUnmount(() => {
     aria-label="Camera controls"
   >
     <!-- Task 10 (F5): the six STEP controls, behind a disclosure — collapsed by
-         default under 820px (applyStepsDefault), always reachable by pointer in one
+         default below the drawer threshold (applyStepsDefault), always reachable by pointer in one
          click on `.ci-camera-controls__more` below. `v-if`, never `hidden`/`v-show`
          — see this file's own `stepsOpen` comment for why. -->
     <div

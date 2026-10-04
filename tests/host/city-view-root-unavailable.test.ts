@@ -19,7 +19,7 @@ import type { CameraBookmark, CodebaseProfile, CodebaseSnapshot } from '../../sr
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
-import type { SourceFileSystemPort } from '../../src/application/ports/source-filesystem-port';
+import type { SourceFileSystemPort, WalkEntry } from '../../src/application/ports/source-filesystem-port';
 
 const DUMMY_CAMERA: CameraBookmark = {
   projection: 'orthographic', mode: '3d', position: [0, 0, 0], target: [0, 0, 0], up: [0, 1, 0], zoom: 1,
@@ -67,14 +67,22 @@ async function waitUntilRunning(view: CityView): Promise<void> {
 const runStoreOf = (view: CityView): ReturnType<typeof useRunStore> => useRunStore((view as unknown as { pinia: Pinia }).pinia);
 const noticeTexts = (): string[] => [...document.querySelectorAll('.notice')].map((n) => n.textContent ?? '');
 
-/** A view with snapshot 's1' whose filesystem answers `stat` as a missing folder once `gone.value` is set. */
+/** A walk whose very first read rejects: the scan FAILS (not cancelled, not root-unavailable). */
+function failingWalk(): AsyncIterable<WalkEntry> {
+  return { [Symbol.asyncIterator]: () => ({ next: () => Promise.reject(new Error('disk error')) }) };
+}
+
+/** A view with snapshot 's1' whose filesystem answers `stat` as a missing folder once `gone.value` is set,
+ *  and whose walk fails once `broken.value` is set. */
 async function openView() {
   const snapshotStore = new InMemorySnapshotStore(createFixedClock());
   snapshotStore.put(publishedSnapshot());
   const fake = createFakeSourceFileSystem({ 'a.ts': 'x', 'b.ts': 'y', 'c.ts': 'z' }).port;
   const gone = { value: false };
+  const broken = { value: false };
   const port: SourceFileSystemPort = {
     ...fake,
+    walk: (root, opts, token) => (broken.value ? failingWalk() : fake.walk(root, opts, token)),
     stat: async (path) => (gone.value
       ? { exists: false, isDirectory: false, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 }
       : fake.stat(path)),
@@ -88,7 +96,7 @@ async function openView() {
   await view.setState({ ...defaultCityViewState(), profileId: 'p1', snapshotId: 's1' }, {} as never);
   await view.onOpen();
   await nextTick();
-  return { view, gone, getLeaves: plugin.app.workspace.getLeavesOfType! };
+  return { view, gone, broken, getLeaves: plugin.app.workspace.getLeavesOfType! };
 }
 
 describe('a refresh that finds the root unavailable replays nothing from the previous run (GRA4)', () => {
@@ -127,6 +135,23 @@ describe('a refresh that finds the root unavailable replays nothing from the pre
     expect(vi.mocked(computeLayout).mock.calls.length).toBe(published);
     expect(getLeaves.mock.calls.length).toBe(reconciled);
     expect(runStoreOf(view).rootUnavailable).toBe(true);
+    await view.onClose();
+  });
+
+  // Final review T5: the `lastReactedRun` guard holds for a FAILED previous run too.
+  it('after a FAILED run: no second Notice, and the run store shows the root as unavailable', async () => {
+    const { view, gone, broken } = await openView();
+    broken.value = true;
+    await view.startScan();
+    expect(runStoreOf(view).banner).not.toContain('The source directory is no longer available');
+    expect(noticeTexts()).toHaveLength(1);   // the failed run's own Notice
+
+    gone.value = true;
+    await view.startScan();
+    expect(noticeTexts()).toHaveLength(1);
+    const runStore = runStoreOf(view);
+    expect(runStore.rootUnavailable).toBe(true);
+    expect(runStore.banner).toContain('The source directory is no longer available');
     await view.onClose();
   });
 });

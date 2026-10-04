@@ -3,6 +3,7 @@
 // content. The Act and Configure routes are axe-routes-act.test.ts.
 import { afterEach, describe, expect, it } from 'vitest';
 import { CANCELLING_BANNER, DEPS_LICENSES_TITLE, TESTS_RUNS_TITLE } from '../../src/ui/inspector-copy';
+import { RETRY_3D } from '../../src/ui/copy';
 import { expectAccessible, expectTabAccessible, inertRenderer, mountLeaf, openTab, settle, sizeCityStage, unmountLeaf } from './axe-support';
 
 describe('axe: the shell, Overview and the code city', () => {
@@ -74,6 +75,15 @@ describe('axe: the shell, Overview and the code city', () => {
     sizeCityStage();
     const { root } = await mountLeaf({ route: 'city', createCityRenderer: inertRenderer(true) });
     await expectAccessible(root, '.ci-viewport__notice');
+  });
+
+  it('S11: the Retry 3D button beside the notice, after an initialization failure', async () => {
+    sizeCityStage();
+    const { root } = await mountLeaf({ route: 'city', createCityRenderer: inertRenderer(true) });
+    // A named, enabled button: the pin that a notice without its retry cannot pass vacuously.
+    const retry = root.querySelector<HTMLButtonElement>('button.ci-viewport__retry');
+    expect(retry?.textContent).toBe(RETRY_3D);
+    await expectAccessible(root, '.ci-viewport__retry');
   });
 
   it('sizeCityStage leaves no clientWidth or clientHeight override on HTMLElement.prototype once the leaf is unmounted', async () => {

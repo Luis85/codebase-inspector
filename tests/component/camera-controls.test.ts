@@ -149,19 +149,19 @@ describe('CameraControls.vue (C09) — WCAG 2.5.7', () => {
 
   // Task 10: the auto-default this component computes for itself when no test override
   // is given — `contentBoxInlineSize(narrowContainer(...))`, the SAME leaf-width
-  // measurement App.vue's own `narrowDrawer` takes, against the SAME 820px number
+  // measurement App.vue's own `narrowDrawer` takes, against the SAME drawer threshold
   // (DRAWER_MAX_INLINE_SIZE) — one definition of "narrow" for the whole shell, not a
   // second one invented here. A width of exactly 0 (jsdom's own default, and a
   // leaf paused behind a sibling tab) is deliberately read as "not yet measurable",
   // never as "narrow" — see this file's own applyStepsDefault comment.
-  it('defaults the steps OPEN at or above the 820px leaf threshold', () => {
+  it('defaults the steps OPEN at or above the drawer threshold (DRAWER_MAX_INLINE_SIZE)', () => {
     const stage = stageInRoot(900);
     const wrapper = mountControls(rendererDouble, stage);
     expect(byLabel(wrapper, 'Rotate left').exists()).toBe(true);
     expect(wrapper.findAll('button').length).toBe(12);
   });
 
-  it('defaults the steps COLLAPSED below the 820px leaf threshold', () => {
+  it('defaults the steps COLLAPSED below the drawer threshold (DRAWER_MAX_INLINE_SIZE)', () => {
     const stage = stageInRoot(600);
     const wrapper = mountControls(rendererDouble, stage);
     expect(byLabel(wrapper, 'Rotate left').exists()).toBe(false);
@@ -276,7 +276,7 @@ describe('CameraControls re-measures on every leaf layout change (Part 5 V5)', (
   let rendererDouble: ReturnType<typeof makeRendererDouble>;
   beforeEach(() => { setActivePinia(createPinia()); rendererDouble = makeRendererDouble(); });
 
-  it('collapses the steps when the leaf narrows across 820 px, and reopens them when it widens', async () => {
+  it('collapses the steps when the leaf narrows across the drawer threshold, and reopens them when it widens', async () => {
     const stage = stageInRoot(900);
     const { layout, tick } = layoutDouble();
     const wrapper = mountControls(rendererDouble, stage, {}, layout);

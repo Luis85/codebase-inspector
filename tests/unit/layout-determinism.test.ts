@@ -51,7 +51,7 @@ describe('computeLayout determinism', () => {
 
   // Fix round 1, IMPORTANT 3: the test above puts 25 directories directly under the
   // repository, which exceeds MAX_DIRECT_SUBDISTRICTS (20) and aggregates the root, so
-  // every lot goes through ONE flat shelfPack call — the recursive origin composition in
+  // every lot goes through ONE flat `pack` call — the recursive origin composition in
   // collectResults (`originX + c.localX`, chained through several nested levels) is
   // never exercised. This fixture stays at or below the threshold at every level, so the
   // fully recursive path is the one actually under test.

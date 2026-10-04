@@ -51,9 +51,10 @@ function aspectPenalty(width: number, footprintZ: number): number {
   return Math.abs(Math.log(width / footprintZ));
 }
 
-/** The packing order: footprintZ descending, then key. Indices into `items`; fully
- *  deterministic and independent of the input order (equal keys cannot occur between two
- *  distinct paths). Computed ONCE per pack, outside the target-width search. */
+/** The packing order: footprintZ descending, then key. Indices into `items`. Distinct paths
+ *  compare unequal (`comparePathKeys` is a total order on distinct strings), so the order does
+ *  not depend on how the items arrive; two EQUAL keys would fall back to the caller's own
+ *  stable order. Computed ONCE per pack, outside the target-width search. */
 function decreasingHeight(items: readonly Footprint[]): number[] {
   return items.map((_, i) => i).sort((a, b) =>
     items[b]!.footprintZ - items[a]!.footprintZ || comparePathKeys(items[a]!.key, items[b]!.key));

@@ -28,7 +28,7 @@ import { injectLeafLayout } from '../../shell/leaf-layout';
 interface WinBearing { win?: Window }
 
 export interface CityFloor {
-  /** Below the 820 px drawer threshold: the Escape chain's drawer link. */
+  /** Below the drawer threshold (DRAWER_MAX_INLINE_SIZE): the Escape chain's drawer link. */
   narrowDrawer: Readonly<Ref<boolean>>;
 }
 

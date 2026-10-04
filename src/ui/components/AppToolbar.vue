@@ -156,7 +156,7 @@ function requestScan(): void {
       Return to city view
     </button>
     <!-- Task 9 fix round 1, item 7: the Files drawer's OPENER -- only meaningful
-         below 820px (styles.css hides it above that via the container query),
+         below the drawer threshold (DRAWER_MAX_INLINE_SIZE; styles.css hides it above that via the container query),
          but always in the DOM so it is reachable the moment the leaf narrows. -->
     <button
       type="button"

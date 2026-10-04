@@ -1,4 +1,4 @@
-// Task 9 fix round 1, item 7: the narrow (<820px) layout's Files/Inspector
+// Task 9 fix round 1, item 7: the narrow (below the drawer threshold) layout's Files/Inspector
 // overlays each need "a visible close that returns focus to its opener" (the
 // brief's own words). The opener and the close control live in different
 // components (CodebaseFileList activates a row; FileInspector's own close

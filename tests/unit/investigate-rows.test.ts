@@ -55,6 +55,9 @@ for (const block of ['ci-notes-panel', 'ci-orphan-notes'] as const) {
       expect(declaration(actions, 'display')).toBe('flex');
       expect(declaration(actions, 'flex')).toBe('none');
       expect(declaration(actions, 'grid-column')).toBe('2');
+      // Gap closure GRA9: the cell spans the path row and the status row, so the buttons stay
+      // level with the whole item instead of dropping into the first row alone.
+      expect(declaration(actions, 'grid-row')).toBe('1 / span 2');
     });
 
     it('lets a failed Open spread across both columns', () => {

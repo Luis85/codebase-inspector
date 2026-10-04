@@ -180,7 +180,7 @@ describe('onload', () => {
   });
 
   it('GCP6: onunload leaves a marker written by another Three.js revision alone', () => {
-    const foreign = REVISION === '185' ? '184' : '185';
+    const foreign = String(Number(REVISION) - 1);   // a different revision, derived so an upgrade cannot make it the same
     const marker: { __THREE__?: unknown } = { __THREE__: foreign };
     vi.stubGlobal('window', marker);
     const p = makePluginDouble();

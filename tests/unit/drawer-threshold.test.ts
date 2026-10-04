@@ -16,6 +16,8 @@ interface Reading {
   clipped: string[];
   navBandClipped: string[];
   stage: number | null;
+  /** The stage's content box (clientWidth): what CityViewport measures (ruling E24). */
+  stageClient: number | null;
   floorNotice: boolean;
   navInline: boolean;
   threeColumn: boolean;
@@ -29,10 +31,12 @@ const stripComments = (css: string): string => css.replace(/\/\*[\s\S]*?\*\//g, 
 const mainCss = stripComments(read('../../src/ui/styles.css'));
 const actCss = stripComments(read('../../src/ui/styles/screens-act.css'));
 
-/** E18's rule, as the fixture states it: (a) the city at content = T is three-column with no
- *  clipped box and a stage at or above the floor; (b) the nav band does not clip at leaf = T. */
+/** E18's rule with E24's box, as the fixture states it: (a) the city at content = T is
+ *  three-column with no clipped box, no floor notice and a stage CONTENT box (stageClient) at or
+ *  above the floor; (b) the nav band does not clip at leaf = T. */
 function passes({ city, nav }: Candidate): boolean {
-  return city.clipped.length === 0 && city.threeColumn && city.stage !== null && city.stage >= MIN_INLINE_SIZE
+  return city.clipped.length === 0 && city.threeColumn && !city.floorNotice
+    && city.stageClient !== null && city.stageClient >= MIN_INLINE_SIZE
     && nav.navInline && nav.navBandClipped.length === 0;
 }
 

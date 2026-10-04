@@ -26,6 +26,8 @@ import { HARNESS_THEME_EVENT } from './theme';
 import type { CityRendererPort } from '../../src/visualization/renderer-port';
 import type { RouteId } from '../../src/domain/route-ids';
 
+const HARNESS_CODEBASE_NAME = 'codebase-inspector';
+
 export type ScreenId = 's05' | 's06' | 's07' | 's08' | 's09' | 's10' | 's11';
 
 export interface HarnessOptions {
@@ -120,6 +122,8 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
 
   const store = useCityStore();
   store.setCity(harnessSnapshot(options.city), harnessLayout(options.city));
+  // Gap closure GRA8: a real leaf shows its codebase's name in the toolbar, so captures do too.
+  store.setName(HARNESS_CODEBASE_NAME);
 
   applyScreenState(store, options.screen);
   if (options.select) {

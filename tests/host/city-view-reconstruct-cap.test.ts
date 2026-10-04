@@ -12,7 +12,7 @@ import { dataPortDeps } from '../fixtures/data-port-deps';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { defaultCityViewState } from '../../src/host/view-state';
 import { makePluginDouble } from '../fixtures/city-view-doubles';
-import { COPY_14 } from '../../src/ui/copy';
+import { COPY_14, RETRY_3D } from '../../src/ui/copy';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import type { CityRendererEvent, CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
@@ -79,5 +79,27 @@ describe('CityView: automatic reconstruction is capped (GRA2)', () => {
     }
     expect(createRendererSpy).toHaveBeenCalledTimes(4);
     expect(view.contentEl.textContent).toContain(COPY_14);
+  });
+
+  // Final review RF2: the host's own wiring of Retry 3D (the 'retryCityRenderer' provide in
+  // city-view.ts), through the real CityView and its real viewport. The component tests
+  // inject their own retry callback and so cannot see this key go missing.
+  it('Retry 3D in the real CityView resets the cap: the factory is built a 5th time and COPY-14 is gone', async () => {
+    const view = await openIn3dWithSnapshot();
+    for (let i = 0; i < 4; i += 1) {
+      emitters[emitters.length - 1]!({ type: 'unavailable', reason: 'context-lost' });
+      await nextTick();
+      await nextTick();
+    }
+    expect(createRendererSpy).toHaveBeenCalledTimes(4);
+    expect(view.contentEl.textContent).toContain(COPY_14);
+    const retry = Array.from(view.contentEl.querySelectorAll('button')).find((b) => b.textContent === RETRY_3D);
+    expect(retry, 'the Retry 3D button').toBeDefined();
+    retry!.click();
+    await nextTick();
+    await nextTick();
+    await nextTick();
+    expect(createRendererSpy).toHaveBeenCalledTimes(5);
+    expect(view.contentEl.textContent).not.toContain(COPY_14);
   });
 });

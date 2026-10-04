@@ -169,10 +169,10 @@ Gap-closure Part A (branch `feat/gap-closure`) changed the city and its renderer
 - Districts are packed with next-fit decreasing height: root occupancy goes from 54.66 % to 71.87 % on the frozen real tree (1,236 paths), and `LAYOUT_VERSION` is 2.
 - The renderer is reconstructed at most 3 times automatically after a lost WebGL context; then the 3D-unavailable notice shows with a **Retry 3D** button (renderer only, never a scan).
 - The canvas captures the pointer on press, and a pick outside the canvas is refused.
-- A scan source whose folder is gone shows as unavailable (COPY-28) and keeps the snapshot readable, and a refresh no longer asks to approve a missing folder (native scenario 42).
+- A scan source whose folder is gone shows as unavailable (COPY-28) and keeps the snapshot readable, and a refresh no longer asks to approve a missing folder (the host tests in `tests/host/scan-flow-root-unavailable.test.ts`; native scenario 42 pins the banner).
 - The toolbar shows the codebase name, resolved from the profile and kept in the leaf state.
 - The drawer threshold is measured at 760 CSS px (it was 820), and the inspector's action buttons wrap instead of clipping.
-- A wide leaf gives the list 16 % and the inspector 12 % of the width (the stage measures 1140.2 px at a 1876 px leaf with the inspector open).
+- A wide leaf gives the list 15 % and the inspector 12 % of the width (the stage's content box measures 1154 px, its border box 1156.4 px, at a 1876 px leaf with the inspector open; the floor is 1140 px on the content box).
 - A relation arc clears the tallest building in its corridor, and the selected file's arcs and arrowheads draw above the buildings.
 - The Investigate note rows are a two-column grid, so Open stays beside its path.
 - The shipped bundle no longer carries pinia's dead `XMLHttpRequest` island, and unloading the plugin clears the Three.js `window.__THREE__` marker it set.

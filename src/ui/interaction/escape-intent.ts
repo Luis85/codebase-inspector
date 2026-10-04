@@ -49,7 +49,7 @@ export function escapeIntent(ctx: EscapeContext): EscapeIntent | null {
   // the UI can ever exercise.
   //
   // Re-review round 2 (R1, Important): `&& ctx.narrowDrawer`, matching the Inspector
-  // branch above, because a DRAWER THAT IS NOT A DRAWER IS NOT A LAYER. At >= 820 px
+  // branch above, because a DRAWER THAT IS NOT A DRAWER IS NOT A LAYER. At or above the drawer threshold
   // the list is a permanent column and the opener is `display: none`, so resolving
   // this branch there swallows the press (nothing visible happens, and the layer that
   // IS on screen -- the selection -- never gets it) and focuses a hidden control. The

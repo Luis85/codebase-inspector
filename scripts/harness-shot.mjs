@@ -311,7 +311,7 @@ async function captureShot(browser, base, shot, waitUntilSettled, failures) {
 // The readiness mark, not the canvas element: mount.ts sets it only after the drawing
 // buffer is sized AND two frames have passed. Waiting on the element would photograph
 // a box that is about to contain a city.
-export async function waitForHarnessReady(page) {
+async function waitForHarnessReady(page) {
   await page.waitForSelector('body[data-ci-harness-ready="true"]', { timeout: 20_000 });
 }
 

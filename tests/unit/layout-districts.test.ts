@@ -76,7 +76,7 @@ describe('districts', () => {
   });
 
   // Fix round 1, IMPORTANT 3: the claim that non-overlap COMPOSES up through the tree
-  // (districts.ts's own doc-comment on shelfPack) was asserted but never tested against
+  // (the packing contract of `pack` in src/domain/layout/pack.ts) was asserted but never tested against
   // a genuinely nested tree — nestedStressFixture keeps every level at or below
   // MAX_DIRECT_SUBDISTRICTS so the recursive (non-aggregated) path is exercised, not the
   // flattened aggregation path the 400/25 overlap fixture actually takes.
@@ -159,8 +159,9 @@ describe('I2: districts are roughly square at every size (defect 4a)', () => {
   });
 
   it('stays DETERMINISTIC: the same snapshot lays out identically twice', () => {
-    // Whatever shelfPack does to choose its target must not depend on anything but the
-    // items, in their given order -- determinism is this module's whole point.
+    // Whatever `pack` does to choose its target must not depend on anything but the items:
+    // it orders them by height, then by path key, never by the order they arrive in --
+    // determinism is this module's whole point.
     const snapshot = nestedStressFixture();
     expect(computeLayout(snapshot).districts).toEqual(computeLayout(snapshot).districts);
   });

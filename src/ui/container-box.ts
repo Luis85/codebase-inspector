@@ -1,10 +1,10 @@
-// WHICH element the 820 px threshold is measured on, and WHICH BOX of it.
+// WHICH element the drawer threshold (DRAWER_MAX_INLINE_SIZE) is measured on, and WHICH BOX of it.
 //
 // Both halves lived in App.vue. They moved here for two reasons: App.vue is at its
 // 400-line cap, and the second half is a rule that deserves a test of its own rather
 // than one reachable only by mounting the whole shell.
 //
-// Ruling M97, reopened at checkpoint #3. The stylesheet's `@container (min-width: 820px)`
+// Ruling M97, reopened at checkpoint #3. The stylesheet's `@container (min-width: <threshold>px)`
 // and App.vue's `narrowDrawer` are two halves of ONE rule (spec 5.2), and CSS cannot
 // import `responsive.ts`, so the number is a commented duplicate across the two files.
 // They were still measuring two DIFFERENT boxes of the same element:
@@ -74,7 +74,7 @@ export function contentBoxInlineSize(el: HTMLElement): number {
  *  one CSS container queries on the leaf compare against, but once the inspector shell
  *  shows its navigation column inline (`.ci-shell--nav-inline`) the city's own content box
  *  (`.ci-shell__content`, itself a size container in shell.css) is narrower by that
- *  column. Subtracting it keeps the JS threshold decisions (drawer at 820 px, list-first
+ *  column. Subtracting it keeps the JS threshold decisions (the drawer threshold, list-first
  *  floor at 320 px) in step with the container queries evaluated on `.ci-shell__content`.
  *  Outside the shell, or with the nav collapsed into a drawer, this equals the leaf size. */
 export function cityInlineSize(el: HTMLElement): number {

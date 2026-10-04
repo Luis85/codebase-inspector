@@ -92,7 +92,9 @@ export function createPicking(options: PickingOptions): Picking {
     const pointer = event as PointerEvent;
     if (!options.isActive()) return;
     clearDwell();
-    canvas.setPointerCapture?.(pointer.pointerId);
+    // Capture is a nicety: an unknown pointer id (a synthetic or already-ended pointer) makes
+    // setPointerCapture throw, and the gesture must start regardless.
+    try { canvas.setPointerCapture?.(pointer.pointerId); } catch { /* the gesture does not depend on capture */ }
     gesture = {
       startX: pointer.clientX, startY: pointer.clientY,
       lastX: pointer.clientX, lastY: pointer.clientY,

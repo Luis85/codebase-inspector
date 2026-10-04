@@ -45,6 +45,27 @@ describe('root occupancy on the frozen plan-base tree (GRA1)', () => {
     expect(rootOccupancy(layout)).toBeCloseTo(NFDH_OCCUPANCY, 1);
   });
 
+  // Final review: occupancy alone would reward a packing that overlaps lots or stretches the city into a strip.
+  it('overlaps no two of the 1,236 lots and keeps the root near square (aspect 0.7 to 1.43)', () => {
+    const layout = computeLayout(snapshotFromPaths(REAL_TREE_PATHS, 'plan-base'));
+    const lots = layout.lots;
+    let overlapping: string | null = null;
+    for (let i = 0; i < lots.length && overlapping === null; i += 1) {
+      for (let j = i + 1; j < lots.length; j += 1) {
+        const a = lots[i]!, b = lots[j]!;
+        const sepX = Math.abs(a.center[0] - b.center[0]) >= (a.dimensions[0] + b.dimensions[0]) / 2;
+        const sepZ = Math.abs(a.center[2] - b.center[2]) >= (a.dimensions[2] + b.dimensions[2]) / 2;
+        if (!sepX && !sepZ) { overlapping = `lots ${i} and ${j}`; break; }
+      }
+    }
+    expect(overlapping).toBeNull();
+
+    const root = layout.districts.find((d) => d.parentId === null)!;
+    const aspect = root.extent[0] / root.extent[1];
+    expect(aspect).toBeGreaterThanOrEqual(0.7);
+    expect(aspect).toBeLessThanOrEqual(1.43);
+  });
+
   it('is the same figure for the reversed path list (determinism)', () => {
     const reversed = REAL_TREE_PATHS.map((_, i) => REAL_TREE_PATHS[REAL_TREE_PATHS.length - 1 - i]!);
     const forward = rootOccupancy(computeLayout(snapshotFromPaths(REAL_TREE_PATHS, 'plan-base')));

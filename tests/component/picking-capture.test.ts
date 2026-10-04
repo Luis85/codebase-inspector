@@ -29,28 +29,34 @@ describe('picking pointer capture and canvas bounds', () => {
   let hitTest: Mock<PickingOptions['hitTest']>;
   let onPick: Mock<PickingOptions['onPick']>;
   let onHover: Mock<PickingOptions['onHover']>;
+  let onOrbit: Mock<PickingOptions['onOrbit']>;
 
-  function mount(withCapture: boolean): void {
+  interface CaptureStubs { held?: boolean; setThrows?: boolean }
+
+  function mount(withCapture: boolean, stubs: CaptureStubs = {}): void {
     canvas = window.document.body.createEl('canvas');
     canvas.getBoundingClientRect = () => ({
       left: 0, top: 0, right: SIZE, bottom: SIZE, width: SIZE, height: SIZE, x: 0, y: 0,
       toJSON: () => ({}),
     });
     if (withCapture) {
-      setCapture = vi.fn<(id: number) => void>();
+      setCapture = vi.fn<(id: number) => void>(() => {
+        if (stubs.setThrows) throw new DOMException('no such pointer', 'NotFoundError');
+      });
       releaseCapture = vi.fn<(id: number) => void>();
       Object.assign(canvas, {
         setPointerCapture: setCapture,
         releasePointerCapture: releaseCapture,
-        hasPointerCapture: vi.fn(() => true),
+        hasPointerCapture: vi.fn(() => stubs.held ?? true),
       });
     }
     hitTest = vi.fn<PickingOptions['hitTest']>(() => LOT);
     onPick = vi.fn<PickingOptions['onPick']>();
     onHover = vi.fn<PickingOptions['onHover']>();
+    onOrbit = vi.fn<PickingOptions['onOrbit']>();
     picking = createPicking({
       win: window, canvas, hitTest, onPick, onHover,
-      onOrbit: () => {}, onPan: () => {}, onZoom: () => {}, isActive: () => true,
+      onOrbit, onPan: () => {}, onZoom: () => {}, isActive: () => true,
     });
   }
 
@@ -114,6 +120,47 @@ describe('picking pointer capture and canvas bounds', () => {
       canvas.dispatchEvent(pointerEvent('pointerdown', 50, 50));
       canvas.dispatchEvent(pointerEvent('pointerup', 50, 50));
     }).not.toThrow();
+    expect(onPick).toHaveBeenCalledWith(LOT);
+  });
+
+  // Final review RF3. A release is issued only for a pointer the canvas still holds.
+  it('(f) a pointer the canvas no longer holds is not released', () => {
+    mount(true, { held: false });
+    canvas.dispatchEvent(pointerEvent('pointerdown', 50, 50));
+    canvas.dispatchEvent(pointerEvent('pointerup', 50, 50));
+    expect(setCapture).toHaveBeenCalledWith(1);
+    expect(releaseCapture).not.toHaveBeenCalled();
+    expect(onPick).toHaveBeenCalledWith(LOT);   // the gesture itself still completed
+  });
+
+  // The document-level pointerup is what ends a gesture whose release lands outside the canvas
+  // when capture is unavailable; the point it reports is outside, so nothing picks.
+  it('(g) a press inside and a release on document.body outside the canvas, with no capture support, picks nothing', () => {
+    mount(false);
+    canvas.dispatchEvent(pointerEvent('pointerdown', 98, 50));
+    window.document.body.dispatchEvent(pointerEvent('pointerup', 102, 50));
+    expect(hitTest).not.toHaveBeenCalled();
+    expect(onPick).not.toHaveBeenCalled();
+
+    // The gesture ended: a later buttonless move over the canvas arms hover, not a drag.
+    canvas.dispatchEvent(pointerEvent('pointermove', 50, 50));
+    expect(onOrbit).not.toHaveBeenCalled();
+
+    // Positive control: the same press and a release on the body INSIDE the canvas's box picks.
+    canvas.dispatchEvent(pointerEvent('pointerdown', 95, 50));
+    window.document.body.dispatchEvent(pointerEvent('pointerup', 97, 50));
+    expect(onPick).toHaveBeenCalledWith(LOT);
+  });
+
+  it('(h) a setPointerCapture that throws still starts the gesture: a drag orbits and a click picks', () => {
+    mount(true, { setThrows: true });
+    expect(() => { canvas.dispatchEvent(pointerEvent('pointerdown', 50, 50)); }).not.toThrow();
+    canvas.dispatchEvent(pointerEvent('pointermove', 60, 50));
+    expect(onOrbit).toHaveBeenCalledWith(10, 0);
+    canvas.dispatchEvent(pointerEvent('pointerup', 60, 50));
+
+    canvas.dispatchEvent(pointerEvent('pointerdown', 50, 50));
+    canvas.dispatchEvent(pointerEvent('pointerup', 50, 50));
     expect(onPick).toHaveBeenCalledWith(LOT);
   });
 });

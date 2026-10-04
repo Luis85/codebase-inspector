@@ -5,19 +5,28 @@ import { readFileSync } from 'node:fs';
 // at a 1876 leaf with the inspector open. The two panel percentages are CHOSEN BY
 // MEASUREMENT (scripts/harness-measure.mjs --wide), never by estimate; the fixture holds
 // the numbers and this test keeps them honest against styles.css.
+//
+// "Stage" means the stage's CONTENT box (ruling E24: `stageClient`, clientWidth -- what
+// CityViewport measures and its floor enforces), not the border box the fixture also records.
+// And the floor is recomputed here from the CSS declarations and the measured chrome, so a
+// percentage changed in styles.css fails this file without anyone re-running the harness.
 
 interface Row {
   screen: string;
   leaf: number;
   stage: number | null;
+  stageClient: number | null;
+  widths: { nav: number; content: number; body: number };
   clipped: string[];
 }
 interface Fixture {
   minStageAt1876: number;
   caps: { list: number; inspector: number };
   minimums: { list: number; inspector: number };
+  chrome: { inset: number; gaps: number; stageBorders: number };
   listPercent: number;
   inspectorPercent: number;
+  rejected: Array<{ listPercent: number }>;
   rows: Row[];
   baseline: { listPercent: number; inspectorPercent: number; rows: Row[] };
 }
@@ -38,12 +47,39 @@ function panel(selector: string) {
 const list = panel('.ci-app__list-wrapper');
 const inspector = panel('.ci-inspector');
 
+/** The s07 stage content box for a given `.ci-shell__content` width: the flex container is the
+ *  content minus its inset, the panels take clamp(min, P% of that, cap), and the gaps and the
+ *  stage's own borders are the measured chrome. */
+function stageAt(content: number, listPercent: number, inspectorPercent: number): number {
+  const base = content - fixture.chrome.inset;
+  const basis = (p: { min: number; cap: number }, percent: number): number => Math.min(p.cap, Math.max(p.min, base * percent / 100));
+  return base - basis(list, listPercent) - basis(inspector, inspectorPercent) - fixture.chrome.gaps - fixture.chrome.stageBorders;
+}
+
 const row = (rows: Row[], screen: string, leaf: number) => rows.find((r) => r.screen === screen && r.leaf === leaf);
 
 describe('the wide-leaf measurement (GRA5, GCN6)', () => {
-  it('gives the stage at least 1140 px at a 1876 leaf with the inspector open', () => {
-    expect(row(fixture.rows, 's07', 1876)?.stage ?? 0).toBeGreaterThanOrEqual(1140);
+  it('gives the stage content box at least 1140 px at a 1876 leaf with the inspector open', () => {
+    expect(row(fixture.rows, 's07', 1876)?.stageClient ?? 0).toBeGreaterThanOrEqual(1140);
     expect(fixture.minStageAt1876).toBe(1140);
+  });
+
+  it('recomputes that floor from styles.css: percentages, caps, minimums and the measured chrome', () => {
+    expect(stageAt(1876 - 220, list.percent, inspector.percent)).toBeGreaterThanOrEqual(1140);
+    // Positive control: the 16 % this replaced is below the floor by the same arithmetic.
+    expect(stageAt(1876 - 220, 16, inspector.percent)).toBeLessThan(1140);
+    expect(fixture.rejected[0]?.listPercent).toBe(16);
+  });
+
+  it('the arithmetic agrees with every measured s07 row (so the recorded chrome is real)', () => {
+    for (const leaf of [1280, 1876, 2560]) {
+      const measured = row(fixture.rows, 's07', leaf);
+      expect(measured, `s07 @ ${leaf}`).toBeDefined();
+      expect(measured?.widths.content, `s07 @ ${leaf}`).toBe(leaf - (measured?.widths.nav ?? 0));
+      const computed = stageAt(measured?.widths.content ?? 0, list.percent, inspector.percent);
+      // clientWidth is an integer: it rounds the fractional content box.
+      expect(Math.abs(computed - (measured?.stageClient ?? 0)), `s07 @ ${leaf}`).toBeLessThanOrEqual(0.5);
+    }
   });
 
   it('clips no city box at 1280, 1876 or 2560, on s05 or s07', () => {

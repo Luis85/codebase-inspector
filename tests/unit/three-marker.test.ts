@@ -14,7 +14,7 @@ describe('releaseThreeMarker', () => {
   });
 
   it('keeps a marker written by a foreign Three.js revision', () => {
-    const foreign = REVISION === '185' ? '184' : '185';
+    const foreign = String(Number(REVISION) - 1);   // a different revision, derived so an upgrade cannot make it the same
     const target: { __THREE__?: unknown } = { __THREE__: foreign };
     releaseThreeMarker(target);
     expect(target.__THREE__).toBe(foreign);

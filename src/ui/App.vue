@@ -82,7 +82,7 @@ let navOpener: HTMLElement | null = null;
 const drawerOpen = computed(() => navOpen.value && !navInline.value);
 
 // Controller ruling (Task 7 review, carried into Task 8): a drawer left open in a
-// narrow leaf must not reappear once the leaf widens past 820px and back — inline
+// narrow leaf must not reappear once the leaf widens past the drawer threshold (DRAWER_MAX_INLINE_SIZE) and back — inline
 // nav has its own column, so `navOpen` no longer means anything once it is showing.
 watch(navInline, (inline) => { if (inline) navOpen.value = false; });
 

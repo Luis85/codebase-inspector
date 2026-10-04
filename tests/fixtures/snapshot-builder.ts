@@ -241,7 +241,7 @@ export function nestedFixture(): CodebaseSnapshot {
  * Fix round 1, IMPORTANT 3: `buildSnapshotFixture`'s flat tree means
  * `{ files: 400, directories: 25 }` puts 25 direct subdirectories under the repository —
  * above `MAX_DIRECT_SUBDISTRICTS` (20), so the ROOT aggregates and every one of its 400
- * files goes through a single flat shelfPack call. That never exercises the recursive
+ * files goes through a single flat `pack` call. That never exercises the recursive
  * origin composition in `districts.ts`'s `collectResults` (`originX + c.localX` chained
  * through several levels), which is what this task is actually about. This fixture keeps
  * every container's direct-subdirectory count at or below the threshold (6, 6 and 3, all

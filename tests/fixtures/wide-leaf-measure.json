@@ -1,5 +1,5 @@
 {
-  "rule": "Lower the inspector percentage, then the list percentage, in 1-point steps from the baseline; the chosen pair is the first where the s07 stage at a 1876 leaf is >= 1140 and no city box is clipped at 1280, 1876 or 2560. Measured by `node scripts/harness-measure.mjs --wide 1280,1876,2560` on the unrewritten build.",
+  "rule": "Lower the list percentage in 1-point steps from 16 % (the inspector stays at 12 %); the chosen value is the first where the s07 stage CONTENT box (`stageClient`, clientWidth: what CityViewport measures, ruling E24) at a 1876 leaf is >= 1140 and no city box is clipped at 1280, 1876 or 2560. Measured by `node scripts/harness-measure.mjs --wide 1280,1876,2560` on the unrewritten build. Both boxes are recorded: `stage` is the border box, `stageClient` the content box.",
   "minStageAt1876": 1140,
   "caps": {
     "list": 320,
@@ -9,8 +9,22 @@
     "list": 180,
     "inspector": 200
   },
-  "listPercent": 16,
+  "chrome": {
+    "inset": 32,
+    "gaps": 24,
+    "stageBorders": 2
+  },
+  "listPercent": 15,
   "inspectorPercent": 12,
+  "rejected": [
+    {
+      "listPercent": 16,
+      "s07At1876": {
+        "stage": 1140.2,
+        "stageClient": 1138
+      }
+    }
+  ],
   "rows": [
     {
       "screen": "s05",
@@ -18,12 +32,14 @@
       "clipped": [],
       "navBandClipped": [],
       "stage": 836,
+      "stageClient": 834,
       "floorNotice": false,
       "navInline": true,
       "threeColumn": true,
       "widths": {
         "nav": 220,
         "content": 1060,
+        "body": 1028,
         "list": 180,
         "inspector": null,
         "stageColumn": 836,
@@ -36,12 +52,14 @@
       "clipped": [],
       "navBandClipped": [],
       "stage": 624,
+      "stageClient": 622,
       "floorNotice": false,
       "navInline": true,
       "threeColumn": true,
       "widths": {
         "nav": 220,
         "content": 1060,
+        "body": 1028,
         "list": 180,
         "inspector": 200,
         "stageColumn": 624,
@@ -53,17 +71,19 @@
       "leaf": 1876,
       "clipped": [],
       "navBandClipped": [],
-      "stage": 1352.2,
+      "stage": 1368.4,
+      "stageClient": 1366,
       "floorNotice": false,
       "navInline": true,
       "threeColumn": true,
       "widths": {
         "nav": 220,
         "content": 1656,
-        "list": 259.8,
+        "body": 1624,
+        "list": 243.6,
         "inspector": null,
-        "stageColumn": 1352.2,
-        "stage": 1352.2
+        "stageColumn": 1368.4,
+        "stage": 1368.4
       }
     },
     {
@@ -71,17 +91,19 @@
       "leaf": 1876,
       "clipped": [],
       "navBandClipped": [],
-      "stage": 1140.2,
+      "stage": 1156.4,
+      "stageClient": 1154,
       "floorNotice": false,
       "navInline": true,
       "threeColumn": true,
       "widths": {
         "nav": 220,
         "content": 1656,
-        "list": 259.8,
+        "body": 1624,
+        "list": 243.6,
         "inspector": 200,
-        "stageColumn": 1140.2,
-        "stage": 1140.2
+        "stageColumn": 1156.4,
+        "stage": 1156.4
       }
     },
     {
@@ -90,12 +112,14 @@
       "clipped": [],
       "navBandClipped": [],
       "stage": 1976,
+      "stageClient": 1974,
       "floorNotice": false,
       "navInline": true,
       "threeColumn": true,
       "widths": {
         "nav": 220,
         "content": 2340,
+        "body": 2308,
         "list": 320,
         "inspector": null,
         "stageColumn": 1976,
@@ -108,12 +132,14 @@
       "clipped": [],
       "navBandClipped": [],
       "stage": 1687,
+      "stageClient": 1685,
       "floorNotice": false,
       "navInline": true,
       "threeColumn": true,
       "widths": {
         "nav": 220,
         "content": 2340,
+        "body": 2308,
         "list": 320,
         "inspector": 277,
         "stageColumn": 1687,
