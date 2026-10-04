@@ -16,4 +16,8 @@
 // No behaviour lives here: this module exports two numbers and nothing else, so it
 // adds no layer edge to anything that imports it.
 export const MIN_INLINE_SIZE = 320;
-export const DRAWER_MAX_INLINE_SIZE = 820;
+// Measured, not guessed (gap closure GRA6): `npm run harness-measure -- --sweep` writes
+// tests/fixtures/drawer-threshold-measure.json and tests/unit/drawer-threshold.test.ts pins
+// this value, the two `@container` queries in styles.css and the one in styles/screens-act.css
+// to it. It was a provisional 820.
+export const DRAWER_MAX_INLINE_SIZE = 760;

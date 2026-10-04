@@ -85,7 +85,7 @@ describe('workspace shell', () => {
 
   it('opens the narrow navigation drawer and closes it with Escape, restoring focus', async () => {
     // jsdom's rect stub (tests/mocks/jsdom-gaps.ts) reports 1000 px by default, wide enough
-    // for the inline nav; the drawer only exists in a leaf narrower than 820 px.
+    // for the inline nav; the drawer only exists in a leaf narrower than 760 px.
     const leaf = document.body.createDiv({ cls: 'codebase-inspector-root' });
     leaf.getBoundingClientRect = () => ({ width: 600 } as DOMRect);
     const w = mountShell(leaf);
@@ -151,7 +151,7 @@ describe('workspace shell', () => {
     leaf.remove();
   });
 
-  it('a drawer left open does not reappear once the leaf widens past 820px and back', async () => {
+  it('a drawer left open does not reappear once the leaf widens past 760px and back', async () => {
     // Controller ruling carried from Task 7's review: inline nav has its own column,
     // so a drawer left open while narrow must not resurface once the leaf goes wide
     // and back — `navOpen` is reset the moment `navInline` flips true.
@@ -205,8 +205,9 @@ describe('workspace shell', () => {
       await w.get('[aria-label="Files"]').trigger('click');
       expect(w.find('.ci-app__list-wrapper--open').exists()).toBe(true);
 
-      // 1000 px leaf: the nav column goes inline (220), so the city gets 780 and stays narrow.
-      leaf.getBoundingClientRect = () => ({ width: 1000 } as DOMRect);
+      // 960 px leaf: the nav column goes inline (220), so the city gets 740 and stays narrow
+      // (the drawer threshold is 760, gap closure GRA6).
+      leaf.getBoundingClientRect = () => ({ width: 960 } as DOMRect);
       ro.resize(leaf);
       await nextTick();
       expect(w.find('.ci-shell').classes()).toContain('ci-shell--nav-inline');

@@ -211,13 +211,15 @@
 :where(.codebase-inspector-root) button.ci-app__drawer-close:hover {
   background: var(--ci-raised);
 }
-/* One collapse threshold at 820 CSS px, measured on the leaf via container
-   queries (spec 5.2), provisional and contested (re-check at checkpoint #3). At
+/* One collapse threshold at 760 CSS px (measured, gap closure GRA6: tests/fixtures/
+   drawer-threshold-measure.json; was a provisional 820), measured on the leaf via container
+   queries (spec 5.2). It is evaluated on `.ci-shell__content`, which is the leaf minus the
+   220 px nav column once the nav is inline. At
    or above it: list + canvas + inspector side by side. Below it: canvas-first;
    list and inspector become full overlays, ONE AT A TIME (item 7 — App.vue's
    own `filesDrawerOpen` state and the mutual-exclusivity watcher are what
    enforce that; this stylesheet only ever shows what App.vue tells it to). */
-@container (min-width: 820px) {
+@container (min-width: 760px) {
   :where(.codebase-inspector-root) .ci-app__body {
     flex-direction: row;
     align-items: stretch;
@@ -258,7 +260,7 @@
     min-width: 200px;
   }
 }
-@container (max-width: 819px) {
+@container (max-width: 759px) {
   :where(.codebase-inspector-root) .ci-app__list-wrapper {
     position: absolute;
     inset: 0;
@@ -746,6 +748,8 @@
 }
 :where(.codebase-inspector-root) .ci-inspector__actions {
   display: flex;
+  /* Four nowrap buttons total ~456 px; the inspector can be as narrow as 200 px (GRA6). */
+  flex-wrap: wrap;
   gap: var(--ci-space-2);
 }
 :where(.codebase-inspector-root) .ci-inspector__fallback input {

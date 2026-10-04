@@ -26,7 +26,7 @@ const VIEWPORT = { width: 1280, height: 800 };
 // From docs/superpowers/notes/2026-09-20-webgl-headless-spike.md's Conclusion. Do not
 // change these without re-running that spike — a wrong flag here does not error, it
 // photographs a blank canvas.
-const LAUNCH_ARGS = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+export const LAUNCH_ARGS = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
 
 // The S11 failure-path shot (see below) needs the OPPOSITE of the above: a browser
 // that genuinely cannot give a page a WebGL2 context, so createCityRenderer takes its
@@ -289,7 +289,7 @@ async function captureShot(browser, base, shot, waitUntilSettled, failures) {
 // The readiness mark, not the canvas element: mount.ts sets it only after the drawing
 // buffer is sized AND two frames have passed. Waiting on the element would photograph
 // a box that is about to contain a city.
-async function waitForHarnessReady(page) {
+export async function waitForHarnessReady(page) {
   await page.waitForSelector('body[data-ci-harness-ready="true"]', { timeout: 20_000 });
 }
 

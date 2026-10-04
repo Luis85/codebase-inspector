@@ -8,6 +8,7 @@
     "dev": "vite build --watch",
     "harness": "vite --config vite.harness.config.ts",
     "harness-shot": "node scripts/harness-shot.mjs",
+    "harness-measure": "node scripts/harness-measure.mjs",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && vue-tsc --noEmit -p tsconfig.test.json && vue-tsc --noEmit -p tests/e2e/tsconfig.json",
     "lint:fast": "oxlint --deny-warnings",
     "lint": "eslint . --max-warnings 0",

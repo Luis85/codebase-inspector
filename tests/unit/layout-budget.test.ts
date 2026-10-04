@@ -33,9 +33,9 @@ const css = readFileSync(stylesheet, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 /** The three-column block -- the only place the side panels are laid out in a row, and
  *  therefore the only place this budget applies. */
 function wideLayoutBlock(): string {
-  const start = css.indexOf('@container (min-width: 820px)');
+  const start = css.indexOf(`@container (min-width: ${DRAWER_MAX_INLINE_SIZE}px)`);
   expect(start).toBeGreaterThan(-1);
-  return css.slice(start, css.indexOf('@container (max-width: 819px)'));
+  return css.slice(start, css.indexOf(`@container (max-width: ${DRAWER_MAX_INLINE_SIZE - 1}px)`));
 }
 
 function ruleFor(selector: string): string {
