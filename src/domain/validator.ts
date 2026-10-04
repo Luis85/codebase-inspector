@@ -233,6 +233,9 @@ const cityViewStateSchema = z.object({
   // WP-02: an out-of-vocabulary route degrades to "no route" instead of discarding the
   // camera, selection and query persisted alongside it.
   route: z.enum(ROUTE_IDS).optional().catch(undefined),
+  // Gap closure GRA8 (§4.1 amended, GCN3): the codebase's display name. An unusable one is
+  // dropped on its own, like `route`; the host re-resolves it from the profile on open.
+  name: z.string().max(200).optional().catch(undefined),
 }).strict();
 
 export function validateCityViewState(input: unknown): CityViewState {

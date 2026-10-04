@@ -25,16 +25,18 @@ export interface ViewStateSyncTarget {
   readonly previous3dCamera: CameraBookmark | null;
   readonly inspectorOpen: boolean;
   readonly route: RouteId;
+  readonly name: string | undefined;
   select(entityId: EntityId): void;
   setQuery(query: string): void;
   setCamera(camera: CameraBookmark): void;
   setViewMode(mode: '3d' | 'top' | 'list'): void;
   openInspector(): void;
   navigate(route: RouteId): void;
+  setName(name: string | undefined): void;
 }
 
 type UiSlice = Pick<CityViewState,
-  'selectedEntityId' | 'query' | 'viewMode' | 'camera' | 'previous3dCamera' | 'inspectorOpen' | 'route'>;
+  'selectedEntityId' | 'query' | 'viewMode' | 'camera' | 'previous3dCamera' | 'inspectorOpen' | 'route' | 'name'>;
 
 /** Reads the seven UI-facing fields off the live store — the exact slice `city-view.ts`
  *  watches to keep `this.state` (and therefore `getState()`) current. A plain
@@ -49,6 +51,7 @@ export function pickUiState(store: ViewStateSyncTarget): UiSlice {
     previous3dCamera: store.previous3dCamera,
     inspectorOpen: store.inspectorOpen,
     route: store.route,
+    name: store.name,
   };
 }
 
@@ -70,4 +73,5 @@ export function seedStoreFromState(store: ViewStateSyncTarget, state: CityViewSt
   store.setViewMode(state.viewMode);
   if (state.inspectorOpen && state.selectedEntityId) store.openInspector();
   store.navigate(state.route ?? DEFAULT_ROUTE);
+  store.setName(state.name);
 }

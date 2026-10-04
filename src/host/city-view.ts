@@ -36,6 +36,7 @@ import { wireWindowMigration } from './window-migration';
 import { reconcileEveryView } from './leaf-registry';
 import { applyReconciliationTo } from './view-reconciliation';
 import { pickUiState, seedStoreFromState } from './view-state-sync';
+import { wireCodebaseName, type CodebaseNameWiring } from './codebase-name';
 import { CityScanController, provideScanCallbacks, type CityViewDeps } from './city-scan-controller';
 import { createLayoutPublisher, type LayoutPublisher } from './layout-publisher';
 import { requestFallowRun, requestReportImport, unwireDataPorts, wireDataPorts } from './data-ports';
@@ -93,6 +94,8 @@ export class CityView extends ItemView {
   // `DecodedCityViewState.ok` comment).
   private stateWasRestored = false;
   private unwatchStateSync: (() => void) | null = null;
+  /** Gap closure GRA8: resolves the toolbar's codebase name from the profile store. */
+  private codebaseName: CodebaseNameWiring | null = null;
 
   constructor(leaf: WorkspaceLeaf, plugin: Plugin, deps: CityViewDeps) {
     super(leaf);
@@ -210,6 +213,12 @@ export class CityView extends ItemView {
     // rather than the empty one `setQuery` falls back to. Covers "setState arrived
     // BEFORE onOpen"; `setState` itself covers the other ordering.
     if (this.stateWasRestored) seedStoreFromState(this.cityStore, this.state);
+    // Gap closure GRA8: the profile's name beats the persisted one, so refresh runs AFTER the seed.
+    this.codebaseName = wireCodebaseName({
+      plugin: this.plugin, profileStore: this.deps.profileStore,
+      profileId: () => this.state.profileId, setName: (name) => { if (this.pinia) useCityStore(this.pinia).setName(name); },
+    });
+    this.codebaseName.refresh();
     // The one real source of truth for "did the live UI change" from here on --
     // mirrored back into `this.state` so `getState()`/workspace.json reflect a
     // selection, query, camera or view-mode change made with no rescan at all
@@ -235,6 +244,8 @@ export class CityView extends ItemView {
     this.unwireWindowMigration = null;
     this.unwatchStateSync?.();
     this.unwatchStateSync = null;
+    this.codebaseName?.dispose();
+    this.codebaseName = null;
     this.layoutPublisher.abort();
     // Ruling M68: no `teardownRenderer()` here — `CityViewport.vue`'s own
     // `onBeforeUnmount` (its ResizeObserver disconnect, `renderer.dispose()`, which
@@ -283,6 +294,8 @@ export class CityView extends ItemView {
       { publishLayout: (snapshot) => { void this.layoutPublisher.publish(snapshot); }, showNotice: (m) => { this.showNotice(m); } },
     );
     if (updated) this.state = { ...this.state, ...updated };
+    // GRA8: the first scan creates the profile this leaf now points at.
+    if (lifecycle.run.status === 'complete') this.codebaseName?.refresh();
     // Task 11: a sibling leaf on the same profile knows nothing about THIS
     // coordinator's completion (leaf-registry.ts: ScanCoordinator is one per view).
     if (lifecycle.run.status === 'complete' && lifecycle.publishedSnapshotId) {

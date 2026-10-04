@@ -500,6 +500,11 @@ probe results and spec §3). Recorded by task 18.
   covers every field of the settings document (E3/E12), the search box included. A write
   made elsewhere while someone types a search therefore reaches the search index only once
   focus leaves the fields or the tab is hidden (gap closure, 2026-10-03).
+- **An older build drops a leaf state that carries `name` (gap closure GRA8, 2026-10-04).**
+  `CityViewState.name?` is new (§4.1, amended by GCN3). An older build's `.strict()` schema
+  rejects the unknown key, so it discards the whole persisted leaf state once; the leaf opens
+  at its defaults, and the next save of that build writes a state without `name`. Only a
+  downgrade past this change shows it.
 
 ---
 

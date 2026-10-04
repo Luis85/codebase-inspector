@@ -32,6 +32,8 @@ interface CityStoreState {
   inspectorOpen: boolean;
   lastSpatialMode: '3d' | 'top';
   route: RouteId;
+  /** Gap closure GRA8: the codebase's display name, set by the host (codebase-name.ts). */
+  name: string | undefined;
 }
 
 function initialState(): CityStoreState {
@@ -53,6 +55,7 @@ function initialState(): CityStoreState {
     inspectorOpen: false,
     lastSpatialMode: '3d',
     route: DEFAULT_ROUTE,
+    name: undefined,
   };
 }
 
@@ -215,6 +218,11 @@ export const useCityStore = defineStore('city-view', {
     navigate(route: RouteId): void {
       if (!isRouteId(route)) return;
       this.route = route;
+    },
+
+    /** Gap closure GRA8: the codebase's display name for the S05 toolbar; undefined clears it. */
+    setName(name: string | undefined): void {
+      this.name = name;
     },
   },
 });

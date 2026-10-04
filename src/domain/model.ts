@@ -96,6 +96,9 @@ export interface CityViewState {
   inspectorOpen: boolean;                   // top<->3D round trip is lost on reload
   /** WP-02: the inspector screen this leaf shows. Optional so pre-WP-02 view state still validates. */
   route?: RouteId;
+  /** Gap closure GRA8: the codebase's display name (at most 200 characters), resolved from the
+   *  profile by the host and shown in the S05 toolbar. Optional so earlier view state validates. */
+  name?: string;
 }
 // There is NO lensId in WP-01.
 

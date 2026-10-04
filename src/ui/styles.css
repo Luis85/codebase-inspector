@@ -278,6 +278,18 @@
   }
 }
 
+/* --- Toolbar codebase name (GRA8) ---------------------------------------------- */
+/* The full name is the element's title; the ellipsis only clips what does not fit. */
+:where(.codebase-inspector-root) .ci-toolbar__name {
+  min-width: 0;
+  max-width: 16em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ci-text);
+  font-weight: var(--font-semibold, 600);
+}
+
 /* --- Toolbar scan (C02) ------------------------------------------------------- */
 /* Task 5 (F7). M113: `button` added for the same reason as `.ci-app__mode-toggle`
    above -- ties Obsidian's own `button` rule at (0,1,1) instead of losing to it, so

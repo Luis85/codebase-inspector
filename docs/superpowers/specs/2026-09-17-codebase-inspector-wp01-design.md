@@ -439,7 +439,10 @@ never silently re-inferred.**
 
 `CityViewState` carries `profileId`, `snapshotId`, `selectedEntityId`, `query`,
 `viewMode: '3d' | 'top' | 'list'`, `camera`, `previous3dCamera`, and
-`inspectorOpen`. `previous3dCamera` is load-bearing: without persisting it, the
+`inspectorOpen`, plus an optional `name?: string` (at most 200 characters; the codebase's
+display name, resolved from the profile by the host and shown in the S05 toolbar; an
+unusable value is dropped on its own, never the rest of the state) (amended by gap
+closure GCN3, 2026-10-04). `previous3dCamera` is load-bearing: without persisting it, the
 top↔3D round trip is lost on workspace reload. There is no `lensId` in WP-01.
 
 ### 4.2 Renderer port

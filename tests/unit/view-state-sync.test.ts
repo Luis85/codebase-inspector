@@ -29,6 +29,7 @@ function makeStoreDouble(): ViewStateSyncTarget & { selectSpy: ReturnType<typeof
   let previous3dCamera: CameraBookmark | null = null;
   let inspectorOpen = false;
   let route: RouteId = 'city';
+  let name: string | undefined;
   const selectSpy = vi.fn((id: string) => { selectedEntityId = id; });
   return {
     get selectedEntityId() { return selectedEntityId; },
@@ -38,6 +39,7 @@ function makeStoreDouble(): ViewStateSyncTarget & { selectSpy: ReturnType<typeof
     get previous3dCamera() { return previous3dCamera; },
     get inspectorOpen() { return inspectorOpen; },
     get route() { return route; },
+    get name() { return name; },
     select: selectSpy,
     setQuery: (q: string) => { query = q; },
     setCamera: (next: CameraBookmark) => {
@@ -47,12 +49,13 @@ function makeStoreDouble(): ViewStateSyncTarget & { selectSpy: ReturnType<typeof
     setViewMode: (mode) => { viewMode = mode; },
     openInspector: () => { if (selectedEntityId) inspectorOpen = true; },
     navigate: vi.fn((r: RouteId) => { route = r; }),
+    setName: (next: string | undefined) => { name = next; },
     selectSpy,
   };
 }
 
 describe('pickUiState', () => {
-  it('reads exactly the seven UI-facing fields off the store', () => {
+  it('reads exactly the eight UI-facing fields off the store', () => {
     const store = makeStoreDouble();
     store.setCamera(CAMERA_3D);
     store.select(makeEntityId('p1', 'file', 'a.ts'));
@@ -66,6 +69,7 @@ describe('pickUiState', () => {
       previous3dCamera: CAMERA_3D,
       inspectorOpen: false,
       route: 'city',
+      name: undefined,
     });
   });
 });

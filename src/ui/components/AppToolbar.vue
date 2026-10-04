@@ -76,6 +76,13 @@ function requestScan(): void {
 
 <template>
   <div class="ci-app__toolbar">
+    <!-- Gap closure GRA8 (GCP5): the codebase name, resolved by the host. The full name is the
+         title because the CSS ellipsis may clip it; the TopBar keeps the folder name. -->
+    <span
+      v-if="store.name"
+      class="ci-toolbar__name"
+      :title="store.name"
+    >{{ store.name }}</span>
     <FileSearch />
     <!-- Part 6 Y40: the findings lens. Only while this codebase has evidence (never a
          disabled control); the visible label is the select's accessible name. -->
