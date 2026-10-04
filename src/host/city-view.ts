@@ -278,6 +278,9 @@ export class CityView extends ItemView {
     // restore is not guaranteed. `onOpen` seeds the store when IT runs after this;
     // this covers setState arriving AFTER onOpen already ran (the store exists).
     if (this.cityStore) seedStoreFromState(this.cityStore, this.state);
+    // GRA8: onOpen's refresh may have run while profileId was still null, and the seed above carries the
+    // PERSISTED name (or none), so the profile's current name is resolved again after every restore.
+    this.codebaseName?.refresh();
   }
 
   /** Reacts to every run-lifecycle transition (spec 7) — the decision logic lives in
