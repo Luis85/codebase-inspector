@@ -77,6 +77,29 @@ Four read-only audits then gave every row its evidence and design. These are the
 |---|---|
 | GCQ1 | **Ruling:** narrowing `trustAndRun`'s type also deletes the `fallow-run-outcomes.test.ts:117` case. That case drives a fake service through a return kind the real service cannot produce, and the narrowed type makes it unrepresentable, so it is deleted rather than rewritten. — Low: if the type is ever re-widened, typecheck forces the branch back. |
 
+### Part C (2026-10-03 at `f492223`)
+
+**Line counts:** as in the plan's size table (measured at `59649b8` while writing it).
+
+**Consumes names:** all found.
+- The sweep regexes: `tests/unit/evidence-numbers.test.ts`.
+- `mayPublish`: unit tests in run-state, analysis-state and gate-evidence.
+- The move target `src/application/ports/` exists.
+- `LOT_FOOTPRINT`, `MAX_DIRECT_SUBDISTRICTS`, `DRAG_THRESHOLD_CSS_PX` and `entityPath` have no importer outside their own files.
+- The kit tone tokens sit at `kit.css:4-8`, the fills at `:19-20`.
+
+**Pair checks:**
+- Tasks 1↔4: CI's production audit depends on Task 1's override landing first (order).
+- Tasks 2↔9: `analyze` is 4 after Task 2, and both edit the CRLF evidence notes (sequential).
+- Tasks 5↔7↔8: all edit `screens-explore.css` (sequential, disjoint rules).
+- Task 3's port has 20 src and 45 test importers, as the plan states.
+
+**Result:** 0 blocking, 1 rework (GCQ2).
+
+| # | Ruling |
+|---|---|
+| GCQ2 | **Ruling:** Tasks 7 and 8 also run the axe test files (`tests/component/axe-*.test.ts`) in their per-task gate. — Their component and copy changes can break a passing axe check, and Task 6 lands before them. — None. |
+
 ## Execution rulings
 
 ### Part D
@@ -140,5 +163,47 @@ The final review triaged these as acceptable follow-ups:
 - procdump's `attached` breadcrumb is written at spawn; its mkdir is outside the try; the 1-in-3 rate was measured under a debugger.
 - The guard's comment says `uv_tcp_connect`; two-part version strings fail closed, untested.
 - The G8 heading's inherited bold span.
+
+### Part C
+
+| # | Ruling |
+|---|---|
+| Gap-closure E8 | **Ruling:** Task 5's coverage-bar fill (`screens.css:31`, painting the desaturated `--ci-warning` text token) enters fix round 1 with the two Important findings, although the reviewer graded it Minor. — It contradicts the brief's "fills and borders keep `--ci-tone-*`", so it is a spec deviation this task introduced, not polish. — None. |
+| Gap-closure E9 | **Ruling:** the four count strings that still read "1 files", "1 groups" or "1 smaller modules are" (`ARCH_NODE_FILES`, `ARCH_NODE_LABEL_NOT_ANALYSED`, `RELATION_CYCLES_CAPTION`, `ARCH_OMITTED_NOTE`) get plural agreement only, with no rewording or format change, in Task 8's fix round. — It is the defect GCN12 already fixed for `ARCH_RULES_CAPTION` under GCO21, it is visible on the Map node face, and plural agreement is not a wording decision. — Low: a grammar fix the owner did not list; one commit reverts it. |
+| Gap-closure E10 | **Ruling:** Plugin Foundations gets the id `WP-00`, and its Delivery record states that the id was assigned during gap closure, because no planning document names one. — The deliverables test needs an id, and order 1 precedes WP-01. — Low: the owner may rename it; without the note a reader might infer a planned "Package 00". |
+| Gap-closure E11 | **Ruling:** Task 9's per-task review is folded into the final whole-branch review, which is told to check every Task 9 evidence claim. — Task 9 is docs-only, and the final review must re-verify the evidence anyway. — Low: one independent look fewer at evidence prose; the final review re-ran every figure. |
+| Gap-closure E12 | **Ruling:** the one fix wave takes the final review's Important finding and Minors 2–6, plus two promoted Task 6 minors (per-tab axe content guards; `sizeCityStage` restoring). Minor 7 and every other deferred minor stay deferred. — Each promoted item is a gate that could pass silently or a visible regression this part introduced. — Low: a larger fix wave, in one commit. |
+| Gap-closure E13 | **Ruling:** no native rerun after the fix wave. — It touches CSS colours and rule order, unit and component tests, the ESLint config, the CI trigger and docs, none of which the native scenarios exercise beyond rendering; 41/41 on 1.13.4 and latest stand from Task 9 (`0f8add8`). — Low: a native regression would surface in Part A's native gate. |
+
+**Every `npm run test` / `npm run verify` / native run of Part C:** Tasks 1–8 ran no full suite (each ran its touched and importing test files, so no Z38 figure).
+- **Task 9:**
+  - `npm run test`: exit 1 on the expected G8 Unit count and on `clean-vault-install` (the implementation report still quoted the pre-GCN12 source claim; fixed). Z38 passed: control 18.9; hang 21.8/20.6/26.3; streamed 19.6/16.0/19.0; post-control 25.2 ms.
+  - `vitest --reporter=json` (the per-layer figures): exit 1 on one drift. Z38 16.4; 30.1/20.3/21.5; 18.6/24.4/23.6; 23.8 ms.
+  - `verify` #1: exit 1 on the mirror's drift. Z38 27.0; 22.6/16.5/24.6; 22.6/24.8/16.2; 29.4 ms.
+  - `verify` #2: exit 0, 328 files, 3775 passed, 1 skipped. Z38 24.1; 25.2/22.8/24.6; 21.1/19.5/18.7; 16.5 ms.
+  - Native 1.13.4 under Node 24.21.0: 41/41 (load 12 %, 491 s). Native latest (1.13.7): 41/41 (load 26 %, 485 s). Both printed "Verified 41 executed native Vitest cases, including all 41 required scenarios." No retries.
+  - `test:fallow` 11/11; `analyze` 4; `npm audit` 0 (also with `--omit=dev`); `harness-shot` 86 captures.
+- **Final fix wave:**
+  - `verify` #1: exit 0, 3816 passed, 1 skipped. Z38 21.8; 26.1/24.3/26.5; 23.1/20.9/23.1; 22.6 ms.
+  - `verify` #2 (final tree, after the G8 refresh): exit 0, 328 files, 3816 passed, 1 skipped. Z38 22.0; 25.9/24.5/16.9; 22.7/16.1/18.3; 22.7 ms.
+- **Z38 across Part C:** it executed and passed in every full-suite run.
+
+**Final whole-branch review (opus, `f492223..0f8add8`): fix wave needed.**
+- It found 0 Critical, 1 Important and 6 Minor issues. The Important one: four borders (`kit.css:70`, `:302`; `screens-configure.css:103`, `:107`) still painted `--ci-warning`, which Task 5 had made a text token, so they went from the host orange to a muted orange-grey.
+- One fix wave (`c59a465`) closed it with a sweep that fails on any text token in a border, background, fill, outline or shadow, and closed Minors 2–6 and the two promoted Task 6 minors (E12). The scoped re-review found all of them addressed: ready to push at `c59a465`.
+- The final review re-ran every Task 9 figure: the counts are true, and only four lines of prose were off (fixed).
+
+**Commit trailers:** every Part C commit ends with the literal trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>", checked one commit at a time before the push.
+
+### Part C deferred minors
+
+The task reviews and the final review triaged these as acceptable follow-ups:
+- The historical gate-evidence rounds still say "9 findings, unchanged"; a new Part C section states 4.
+- The layering lint's tests ban stays a glob, so a bare `'../tests'` import is not caught (a regex hit the real `src/ui/audit-copy/tests`); the dynamic-import ban covers string literals only, so a computed or template-literal `import()` gets through; the lint test lints real files, so a rename throws.
+- CI: the native-gate absence is pinned by a three-name blocklist, not strict step equality; `cancel-in-progress` also cancels a superseded run on `main`; the actions are pinned by major tag, not SHA.
+- Contrast: SVG text `fill:` and opacity-dimmed text escape the `color:` sweep; `--ci-on-action` is gated only on the four fills; the table-row hover edge paints three sides (each cell's bottom border covers the fourth); the 3 px nav bar follows the 6 px radius; the sweep's allowlist needs an entry for any new ink-as-mark use, matches selectors by prefix, and ignores a bare `--ci-text`.
+- axe never mounts the self-violation marker (it is aria-hidden, with visually hidden text); the source preview region could be named by its Panel heading.
+- `selfViolations` counts file-pair edges while the Violations card counts findings, so they differ when one file reaches a same-module target through two specifiers; the matrix marker has no `title`.
+- At 176 px "Your rules violated" wraps to three lines; the card-fit test pins token values as a sanity check, and its local `declared()` duplicates one in `contrast-tokens.test.ts`.
 
 **Owner action:** this machine's system Node is 24.15.0, so native runs refuse until it is upgraded to Node ≥ 24.16.0 (the current 24 LTS is 24.21.0).
