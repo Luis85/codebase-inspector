@@ -193,6 +193,18 @@ describe('harness-shot SHOTS', () => {
       expect(shot?.viewport, id).toEqual({ width: 1280, height: 1400 });
     }
   });
+
+  // Gap closure GRA5 (Task 8): the wide-leaf captures, at the leaf widths the measurement
+  // rests on, with the inspector open (s07) and no `width=` (the leaf fills the page).
+  it('captures the wide leaf at 1876 and 2560 with the inspector open', () => {
+    for (const [id, width, height] of [['wide-1876-s07-dark', 1876, 1000], ['wide-2560-s07-dark', 2560, 1200]] as const) {
+      const q = shotQuery(id);
+      expect(q.get('screen'), id).toBe('s07');
+      expect(q.get('theme'), id).toBe('dark');
+      expect(q.has('width'), id).toBe(false);
+      expect(SHOTS.find((s) => s.id === id)?.viewport, id).toEqual({ width, height });
+    }
+  });
 });
 
 describe('chromium resolution', () => {

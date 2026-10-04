@@ -247,7 +247,7 @@
      definite floor is both what the budget needs and what removes the content-based
      flex-blowout risk on the list's long unbroken paths. */
   :where(.codebase-inspector-root) .ci-app__list-wrapper {
-    flex: 0 1 clamp(180px, 18%, 320px);
+    flex: 0 1 clamp(180px, 16%, 320px);
     min-width: 180px;
   }
   /* No drawer concept at all above the threshold. */
@@ -256,7 +256,7 @@
     display: none;
   }
   :where(.codebase-inspector-root) .ci-inspector {
-    flex: 0 1 clamp(200px, 20%, 360px);
+    flex: 0 1 clamp(200px, 12%, 360px);
     min-width: 200px;
   }
 }

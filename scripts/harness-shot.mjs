@@ -227,6 +227,10 @@ export const SHOTS = [
     id: 'wp04-investigate-create-dialog-dark', query: '?screen=s05&theme=dark&route=investigate&report=demo&investigate=create',
     viewport: { width: 1280, height: 1400 },
   },
+  // Gap closure GRA5 (Task 8): a wide leaf grows the stage. No `width=`: the leaf fills the
+  // page, so these show the wide layout the way a maximised Obsidian leaf does.
+  { id: 'wide-1876-s07-dark', query: '?screen=s07&theme=dark', viewport: { width: 1876, height: 1000 } },
+  { id: 'wide-2560-s07-dark', query: '?screen=s07&theme=dark', viewport: { width: 2560, height: 1200 } },
 ];
 
 async function main() {
