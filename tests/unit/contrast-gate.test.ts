@@ -33,16 +33,22 @@ const FILLS = ['--ci-action-fill', '--ci-action-fill-hover', '--ci-danger-fill',
 const TONE_TEXT = ['--ci-text-danger', '--ci-text-warning', '--ci-text-success', '--ci-text-sample'] as const;
 // The city Relations list's direction glyphs key the arcs by hue, inside a hoverable row.
 const RELATION_TEXT = ['--ci-text-relation-out', '--ci-text-relation-in'] as const;
+// The 16 % danger tint (.ci-severity--critical, .ci-priority) sits on the panel, and on --ci-hover when its row is
+// hovered or focused (EvidenceTable rows, button.ci-file-finding__review:hover).
 const CRITICAL_TINT = 'color-mix(in srgb, var(--ci-tone-danger) 16%, var(--ci-panel))';
+const CRITICAL_TINT_HOVER = 'color-mix(in srgb, var(--ci-tone-danger) 16%, var(--ci-hover))';
 
 interface Pair { fg: string; bg: string; min: number }
 const PAIRS: readonly Pair[] = [
   ...TEXT.flatMap((fg) => SURFACES.map((bg) => ({ fg: v(fg), bg: v(bg), min: 4.5 }))),
   ...FILLS.map((bg) => ({ fg: v('--ci-on-action'), bg: v(bg), min: 4.5 })),
-  ...TONE_TEXT.flatMap((fg) => SURFACES.slice(0, 3).map((bg) => ({ fg: v(fg), bg: v(bg), min: 4.5 }))),
+  ...TONE_TEXT.flatMap((fg) => SURFACES.map((bg) => ({ fg: v(fg), bg: v(bg), min: 4.5 }))),
   { fg: v('--ci-text-danger'), bg: CRITICAL_TINT, min: 4.5 },
+  { fg: v('--ci-text-danger'), bg: CRITICAL_TINT_HOVER, min: 4.5 },
   ...RELATION_TEXT.flatMap((fg) => SURFACES.map((bg) => ({ fg: v(fg), bg: v(bg), min: 4.5 }))),
   ...['--ci-focus', '--ci-hover-edge'].flatMap((fg) => SURFACES.map((bg) => ({ fg: v(fg), bg: v(bg), min: 3 }))),
+  // The current nav item's inline-start indicator, on the nav panel and on its own raised fill.
+  ...['--ci-panel', '--ci-raised'].map((bg) => ({ fg: v('--ci-text-accent'), bg: v(bg), min: 3 })),
 ];
 /** The ratio, or the resolver's reason when a token is missing. */
 function measure(theme: Theme, { fg, bg }: Pair): number | string {
@@ -113,6 +119,21 @@ describe('the hover indicator is a 1px inset edge (GRC3)', () => {
     expect(hovers.size, 'the sweep finds the hover selectors').toBeGreaterThanOrEqual(19);
     expect(edge.length, 'one grouped rule').toBe(1);
     expect(Array.from(hovers).filter((s) => !edge[0]!.selectors.includes(s))).toEqual([]);
+  });
+});
+
+describe('the current nav item carries a non-colour cue (GRC3)', () => {
+  // Its accent text is only 1.10/1.15 from the muted neighbours and --ci-raised only 1.03/1.04 from the panel,
+  // so the weight and an inline-start bar in --ci-text-accent (a border, not a box-shadow, which the hover edge
+  // would replace) mark it.
+  it('declares a semibold weight and a --ci-text-accent inline-start border, compensated in the padding', () => {
+    const shell = SHEETS.find(([file]) => file === 'styles/shell.css')![1];
+    const rule = innermost(shell).filter((r) => r.selectors.includes(':where(.codebase-inspector-root) button.ci-nav__item[aria-current="page"]'));
+    const body = rule.map((r) => r.body).join(';');
+    expect(body).toMatch(/(?:^|;)\s*font-weight\s*:\s*var\(--font-semibold\)/);
+    expect(body).toMatch(/(?:^|;)\s*border-inline-start\s*:\s*(\d+)px solid var\(--ci-text-accent\)/);
+    const width = /border-inline-start\s*:\s*(\d+)px/.exec(body)?.[1];
+    expect(body).toMatch(new RegExp(String.raw`padding-inline-start\s*:\s*calc\(var\(--ci-space-2\) - ${width ?? 'x'}px\)`));
   });
 });
 

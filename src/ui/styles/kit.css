@@ -8,12 +8,13 @@
   --ci-sample: var(--color-yellow, #c9a44a);
   --ci-font-mono: var(--font-monospace);
   /* GRC3 (GCO12): text tokens, derived the same way as the fills below. Each mixes a host colour into
-     --text-normal until it reaches 4.5:1 on surface, panel and raised in both default themes
+     --text-normal until it reaches 4.5:1 on surface, panel, raised and hover in both default themes
+     (danger also on its own 16 % tint over the panel and over --ci-hover, a hovered row)
      (tests/unit/contrast-gate.test.ts computes it). The --ci-tone-* colours stay for fills, borders and
      marks; every color: declaration uses one of these instead. */
   --ci-text-faint: color-mix(in srgb, var(--text-faint) 45%, var(--text-normal));
   --ci-text-accent: color-mix(in srgb, var(--interactive-accent) 50%, var(--text-normal));
-  --ci-text-danger: color-mix(in srgb, var(--color-red, #d9707a) 55%, var(--text-normal));
+  --ci-text-danger: color-mix(in srgb, var(--color-red, #d9707a) 40%, var(--text-normal));
   --ci-text-warning: color-mix(in srgb, var(--color-orange, #d99a5b) 50%, var(--text-normal));
   --ci-text-success: color-mix(in srgb, var(--color-green, #5fb98a) 50%, var(--text-normal));
   --ci-text-sample: color-mix(in srgb, var(--color-yellow, #c9a44a) 45%, var(--text-normal));

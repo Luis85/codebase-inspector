@@ -28,7 +28,7 @@
 :where(.codebase-inspector-root) .ci-evidence-coverage dd { display: flex; align-items: center; gap: var(--ci-space-3); margin: 0; }
 :where(.codebase-inspector-root) .ci-evidence-coverage__bar { flex: 1 1 auto; height: 6px; border-radius: 3px; background: var(--ci-border); }
 :where(.codebase-inspector-root) .ci-evidence-coverage__bar--collected { background: var(--ci-tone-success); }
-:where(.codebase-inspector-root) .ci-evidence-coverage__bar--partial { background: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-evidence-coverage__bar--partial { background: var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-evidence-coverage__bar--sample { background: var(--ci-sample); opacity: 0.7; }
 
 /* Task 10: the City screen's own PageHeader and summary cards. */
