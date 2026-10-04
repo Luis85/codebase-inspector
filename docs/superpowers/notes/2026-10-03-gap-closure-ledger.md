@@ -219,6 +219,12 @@ The final review triaged these as acceptable follow-ups:
 
 **Commit trailers:** every Part C commit ends with the literal trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>", checked one commit at a time before the push.
 
+**CI first run (GCN9).** The first CI run (run 37194256100, Part C head `3df98ea`) failed. So did the next one (run 37227133174, Part A head `b53d37d`). In both, the same 5 cases in `tests/build/eslint-layering.test.ts` failed with "expected 0 to be greater than 0". The 5 cases were the first one linted for each file. Locally they pass.
+
+| # | Ruling |
+|---|---|
+| Gap-closure E29 | **Ruling (GCN9: fixed, not skipped):** the test's own ESLint instance sets `parserOptions.disallowAutomaticSingleRunInference: true` (`e0a37ae`). Every rule and the real `npm run lint` are unchanged. — The failure reproduced in a clean `npm ci --ignore-scripts` copy with `CI=true`. typescript-estree 8.70.0 infers a single run when `CI=true`, and its first parse of each path then takes the AST from a Program built from the file on disk, so the snippet was ignored and no rule fired. Under CI the first control case of each file could also have passed vacuously. After the fix, a clean `CI=true npm run verify` exits 0. — Low: an explicit `TSESTREE_SINGLE_RUN=true` would still override it. |
+
 ### Part C deferred minors
 
 The task reviews and the final review triaged these as acceptable follow-ups:
