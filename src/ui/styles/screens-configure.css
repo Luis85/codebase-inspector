@@ -100,11 +100,11 @@
 :where(.codebase-inspector-root) .ci-fallow-review__argv { margin: 0; padding-left: 1.4em; }
 :where(.codebase-inspector-root) .ci-fallow-review h4 { margin: 0; font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-fallow-review__effects { margin: 0; padding-left: 1.2em; }
-:where(.codebase-inspector-root) .ci-fallow-review__inside { margin: 0; padding: var(--ci-space-2) var(--ci-space-3); border-left: 3px solid var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-fallow-review__inside { margin: 0; padding: var(--ci-space-2) var(--ci-space-3); border-left: 3px solid var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-fallow-run { display: grid; gap: var(--ci-space-2); align-self: stretch; }
 :where(.codebase-inspector-root) .ci-fallow-run p { margin: 0; }
 :where(.codebase-inspector-root) .ci-fallow-run__banner { display: grid; gap: var(--ci-space-1); padding: var(--ci-space-2); border-left: 3px solid var(--ci-border); }
-:where(.codebase-inspector-root) .ci-fallow-run__banner--warning { border-left-color: var(--ci-warning); }
+:where(.codebase-inspector-root) .ci-fallow-run__banner--warning { border-left-color: var(--ci-tone-warning); }
 :where(.codebase-inspector-root) .ci-fallow-run__log pre { margin: 0; max-height: 12em; overflow: auto; white-space: pre-wrap; font-family: var(--ci-font-mono); font-size: var(--font-ui-smaller, 0.8em); }
 :where(.codebase-inspector-root) .ci-fallow-run__facts { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-fallow-run__facts dt { color: var(--ci-text-muted); }

@@ -31,8 +31,9 @@ describe('CI workflow (GRC2, GCO11)', () => {
     expect(job?.['runs-on']).toBe('windows-latest');
   });
 
-  it('triggers on push and pull_request', () => {
-    expect(Object.keys(workflow.on ?? {})).toEqual(expect.arrayContaining(['push', 'pull_request']));
+  it('triggers on pull_request and on push to main only, so a PR branch is not run twice', () => {
+    expect(Object.keys(workflow.on ?? {}).sort()).toEqual(['pull_request', 'push']);
+    expect(workflow.on?.['push']).toEqual({ branches: ['main'] });
   });
 
   it('holds read-only contents permission and nothing else', () => {

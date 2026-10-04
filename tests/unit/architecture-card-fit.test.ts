@@ -60,3 +60,18 @@ describe('GRC9: five Architecture cards on one row at 1280 px', () => {
     expect(minOf(declared(KIT, BASE, 'grid-template-columns'))).toBe(200);
   });
 });
+
+describe('the module map node keeps the danger edge when it is also selected', () => {
+  // Both rules are (0,2,1) and both set a left border colour (--selected through border-color), so the one declared
+  // later wins for a node with both classes: the violation rule must come after, or selecting a violating node
+  // would repaint its boundary-violation edge in the accent colour.
+  const NODE = `${ROOT} button.ci-module-map__node`;
+  const at = (modifier: string): number => EXPLORE.indexOf(`${NODE}--${modifier} {`);
+  it('declares the --violation rule after the --selected rule', () => {
+    expect(at('selected')).toBeGreaterThan(-1);
+    expect(at('violation')).toBeGreaterThan(at('selected'));
+  });
+  it('sets the left border to the danger tone in the --violation rule', () => {
+    expect(declared(EXPLORE, `${NODE}--violation`, 'border-left-color')).toBe('var(--ci-tone-danger)');
+  });
+});

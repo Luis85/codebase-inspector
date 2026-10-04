@@ -115,14 +115,13 @@ section, where that gap is stated rather than closed.
   vocabulary and nothing emits it.
 - **An edge drag takes no `setPointerCapture`** (ruling M95), so an unclamped canvas
   point can raycast outside the frustum and pick an off-screen building.
-- **Two more surfaces with no production caller, recorded rather than removed.**
-  The final whole-branch review added two, and **both were dead in `src/` while tests
-  do use them** — which is exactly why neither is visible to `npm run analyze` (see that
-  gate below). (`ScanCoordinator.getLifecycle()`, recorded beside them, was deleted in
-  gap closure Part C, GRC12.) `parseEntityId`
-  (`src/domain/entity-id.ts`) was called only by tests. *Superseded: `review-state.ts`,
-  `review-record-codec.ts` and `work-items.ts` in `src/ui/read-models` call it.*
-  `CityRendererPort.getCamera()`
+- **One surface with no production caller, recorded rather than removed.**
+  The final whole-branch review recorded it as one of three, and **it is dead in `src/`
+  while tests do use it** — which is exactly why it is not visible to `npm run analyze`
+  (see that gate below). (`ScanCoordinator.getLifecycle()`, recorded beside it, was deleted
+  in gap closure Part C, GRC12. `parseEntityId` (`src/domain/entity-id.ts`), the third, was
+  called only by tests; *superseded: `review-state.ts`, `review-record-codec.ts` and
+  `work-items.ts` in `src/ui/read-models` call it.*) `CityRendererPort.getCamera()`
   (`src/visualization/renderer-port.ts`) has **no production caller**: `city-renderer.ts`
   IMPLEMENTS the member, delegating to the rig's own internal `getCamera`, and nothing in
   `src/` calls it through the port; `tests/component/canvas-camera.test.ts` and

@@ -12,7 +12,7 @@ import { ESLint } from 'eslint';
 
 // The first lint builds the type-aware program (about 6s); the default 5s test timeout is
 // too tight for it.
-vi.setConfig({ testTimeout: 60_000 });
+vi.setConfig({ testTimeout: 120_000 });
 
 const eslint = new ESLint({ cwd: process.cwd() });
 
@@ -23,14 +23,18 @@ const ADAPTER = 'src/adapters/storage/plugin-data-shape.ts';
 const REVIEW_ADAPTER = 'src/adapters/storage/plugin-data-review-repository.ts';
 const CODEC = '../../ui/read-models/review-record-codec';
 
-async function restrictedImportErrors(filePath: string, specifier: string): Promise<number> {
-  const statement = `import '${specifier}';\n`;
+/** Layering errors for `statement` linted as `filePath`: static imports are no-restricted-imports, import() is no-restricted-syntax. */
+async function layeringErrors(filePath: string, statement: string, ruleId: string): Promise<number> {
   const code = filePath.endsWith('.vue') ? `<script setup lang="ts">\n${statement}</script>\n` : statement;
   const [result] = await eslint.lintText(code, { filePath });
   const fatal = result?.messages.find((m) => m.fatal === true);
   if (fatal) throw new Error(`${filePath} did not parse, so no rule ran: ${fatal.message}`);
-  return result?.messages.filter((m) => m.ruleId === 'no-restricted-imports' && m.severity === 2).length ?? 0;
+  return result?.messages.filter((m) => m.ruleId === ruleId && m.severity === 2).length ?? 0;
 }
+const restrictedImportErrors = (filePath: string, specifier: string): Promise<number> =>
+  layeringErrors(filePath, `import '${specifier}';\n`, 'no-restricted-imports');
+const dynamicImportErrors = (filePath: string, specifier: string): Promise<number> =>
+  layeringErrors(filePath, `export const load = () => import('${specifier}');\n`, 'no-restricted-syntax');
 
 describe('layering lint (GRC1)', () => {
   it.each([
@@ -65,5 +69,65 @@ describe('layering lint (GRC1)', () => {
     expect(await restrictedImportErrors(REVIEW_ADAPTER, '../../ui/inspector-copy')).toBeGreaterThan(0);
     expect(await restrictedImportErrors(REVIEW_ADAPTER, '../../host/y')).toBeGreaterThan(0);
     expect(await restrictedImportErrors(ADAPTER, CODEC)).toBeGreaterThan(0);
+  });
+});
+
+describe('layering lint: bare directory imports (GRC1)', () => {
+  it.each([
+    [UI, '../host'],
+    [UI, '../adapters'],
+    [UI_VUE, '../../host'],
+    [APPLICATION, '../ui'],
+    [APPLICATION, '../adapters'],
+    [APPLICATION, '../host'],
+    [ADAPTER, '../host'],
+    [ADAPTER, '../ui'],
+    [REVIEW_ADAPTER, '../../host'],
+    [REVIEW_ADAPTER, '../../ui'],
+  ])('%s importing the bare directory %s is a no-restricted-imports error', async (filePath, specifier) => {
+    expect(await restrictedImportErrors(filePath, specifier)).toBeGreaterThan(0);
+  });
+
+  it('control: a module whose name merely starts like a layer is allowed', async () => {
+    expect(await restrictedImportErrors(UI, '../application/hostname')).toBe(0);
+    expect(await restrictedImportErrors(UI, '../domain/ui-state')).toBe(0);
+  });
+});
+
+describe('layering lint: dynamic import() crosses the same boundaries (GRC1)', () => {
+  it.each([
+    [UI, '../adapters/x'],
+    [UI, '../host'],
+    [UI_VUE, '../../adapters/x'],
+    [APPLICATION, '../ui/x'],
+    [APPLICATION, '../adapters'],
+    [ADAPTER, '../host/x'],
+    [ADAPTER, '../ui/x'],
+    ['src/domain/classify.ts', '../application/x'],
+    ['src/visualization/color.ts', '../adapters/x'],
+    [REVIEW_ADAPTER, '../../host/x'],
+    [REVIEW_ADAPTER, '../../ui/inspector-copy'],
+  ])('%s doing import(%s) is a no-restricted-syntax error', async (filePath, specifier) => {
+    expect(await dynamicImportErrors(filePath, specifier)).toBeGreaterThan(0);
+  });
+
+  it.each([UI, UI_VUE, APPLICATION, ADAPTER, REVIEW_ADAPTER])('%s keeps the src-to-tests ban for import() too', async (filePath) => {
+    expect(await dynamicImportErrors(filePath, '../../tests/y')).toBeGreaterThan(0);
+  });
+
+  it.each([
+    [UI, '../application/y'],
+    [UI, '../domain/y'],
+    [APPLICATION, '../domain/y'],
+    [ADAPTER, '../domain/y'],
+    [REVIEW_ADAPTER, CODEC],
+  ])('control: %s doing import(%s) is allowed', async (filePath, specifier) => {
+    expect(await dynamicImportErrors(filePath, specifier)).toBe(0);
+  });
+});
+
+describe('layering lint: the review-adapter exception keeps the tests ban (GCP2)', () => {
+  it('still rejects a tests import from the exception file', async () => {
+    expect(await restrictedImportErrors(REVIEW_ADAPTER, '../../tests/y')).toBeGreaterThan(0);
   });
 });

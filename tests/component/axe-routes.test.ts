@@ -1,8 +1,9 @@
 // GRC5 (GCO13): axe over the Explore and Audit routes, every state the brief names, each
 // mounted in the whole leaf with the harness seed (axe-support.ts) so it renders WITH
 // content. The Act and Configure routes are axe-routes-act.test.ts.
-import { afterEach, describe, it } from 'vitest';
-import { expectAccessible, inertRenderer, mountLeaf, openTab, settle, sizeCityStage, unmountLeaf } from './axe-support';
+import { afterEach, describe, expect, it } from 'vitest';
+import { CANCELLING_BANNER, DEPS_LICENSES_TITLE, TESTS_RUNS_TITLE } from '../../src/ui/inspector-copy';
+import { expectAccessible, expectTabAccessible, inertRenderer, mountLeaf, openTab, settle, sizeCityStage, unmountLeaf } from './axe-support';
 
 describe('axe: the shell, Overview and the code city', () => {
   afterEach(() => { unmountLeaf(); });
@@ -75,21 +76,39 @@ describe('axe: the shell, Overview and the code city', () => {
     await expectAccessible(root, '.ci-viewport__notice');
   });
 
+  it('sizeCityStage leaves no clientWidth or clientHeight override on HTMLElement.prototype once the leaf is unmounted', async () => {
+    sizeCityStage();
+    await mountLeaf({ route: 'city', createCityRenderer: inertRenderer() });
+    expect(Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')).toBeDefined();
+    unmountLeaf();
+    expect(Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth')).toBeUndefined();
+    expect(Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')).toBeUndefined();
+  });
+
   it('the cancelling banner over the snapshot', async () => {
     const { root } = await mountLeaf({ route: 'city', run: 'cancelling' });
-    await expectAccessible(root, '.ci-app');
+    const banner = Array.from(root.querySelectorAll('.ci-status-banner[role="status"]')).filter((b) => b.textContent?.trim() === CANCELLING_BANNER(true));
+    expect(banner, 'the banner reads the cancelling words over a snapshot').toHaveLength(1);
+    await expectAccessible(root, '.ci-status-banner');
   });
 });
 
 describe('axe: Architecture and Hotspots', () => {
   afterEach(() => { unmountLeaf(); });
 
-  for (const tab of ['map', 'matrix', 'cycles', 'edges', 'rules']) {
+  // Each tab's own content: a selector no other tab renders.
+  const ARCHITECTURE: ReadonlyArray<readonly [string, string]> = [
+    ['map', '.ci-module-map__node'],
+    ['matrix', '.ci-matrix__cell'],
+    ['cycles', '.ci-cycle-list__row'],
+    ['edges', '.ci-edge-list .ci-table__row'],
+    ['rules', '.ci-architecture__fallow'],
+  ];
+  for (const [tab, content] of ARCHITECTURE) {
     it(`Architecture, the ${tab} tab`, async () => {
       const { root } = await mountLeaf({ route: 'architecture', items: true });
       await openTab(root, tab);
-      await expectAccessible(root, `[role="tab"][data-tab-id="${tab}"][aria-selected="true"]`);
-      await expectAccessible(root, '.ci-screen--architecture [role="tabpanel"] *');
+      await expectTabAccessible(root, tab, content);
     });
   }
 
@@ -108,27 +127,44 @@ describe('axe: the Audit routes', () => {
     await expectAccessible(root, '.ci-findings-table__open');
   });
 
-  for (const tab of ['map', 'results', 'mutation']) {
+  // [tab, content selector, text that element must read]. Results and Licenses have no class of their own in the
+  // seeded state (an unknown-evidence state, a table of rows), so their panel title says which tab it is.
+  const TESTS: ReadonlyArray<readonly [string, string, string?]> = [
+    ['map', '.ci-coverage-map__tile'],
+    ['results', '.ci-panel__title', TESTS_RUNS_TITLE],
+    ['mutation', '.ci-tests__configure'],
+  ];
+  for (const [tab, content, text] of TESTS) {
     it(`Test confidence, the ${tab} tab`, async () => {
       const { root } = await mountLeaf({ route: 'tests' });
       await openTab(root, tab);
-      await expectAccessible(root, '.ci-screen--tests [role="tabpanel"] *');
+      await expectTabAccessible(root, tab, content, text);
     });
   }
 
-  for (const tab of ['inventory', 'path', 'licenses']) {
+  const DEPENDENCIES: ReadonlyArray<readonly [string, string, string?]> = [
+    ['inventory', '.ci-packages .ci-table__row'],
+    ['path', '.ci-dep-path__card'],
+    ['licenses', '.ci-panel__title', DEPS_LICENSES_TITLE],
+  ];
+  for (const [tab, content, text] of DEPENDENCIES) {
     it(`Dependencies, the ${tab} tab`, async () => {
       const { root } = await mountLeaf({ route: 'dependencies' });
       await openTab(root, tab);
-      await expectAccessible(root, '.ci-screen--dependencies [role="tabpanel"] *');
+      await expectTabAccessible(root, tab, content, text);
     });
   }
 
-  for (const tab of ['advisories', 'secrets', 'policy']) {
+  const SECURITY: ReadonlyArray<readonly [string, string]> = [
+    ['advisories', '.ci-advisory'],
+    ['secrets', '.ci-security__configure'],
+    ['policy', '.ci-policy'],
+  ];
+  for (const [tab, content] of SECURITY) {
     it(`Security, the ${tab} tab`, async () => {
       const { root } = await mountLeaf({ route: 'security' });
       await openTab(root, tab);
-      await expectAccessible(root, '.ci-screen--security [role="tabpanel"] *');
+      await expectTabAccessible(root, tab, content);
     });
   }
 

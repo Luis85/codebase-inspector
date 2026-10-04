@@ -136,17 +136,21 @@ const none = (): void => {};
 
 /** jsdom has no layout, so the city stage's content box is 0 x 0 and CityViewport never
  *  consults its factory. This gives `.ci-viewport__stage` alone an 800 x 600 box (restored
- *  by unmountLeaf), so the factory runs and the city reaches its live or WebGL-failed state. */
+ *  by unmountLeaf), so the factory runs and the city reaches its live or WebGL-failed state.
+ *  clientWidth and clientHeight live on Element.prototype, so HTMLElement.prototype has no own
+ *  descriptor to put back: restoring means deleting the override, and an own one is re-defined. */
 export function sizeCityStage(): void {
+  restoreStage?.();
   const proto = HTMLElement.prototype;
-  const width = Object.getOwnPropertyDescriptor(proto, 'clientWidth');
-  const height = Object.getOwnPropertyDescriptor(proto, 'clientHeight');
-  Object.defineProperty(proto, 'clientWidth', stageSized(width, 800));
-  Object.defineProperty(proto, 'clientHeight', stageSized(height, 600));
-  restoreStage = () => {
-    if (width) Object.defineProperty(proto, 'clientWidth', width);
-    if (height) Object.defineProperty(proto, 'clientHeight', height);
-  };
+  const restores = ([['clientWidth', 800], ['clientHeight', 600]] as const).map(([name, size]) => {
+    const own = Object.getOwnPropertyDescriptor(proto, name);
+    Object.defineProperty(proto, name, stageSized(own ?? Object.getOwnPropertyDescriptor(Element.prototype, name), size));
+    return () => {
+      if (own) Object.defineProperty(proto, name, own);
+      else Reflect.deleteProperty(proto, name);
+    };
+  });
+  restoreStage = () => { for (const restore of restores) restore(); };
 }
 
 /** A renderer that draws nothing (jsdom has no WebGL); `failed` reports what the real
@@ -195,4 +199,17 @@ export async function click(root: ParentNode, selector: string): Promise<void> {
 export async function expectAccessible(root: Element, contentSelector: string, options?: AxeCaseOptions): Promise<void> {
   if (root.querySelector(contentSelector) === null) throw new Error(`axe leaf: ${contentSelector} did not render; axe would pass vacuously`);
   await expectNoSeriousViolations(root, options);
+}
+
+/** Proves the tab under test is the one on screen and its own content rendered, never an empty or neighbouring
+ *  panel: the tab is selected, and its panel holds an element of `selector` (reading `text`, for a panel whose
+ *  content has no class of its own). Throws, naming the tab, otherwise; then runs axe over the leaf. */
+export async function expectTabAccessible(root: Element, tab: string, selector: string, text?: string): Promise<void> {
+  if (root.querySelector(`[role="tab"][data-tab-id="${tab}"][aria-selected="true"]`) === null) {
+    throw new Error(`axe leaf: the ${tab} tab is not the selected one`);
+  }
+  const rendered = Array.from(root.querySelectorAll(`[role="tabpanel"] ${selector}`))
+    .some((el) => text === undefined || (el.textContent ?? '').includes(text));
+  if (!rendered) throw new Error(`axe leaf: ${selector}${text === undefined ? '' : ` reading "${text}"`} did not render in the ${tab} tab; axe would pass vacuously`);
+  await expectNoSeriousViolations(root);
 }

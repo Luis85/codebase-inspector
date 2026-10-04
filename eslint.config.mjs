@@ -18,6 +18,34 @@ const RESTRICT_TESTS_IMPORT_PATTERN = {
   message: 'src/** must not import from tests/**: a test fixture reaching the bundle ships test code.',
 };
 
+// One layer ban in both forms (GRC1, GCO10). `regex` and not a glob: `**/host/**` does not match a bare
+// directory import such as '../host' or '../adapters', which resolves to the directory's index. The same source
+// pattern feeds the import() selector, since core no-restricted-imports does not inspect import() expressions
+// and a dynamic import would otherwise cross the boundary unseen. Only a string-literal specifier can be read
+// statically; a computed one is out of reach of lint.
+const layerRegex = (names) => `(^|/)(${names.join('|')})(/|$)`;
+const layerBan = (source, message) => ({
+  pattern: { regex: source, message },
+  dynamic: { selector: `ImportExpression > Literal[value=/${source.replace(/\//g, '\\/')}/]`,
+    message: `${message} The ban covers import() expressions as well.` },
+});
+const UI_BAN = layerBan(layerRegex(['adapters', 'host']),
+  'src/ui never imports adapters or host: it reaches them through application ports and injected dependencies.');
+const APPLICATION_BAN = layerBan(layerRegex(['adapters', 'host', 'ui']),
+  'src/application never imports adapters, host or ui: it defines ports; they implement and consume them.');
+const ADAPTERS_BAN = layerBan(layerRegex(['host', 'ui']),
+  'src/adapters never imports host or ui: an adapter implements an application port.');
+// The review adapter (GCP2) keeps the host ban and the ui ban except for the one codec module.
+const REVIEW_ADAPTER_HOST_BAN = layerBan(layerRegex(['host']), ADAPTERS_BAN.pattern.message);
+const REVIEW_ADAPTER_UI_BAN = layerBan('(^|/)ui(?:$|/(?!read-models/review-record-codec$))',
+  'src/adapters never imports host or ui; the review-record codec is the one recorded exception (GCP2).');
+const DOMAIN_BAN = layerBan(layerRegex(['adapters', 'host', 'ui', 'visualization', 'application']),
+  'src/domain must not depend on an outer layer.');
+const VISUALIZATION_BAN = layerBan(layerRegex(['host', 'adapters', 'application']),
+  'src/visualization reaches neither the filesystem nor the host.');
+// A layer block replaces no-restricted-syntax too, so each one repeats the tests selector beside its own.
+const syntax = (...bans) => ['error', RESTRICT_DYNAMIC_TESTS_IMPORT, ...bans.map((b) => b.dynamic)];
+
 export default tseslint.config(
   // package.json is excluded: eslint-plugin-vue's unscoped essential/strongly-recommended
   // rule blocks (no `files` restriction) assume a script/template AST and crash the JSON
@@ -231,9 +259,9 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': ['error', { patterns: [
         RESTRICT_TESTS_IMPORT_PATTERN,
-        { group: ['**/adapters/**', '**/host/**'],
-          message: 'src/ui never imports adapters or host: it reaches them through application ports and injected dependencies.' },
+        UI_BAN.pattern,
       ] }],
+      'no-restricted-syntax': syntax(UI_BAN),
     },
   },
   {
@@ -241,9 +269,9 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': ['error', { patterns: [
         RESTRICT_TESTS_IMPORT_PATTERN,
-        { group: ['**/adapters/**', '**/host/**', '**/ui/**'],
-          message: 'src/application never imports adapters, host or ui: it defines ports; they implement and consume them.' },
+        APPLICATION_BAN.pattern,
       ] }],
+      'no-restricted-syntax': syntax(APPLICATION_BAN),
     },
   },
   {
@@ -251,9 +279,9 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': ['error', { patterns: [
         RESTRICT_TESTS_IMPORT_PATTERN,
-        { group: ['**/host/**', '**/ui/**'],
-          message: 'src/adapters never imports host or ui: an adapter implements an application port.' },
+        ADAPTERS_BAN.pattern,
       ] }],
+      'no-restricted-syntax': syntax(ADAPTERS_BAN),
     },
   },
   // The one recorded exception (GCP2) until the codec moves: the durable review adapter
@@ -266,11 +294,10 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': ['error', { patterns: [
         RESTRICT_TESTS_IMPORT_PATTERN,
-        { group: ['**/host/**'],
-          message: 'src/adapters never imports host or ui: an adapter implements an application port.' },
-        { regex: '(^|/)ui/(?!read-models/review-record-codec$)',
-          message: 'src/adapters never imports host or ui; the review-record codec is the one recorded exception (GCP2).' },
+        REVIEW_ADAPTER_HOST_BAN.pattern,
+        REVIEW_ADAPTER_UI_BAN.pattern,
       ] }],
+      'no-restricted-syntax': syntax(REVIEW_ADAPTER_HOST_BAN, REVIEW_ADAPTER_UI_BAN),
     },
   },
   {
@@ -280,29 +307,27 @@ export default tseslint.config(
         { group: ['obsidian', 'electron', 'vue', 'pinia', 'three', 'three/*',
                   'fs', 'path', 'node:*', 'fallow', 'fallow/*'],
           message: 'src/domain stays pure: no host, framework, renderer, Node or fallow imports.' },
-        { group: ['../adapters/*', '../host/*', '../ui/*', '../visualization/*', '../application/*',
-                  '**/adapters/**', '**/host/**', '**/ui/**', '**/visualization/**', '**/application/**'],
-          message: 'src/domain must not depend on an outer layer.' },
-        { group: ['**/tests/**', '../../tests/*'],
-          message: 'src/** must not import from tests/**.' },
+        DOMAIN_BAN.pattern,
+        RESTRICT_TESTS_IMPORT_PATTERN,
       ] }],
+      'no-restricted-syntax': syntax(DOMAIN_BAN),
     },
   },
   {
     files: ['src/visualization/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [
-        { group: ['obsidian', 'electron', 'fs', 'path', 'node:*',
-                  '**/host/**', '**/adapters/**', '**/application/**'],
+        { group: ['obsidian', 'electron', 'fs', 'path', 'node:*'],
           message: 'src/visualization reaches neither the filesystem nor the host.' },
-        { group: ['**/tests/**', '../../tests/*'],
-          message: 'src/** must not import from tests/**.' },
+        VISUALIZATION_BAN.pattern,
+        RESTRICT_TESTS_IMPORT_PATTERN,
       ] }],
       // Rule 3 — colour management. Double conversion is SILENT: no error, no warning,
       // just a 2-3x darker render. Lint is the only thing that catches it (spec 3.2, 3.4).
       'no-restricted-syntax': ['error',
         // Repeated from the src/** block above: flat config replaces, never merges.
         { selector: RESTRICT_DYNAMIC_TESTS_IMPORT.selector, message: RESTRICT_DYNAMIC_TESTS_IMPORT.message },
+        VISUALIZATION_BAN.dynamic,
         { selector: "MemberExpression[property.name='convertSRGBToLinear']",
           message: 'ColorManagement.enabled defaults to true since r152 — new Color(hex) already converts sRGB to working. Calling this renders everything markedly darker, with no error and no warning.' },
         { selector: "MemberExpression[property.name='convertLinearToSRGB']",

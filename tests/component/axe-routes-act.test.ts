@@ -5,7 +5,8 @@
 import { afterEach, describe, it } from 'vitest';
 import { demoRelationsAnchorPath, openFailureLog } from '../harness/seed';
 import { harnessSnapshot } from '../harness/fixture';
-import { expectAccessible, mountLeaf, openTab, settle, unmountLeaf } from './axe-support';
+import { SETTINGS_ABOUT_READS } from '../../src/ui/inspector-copy';
+import { expectAccessible, expectTabAccessible, mountLeaf, openTab, settle, unmountLeaf } from './axe-support';
 
 describe('axe: the Act routes', () => {
   afterEach(() => { unmountLeaf(); });
@@ -75,12 +76,19 @@ describe('axe: Data & scans', () => {
 describe('axe: Settings and File detail', () => {
   afterEach(() => { unmountLeaf(); });
 
-  for (const tab of ['appearance', 'analysis', 'accessibility', 'privacy', 'about']) {
+  // Each tab's own rows; About has no class of its own, so its first heading says which tab it is.
+  const SETTINGS: ReadonlyArray<readonly [string, string, string?]> = [
+    ['appearance', '.ci-settings__density'],
+    ['analysis', '.ci-settings__priority'],
+    ['accessibility', '.ci-settings__shortcuts'],
+    ['privacy', '.ci-settings__clear'],
+    ['about', '.ci-settings__rows h3', SETTINGS_ABOUT_READS],
+  ];
+  for (const [tab, content, text] of SETTINGS) {
     it(`Settings, the ${tab} tab`, async () => {
       const { root } = await mountLeaf({ route: 'settings', items: true });
       await openTab(root, tab);
-      await expectAccessible(root, `[role="tab"][data-tab-id="${tab}"][aria-selected="true"]`);
-      await expectAccessible(root, '.ci-screen--settings [role="tabpanel"] *');
+      await expectTabAccessible(root, tab, content, text);
     });
   }
 

@@ -105,8 +105,14 @@ function numeric(text: string): number {
   const t = text.trim();
   const calc = /^calc\((.*)\)$/.exec(t);
   if (!calc) return parseFloat(t);
-  const m = /^(.+?)\s+([-+*/])\s+(.+)$/.exec(calc[1]!.trim());
-  if (!m) return numeric(calc[1]!);
+  const inner = calc[1]!.trim();
+  // One binary operation only: precedence, grouping and nested calc() are not implemented, so refuse them.
+  if (/[()]/.test(inner)) throw new Error(`calc() with brackets is not supported: "${t}"`);
+  const operators = (inner.match(/\s[-+]\s|[*/]/g) ?? []).length;
+  if (operators > 1) throw new Error(`calc() with more than one operator is not supported: "${t}"`);
+  const m = /^(.+?)\s+([-+*/])\s+(.+)$/.exec(inner);
+  if (!m && operators > 0) throw new Error(`calc() operator needs spaces around it: "${t}"`);
+  if (!m) return numeric(inner);
   const [a, b] = [numeric(m[1]!), numeric(m[3]!)];
   return m[2] === '+' ? a + b : m[2] === '-' ? a - b : m[2] === '*' ? a * b : a / b;
 }
@@ -146,6 +152,8 @@ function parse(text: string): Rgb {
   }
   if (fn[1] === 'color-mix' && parts.length === 3 && parts[0] === 'in srgb') {
     const [a, b] = [stop(parts[1]!), stop(parts[2]!)];
+    // Two percentages that do not total 100 scale the alpha (under) or are normalised (over); the lerp below does neither.
+    if (a.pct !== null && b.pct !== null && a.pct + b.pct !== 100) throw new Error(`color-mix percentages must sum to 100: "${t}"`);
     const p = (a.pct ?? (b.pct === null ? 50 : 100 - b.pct)) / 100;
     const q = (b.pct ?? 100 - p * 100) / 100;
     const lerp = (x: number, y: number): number => (x * p + y * q) / (p + q);

@@ -6,7 +6,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { contrast, type Theme } from '../support/css-tokens';
+import { colorOf, contrast, type Theme } from '../support/css-tokens';
 
 const THEMES: readonly Theme[] = ['dark', 'light'];
 const v = (token: string): string => `var(${token})`;
@@ -25,6 +25,25 @@ describe('the resolver reproduces the audit figures (calibration)', () => {
       expect(Math.abs(contrast('light', v(fg), v(bg)) - light)).toBeLessThanOrEqual(0.01);
     });
   }
+});
+
+describe('the resolver throws on what it cannot compute rather than miscomputing', () => {
+  it('refuses calc() with more than one operator', () => {
+    expect(() => colorOf('dark', 'hsl(calc(10 + 20 + 30), 50%, 50%)')).toThrow(/calc/);
+    expect(() => colorOf('dark', 'hsl(calc(10 * 2 - 5), 50%, 50%)')).toThrow(/calc/);
+  });
+  it('refuses brackets inside calc()', () => {
+    expect(() => colorOf('dark', 'hsl(calc((10 + 20)), 50%, 50%)')).toThrow(/calc/);
+    expect(() => colorOf('dark', 'hsl(calc(2 * (10 + 20)), 50%, 50%)')).toThrow(/calc/);
+  });
+  it('refuses a color-mix whose two percentages do not sum to 100', () => {
+    expect(() => colorOf('dark', 'color-mix(in srgb, white 30%, black 30%)')).toThrow(/100/);
+    expect(() => colorOf('dark', 'color-mix(in srgb, white 80%, black 40%)')).toThrow(/100/);
+  });
+  it('still resolves a single operator and a complete or one-sided mix', () => {
+    expect(colorOf('dark', 'hsl(calc(10 + 20), 50%, 50%)')).toEqual(colorOf('dark', 'hsl(30, 50%, 50%)'));
+    expect(colorOf('dark', 'color-mix(in srgb, white 25%, black 75%)')).toEqual(colorOf('dark', 'color-mix(in srgb, white 25%, black)'));
+  });
 });
 
 const SURFACES = ['--ci-surface', '--ci-panel', '--ci-raised', '--ci-hover'] as const;
@@ -101,6 +120,46 @@ describe('no colour declaration in src/ui escapes the gate (GRC3 sweep)', () => 
       }
     }
     expect(seen, 'the sweep reads the colour declarations').toBeGreaterThan(150);
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('fills and borders keep the --ci-tone-* tokens, never a text token (GRC3 sweep)', () => {
+  // --ci-warning/--ci-error are the TEXT variants (styles.css) and every --ci-text-* is darkened to pass 4.5:1 as ink.
+  // A border, background, fill, outline or shadow painted with one loses the tone. The allowlist is the deliberate
+  // uses: neutral swatches and arrows (a gated ink token as a mark), SVG text (fill is the text's ink) and the
+  // current nav item's inline-start bar (--ci-text-accent, gated at 3:1 by the nav test below).
+  const ALLOWED: ReadonlyArray<readonly [RegExp, RegExp]> = [
+    [/kit\.css$/, /\.ci-(?:line|bar)-chart__grid text|\.ci-band-legend__key::before/],
+    [/screens-audit\.css$/, /button\.ci-coverage-map__tile/],
+    [/screens-explore\.css$/, /\.ci-module-map__arrow|\.ci-scatter__grid text|\.ci-scatter__quadrant-label|\.ci-scatter__dot--unknown/],
+    [/screens\.css$/, /\.ci-legend__swatch--none/],
+    [/shell\.css$/, /button\.ci-nav__item\[aria-current="page"\]/],
+  ];
+  const PAINT = /(?<![-\w])(border[\w-]*|background[\w-]*|fill|outline[\w-]*|box-shadow)\s*:\s*([^;}]+)/g;
+  const TEXT_TOKEN = /var\(\s*--ci-(?:warning|error|text-[\w-]+)\b/;
+  const vueStyles = (dir: string): Array<readonly [string, string]> => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const path = join(dir, e.name);
+    if (e.isDirectory()) return vueStyles(path);
+    if (!e.name.endsWith('.vue')) return [];
+    const blocks = [...readFileSync(path, 'utf8').matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => strip(m[1]!)).join('\n');
+    return blocks === '' ? [] : [[path, blocks] as const];
+  });
+  it('declares no border, background, fill, outline or box-shadow with --ci-warning, --ci-error or a --ci-text-* token', () => {
+    const offenders: string[] = [];
+    let seen = 0;
+    for (const [file, css] of [...SHEETS, ...vueStyles(join(UI, '..'))]) {
+      for (const r of innermost(css)) {
+        for (const m of r.body.matchAll(PAINT)) {
+          seen += 1;
+          if (!TEXT_TOKEN.test(m[2]!)) continue;
+          const hit = r.selectors.join(', ');
+          if (ALLOWED.some(([f, s]) => f.test(file) && s.test(hit))) continue;
+          offenders.push(`${file}: ${hit} { ${m[1]}: ${m[2]!.trim()} }`);
+        }
+      }
+    }
+    expect(seen, 'the sweep reads the paint declarations').toBeGreaterThan(150);
     expect(offenders).toEqual([]);
   });
 });

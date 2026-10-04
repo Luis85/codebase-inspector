@@ -103,7 +103,7 @@ describe('axe: the Act dialogs and the command palette', () => {
   it('RefreshNoteDialog', async () => {
     const { root } = await mountLeaf({ route: 'investigate', investigate: true });
     await click(root, '.ci-notes-panel__refresh');
-    await expectDialogAccessible(root, 'button');
+    await expectDialogAccessible(root, '.ci-refresh-note__confirm');
   });
 
   it('WorkItemEditor, editing a work item', async () => {
@@ -147,7 +147,7 @@ describe('axe: the Configure dialogs', () => {
     await openTab(root, 'privacy');
     const firstPath = store.snapshot!.entities.find((e) => e.kind === 'file')!.path;
     pick(await waitFor(root, '.ci-settings__import-file') as HTMLInputElement, demoImportJson(firstPath, useReportStore().sections), 'review-state.json');
-    await expectDialogAccessible(root, 'button');
+    await expectDialogAccessible(root, '.ci-import-dialog__confirm');
   });
 
   it('ConnectFallowDialog, step 1: both routes', async () => {

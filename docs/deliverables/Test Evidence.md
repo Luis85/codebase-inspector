@@ -48,4 +48,4 @@ The contrast gate, `tests/unit/contrast-gate.test.ts`, computes WCAG contrast fr
 
 The axe suites, `tests/component/axe-*.test.ts`, mount the whole leaf in jsdom with seeded content and fail on any serious or critical axe-core violation across every route, the dialogs and the host modals; `color-contrast` is left to the contrast gate because jsdom has no layout.
 
-CI is `.github/workflows/verify.yml`, which runs `npm ci --ignore-scripts` and `npm run verify` on `windows-latest` for every push and pull request, followed by a production-dependency audit; the native gate stays manual, as owner decision O3 set.
+CI is `.github/workflows/verify.yml`, which runs `npm ci --ignore-scripts` and `npm run verify` on `windows-latest` for every pull request and every push to `main`, followed by a production-dependency audit; the native gate stays manual, as gap-closure owner decision GCO11 set.
