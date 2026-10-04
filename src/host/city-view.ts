@@ -27,6 +27,7 @@ import { createApp, shallowRef, watch, type App as VueApp, type ShallowRef } fro
 import { createPinia, type Pinia } from 'pinia';
 import RootComponent from '../ui/App.vue';
 import { createCityRenderer } from '../visualization/city-renderer';
+import { createReconstructCap } from '../visualization/reconstruct-cap';
 import { useCityStore } from '../ui/stores/city-store';
 import { useRunStore } from '../ui/stores/run-store';
 import { CITY_RENDERER_KEY, LAYOUT_GENERATION_KEY, createLayoutGenerationSource } from '../ui/renderer-handle';
@@ -62,6 +63,8 @@ export class CityView extends ItemView {
   // is the only WRITER; this file only READS it (theme-colour refresh on `css-change`,
   // and publishing a snapshot's layout) — it never constructs, disposes or sizes anything.
   private readonly cityRendererHandle: ShallowRef<CityRendererPort | null> = shallowRef(null);
+  /** Gap closure GRA2: at most 3 automatic reconstructions per leaf (reconstruct-cap.ts). */
+  private readonly rendererCap = createReconstructCap(createCityRenderer);
   private unwatchRendererForColors: (() => void) | null = null;
   private cssChangeRef: EventRef | null = null;
   private unsubscribeCoordinator: (() => void) | null = null;
@@ -163,7 +166,10 @@ export class CityView extends ItemView {
     // this file only ever READS the handle afterwards.
     this.vueApp.provide(CITY_RENDERER_KEY, this.cityRendererHandle);
     this.vueApp.provide(LAYOUT_GENERATION_KEY, this.nextLayoutGeneration);
-    this.vueApp.provide('createCityRenderer', createCityRenderer);
+    // Gap closure GRA2: one cap per leaf. Automatic reconstruction stops after 3; only the
+    // user's Retry 3D resets it (renderer only, never a scan).
+    this.vueApp.provide('createCityRenderer', this.rendererCap.create);
+    this.vueApp.provide('retryCityRenderer', () => { this.rendererCap.reset(); });
     this.vueApp.use(this.pinia);
     this.vueApp.mount(this.contentEl);
 

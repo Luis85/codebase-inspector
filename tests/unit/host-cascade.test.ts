@@ -191,6 +191,7 @@ const PLUGIN_SKINNED_BUTTONS = [
   '.ci-file-list__group-focus',  // Task 6 (C07's directoryFocusRequested control)
   '.ci-selection-notice__reveal', // Task 9 (F13): the filter notice's own Reveal control
   '.ci-selection-notice__clear',  // Task 9 (F13): the filter notice's own Clear selection control
+  '.ci-viewport__retry',          // Gap closure GRA2: Retry 3D beside the 3D-unavailable notice
 ];
 
 /** `@media (hover: hover) { button:hover { ... } }` -- a media query changes no specificity. */

@@ -587,8 +587,10 @@ command to move the camera is a separate call from the event, so host
 synchronisation does not loop.
 
 **No `restored` event and no self-healing.** On `unavailable{context-lost}` the
-*view* disposes and reconstructs. Window migration and context loss are one
-recovery path, deliberately.
+*view* disposes and reconstructs, at most 3 times automatically
+(`reconstruct-cap.ts`); then S11, with a user-initiated Retry 3D (renderer only,
+never scan) (amended by gap closure GCN2, 2026-10-04). Window migration and
+context loss are one recovery path, deliberately.
 
 Both prototypes implement self-healing, so this rule will be argued against with
 a working, screenshotted, test-passing implementation. It is not a

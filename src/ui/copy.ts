@@ -34,6 +34,9 @@ export const COPY_09 = 'Cancel scan';
 export const COPY_10 = 'Scan cancelled. The incomplete result was discarded. Your complete snapshot from {time} is unchanged.';
 export const COPY_12 = 'No files are included in this scope. Review the selected directory and exclusions.';
 export const COPY_14 = 'The 3D view is unavailable. File inspection still works.';
+/** Gap closure GCN12 (S11 / ST-11): the user-initiated recovery beside COPY-14. It
+ *  reinitialises the renderer only and never starts a scan. */
+export const RETRY_3D = 'Retry 3D';
 export const COPY_27 = 'Relative path copied.';
 export const COPY_28 = 'The saved source directory is unavailable on this machine. The stored snapshot can still be inspected.';
 export const COPY_30 = 'The selected file is outside these filters. Reveal file or clear selection.';

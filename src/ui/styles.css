@@ -614,6 +614,29 @@
   padding: var(--ci-space-2);
   border-radius: var(--ci-radius-small);
 }
+/* Gap closure GRA2: Retry 3D, the user-initiated recovery beside the 3D-unavailable notice.
+   Anchored top-start so it never collides with the notice (bottom, full width) or the camera
+   controls (bottom-end); the notice is the only thing that can render here while it shows.
+   Same plugin-skinned button recipe as `.ci-toolbar__scan`: `button.` raises it to (0,1,1)
+   so it beats Obsidian's `button:not(.clickable-icon)`, `box-shadow: none` drops the host's
+   input shadow, and an explicit hover keeps the affordance. Fills and borders use the panel
+   and border tokens, never a text token (the contrast gate's sweep). */
+:where(.codebase-inspector-root) button.ci-viewport__retry {
+  position: absolute;
+  inset: var(--ci-space-3) auto auto var(--ci-space-3);
+  min-height: var(--ci-control-min);
+  padding-inline: var(--ci-space-3);
+  border-radius: var(--ci-radius-control);
+  border: 1px solid var(--ci-border);
+  background: var(--ci-panel);
+  box-shadow: none;
+  color: var(--ci-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+:where(.codebase-inspector-root) button.ci-viewport__retry:hover {
+  background: var(--ci-raised);
+}
 
 /* --- CameraControls (C09) ---------------------------------------------------- */
 :where(.codebase-inspector-root) .ci-camera-controls {

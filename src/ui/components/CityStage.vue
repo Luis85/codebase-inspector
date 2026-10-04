@@ -29,8 +29,10 @@
   made this file worth extracting on its own, not only App.vue's own line budget.
 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, inject, nextTick, ref } from 'vue';
 import { useCityStore } from '../stores/city-store';
+import { RETRY_3D } from '../copy';
+import { noop } from '../kit/noop';
 import CityHeader from './CityHeader.vue';
 import CityViewport from './CityViewport.vue';
 import CameraControls from './CameraControls.vue';
@@ -45,8 +47,30 @@ const store = useCityStore();
 useLensRenderer();
 useRelationRenderer();
 
-interface CityViewportExposed { stageEl: HTMLElement | null }
+interface CityViewportExposed {
+  stageEl: HTMLElement | null;
+  // Exposed refs unwrap, so this reads reactively from here.
+  unavailableReason: 'unsupported' | 'context-lost' | 'initialization-failed' | null;
+}
 const cityViewportRef = ref<CityViewportExposed | null>(null);
+
+// Gap closure GRA2/GCN2: Retry 3D is offered under the permanent 3D-unavailable notice only
+// ('context-lost' self-heals, and the 320 px floor is not a failure). It reinitialises the
+// RENDERER ONLY: it resets the host's reconstruction cap and remounts the viewport, which
+// builds a fresh renderer. It never asks for a scan. `retryCityRenderer` is provided by
+// city-view.ts; a bare mount has none and the button still remounts.
+const retryCityRenderer = inject<() => void>('retryCityRenderer', noop);
+const retryable = computed(() => ['unsupported', 'initialization-failed'].includes(cityViewportRef.value?.unavailableReason ?? ''));
+const viewportKey = ref(0);
+async function retry(): Promise<void> {
+  retryCityRenderer();
+  viewportKey.value += 1;
+  // The viewport remounts, then builds its renderer one tick later (CityViewport's own
+  // deferred first measurement): return focus to the new stage once that has settled.
+  await nextTick();
+  await nextTick();
+  cityViewportRef.value?.stageEl?.focus();
+}
 
 // App.vue's own `rendererHost` contract (ruling M68), relayed one level down: this
 // file is now the thing that holds the ref to CityViewport, so App.vue reads its
@@ -75,8 +99,17 @@ defineExpose({ stageEl });
     <CityViewport
       v-if="store.viewMode !== 'list'"
       ref="cityViewportRef"
+      :key="viewportKey"
     >
       <CameraControls />
+      <button
+        v-if="retryable"
+        type="button"
+        class="ci-viewport__retry"
+        @click="retry"
+      >
+        {{ RETRY_3D }}
+      </button>
     </CityViewport>
     <MetricLegend />
   </div>

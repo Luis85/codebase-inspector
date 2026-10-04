@@ -153,6 +153,10 @@ const AUTHORED_FRESH: readonly string[] = [
   'ANNOUNCE_SCAN_COMPLETE',
   // Spec §4.2 WebGL context loss has no COPY id; authored fresh.
   'CONTEXT_LOST_NOTICE',
+  // Gap closure GCN12 (ST-11 / S11): the recovery control's own label. interactions/02 names
+  // the action "Retry 3D" but the microcopy catalogue has no COPY row for it, so it is
+  // authored fresh; a control label, not a state or outcome.
+  'RETRY_3D',
   // S05 mockup-verbatim (docs/concept/design/mockups/s05-city.png), grepped against
   // the catalogue and absent from it — the catalogue covers states/outcomes, not a
   // panel's own heading or status badge.

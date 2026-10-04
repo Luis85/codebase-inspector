@@ -26,7 +26,9 @@
 //   view mirrors it into CityViewState. A command to move the camera is a separate call
 //   from the event, so host synchronisation does not loop.
 // * NO `restored` event and NO self-healing. On unavailable{context-lost} the VIEW
-//   disposes and reconstructs. Ship debugLoseContext; do NOT ship a restore partner.
+//   disposes and reconstructs, at most 3 times automatically (reconstruct-cap.ts); then S11,
+//   with a user-initiated Retry 3D (renderer only, never scan).
+//   Ship debugLoseContext; do NOT ship a restore partner.
 //   Both prototypes implement self-healing; the Three.js prototype's own recorded run
 //   logged 33 "WebGL: INVALID_OPERATION: delete: object does not belong to this
 //   context" warnings in that path. That is the failure this rule prevents.
