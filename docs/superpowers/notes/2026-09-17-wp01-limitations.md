@@ -92,11 +92,17 @@ section, where that gap is stated rather than closed.
 - **The height cap is derived per snapshot**, so a file's rendered height depends on
   unrelated files and can change between refreshes. The raw values are always in the
   inspector.
-- **The 820 CSS px collapse threshold is provisional.** Checkpoint #3 did not itemise it.
+- **The 820 CSS px collapse threshold was provisional.** Checkpoint #3 did not itemise it.
   What checkpoint #3 *did* produce at this layout: three defects the user reported and
   saw fixed — indefinite stage height, file-list row wrapping and wheel zoom — closed
-  with "this looks better now. proceed" and a screenshot. Whether 820 px is the right
-  number in a sidebar and in a pop-out is **NOT ANSWERED**.
+  with "this looks better now. proceed" and a screenshot. Whether 820 px was the right
+  number in a sidebar and in a pop-out was **NOT ANSWERED**. *Resolved: gap closure
+  (GRA6).* The threshold is **760**, measured by `harness-measure`'s drawer sweep as the
+  smallest candidate at which the three-column city (the city at content = T, the leaf at
+  T + 220 with the navigation inline) and the navigation band clip nothing and the stage
+  keeps at least 320 px, set in all four places that carry it and pinned by
+  `tests/unit/drawer-threshold.test.ts`. The stage margin at 760 is small (the stage
+  measures 324 px against the 320 floor in the harness).
 - **The snapshot size ceiling is a hard failure, not a degradation.** The validator
   rejects a snapshot above 200,000 entities + observations, which is roughly 65,000
   in-scope files. The development vault sits at about 61% of that. A larger root fails
@@ -109,12 +115,44 @@ section, where that gap is stated rather than closed.
 - **An exclusion containing `*` or `?` persisted before ruling M62** is accepted on read
   and **matches nothing** until the user next passes it through an input surface, which
   now refuses it with a visible reason. There is no glob support anywhere in the walk.
-- **`CityViewport`'s self-reconstruction has no attempt cap.** A context that is lost
-  repeatedly is reconstructed repeatedly.
-- **`root-unavailable` is a spec §7 state with no producer.** It exists in the state
-  vocabulary and nothing emits it.
-- **An edge drag takes no `setPointerCapture`** (ruling M95), so an unclamped canvas
-  point can raycast outside the frustum and pick an off-screen building.
+- **`CityViewport`'s self-reconstruction had no attempt cap.** A context that was lost
+  repeatedly was reconstructed repeatedly. *Resolved: gap closure (GRA2).*
+  `src/visualization/reconstruct-cap.ts` wraps the renderer factory the host provides: after
+  3 automatic reconstructions, the next context loss makes the next create answer
+  `unavailable{initialization-failed}` with the inert port, and a **Retry 3D** button
+  remounts the viewport and resets the counter. See the shared-notice limitation below.
+- **`root-unavailable` was a spec §7 state with no producer.** *Resolved: gap closure
+  (GRA4).* A refresh that finds the root gone or no longer a directory now emits it: the
+  status banner reads COPY-28, the snapshot stays readable, and a refresh never asks to
+  approve a missing folder (native scenario 42). An existing root whose listing fails
+  (for example `EACCES`) stays a generic scan failure; "unreadable" as its own state is
+  Part B's GRB17.
+- **An edge drag took no `setPointerCapture`** (ruling M95), so an unclamped canvas
+  point could raycast outside the frustum and pick an off-screen building. *Resolved:
+  gap closure (GRA3).* The pointer is captured on press and a pick outside the canvas is
+  refused (`tests/component/picking-capture.test.ts`).
+- **A capped context and a context that never initialised show the same notice (gap
+  closure GRA2, spec §9).** The cap reuses `initialization-failed` (GCN2, so no §4.2
+  interface change), so both show COPY-14. Only the **Retry 3D** button, which appears
+  with the notice, tells the user that the context was lost rather than refused at start.
+- **Packing is NFDH, and the F2 calibration did not reproduce (gap closure GRA1, GCO2).**
+  The spike could not reproduce the 64.2 % measured on 84d92d7's tree: the closest
+  definition gave 65.41 %, none within ±0.1, so the baseline was re-taken on the plan-base
+  tree (1,236 paths, frozen as `tests/fixtures/real-tree.json`) under GCP3. There the
+  shelf packing's root occupancy is 54.66 %; next-fit decreasing height gives 71.87 %
+  (+17.21 points), first-fit decreasing height +13.80 and a skyline packer +11.99. All three
+  cleared the +10 threshold, so the simplest, NFDH, was adopted (`LAYOUT_VERSION` is `'2'`,
+  `src/domain/layout/pack.ts`). About 28 % of the root's extent is still empty on that
+  tree, and positions differ from the shelf layout, so a city read before and after the
+  change does not compare.
+- **The topbar clips at 360 and 480 px leaves with the navigation as a drawer (found by
+  gap closure Task 7, not fixed).** Below a content width of about 540 px the
+  `.ci-shell__topbar` overflows. It is independent of the collapse threshold, is not one of
+  Part A's rows and is carried as a follow-up.
+- **The arrowhead cones on a relation arc are 1–2 px at the fit zoom (gap closure GRA7,
+  not fixed).** The selected file's arcs and cones now draw above the buildings, but the
+  cones (radius 0.35, height 1.1) are not scaled with the city, so the direction of an arc
+  reads poorly at the default camera. Scaling them is outside GRA7 and is a follow-up.
 - **One surface with no production caller, recorded rather than removed.**
   The final whole-branch review recorded it as one of three, and **it is dead in `src/`
   while tests do use it** — which is exactly why it is not visible to `npm run analyze`
@@ -422,6 +460,8 @@ relation controls across a reload (owner choice: session only); showing all arcs
 `boundary_coverage_violations` and `boundary_call_violations` (stay "not shown"); and the
 open owner decisions — M80/F14 renderer retry cap, M95 pointer capture, the spec §7
 root-unavailable producer, Y19 external `data.json` edits, and the Z38 no-freeze budget.
+(Since closed by gap closure Part A: the renderer retry cap (GRA2), pointer capture (GRA3)
+and the root-unavailable producer (GRA4).)
 The manual Part 7 acceptance check (item 3, "a configured trusted binary runs without
 freezing Obsidian") stays the owner's, unchanged from G6 above.
 
