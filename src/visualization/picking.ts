@@ -63,8 +63,15 @@ export function createPicking(options: PickingOptions): Picking {
     dwell = null;
   }
 
+  /** GRA3, M95: a point past the canvas edge is never a pick and never a hover. */
+  function insideCanvas(point: CanvasPoint): boolean {
+    const rect = canvas.getBoundingClientRect();
+    return point.x >= 0 && point.y >= 0 && point.x <= rect.width && point.y <= rect.height;
+  }
+
   function armDwell(point: CanvasPoint): void {
     clearDwell();
+    if (!insideCanvas(point)) return;
     dwell = win.setTimeout(() => {
       dwell = null;
       if (disposed || !options.isActive()) return;
@@ -75,12 +82,17 @@ export function createPicking(options: PickingOptions): Picking {
     }, HOVER_DWELL_MS);
   }
 
-  function endGesture(): void { gesture = null; }
+  // Capture is optional (jsdom and older hosts lack it); a release only when held.
+  function endGesture(pointerId: number): void {
+    gesture = null;
+    if (canvas.hasPointerCapture?.(pointerId)) canvas.releasePointerCapture(pointerId);
+  }
 
   const onPointerDown = (event: Event): void => {
     const pointer = event as PointerEvent;
     if (!options.isActive()) return;
     clearDwell();
+    canvas.setPointerCapture?.(pointer.pointerId);
     gesture = {
       startX: pointer.clientX, startY: pointer.clientY,
       lastX: pointer.clientX, lastY: pointer.clientY,
@@ -118,19 +130,21 @@ export function createPicking(options: PickingOptions): Picking {
     const pointer = event as PointerEvent;
     const active = gesture;
     if (!active) return;
-    endGesture();
+    endGesture(pointer.pointerId);
     if (!options.isActive()) return;
     if (active.dragged || active.button !== 0) return;
     if (Math.hypot(pointer.clientX - active.startX, pointer.clientY - active.startY) > DRAG_THRESHOLD_CSS_PX) return;
-    const entity = options.hitTest(toCanvas(pointer));
+    const point = toCanvas(pointer);
+    if (!insideCanvas(point)) return;
+    const entity = options.hitTest(point);
     if (entity !== null) options.onPick(entity);    // empty space is a deliberate no-op
   };
 
-  const onPointerCancel = (): void => { endGesture(); };
+  const onPointerCancel = (event: Event): void => { endGesture((event as PointerEvent).pointerId); };
 
-  const onPointerLeave = (): void => {
+  const onPointerLeave = (event: Event): void => {
     clearDwell();
-    endGesture();
+    endGesture((event as PointerEvent).pointerId);
     if (hovered === null) return;         // nothing was hovered: nothing changed
     hovered = null;
     options.onHover(null, null);          // immediately, not after the dwell
