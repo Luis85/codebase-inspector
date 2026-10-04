@@ -203,14 +203,18 @@ export function createRelationArcs(): RelationArcs {
     lineGeometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
     colorAttr = new Float32BufferAttribute(new Float32Array(valid.length * SEGMENTS * 2 * 3), 3);
     lineGeometry.setAttribute('color', colorAttr);
-    // Depth-tested, not always-on-top (N29): a tall building can hide an arc behind it,
-    // and the text Relations list is the complete record either way (N30).
-    lineSegments = new LineSegments(lineGeometry, new LineBasicMaterial({ vertexColors: true, depthTest: true }));
+    // Drawn above the buildings (GCO19, gap closure E20): in a dense city front-row lots hid
+    // the arrowheads, which are the only carrier of direction. Always-on-top costs an arc
+    // showing over a building it passes behind; the text Relations list stays the complete
+    // record (N30). renderOrder 1 sorts after the city, below the selection outline (20).
+    lineSegments = new LineSegments(lineGeometry, new LineBasicMaterial({ vertexColors: true, depthTest: false }));
     lineSegments.frustumCulled = false;
+    lineSegments.renderOrder = 1;
 
     const coneGeometry = new ConeGeometry(CONE_RADIUS, CONE_HEIGHT, CONE_RADIAL_SEGMENTS);
-    coneMesh = new InstancedMesh(coneGeometry, new MeshBasicMaterial({ depthTest: true }), valid.length);
+    coneMesh = new InstancedMesh(coneGeometry, new MeshBasicMaterial({ depthTest: false }), valid.length);
     coneMesh.frustumCulled = false;
+    coneMesh.renderOrder = 1;
     const matrix = new Matrix4();
     const scale = new Vector3(1, 1, 1);
     for (let i = 0; i < valid.length; i++) {

@@ -2,7 +2,7 @@
 // corridor, instead of the old 0.35-per-unit lift that a 128-high tower between two low
 // files swallowed. The real `three`; no WebGL is needed to build the geometry.
 import { describe, expect, it } from 'vitest';
-import { LineSegments, Vector3 } from 'three';
+import { InstancedMesh, LineSegments, Material, Vector3 } from 'three';
 import type { BufferAttribute } from 'three';
 import { ARC_CLEARANCE, createRelationArcs } from '../../src/visualization/relation-arcs';
 import type { CityLot } from '../../src/domain/layout/types';
@@ -55,5 +55,23 @@ describe('relation arcs clear the corridor (GRA7)', () => {
     const points = sampled([lot(A, 0, 8), lot(M, 14, 128), lot(B, 28, 8)]);
     expect(points[0]!.toArray()).toEqual([0, 8, 0]);
     expect(points[SEGMENTS]!.toArray()).toEqual([28, 8, 0]);
+  });
+});
+
+// GCO19 (gap closure E20): in a dense city front-row buildings hid the arrowheads, and the
+// arrowhead is the only carrier of direction, so both draw above the buildings. The selection
+// outline (renderOrder 20, instanced-city.ts) still draws over them.
+describe('relation arcs draw above buildings (GCO19)', () => {
+  it('turns off the depth test and sorts both the line and the cones after the city', () => {
+    const rig = createRelationArcs();
+    rig.setLots([lot(A, 0, 8), lot(B, 28, 8)]);
+    rig.setColors(paletteFixture());
+    rig.setArcs([{ from: A, to: B, role: 'outgoing' }]);
+    const [lines, cones] = rig.root.children as [LineSegments, InstancedMesh];
+    expect((lines.material as Material).depthTest).toBe(false);
+    expect((cones.material as Material).depthTest).toBe(false);
+    expect(lines.renderOrder).toBe(1);
+    expect(cones.renderOrder).toBe(1);
+    rig.dispose();
   });
 });
