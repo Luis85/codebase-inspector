@@ -100,7 +100,7 @@ export const ARCH_NODE_LABEL_NOT_ANALYSED = (label: string, files: number): stri
  *  alone, so the caption says so rather than implying anything of yours is counted. */
 export const ARCH_VIOLATIONS_FALLOW_CAPTION = 'Reported by fallow';
 export const ARCH_CARD_RULES = 'Your rules violated';
-export const ARCH_RULES_CAPTION = (total: number, notEvaluated: number): string => `${total} rules · ${notEvaluated} not evaluated`;
+export const ARCH_RULES_CAPTION = (total: number, notEvaluated: number): string => `${total} rule${total === 1 ? '' : 's'} · ${notEvaluated} not evaluated`;
 export const ARCH_RULES_NONE = 'No module rules yet. Add one on the Rules tab.';
 /** Polish final review #7: the rules card's `unknown` VALUE reason — Markdown and any
  *  other surface that reads a MetricValue's own `reason` (never the card's caption) has

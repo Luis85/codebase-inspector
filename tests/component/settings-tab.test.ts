@@ -196,7 +196,7 @@ describe('settings tab', () => {
     expect((row as { desc?: string }).desc).toBe(STORAGE_DISCLOSURE_TEXT);
     // Neither of task 12's evidence-gated claims has leaked forward (ruling M25).
     expect(STORAGE_DISCLOSURE_TEXT).not.toContain('Read-only source access');
-    expect(STORAGE_DISCLOSURE_TEXT).not.toContain('Scanning never changes the source');
+    expect(STORAGE_DISCLOSURE_TEXT).not.toContain('Scans and previews never change source files');
   });
 
   it('never hardcodes .obsidian anywhere in plugin source', () => {

@@ -7,6 +7,8 @@
 :where(.codebase-inspector-root) .ci-architecture__inspectors { display: flex; flex-direction: column; gap: var(--ci-space-4); min-width: 0; }
 :where(.codebase-inspector-root) .ci-architecture__toggle { display: inline-flex; align-items: center; gap: var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-architecture__note { margin: var(--ci-space-3) 0 0; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+/* GRC9 (WP-03 Polish E4): five cards need 944 px at 176 px; the shared 200 px minimum wrapped them 4 + 1 at 1280 px. */
+:where(.codebase-inspector-root) .ci-screen--architecture .ci-screen__cards { grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); }
 :where(.codebase-inspector-root) .ci-module-map { margin: 0; }
 :where(.codebase-inspector-root) .ci-module-map__eyebrow {
   display: flex; align-items: center; gap: var(--ci-space-2); margin-bottom: var(--ci-space-2);

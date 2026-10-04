@@ -3,7 +3,7 @@ type: Deliverable
 order: 8.75
 id: WP-03
 title: Dependency and architecture explorer
-status: planned
+status: delivered
 dependsOn:
   - WP-02
 parent: "[[Plugin MVP]]"
@@ -47,8 +47,8 @@ Hand-authored directed fixtures verify incoming/outgoing queries, cycles, discon
 
 ## Delivery record
 
-Built on branch `feat/wp-03-part1` (fast-forwarded onto `feat/wp-01-codebase-city`, so it
-lands on PR #1); design in
+Delivered in PR #1. Built on branch `feat/wp-03-part1` (fast-forwarded onto
+`feat/wp-01-codebase-city`, so it lands on PR #1); design in
 `docs/superpowers/specs/2026-09-24-wp03-part1-dependencies-design.md` (N1–N40).
 
 **Scope: the evidenced subset only.** Part 1 delivers this deliverable from the relation

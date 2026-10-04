@@ -3,7 +3,7 @@ type: Deliverable
 order: 9.375
 id: WP-04
 title: Investigation workbench and Markdown notes
-status: planned
+status: delivered
 dependsOn:
   - WP-02
 parent: "[[Plugin MVP]]"
@@ -69,8 +69,8 @@ Automatic deletion, fabricated “safe to delete” percentages, source auto-fix
 
 ## Delivery record
 
-Built on branch `feat/wp-04-part1` (fast-forwarded onto `feat/wp-01-codebase-city`, so it
-lands on PR #1); design in
+Delivered in PR #1. Built on branch `feat/wp-04-part1` (fast-forwarded onto
+`feat/wp-01-codebase-city`, so it lands on PR #1); design in
 `docs/superpowers/specs/2026-09-25-wp04-part1-investigation-design.md` (IN1–IN51, owner
 decisions O1–O8).
 

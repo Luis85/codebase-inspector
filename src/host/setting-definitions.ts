@@ -54,7 +54,7 @@ export interface SettingDefinitionsCallbacks {
 // because settings-tab.ts and its tests read it by that name.
 export const BINDING_MISSING_TEXT = COPY_28;
 
-// Neither "Read-only source access" nor "Scanning never changes the source" appears
+// Neither "Read-only source access" nor "Scans and previews never change source files" appears
 // here — ruling M25: those two strings ship only after task 12 records the G2 evidence
 // (the second reworded by WP-04 ruling E29).
 export const STORAGE_DISCLOSURE_TEXT =

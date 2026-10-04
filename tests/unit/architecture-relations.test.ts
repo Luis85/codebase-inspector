@@ -21,7 +21,7 @@ import {
   ARCH_NOT_ANALYSED_NOTE, ARCH_RULES_CAPTION, ARCH_RULES_NONE_REASON, ARCH_VIOLATIONS_FALLOW_CAPTION,
   ARCH_VIOLATIONS_NOT_CONFIGURED, EVIDENCE_SOURCE_FALLOW_PARTIAL, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED,
   OVERVIEW_IMPORTS_ROW, RELATIONS_SCOPE_SHORT, RELATION_CYCLES_CAPTION, RELATION_CYCLES_NOT_REPORTED, RULE_NOT_EVALUATED_PARTIAL,
-  RULE_NOT_EVALUATED_REASON,
+  ARCH_MAP_EYEBROW, ARCH_MATRIX_CAPTION, ARCH_NODE_LABEL, BOUNDARY_INSPECTOR_SUBTITLE, RULES_EMPTY, RULE_NOT_EVALUATED_REASON,
 } from '../../src/ui/inspector-copy';
 import type { BoundaryRule } from '../../src/application/ports/review-repository';
 import { fallowDoc, rawReport, type FallowDoc } from '../fixtures/fallow-fixture';
@@ -114,11 +114,12 @@ describe('cards (N18, N20)', () => {
 
     const notViolated = buildArchitectureModel(graph, [rule('core', 'ui')]).cards.find((c) => c.id === 'rules')!;
     expect(notViolated.value).toMatchObject({ state: 'collected', value: 0 });
-    expect(notViolated.caption).toBe(ARCH_RULES_CAPTION(1, 1));
+    expect(notViolated.caption).toBe('1 rule · 1 not evaluated');
 
     const violated = buildArchitectureModel(graph, [rule('ui', 'data')]).cards.find((c) => c.id === 'rules')!;
     expect(violated.value).toMatchObject({ state: 'collected', value: 1 });
-    expect(violated.caption).toBe(ARCH_RULES_CAPTION(1, 0));
+    expect(violated.caption).toBe('1 rule · 0 not evaluated');
+    expect(ARCH_RULES_CAPTION(2, 1)).toBe('2 rules · 1 not evaluated');
   });
 
   it('without a report, evidenced/cycles/violations read unknown(FALLOW_NOT_ANALYSED); modules stay collected, notAnalysed is true, and no caption renders a false 0', () => {
@@ -291,6 +292,7 @@ describe('rules (N23)', () => {
   it('a module outside the shown graph is not-evaluated, RULE_NOT_EVALUATED_REASON', () => {
     const [evaluation] = evaluateRules([rule('nope', 'data')], graph);
     expect(evaluation).toMatchObject({ status: 'not-evaluated', reason: RULE_NOT_EVALUATED_REASON });
+    expect(RULE_NOT_EVALUATED_REASON).toBe("One of this rule's modules is not shown in the module graph, so it cannot be checked.");
   });
   it('without a report, an in-graph pair is not-evaluated, FALLOW_NOT_ANALYSED, sourced from fallow', () => {
     const [evaluation] = evaluateRules([rule('ui', 'data')], noReportGraph);
@@ -382,5 +384,17 @@ describe('stale evidence, Overview and Data & scans agree (Review Focus 5, E9)',
 describe('the sample module edges file is gone', () => {
   it('src/ui/fixtures/sample-module-edges.ts no longer exists', () => {
     expect(existsSync('src/ui/fixtures/sample-module-edges.ts')).toBe(false);
+  });
+});
+
+// GRC10 (spec GCN12): the owner-approved wording, pinned as literals so a drift is a failure.
+describe('the approved Architecture wording (GCN12)', () => {
+  it('pins the eyebrow, the matrix caption, the node label, the empty rules text and the inspector subtitle', () => {
+    expect(ARCH_MAP_EYEBROW).toBe('Module graph · evidenced imports only');
+    expect(ARCH_MATRIX_CAPTION).toBe('Evidenced imports from each row module to each column module (cycle and boundary imports only)');
+    expect(ARCH_NODE_LABEL('core', 3, 1, 2)).toBe('core: 3 files; evidenced imports: 1 outgoing, 2 incoming');
+    expect(ARCH_NODE_LABEL('core', 1, 0, 0)).toBe('core: 1 file; evidenced imports: 0 outgoing, 0 incoming');
+    expect(RULES_EMPTY).toBe("No boundary rules yet. Add one to check an intended boundary against fallow's evidenced imports.");
+    expect(BOUNDARY_INSPECTOR_SUBTITLE).toBe('Your rule, checked against evidenced imports.');
   });
 });

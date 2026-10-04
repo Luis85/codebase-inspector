@@ -133,7 +133,7 @@ describe('ArchitectureScreen', () => {
     const w = mountArch();
     const before = w.findAll('.ci-module-map__edge');
     expect(before.length).toBeGreaterThan(0);
-    expect(w.find('.ci-module-map__node').attributes('aria-label')).toMatch(/files, \d+ outgoing, \d+ incoming, evidenced imports$/);
+    expect(w.find('.ci-module-map__node').attributes('aria-label')).toMatch(/: \d+ files?; evidenced imports: \d+ outgoing, \d+ incoming$/);
     await w.find('.ci-architecture__toggle input').setValue(true);
     // The one evidenced cross-module edge is fallow's own boundary violation, so it stays
     // shown (and marked as a violation) with no rule of yours in play (PO2/JP4).

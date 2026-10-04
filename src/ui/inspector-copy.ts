@@ -97,7 +97,7 @@ export const ARCH_CARD_MODULES = 'Modules';
 export const ARCH_CARD_VIOLATIONS = 'Boundary violations';
 export const ARCH_MODULES_OMITTED_CAPTION = (shown: number): string => `The ${shown} largest are shown in the graph`;
 /** WP-03 JF11: reworded — the module graph is evidenced imports now, never sample. */
-export const RULE_NOT_EVALUATED_REASON = 'A module in this rule is not in the module graph.';
+export const RULE_NOT_EVALUATED_REASON = "One of this rule's modules is not shown in the module graph, so it cannot be checked.";
 
 /** Part 2 §2.3: File detail cards, history and findings. */
 export const NOT_MEASURED_REASON = 'Not measured in this scan.';
@@ -122,15 +122,15 @@ export const ARCH_VIOLATIONS_ONLY = 'Violations only';
 /** WP-03 JF11: = RELATIONS_SCOPE_NOTE, so the footnote never disagrees with the rest of
  *  the app about what an edge here means. */
 export const ARCH_MAP_FOOTNOTE = RELATIONS_SCOPE_NOTE;
-export const ARCH_MAP_EYEBROW = 'Module graph · evidenced imports';
+export const ARCH_MAP_EYEBROW = 'Module graph · evidenced imports only';
 export const ARCH_NODE_LABEL = (label: string, files: number, outgoing: number, incoming: number): string =>
-  `${label}, ${files} files, ${outgoing} outgoing, ${incoming} incoming, evidenced imports`;
+  `${label}: ${files} file${files === 1 ? '' : 's'}; evidenced imports: ${outgoing} outgoing, ${incoming} incoming`;
 /** GRC8 (GCN12): appended to a Map node's aria-label when fallow reports a boundary violation
  *  between two files of that one module. */
 export const ARCH_NODE_SELF_VIOLATION = (n: number): string => `, ${n} boundary violation${n === 1 ? '' : 's'} inside`;
 export const ARCH_NODE_FILES = (files: number): string => `${files} files`;
 export const ARCH_OMITTED_NOTE = (n: number): string => `${n} smaller modules are not shown in the graph.`;
-export const ARCH_MATRIX_CAPTION = 'Evidenced imports from each row module to each column module';
+export const ARCH_MATRIX_CAPTION = 'Evidenced imports from each row module to each column module (cycle and boundary imports only)';
 export const ARCH_MATRIX_CORNER = 'From ↓ / To →';
 export const ARCH_MATRIX_SELF = 'Same module';
 /** GRC8 (GCN12): the Matrix diagonal's text when fallow reports a boundary violation inside that module. */
@@ -161,7 +161,7 @@ export const RULE_EDITOR_CANCEL = CANCEL;
 export const RULE_EDITOR_SAME_MODULE = 'Choose two different modules.';
 export const RULE_EDITOR_DUPLICATE = 'A rule for these two modules already exists.';
 export const RULE_EDITOR_FAILED = 'Could not save this rule.';
-export const RULES_EMPTY = 'No boundary rules yet. Add one to compare an intended boundary with fallow\'s evidenced imports.';
+export const RULES_EMPTY = "No boundary rules yet. Add one to check an intended boundary against fallow's evidenced imports.";
 export const RULES_TABLE_CAPTION = 'Boundary rules';
 export const RULE_COL_ID = 'Rule';
 export const RULE_COL_RULE = 'Boundary';
@@ -178,7 +178,7 @@ export const RULE_SHOW = 'Show';
 export const RULE_SHOW_LABEL = (id: string): string => `Show rule ${id}`;
 export const RULE_REMOVE_FAILED = 'Could not remove this rule.';
 export const BOUNDARY_INSPECTOR_TITLE = 'Boundary inspector';
-export const BOUNDARY_INSPECTOR_SUBTITLE = 'Intended rule vs. evidenced imports.';
+export const BOUNDARY_INSPECTOR_SUBTITLE = 'Your rule, checked against evidenced imports.';
 export const BOUNDARY_VIOLATING_IMPORTS = 'Violating imports';
 export const BOUNDARY_EDGE_IMPORTS = (n: string): string => `${n} evidenced import statements`;
 export const BOUNDARY_EDGE_VIOLATES = 'This edge breaks a boundary rule.';

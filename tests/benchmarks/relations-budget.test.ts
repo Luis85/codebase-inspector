@@ -213,7 +213,7 @@ describe('relations budget — 5,000 files, 2,000 evidenced edges, 200 cycles (N
 
   it('the Edges tab stays navigable: EDGE_LIST_LIMIT rows, EDGE_LIST_HIDDEN(edges - 200)', () => {
     const w = mount(EdgeList, {
-      props: { relations: model, notAnalysed: false, selectedModule: null, violating: new Set<string>(), violationsOnly: false },
+      props: { relations: model, notAnalysed: false, selectedModule: null, violationsOnly: false },
     });
     const rows = w.findAll('.ci-edge-list .ci-table__row');
     expect(rows).toHaveLength(EDGE_LIST_LIMIT);

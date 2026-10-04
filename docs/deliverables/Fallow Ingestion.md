@@ -3,7 +3,7 @@ type: Deliverable
 order: 7.5
 id: WP-02
 title: Fallow ingestion and quality lenses
-status: planned
+status: delivered
 dependsOn:
   - WP-01
 parent: "[[Plugin MVP]]"
@@ -58,7 +58,7 @@ Auto-fix, source deletion, package-manager installation, exact dependency graph 
 
 ## Delivery record
 
-Built on branch `feat/wp-02-part6` (import) and `feat/wp-02-part7` (execution); design in
+Delivered in PR #1. Built on branch `feat/wp-02-part6` (import) and `feat/wp-02-part7` (execution); design in
 `docs/superpowers/specs/2026-09-23-inspector-ui-part6-design.md` (Y1–Y40) and
 `docs/superpowers/specs/2026-09-23-inspector-ui-part7-design.md` (Z1–Z44).
 
@@ -74,7 +74,8 @@ Built on branch `feat/wp-02-part6` (import) and `feat/wp-02-part7` (execution); 
 
 Acceptance, item by item, is recorded in `docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md`
 (G6, and the Part 6 acceptance notes). The manual host check for "a configured trusted
-binary runs without freezing Obsidian" is open until the owner performs it.
+binary runs without freezing Obsidian" (A12 in the gap-closure design) is open until the owner
+performs it, so this deliverable is delivered with that one manual check still open.
 
 **Corrected during execution (Task 14).** fallow 3.27.0's bare/combined mode — the only
 mode this runner uses — ignores `--fail-on-issues` and exits 0 regardless of findings.

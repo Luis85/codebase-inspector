@@ -3,7 +3,7 @@ type: Deliverable
 order: 5
 id: WP-01
 title: Native Obsidian Three.js codebase city
-status: planned
+status: delivered
 dependsOn: []
 parent: "[[Plugin MVP]]"
 ---
@@ -149,3 +149,17 @@ Install the release outputs in an isolated vault without a development server, a
 ## Definition of done
 
 An actual Obsidian plugin build satisfies the real-root workflow, file measurements are correct, the target remains unchanged by scanning, accessibility and lifecycle checks pass, the benchmark and limitations are recorded, and all visible commands/settings are implemented. Stop before adding fallow.
+
+## Delivery record
+
+Delivered in PR #1, built on branch `feat/wp-01-codebase-city`; design in
+`docs/superpowers/specs/2026-09-17-codebase-inspector-wp01-design.md`, plan in
+`docs/superpowers/plans/2026-09-17-codebase-inspector-wp01.md`, and the later look and
+interaction work in `docs/superpowers/specs/2026-09-20-codebase-city-visual-parity-design.md`.
+
+What was built, what was verified and by what, and every item left open are recorded in
+`docs/superpowers/notes/2026-09-17-wp01-implementation-report.md`. Gate status is in
+`docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md`: read its **GATE STATUS** table
+before citing this deliverable as evidence for any gate, because rows that were not
+performed are marked that way there. The limitations this deliverable carries are in
+`docs/superpowers/notes/2026-09-17-wp01-limitations.md`.

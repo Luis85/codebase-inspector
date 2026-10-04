@@ -85,7 +85,7 @@ export const CLAIM_READ_ONLY_ACCESS = 'Read-only source access';
  *  confirmed note inside the root, written through the vault API and disclosed in the
  *  README and the create dialog — see the WP-04 G2 note in
  *  docs/superpowers/notes/2026-09-17-wp01-gate-evidence.md. */
-export const CLAIM_SOURCE_UNCHANGED = 'Scanning never changes the source.';
+export const CLAIM_SOURCE_UNCHANGED = 'Scans and previews never change source files.';
 
 /** COPY-08, formatted. `run-state.ts`'s own `formatProgressMessage` (task 8) is the
  *  identical string, kept in sync by construction — both read the same catalogue

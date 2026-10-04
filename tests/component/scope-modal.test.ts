@@ -210,12 +210,13 @@ describe('scope modal (C04)', () => {
   // WP-04 ruling E29: the second claim's wording changed to "Scanning never changes
   // the source." once O7 allowed a confirmed note inside the root -- the claim is
   // about scanning and the preview, not about the plugin never writing anything (see
-  // the WP-04 G2 note in gate-evidence.md).
-  it('claims "Read-only source access" and "Scanning never changes the source", now that G2 is recorded', () => {
+  // the WP-04 G2 note in gate-evidence.md). GRC10 (GCN12) then reworded it to "Scans and previews never change
+  // source files.", which also says what a preview does not do.
+  it('claims "Read-only source access" and "Scans and previews never change source files", now that G2 is recorded', () => {
     void openScopeModal(app, makeSelection());
     const text = modalRoot().textContent;
     expect(text).toContain('Read-only source access');
-    expect(text).toContain('Scanning never changes the source.');
+    expect(text).toContain('Scans and previews never change source files.');
     cancelButton().click();
   });
 
@@ -229,7 +230,7 @@ describe('scope modal (C04)', () => {
     const claim = modalRoot().querySelector('.scope-modal-claims');
     expect(claim, 'the claims are not rendered as their own, findable element').not.toBeNull();
     expect(claim!.textContent).toContain('Read-only source access');
-    expect(claim!.textContent).toContain('Scanning never changes the source.');
+    expect(claim!.textContent).toContain('Scans and previews never change source files.');
     cancelButton().click();
   });
 
