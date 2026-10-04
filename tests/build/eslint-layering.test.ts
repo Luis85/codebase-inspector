@@ -14,7 +14,16 @@ import { ESLint } from 'eslint';
 // too tight for it.
 vi.setConfig({ testTimeout: 120_000 });
 
-const eslint = new ESLint({ cwd: process.cwd() });
+// The snippet replaces the file's text, so typescript-estree must not infer a single run. It
+// does whenever CI=true (GitHub Actions sets it): the first parse of each path then takes its
+// AST from a Program built ahead of time from the file ON DISK, so the clean real file is
+// linted, no rule fires and no fatal message says so (only later parses of that path use the
+// snippet). Opting out keeps the watch Program, which reads the snippet; the rules and the
+// parse are otherwise exactly eslint.config.mjs's.
+const eslint = new ESLint({
+  cwd: process.cwd(),
+  overrideConfig: { languageOptions: { parserOptions: { disallowAutomaticSingleRunInference: true } } },
+});
 
 const UI = 'src/ui/inspector-copy.ts';
 const UI_VUE = 'src/ui/components/SnapshotStatus.vue';
