@@ -17,7 +17,7 @@ import { CITY_RENDERER_KEY } from '../../src/ui/renderer-handle';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import {
-  CYCLE_KIND_LABEL, FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_MEMBER_UNMATCHED, RELATION_SOURCE_CYCLE, RELATIONS_DIRECTION_BOTH,
+  CYCLE_KIND_LABEL, FALLOW_NOT_ANALYSED, RELATION_CYCLES_NOT_REPORTED, RELATION_HIDDEN, RELATION_MEMBER_UNMATCHED, RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE, RELATIONS_DIRECTION_BOTH,
   RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_LABEL, RELATIONS_DIRECTION_OUT, RELATIONS_HIGHLIGHT_CYCLE, RELATIONS_HIGHLIGHT_CYCLE_LABEL,
   RELATION_ROW_LOCATION, RELATIONS_HOPS_LABEL, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
   RELATIONS_STATIC_NOTE, RELATIONS_TITLE,
@@ -25,7 +25,7 @@ import {
 import { parseFallowReportText } from '../../src/application/evidence/read-fallow-report';
 import { buildEvidenceReport } from '../../src/application/evidence/normalize-fallow';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
-import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson } from '../fixtures/relations-report';
+import { RELATIONS_PATHS, attachRelationsReport, boundaryOnlyJson, relationsRecordingJson } from '../fixtures/relations-report';
 
 /** E26/JP6: a re-import, through the real parser and normaliser straight into `attach` on the
  *  ALREADY-bound repository — unlike `attachRelationsReport`, which rebinds a fresh repository
@@ -236,6 +236,20 @@ describe('the city Relations section (N30)', () => {
     expect(section(w).text()).toContain(RELATIONS_SCOPE_NOTE);
     expect(w.findAll('.ci-city-relations__row')).toHaveLength(0);
     expect(section(w).find('[role="group"]').exists()).toBe(false);
+  });
+
+  it('GRC7: a boundary-only report (no cycle section) lists its boundary edge with the cycles-not-reported note, never "not analysed", and no cycle list or highlight', () => {
+    setup('recording', { json: boundaryOnlyJson(), select: 'ui/view.ts' });
+    const { w } = mountInspector();
+    expect(section(w).text()).not.toContain(FALLOW_NOT_ANALYSED);
+    expect(paths(w)).toEqual(['data/db.ts · line 3 in ui/view.ts']);
+    expect(section(w).get('.ci-city-relations__source').text()).toBe(RELATION_SOURCE_BOUNDARY);
+    expect(section(w).text()).toContain(RELATION_CYCLES_NOT_REPORTED);
+    expect(section(w).find('.ci-city-relations__cycles').exists()).toBe(false);
+    expect(section(w).find('button.ci-city-relations__highlight').exists()).toBe(false);
+    expect(useCityRelations().value.arcs).toEqual([
+      { from: idOf(useCityStore().snapshot!, 'ui/view.ts'), to: idOf(useCityStore().snapshot!, 'data/db.ts'), role: 'outgoing' },
+    ]);
   });
 
   it('a re-export cycle is listed without a Highlight toggle; the file\'s import cycle keeps its own', () => {

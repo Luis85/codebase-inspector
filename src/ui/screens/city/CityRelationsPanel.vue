@@ -13,9 +13,9 @@ import { useRelationsStore, type RelationControlDirection } from '../../stores/r
 import { useReadModels } from '../../read-models/use-read-models';
 import { useCityRelations } from '../../read-models/use-city-relations';
 import { canHighlight, type CityRelationRow } from '../../read-models/city-relations';
-import type { RelationSource } from '../../read-models/relations';
+import { relationEdgesAnalysed, type RelationSource } from '../../read-models/relations';
 import {
-  CYCLE_KIND_LABEL, EDGES_NONE, FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_ROW_LOCATION, RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE,
+  CYCLE_KIND_LABEL, EDGES_NONE, FALLOW_NOT_ANALYSED, RELATION_CYCLES_NOT_REPORTED, RELATION_HIDDEN, RELATION_ROW_LOCATION, RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE,
   RELATIONS_CYCLES_TITLE, RELATIONS_DIRECTION_BOTH, RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_LABEL, RELATIONS_DIRECTION_OUT,
   RELATIONS_HIGHLIGHT_CYCLE, RELATIONS_HIGHLIGHT_CYCLE_LABEL, RELATIONS_HOPS_LABEL, RELATIONS_NONE_FOR_FILE, RELATIONS_SCOPE_NOTE, RELATIONS_SHOW_ARCS,
   RELATIONS_STATIC_NOTE, RELATIONS_TITLE,
@@ -36,7 +36,8 @@ const SOURCE_LABEL: Readonly<Record<RelationSource, string>> = { cycle: RELATION
 const DIRECTION_LABEL: Readonly<Record<CityRelationRow['direction'], string>> = { out: RELATIONS_DIRECTION_OUT, in: RELATIONS_DIRECTION_IN };
 const GLYPH: Readonly<Record<CityRelationRow['direction'], string>> = { out: '→', in: '←' };
 
-const notAnalysed = computed(() => view.value.state === 'none' || !relations.value.analysed);
+/** GRC7: any analysed edge category; the cycle list and highlight stay on the cycle category. */
+const notAnalysed = computed(() => !relationEdgesAnalysed(relations.value));
 /** Both directions and no row means no evidenced edge at all (hop 2 needs a hop 1). */
 const emptyText = computed(() => (controls.direction === 'both' ? RELATIONS_NONE_FOR_FILE : EDGES_NONE));
 const showArcs = computed({ get: () => controls.showArcs, set: (v: boolean) => { controls.setShowArcs(v); } });
@@ -63,6 +64,12 @@ const toggleHighlight = (id: string): void => { controls.highlightCycle(highligh
       {{ FALLOW_NOT_ANALYSED }}
     </p>
     <template v-else>
+      <p
+        v-if="!relations.analysed"
+        class="ci-note"
+      >
+        {{ RELATION_CYCLES_NOT_REPORTED }}
+      </p>
       <div class="ci-city-relations__controls">
         <div
           class="ci-city-relations__segmented"

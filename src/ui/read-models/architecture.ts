@@ -10,7 +10,9 @@ import {
   FALLOW_NOT_ANALYSED, RELATIONS_SCOPE_SHORT, RELATION_CARD_CYCLES, RELATION_CYCLES_CAPTION, RULE_NOT_EVALUATED_PARTIAL,
   RULE_NOT_EVALUATED_REASON,
 } from '../inspector-copy';
-import { relationBoundaryValue, relationEdgesValue, relationValue, type CycleView, type RelationModel } from './relations';
+import {
+  relationBoundaryValue, relationEdgesAnalysed, relationEdgesValue, relationValue, type CycleView, type RelationModel,
+} from './relations';
 import { byPriority, moduleLabel, moduleOf, type FileSummary } from './file-summaries';
 
 export const MAX_GRAPH_MODULES = 12;
@@ -37,6 +39,10 @@ export interface ArchitectureModel extends ArchitectureGraph {
   matrix: readonly (readonly MatrixCell[])[];
   rules: readonly RuleEvaluation[];
   violatingEdgeKeys: ReadonlySet<string>;
+  /** GRC8: per module, how many of fallow's boundary violation file edges lie INSIDE it
+   *  (`moduleOf(from) === moduleOf(to)`). The Map never draws a self-edge and the Matrix
+   *  diagonal has no cell edge, so this is what marks them. */
+  selfViolations: ReadonlyMap<string, number>;
   cards: readonly ArchitectureCard[];
   /** JP5: true without a report, or when NO edge category was analysed — neither the
    *  report's cycle category nor its boundaries. The Map/Matrix/Edges "not analysed"
@@ -133,13 +139,6 @@ function cycleNumbers(relations: RelationModel): { files: number; groups: number
   return { files: nodeIds.size, groups, reExports };
 }
 
-/** JP5: any edge category was analysed — the report's cycle category, or boundaries
- *  configured. The gate `notAnalysed`, a rule's `not-evaluated` reason and a module edge's
- *  own evidence state (`relationEdgesValue`) all share. */
-function edgesAnalysed(relations: RelationModel): boolean {
-  return relations.state !== 'none' && (relations.analysed || relations.boundaries === 'configured');
-}
-
 /** N23: a rule is `violation` when at least one matched evidenced file edge (aggregated to
  *  module level in `graph.edges`) goes from `rule.from` to `rule.to`; otherwise
  *  `not-evaluated`, in the reason order: out of the shown graph, then no report/not
@@ -156,7 +155,7 @@ export function evaluateRules(rules: readonly BoundaryRule[], graph: Architectur
     }
     const edge = byKey.get(edgeKey(rule.from, rule.to));
     if (edge) return { rule, status: 'violation', violatingImports: edge.imports, reason: null };
-    const reason = edgesAnalysed(relations) ? RULE_NOT_EVALUATED_PARTIAL : FALLOW_NOT_ANALYSED;
+    const reason = relationEdgesAnalysed(relations) ? RULE_NOT_EVALUATED_PARTIAL : FALLOW_NOT_ANALYSED;
     return { rule, status: 'not-evaluated', violatingImports: unknown(reason, 'fallow'), reason };
   });
 }
@@ -203,7 +202,7 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
   // JP5: notAnalysed gates on ANY edge category (cycles or boundaries) — the Edges tab,
   // Map, Matrix and the evidenced/violations/rules cards. cyclesNotAnalysed keeps the
   // narrower, cycle-only gate the Cycles tab and cycles card had before this ruling.
-  const notAnalysed = !edgesAnalysed(graph.relations);
+  const notAnalysed = !relationEdgesAnalysed(graph.relations);
   const cyclesNotAnalysed = graph.relations.state === 'none' || !graph.relations.analysed;
   const notAnalysedNote = graph.relations.state === 'none' ? ARCH_NOT_ANALYSED_NOTE : ARCH_NOT_ANALYSED_NO_SECTION;
   const { files, groups, reExports } = cycleNumbers(graph.relations);
@@ -226,7 +225,7 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
       // notAnalysed false) captions FALLOW_NOT_ANALYSED instead — the plain "not analysed"
       // reading, same as a rule's own reason in that state (evaluateRules' FALLOW_NOT_ANALYSED
       // branch is unreachable when boundaries are configured, but the cycles card is not
-      // gated on edgesAnalysed, so it can still land here).
+      // gated on relationEdgesAnalysed, so it can still land here).
       caption: cyclesNotAnalysed ? (notAnalysed ? notAnalysedNote : FALLOW_NOT_ANALYSED) : RELATION_CYCLES_CAPTION(files, groups, reExports) },
     { id: 'violations', label: ARCH_CARD_VIOLATIONS, icon: 'alert-triangle', tone: 'warning',
       value: violationsValue(graph.relations),
@@ -243,12 +242,17 @@ export function buildArchitectureModel(graph: ArchitectureGraph, rules: readonly
   // your violated rule pairs, union fallow's own boundary-violation pairs (`moduleOf` on
   // each relation edge's paths, confirmed against file-summaries.ts as what
   // FileSummary.module is built from, so this matches the Edges tab's own per-row lookup).
-  // A same-module fallow violation keys the diagonal (PO2, Review Focus 3): harmless — the
-  // Map never draws a self-edge (aggregateEdges drops same-group pairs) and the Matrix's
-  // diagonal cell is its own "Same module" branch regardless of this set.
+  // A same-module fallow violation keys the diagonal here, but nothing draws it from this
+  // set: the Map never draws a self-edge (aggregateEdges drops same-group pairs) and the
+  // Matrix's diagonal cell has no edge. GRC8: `selfViolations` below is what marks the
+  // Matrix diagonal and the Map node.
+  const boundaryPairs = graph.relations.edges.filter((e) => e.sources.includes('boundary'))
+    .map((e) => ({ from: moduleOf(e.fromPath), to: moduleOf(e.toPath) }));
   const violatingEdgeKeys = new Set([
     ...violating.map((e) => edgeKey(e.rule.from, e.rule.to)),
-    ...graph.relations.edges.filter((e) => e.sources.includes('boundary')).map((e) => edgeKey(moduleOf(e.fromPath), moduleOf(e.toPath))),
+    ...boundaryPairs.map((p) => edgeKey(p.from, p.to)),
   ]);
-  return { ...graph, matrix, rules: evaluations, violatingEdgeKeys, cards, notAnalysed, notAnalysedNote, cyclesNotAnalysed };
+  const selfViolations = new Map<string, number>();
+  for (const p of boundaryPairs) if (p.from === p.to) selfViolations.set(p.from, (selfViolations.get(p.from) ?? 0) + 1);
+  return { ...graph, matrix, rules: evaluations, violatingEdgeKeys, selfViolations, cards, notAnalysed, notAnalysedNote, cyclesNotAnalysed };
 }

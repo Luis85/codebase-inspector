@@ -1,13 +1,13 @@
 <script setup lang="ts">
 // WP-03 N21: the matched file edges (N5: only cycle hops and boundary violations) in the
 // kit table, filtered by direction relative to the selected module and by source; the
-// "Violations only" toggle keeps the edges whose module pair breaks one of your rules, as
-// on the Map and the Matrix. At most EDGE_LIST_LIMIT rows (the table sorts the whole set
+// "Violations only" toggle keeps the file edges fallow reported as boundary violations (GRC6:
+// never a cycle-only file edge just because its module pair is violating; the Map and the
+// Matrix stay per module pair). At most EDGE_LIST_LIMIT rows (the table sorts the whole set
 // first), then EDGE_LIST_HIDDEN(n). Every type is RELATION_TYPE_UNKNOWN (N6). Unresolved
 // imports are listed below the table, never as edges. Report values are text only.
 import { computed, ref } from 'vue';
 import type { EntityId } from '../../../domain/entity-id';
-import { edgeKey } from '../../read-models/architecture';
 import { moduleLabel, moduleOf } from '../../read-models/file-summaries';
 import type { RelationEdgeView, RelationModel, RelationSource } from '../../read-models/relations';
 import {
@@ -23,7 +23,7 @@ import { EDGE_LIST_LIMIT } from './use-architecture-selection';
 
 const props = defineProps<{
   relations: RelationModel; notAnalysed: boolean; selectedModule: string | null;
-  violating: ReadonlySet<string>; violationsOnly: boolean;
+  violationsOnly: boolean;
 }>();
 const emit = defineEmits<{ 'open-file': [id: EntityId] }>();
 
@@ -50,7 +50,7 @@ const columns: readonly TableColumn<RelationEdgeView>[] = [
 const rows = computed(() => props.relations.edges.filter((e) => {
   const from = moduleOf(e.fromPath);
   const to = moduleOf(e.toPath);
-  if (props.violationsOnly && !props.violating.has(edgeKey(from, to))) return false;
+  if (props.violationsOnly && !e.sources.includes('boundary')) return false;
   if (source.value !== 'all' && !e.sources.includes(source.value)) return false;
   if (direction.value === 'all' || props.selectedModule === null) return true;
   return direction.value === 'out' ? from === props.selectedModule : to === props.selectedModule;

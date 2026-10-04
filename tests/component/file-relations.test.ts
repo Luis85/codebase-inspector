@@ -11,11 +11,11 @@ import { useCityStore } from '../../src/ui/stores/city-store';
 import { computeLayout } from '../../src/domain/layout/layout';
 import type { CodebaseSnapshot } from '../../src/domain/model';
 import {
-  FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_SOURCE_CYCLE, RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_OUT, RELATIONS_FAN_OUT,
+  FALLOW_NOT_ANALYSED, RELATION_CYCLES_NOT_REPORTED, RELATION_HIDDEN, RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE, RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_OUT, RELATIONS_FAN_OUT,
   RELATIONS_NONE_FOR_FILE, RELATIONS_SCOPE_NOTE, RELATIONS_TITLE,
 } from '../../src/ui/inspector-copy';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
-import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson } from '../fixtures/relations-report';
+import { RELATIONS_PATHS, attachRelationsReport, boundaryOnlyJson, relationsRecordingJson } from '../fixtures/relations-report';
 
 const clipboard = { writeText: vi.fn(() => Promise.resolve()) };
 const mountFile = () => mount(FileDetailScreen, { attachTo: document.body, global: { provide: { onSelectCodebase: vi.fn(), clipboard } } });
@@ -135,6 +135,20 @@ describe('FileDetailScreen: Relations panel (WP-03 N17, N25)', () => {
     expect(panel.text()).toContain(RELATIONS_NONE_FOR_FILE);
     expect(panel.text()).not.toContain('no imports');
     expect(panel.findAll('.ci-file-relations__row')).toHaveLength(0);
+    w.unmount();
+  });
+
+  it('GRC7: a boundary-only report (no cycle section) lists its Boundary row and the cycles-not-reported note, never "not analysed", and no cycle list', () => {
+    const snap = setup(RELATIONS_PATHS, 'none');
+    attachRelationsReport(snap, { json: boundaryOnlyJson() });
+    selectFile(snap, 'ui/view.ts');
+    const w = mountFile();
+    const panel = relationsPanel(w);
+    expect(panel.text()).not.toContain(FALLOW_NOT_ANALYSED);
+    expect(panel.findAll('.ci-file-relations__row').map((r) => r.text()))
+      .toEqual([`${RELATIONS_DIRECTION_OUT}data/db.ts · line 3 in ui/view.ts${RELATION_SOURCE_BOUNDARY}`]);
+    expect(panel.text()).toContain(RELATION_CYCLES_NOT_REPORTED);
+    expect(panel.find('.ci-file-relations__cycles').exists()).toBe(false);
     w.unmount();
   });
 

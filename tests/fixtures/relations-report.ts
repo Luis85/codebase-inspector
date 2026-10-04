@@ -68,3 +68,24 @@ export function attachRelationsReport(snapshot: CodebaseSnapshot, options: Relat
   if (!store.attach(report)) throw new Error('test setup: the evidence store refused the report');
   return report;
 }
+
+/** JP5 (WP-03 Task 9 deferred minor; moved here by gap closure Task 7): the recording
+ *  trimmed of its cycle category — 1 reported boundary violation (ui/view.ts -> data/db.ts),
+ *  no import or re-export cycle. */
+export function boundaryOnlyJson(): string {
+  const raw = JSON.parse(relationsRecordingJson()) as { check: { circular_dependencies?: unknown; re_export_cycles?: unknown } };
+  delete raw.check.circular_dependencies;
+  delete raw.check.re_export_cycles;
+  return JSON.stringify(raw);
+}
+
+/** GRC8: the 3.27.0 recording plus one boundary violation whose two files share a top-level
+ *  folder (data/db.ts -> data/types.ts, zone data to data), so it lies inside one module. */
+export function selfViolationJson(): string {
+  const raw = JSON.parse(relationsRecordingJson()) as { check: { boundary_violations: unknown[] } };
+  raw.check.boundary_violations.push({
+    from_path: 'src/data/db.ts', to_path: 'src/data/types.ts', from_zone: 'data', to_zone: 'data',
+    import_specifier: 'src/data/types.ts', line: 2, col: 9,
+  });
+  return JSON.stringify(raw);
+}

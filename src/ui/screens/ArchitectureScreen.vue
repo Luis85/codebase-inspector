@@ -151,6 +151,7 @@ function reviewFinding(fingerprint: string): void {
               :modules="architecture.modules"
               :edges="architecture.edges"
               :violating="architecture.violatingEdgeKeys"
+              :self-violations="architecture.selfViolations"
               :violations-only="violationsOnly"
               :selected="selectedModule"
               :cycle-modules="highlightedModules"
@@ -165,6 +166,7 @@ function reviewFinding(fingerprint: string): void {
               :modules="architecture.modules"
               :matrix="architecture.matrix"
               :violating="architecture.violatingEdgeKeys"
+              :self-violations="architecture.selfViolations"
               :violations-only="violationsOnly"
               :selected-edge="selectedEdge"
               :not-analysed="architecture.notAnalysed"
@@ -186,7 +188,6 @@ function reviewFinding(fingerprint: string): void {
               :relations="architecture.relations"
               :not-analysed="architecture.notAnalysed"
               :selected-module="selectedModule"
-              :violating="architecture.violatingEdgeKeys"
               :violations-only="violationsOnly"
               @open-file="openFile"
             />

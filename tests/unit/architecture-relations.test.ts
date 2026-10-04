@@ -24,10 +24,10 @@ import {
   RULE_NOT_EVALUATED_REASON,
 } from '../../src/ui/inspector-copy';
 import type { BoundaryRule } from '../../src/application/ports/review-repository';
-import { fallowDoc, rawReport } from '../fixtures/fallow-fixture';
+import { fallowDoc, rawReport, type FallowDoc } from '../fixtures/fallow-fixture';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
-import { RELATIONS_PATHS } from '../fixtures/relations-report';
+import { RELATIONS_PATHS, boundaryOnlyJson, selfViolationJson } from '../fixtures/relations-report';
 
 const IMPORTED_AT = '2026-09-24T10:00:00.000Z';
 const IDLE = { status: 'idle' as const };
@@ -61,6 +61,20 @@ describe('module edges (N19, N20)', () => {
   it('cycleModules gives moduleOf each matched member', () => {
     const coreCycle = relations.cycles.find((c) => c.kind === 'import' && c.members.length === 3)!;
     expect(cycleModules(coreCycle)).toEqual(new Set(['core']));
+  });
+});
+
+describe('selfViolations (GRC8)', () => {
+  it('is empty when every boundary violation crosses two modules', () => {
+    expect(buildArchitectureModel(graph, []).selfViolations.size).toBe(0);
+  });
+  it('counts, per module, the boundary edges whose two files share that module', () => {
+    const selfReport = buildEvidenceReport({
+      raw: rawReport(JSON.parse(selfViolationJson()) as FallowDoc), fileName: 'relations.json', importedAt: IMPORTED_AT,
+      snapshotId: snapshot.snapshotId, stripPrefix: 'src/',
+    });
+    const selfRelations = relationModelFor(files, evidenceIndexFor(files, selfReport, snapshot.snapshotId));
+    expect(buildArchitectureModel(architectureGraphFor(files, selfRelations), []).selfViolations).toEqual(new Map([['data', 1]]));
   });
 });
 
@@ -290,7 +304,23 @@ describe('rules (N23)', () => {
   });
 });
 
+/** GRC7: a report with a boundary section and no cycle section (cycles not analysed). */
+function boundaryOnlyReportModel() {
+  const boundaryReport = buildEvidenceReport({
+    raw: rawReport(JSON.parse(boundaryOnlyJson()) as FallowDoc), fileName: 'relations.json', importedAt: IMPORTED_AT,
+    snapshotId: snapshot.snapshotId, stripPrefix: 'src/',
+  });
+  const ev = evidenceIndexFor(files, boundaryReport, snapshot.snapshotId);
+  return { ev, rel: relationModelFor(files, ev) };
+}
+
 describe('Overview (N26)', () => {
+  it('GRC7: the imports row is partial, sourced from fallow, for a boundary-only report (no cycle section)', () => {
+    const { ev, rel } = boundaryOnlyReportModel();
+    expect(rel.analysed).toBe(false);
+    const model = buildOverviewModel(snapshot, files, cyclesValue(rel), ev, undefined, rel);
+    expect(model.coverage.find((r) => r.id === 'imports')).toMatchObject({ state: 'partial', source: EVIDENCE_SOURCE_FALLOW_PARTIAL });
+  });
   it('the architecture card equals cyclesValue(relations), captioned with the pluralised violation count', () => {
     const model = buildOverviewModel(snapshot, files, cyclesValue(relations), evidence, undefined, relations);
     expect(model.cards.find((c) => c.id === 'architecture')!.value).toEqual(cyclesValue(relations));
@@ -320,6 +350,11 @@ describe('Overview (N26)', () => {
 });
 
 describe('Data & scans (N26)', () => {
+  it('GRC7: the imports provider row is partial for a boundary-only report (no cycle section)', () => {
+    const { rel } = boundaryOnlyReportModel();
+    expect(buildSourcesModel(snapshot, IDLE, undefined, rel).providers.find((p) => p.id === 'imports'))
+      .toMatchObject({ state: 'partial', source: EVIDENCE_SOURCE_FALLOW_PARTIAL });
+  });
   it('the imports provider row is partial with a report, unknown ("Not analysed") without one, never sample', () => {
     const withReport = buildSourcesModel(snapshot, IDLE, undefined, relations);
     expect(withReport.providers.find((p) => p.id === 'imports')).toMatchObject({ state: 'partial', source: EVIDENCE_SOURCE_FALLOW_PARTIAL });

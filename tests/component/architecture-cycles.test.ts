@@ -15,11 +15,11 @@ import { computeLayout } from '../../src/domain/layout/layout';
 import type { CameraBookmark, CodebaseSnapshot } from '../../src/domain/model';
 import {
   ARCH_EDGES_OMITTED_NOTE, ARCH_NOT_ANALYSED_NO_SECTION, ARCH_NOT_ANALYSED_NOTE, ARCH_TAB_CYCLES, ARCH_TAB_EDGES, ARCH_TAB_MAP, ARCH_TAB_MATRIX,
-  ARCH_MATRIX_NO_EDGE, ARCH_NODE_LABEL_NOT_ANALYSED, ARCH_NONE, ARCH_TAB_RULES, CYCLE_KIND_LABEL, FALLOW_NOT_ANALYSED, NO_VALUE,
+  ARCH_MATRIX_NO_EDGE, ARCH_MATRIX_SELF, ARCH_MATRIX_SELF_VIOLATION, ARCH_NODE_LABEL_NOT_ANALYSED, ARCH_NODE_SELF_VIOLATION, ARCH_NONE, ARCH_TAB_RULES, CYCLE_KIND_LABEL, FALLOW_NOT_ANALYSED, NO_VALUE,
   RELATION_CYCLES_NOT_REPORTED, RELATION_MEMBER_UNMATCHED, RELATIONS_SCOPE_SHORT,
 } from '../../src/ui/inspector-copy';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
-import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson } from '../fixtures/relations-report';
+import { RELATIONS_PATHS, attachRelationsReport, boundaryOnlyJson, relationsRecordingJson, selfViolationJson } from '../fixtures/relations-report';
 
 const BOOKMARK: CameraBookmark = {
   projection: 'orthographic', mode: '3d', position: [10, 20, 30], target: [0, 0, 0], up: [0, 1, 0], zoom: 1.5,
@@ -42,15 +42,6 @@ function crossModuleCycleJson(): string {
     files: ['src/data/db.ts', 'src/ui/view.ts'], length: 2, line: 2, col: 0,
     edges: [{ path: 'src/data/db.ts', line: 2, col: 0 }, { path: 'src/ui/view.ts', line: 3, col: 9 }],
   });
-  return JSON.stringify(raw);
-}
-
-/** JP5 (WP-03 Task 9 deferred minor): the recording trimmed of its cycle category — 1
- *  reported boundary violation, no import or re-export cycle. */
-function boundaryOnlyJson(): string {
-  const raw = JSON.parse(relationsRecordingJson()) as { check: { circular_dependencies?: unknown; re_export_cycles?: unknown } };
-  delete raw.check.circular_dependencies;
-  delete raw.check.re_export_cycles;
   return JSON.stringify(raw);
 }
 
@@ -221,6 +212,49 @@ describe('Architecture: tabs and Cycles (WP-03 N21)', () => {
     const inspector = w.find('.ci-module-inspector');
     expect(inspector.findAll('dd').slice(2).map((d) => d.text())).toEqual([ARCH_NONE, ARCH_NONE]);
     expect(inspector.text()).toContain(RELATIONS_SCOPE_SHORT);
+    w.unmount();
+  });
+});
+
+/** The Matrix diagonal cell of the module `name`, and its Map node. */
+function diagonal(w: Wrapper, name: string) {
+  const heads = w.findAll('.ci-matrix thead th[scope="col"]').map((th) => th.text());
+  const row = w.findAll('.ci-matrix tbody tr').find((r) => r.find('th[scope="row"]').text() === name)!;
+  return row.findAll('td')[heads.indexOf(name) - 1]!;
+}
+const node = (w: Wrapper, name: string) => w.findAll('.ci-module-map__node').find((n) => n.find('.ci-module-map__name').text() === name)!;
+
+describe('Architecture: a violation inside one module (GRC8)', () => {
+  beforeEach(() => { setActivePinia(createPinia()); });
+  it('marks the Matrix diagonal of that module, with visually hidden text that counts them', async () => {
+    setup(RELATIONS_PATHS, { json: selfViolationJson() });
+    const w = mountArch();
+    await openTab(w, ARCH_TAB_MATRIX);
+    const cell = diagonal(w, 'data');
+    expect(cell.find('.visually-hidden').text()).toBe(ARCH_MATRIX_SELF_VIOLATION(1));
+    expect(cell.find('.ci-matrix__self-violation').exists()).toBe(true);
+    expect(diagonal(w, 'ui').find('.visually-hidden').text()).toBe(ARCH_MATRIX_SELF);
+    expect(diagonal(w, 'ui').find('.ci-matrix__self-violation').exists()).toBe(false);
+    w.unmount();
+  });
+
+  it('marks the Map node of that module, its aria-label ending with the count', () => {
+    setup(RELATIONS_PATHS, { json: selfViolationJson() });
+    const w = mountArch();
+    const data = node(w, 'data');
+    expect(data.classes()).toContain('ci-module-map__node--violation');
+    expect(data.attributes('aria-label')!.endsWith(ARCH_NODE_SELF_VIOLATION(1))).toBe(true);
+    expect(node(w, 'ui').classes()).not.toContain('ci-module-map__node--violation');
+    expect(node(w, 'ui').attributes('aria-label')).not.toContain(ARCH_NODE_SELF_VIOLATION(1));
+    w.unmount();
+  });
+
+  it('marks nothing when every violation crosses two modules', async () => {
+    setup();
+    const w = mountArch();
+    expect(w.findAll('.ci-module-map__node--violation')).toHaveLength(0);
+    await openTab(w, ARCH_TAB_MATRIX);
+    expect(w.findAll('.ci-matrix__self-violation')).toHaveLength(0);
     w.unmount();
   });
 });

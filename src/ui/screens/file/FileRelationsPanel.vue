@@ -9,9 +9,9 @@ import type { EntityId } from '../../../domain/entity-id';
 import { neighbourhood } from '../../../domain/relations/queries';
 import { formatMetric } from '../../evidence';
 import { useReadModels } from '../../read-models/use-read-models';
-import { RELATION_ARC_LIMIT, type RelationSource } from '../../read-models/relations';
+import { RELATION_ARC_LIMIT, relationEdgesAnalysed, type RelationSource } from '../../read-models/relations';
 import {
-  FALLOW_NOT_ANALYSED, RELATION_HIDDEN, RELATION_ROW_LOCATION, RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE, RELATIONS_CYCLES_TITLE,
+  FALLOW_NOT_ANALYSED, RELATION_CYCLES_NOT_REPORTED, RELATION_HIDDEN, RELATION_ROW_LOCATION, RELATION_SOURCE_BOUNDARY, RELATION_SOURCE_CYCLE, RELATIONS_CYCLES_TITLE,
   RELATIONS_DIRECTION_IN, RELATIONS_DIRECTION_OUT, RELATIONS_FAN_OUT, RELATIONS_NONE_FOR_FILE, RELATIONS_SCOPE_NOTE,
   RELATIONS_TITLE,
 } from '../../inspector-copy';
@@ -27,12 +27,10 @@ const SOURCE_LABEL: Readonly<Record<RelationSource, string>> = { cycle: RELATION
 
 interface RelationRow { key: string; id: EntityId; location: string; directionLabel: string; sourceLabel: string }
 
-/** Polish final review #2 (comment only, no behaviour change): reads the report's cycle
- *  category alone (relations.analysed) — as File detail, the city Relations section and
- *  the Overview/Data & scans "imports" row all do. The Architecture screen no longer
- *  matches this: its own notAnalysed gates on ANY analysed edge category (JP5), a wider
- *  reading the controller scoped to Architecture alone (see architecture.ts's edgesAnalysed). */
-const notAnalysed = computed(() => !relations.value.analysed);
+/** GRC7: gates on ANY analysed edge category (relationEdgesAnalysed), as the Architecture
+ *  screen, the city Relations section and the Overview/Data & scans "imports" row do — a
+ *  boundary-only report lists its boundary edges here. Cycles stay gated on `analysed`. */
+const notAnalysed = computed(() => !relationEdgesAnalysed(relations.value));
 
 const neighbours = computed(() => neighbourhood(
   relations.value.index, props.fileId, { direction: 'both', hops: 1, limit: RELATION_ARC_LIMIT },
@@ -51,7 +49,7 @@ const rows = computed<RelationRow[]>(() => neighbours.value.edges.map((e) => {
 }));
 const hidden = computed(() => neighbours.value.hidden);
 
-const cyclesThroughFile = computed(() => relations.value.cycles.filter((c) => c.members.some((m) => m.id === props.fileId)));
+const cyclesThroughFile = computed(() => (!relations.value.analysed ? [] : relations.value.cycles).filter((c) => c.members.some((m) => m.id === props.fileId)));
 const fanOut = computed(() => relations.value.fanOut(props.fileId));
 </script>
 
@@ -75,6 +73,12 @@ const fanOut = computed(() => relations.value.fanOut(props.fileId));
       {{ FALLOW_NOT_ANALYSED }}
     </p>
     <template v-else>
+      <p
+        v-if="!relations.analysed"
+        class="ci-note"
+      >
+        {{ RELATION_CYCLES_NOT_REPORTED }}
+      </p>
       <p
         v-if="rows.length === 0"
         class="ci-note ci-file-relations__none"

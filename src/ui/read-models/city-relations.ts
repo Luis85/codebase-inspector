@@ -10,7 +10,7 @@ import { neighbourhood, type NeighbourEdge } from '../../domain/relations/querie
 import type { RelationArc } from '../../visualization/renderer-port';
 import type { RelationControlDirection } from '../stores/relations-store';
 import type { EvidenceIndexState } from './evidence-index';
-import { RELATION_ARC_LIMIT, type CycleView, type RelationModel, type RelationSource } from './relations';
+import { RELATION_ARC_LIMIT, relationEdgesAnalysed, type CycleView, type RelationModel, type RelationSource } from './relations';
 
 export interface CityRelationRow {
   readonly otherId: EntityId; readonly otherPath: string; readonly direction: 'in' | 'out';
@@ -58,11 +58,13 @@ function cycleArcs(c: CycleView): RelationArc[] {
 }
 
 export function cityRelationsFor(model: RelationModel, selected: EntityId | null, controls: CityRelationControls): CityRelationsView {
-  if (selected === null || model.state === 'none' || !model.analysed) {
+  if (selected === null || !relationEdgesAnalysed(model)) {
     return { state: model.state, rows: [], hidden: 0, cycles: [], highlighted: null, highlightHidden: 0, arcs: null };
   }
   const near = neighbourhood(model.index, selected, { direction: controls.direction, hops: controls.hops, limit: RELATION_ARC_LIMIT });
-  const cycles = model.cycles.filter((c) => c.members.some((m) => m.id === selected));
+  // GRC7: rows and arcs follow any analysed edge category; cycle lists (and so highlighting)
+  // stay on the cycle category alone.
+  const cycles = model.analysed ? model.cycles.filter((c) => c.members.some((m) => m.id === selected)) : [];
   const highlighted = cycles.find((c) => c.findingId === controls.highlightedCycleId && canHighlight(c)) ?? null;
   const allCycleArcs = highlighted ? cycleArcs(highlighted) : [];
   let arcs: readonly RelationArc[] | null = null;

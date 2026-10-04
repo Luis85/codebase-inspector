@@ -3,18 +3,20 @@ import { computed } from 'vue';
 import type { MetricValue } from '../../evidence';
 import { edgeKey, type ModuleEdge, type ModuleSummary } from '../../read-models/architecture';
 import {
-  ARCH_EDGES_OMITTED_NOTE, ARCH_MAP_EYEBROW, ARCH_NODE_FILES, ARCH_NODE_LABEL, ARCH_NODE_LABEL_NOT_ANALYSED,
+  ARCH_EDGES_OMITTED_NOTE, ARCH_MAP_EYEBROW, ARCH_NODE_FILES, ARCH_NODE_LABEL, ARCH_NODE_LABEL_NOT_ANALYSED, ARCH_NODE_SELF_VIOLATION,
 } from '../../inspector-copy';
 import { useUniqueId } from '../../unique-id';
 import ProvenanceBadge from '../../kit/ProvenanceBadge.vue';
 import { MAP_H, MAP_W, edgePath, nodePositions, toPercent } from './map-layout';
 
-/** `evidence` is the relation value (N20): its state is the Map's badge, never "sample".
+/** GRC6: "Violations only" stays per module pair here (an edge is a module pair). GRC8: a
+ *  violation inside one module has no edge, so `selfViolations` marks that node instead.
+ *  `evidence` is the relation value (N20): its state is the Map's badge, never "sample".
  *  `cycleModules` is the selected cycle's modules (N21), or null. `notAnalysedNote` says
  *  why there are no edges (final review #8: no report, or a report without that section). */
 const props = defineProps<{
   modules: readonly ModuleSummary[]; edges: readonly ModuleEdge[];
-  violating: ReadonlySet<string>; violationsOnly: boolean; selected: string | null;
+  violating: ReadonlySet<string>; selfViolations: ReadonlyMap<string, number>; violationsOnly: boolean; selected: string | null;
   cycleModules: ReadonlySet<string> | null; evidence: MetricValue; notAnalysed: boolean; notAnalysedNote: string; omittedEdges: number;
 }>();
 const emit = defineEmits<{ select: [name: string] }>();
@@ -29,7 +31,8 @@ const nodes = computed(() => props.modules.flatMap((m) => {
   const incoming = props.edges.filter((e) => e.to === m.name).length;
   // N5: without a report the counts would read as a measured 0; the label says "not analysed".
   const label = props.notAnalysed ? ARCH_NODE_LABEL_NOT_ANALYSED(m.label, m.fileCount) : ARCH_NODE_LABEL(m.label, m.fileCount, outgoing, incoming);
-  return [{ m, style: toPercent(pos), label }];
+  const inside = props.selfViolations.get(m.name) ?? 0;
+  return [{ m, style: toPercent(pos), label: inside > 0 ? `${label}${ARCH_NODE_SELF_VIOLATION(inside)}` : label, violation: inside > 0 }];
 }));
 
 const drawn = computed(() => props.edges.flatMap((e) => {
@@ -102,7 +105,7 @@ const drawn = computed(() => props.edges.flatMap((e) => {
         :key="n.m.name"
         type="button"
         class="ci-module-map__node"
-        :class="{ 'ci-module-map__node--selected': n.m.name === selected, 'ci-module-map__node--cycle': cycleModules?.has(n.m.name) }"
+        :class="{ 'ci-module-map__node--selected': n.m.name === selected, 'ci-module-map__node--cycle': cycleModules?.has(n.m.name), 'ci-module-map__node--violation': n.violation }"
         :style="n.style"
         :aria-pressed="n.m.name === selected"
         :aria-label="n.label"

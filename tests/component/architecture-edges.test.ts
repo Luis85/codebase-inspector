@@ -19,7 +19,7 @@ import {
   RELATION_MEMBER_UNMATCHED, RELATIONS_SCOPE_NOTE, RELATIONS_STATIC_NOTE, RELATION_TYPE_UNKNOWN, UNRESOLVED_TITLE,
 } from '../../src/ui/inspector-copy';
 import { snapshotWithPaths } from '../fixtures/evidence-report';
-import { RELATIONS_PATHS, attachRelationsReport, relationsRecordingJson } from '../fixtures/relations-report';
+import { RELATIONS_PATHS, attachRelationsReport, boundaryOnlyJson, relationsRecordingJson } from '../fixtures/relations-report';
 
 const NOW = new Date('2026-09-24T10:00:00.000Z');
 
@@ -45,12 +45,15 @@ function manyViolationsJson(): string {
   return JSON.stringify(raw);
 }
 
-/** JP5 (WP-03 Task 9 deferred minor): the recording trimmed of its cycle category — 1
- *  reported boundary violation, no import or re-export cycle. */
-function boundaryOnlyJson(): string {
-  const raw = JSON.parse(relationsRecordingJson()) as { check: { circular_dependencies?: unknown; re_export_cycles?: unknown } };
-  delete raw.check.circular_dependencies;
-  delete raw.check.re_export_cycles;
+/** GRC6: the recording plus a cycle ui/extra.ts <-> data/types.ts, so the module pair ui -> data
+ *  carries a cycle-only file edge (ui/extra.ts -> data/types.ts) beside the boundary violation
+ *  (ui/view.ts -> data/db.ts). */
+function cycleOnlyAcrossViolatingPairJson(): string {
+  const raw = JSON.parse(relationsRecordingJson()) as { check: { circular_dependencies: unknown[] } };
+  raw.check.circular_dependencies.push({
+    files: ['src/ui/extra.ts', 'src/data/types.ts'], length: 2, line: 1, col: 0,
+    edges: [{ path: 'src/ui/extra.ts', line: 4, col: 0 }, { path: 'src/data/types.ts', line: 2, col: 0 }],
+  });
   return JSON.stringify(raw);
 }
 
@@ -84,7 +87,7 @@ describe('Architecture: Edges (WP-03 N21)', () => {
   it('WP-03 Task 9 deferred minor, pinned: the direction note names the selected module, or says none is selected', () => {
     setup();
     const relations = useReadModels().architecture.value.relations;
-    const props = { relations, notAnalysed: false, violating: new Set<string>(), violationsOnly: false };
+    const props = { relations, notAnalysed: false, violationsOnly: false };
     const noModule = mount(EdgeList, { props: { ...props, selectedModule: null } });
     expect(noModule.find('.ci-edge-list__direction-note').text()).toBe(EDGE_DIRECTION_NO_MODULE);
     noModule.unmount();
@@ -152,7 +155,7 @@ describe('Architecture: Edges (WP-03 N21)', () => {
     w.unmount();
   });
 
-  it('Violations only keeps the edges that break one of your rules', async () => {
+  it('GRC6: Violations only keeps the boundary edge when a rule of yours also covers its module pair', async () => {
     setup();
     await useReviewStore().addRule('ui', 'data', 'No shortcuts', NOW);
     const w = mountArch();
@@ -171,6 +174,16 @@ describe('Architecture: Edges (WP-03 N21)', () => {
     // edges (core/*, barrel/*) are hidden with no rule of yours violated.
     expect(cells(w).map((c) => c[0])).toEqual(['ui/view.ts']);
     expect(cells(w).map((c) => c[2])).toEqual(['Boundary']);
+    w.unmount();
+  });
+
+  it('GRC6: Violations only lists only the violation file edges, not a cycle-only edge across a violating module pair', async () => {
+    setup([...RELATIONS_PATHS, 'ui/extra.ts'], { json: cycleOnlyAcrossViolatingPairJson() });
+    const w = mountArch();
+    await openTab(w, ARCH_TAB_EDGES);
+    expect(cells(w)).toContainEqual(['ui/extra.ts', 'data/types.ts', 'Cycle', '4', RELATION_TYPE_UNKNOWN]);
+    await w.find('.ci-architecture__toggle input').setValue(true);
+    expect(cells(w)).toEqual([['ui/view.ts', 'data/db.ts', 'Boundary', '3', RELATION_TYPE_UNKNOWN]]);
     w.unmount();
   });
 

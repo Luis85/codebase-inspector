@@ -271,15 +271,25 @@ export function relationEdgesValue(model: RelationModel, n: number): MetricValue
   return { state: 'partial', value: n, provenance, reason: RELATION_CYCLES_NOT_REPORTED };
 }
 
+/** GRC7 (JP5 widened): any edge category was analysed — the report's cycle category, or
+ *  boundaries configured. The ONE gate every surface that lists or counts edges shares (the
+ *  Architecture screen, File detail and city Relations, the Overview and Data & scans
+ *  imports row). Cycle lists and cycle highlighting stay gated on `model.analysed` alone: a
+ *  boundary-only report never shows a cycle list. */
+export function relationEdgesAnalysed(model: RelationModel): boolean {
+  return model.state !== 'none' && (model.analysed || model.boundaries === 'configured');
+}
+
 export interface RelationRowState { readonly state: EvidenceState; readonly source: string }
 
 /** Fix round 1 (E9, N26): the ONE "imports" coverage-row state, shared by Overview and
  *  Data & scans so they can never disagree (they used to: one said "Not analysed", the
  *  other "Not collected", for the identical no-report case). E9: a stale report whose
- *  relation (cycle) category was never analysed reads unknown, not stale — `analysed` is
+ *  relation category was never analysed reads unknown, not stale — the edge gate is
  *  checked before `state`, so a stale-but-unanalysed model never reaches the stale
- *  branch. */
+ *  branch. GRC7: a boundary-only report (no cycle section) reads partial (stale when
+ *  stale), as the Architecture screen's own cards do. */
 export function relationRowState(model: RelationModel): RelationRowState {
-  if (model.state === 'none' || !model.analysed) return { state: 'unknown', source: FALLOW_NOT_ANALYSED_TITLE };
+  if (!relationEdgesAnalysed(model)) return { state: 'unknown', source: FALLOW_NOT_ANALYSED_TITLE };
   return { state: model.state === 'stale' ? 'stale' : 'partial', source: EVIDENCE_SOURCE_FALLOW_PARTIAL };
 }

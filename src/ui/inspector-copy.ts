@@ -125,11 +125,16 @@ export const ARCH_MAP_FOOTNOTE = RELATIONS_SCOPE_NOTE;
 export const ARCH_MAP_EYEBROW = 'Module graph · evidenced imports';
 export const ARCH_NODE_LABEL = (label: string, files: number, outgoing: number, incoming: number): string =>
   `${label}, ${files} files, ${outgoing} outgoing, ${incoming} incoming, evidenced imports`;
+/** GRC8 (GCN12): appended to a Map node's aria-label when fallow reports a boundary violation
+ *  between two files of that one module. */
+export const ARCH_NODE_SELF_VIOLATION = (n: number): string => `, ${n} boundary violation${n === 1 ? '' : 's'} inside`;
 export const ARCH_NODE_FILES = (files: number): string => `${files} files`;
 export const ARCH_OMITTED_NOTE = (n: number): string => `${n} smaller modules are not shown in the graph.`;
 export const ARCH_MATRIX_CAPTION = 'Evidenced imports from each row module to each column module';
 export const ARCH_MATRIX_CORNER = 'From ↓ / To →';
 export const ARCH_MATRIX_SELF = 'Same module';
+/** GRC8 (GCN12): the Matrix diagonal's text when fallow reports a boundary violation inside that module. */
+export const ARCH_MATRIX_SELF_VIOLATION = (n: number): string => `Same module · ${n} boundary violation${n === 1 ? '' : 's'} inside`;
 export const ARCH_MATRIX_NO_EDGE = 'No evidenced imports';
 export const ARCH_MATRIX_CELL_LABEL = (from: string, to: string, n: string): string => `${from} imports ${to}: ${n} evidenced import statements`;
 export const ARCH_MODULE_INSPECTOR_TITLE = 'Selected module';

@@ -25,6 +25,7 @@
   border: 1px solid var(--ci-border); border-left: 3px solid var(--ci-tone-accent); border-radius: var(--ci-radius-card);
   background: var(--ci-panel); box-shadow: none; color: var(--ci-text); text-align: left; cursor: pointer;
 }
+:where(.codebase-inspector-root) button.ci-module-map__node--violation { border-left-color: var(--ci-tone-danger); border-style: dashed; border-left-style: solid; }
 :where(.codebase-inspector-root) button.ci-module-map__node--selected { border-color: var(--ci-tone-accent); background: var(--ci-raised); }
 :where(.codebase-inspector-root) .ci-module-map__name { font-weight: var(--font-semibold); }
 :where(.codebase-inspector-root) .ci-module-map__meta { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
@@ -42,6 +43,8 @@
 :where(.codebase-inspector-root) button.ci-matrix__cell--l3 { background: color-mix(in srgb, var(--ci-tone-accent) 48%, transparent); }
 :where(.codebase-inspector-root) button.ci-matrix__cell--l4 { background: color-mix(in srgb, var(--ci-tone-accent) 64%, transparent); }
 :where(.codebase-inspector-root) button.ci-matrix__cell--violation { outline: 2px dashed var(--ci-tone-danger); outline-offset: -2px; }
+:where(.codebase-inspector-root) .ci-matrix__self-violation { color: var(--ci-text-danger); font-weight: var(--font-semibold); }
+:where(.codebase-inspector-root) .ci-matrix__td:has(.ci-matrix__self-violation) { outline: 2px dashed var(--ci-tone-danger); outline-offset: -2px; }
 :where(.codebase-inspector-root) button.ci-matrix__cell--dimmed { opacity: 0.3; }
 :where(.codebase-inspector-root) button.ci-matrix__cell--selected { box-shadow: 0 0 0 2px var(--ci-focus); }
 :where(.codebase-inspector-root) .ci-module-inspector__heading { margin: var(--ci-space-4) 0 var(--ci-space-2); color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); text-transform: uppercase; letter-spacing: 0.06em; }
