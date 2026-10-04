@@ -15,9 +15,11 @@ import type { LayoutResult } from '../../src/domain/layout/types';
 export type HarnessCityKind = 'default' | 'dense' | 'sparse';
 
 /** Dense city: four very tall files (clamped to the tallest building), each standing mid-way
- *  along the corridor from the selected file 4 to a related file: 341 on 4 -> 10, 55 on
- *  4 -> 23, 480 on 4 -> 31 and 412 on 4 -> 57 (checked against the layout, tests/harness). */
-const DENSE_TALL_FILES: Readonly<Record<number, number>> = { 341: 3000, 55: 3000, 480: 3000, 412: 3000 };
+ *  along a DRAWN arc from the selected file 4: 341 and 437 on 4 -> 10, 55 on 4 -> 23 and 412
+ *  on 4 -> 57. The demo evidence draws arcs from file 4 to files 10, 23 and 57 only (file 31
+ *  is a re-export cycle neighbour, which contributes no edge). Checked against the layout in
+ *  tests/harness/harness.test.ts. */
+const DENSE_TALL_FILES: Readonly<Record<number, number>> = { 341: 3000, 437: 3000, 55: 3000, 412: 3000 };
 
 function denseLineCounts(files: number): number[] {
   return Array.from({ length: files }, (_, i) => DENSE_TALL_FILES[i] ?? 10 + (i % 140));

@@ -205,7 +205,7 @@ export const SHOTS = [
     viewport: { width: 1280, height: 1050 },
   },
   // Gap closure GRA7/GCO19/B2: the same relations shot in a crowded city (600 files, four 128-high
-  // towers mid-way along the selected file's arcs) and an almost empty one (24 files). The
+  // towers mid-way along the selected file's drawn arcs to files 10, 23 and 57) and an almost empty one (24 files). The
   // selected file is the demo report's own relations anchor in that city (its first demo file,
   // dir-4/file-4.ts in the dense city, dir-1/file-4.ts in the sparse one); tests/build pins both.
   {

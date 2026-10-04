@@ -51,6 +51,15 @@ describe('relation arcs clear the corridor (GRA7)', () => {
     expect(apexOf(points)).toBeCloseTo(13.9, 5);
   });
 
+  it('does not count its own ends: a 128-high from-lot with nothing between keeps the usual lift', () => {
+    // The usual control is 128 + 0.35 * 28 + 2 = 139.8, whose curve peaks near 129 (t = 0.08).
+    // Counting A as its own blocker would raise the control to clear A's roof by 2 and send
+    // the arc far above (apex 144.5).
+    const points = sampled([lot(A, 0, 128), lot(B, 28, 8)]);
+    expect(apexOf(points)).toBeLessThan(128 + ARC_CLEARANCE);
+    expect(apexOf(points)).toBeGreaterThanOrEqual(128);
+  });
+
   it('leaves both endpoints on the two roofs', () => {
     const points = sampled([lot(A, 0, 8), lot(M, 14, 128), lot(B, 28, 8)]);
     expect(points[0]!.toArray()).toEqual([0, 8, 0]);

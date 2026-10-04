@@ -42,14 +42,15 @@ describe('harness fixture', () => {
   });
 
   // Gap closure GCO19/B2: the dense city exists to photograph arcs among towers, so pin that the
-  // four tall files really stand across the corridors from the selected file 4 (the layout packs
+  // four tall files really stand across the corridors of arcs that ARE drawn from the selected
+  // file 4 (to files 10, 23 and 57; file 31 is a re-export cycle neighbour with no edge; the layout packs
   // taller items first, so a change to it could silently move them off the arcs).
-  it('puts a 128-high tower in the xz corridor of four arcs from file 4 in the dense city', () => {
+  it('puts a 128-high tower in the xz corridor of a drawn arc from file 4 (to file 10, 23 or 57) in the dense city', () => {
     const files = harnessSnapshot('dense').entities.filter((e) => e.kind === 'file');
     const layout = harnessLayout('dense');
     const lotOf = (i: number) => layout.lots.find((l) => l.entityId === files[i]!.id)!;
     const a = lotOf(4);
-    for (const [tower, related] of [[341, 10], [55, 23], [480, 31], [412, 57]] as const) {
+    for (const [tower, related] of [[341, 10], [437, 10], [55, 23], [412, 57]] as const) {
       const lot = lotOf(tower);
       const b = lotOf(related);
       expect(lot.dimensions[1], `file ${tower} height`).toBeGreaterThanOrEqual(120);

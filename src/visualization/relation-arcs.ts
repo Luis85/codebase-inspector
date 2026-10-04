@@ -36,7 +36,8 @@ function bezier(p0: Vector3, p1: Vector3, p2: Vector3, t: number): { point: Vect
 function controlPoint(p0: Vector3, p2: Vector3, corridorTop: number): Vector3 {
   const horizontal = Math.hypot(p2.x - p0.x, p2.z - p0.z);
   const lifted = Math.max(p0.y, p2.y) + LIFT_PER_DISTANCE * horizontal + LIFT_BASE;
-  // The quadratic's apex is control.y / 2 + (p0.y + p2.y) / 4; raise the control so the apex clears the corridor.
+  // The curve's height at t = 0.5 (its apex when both ends are equal) is control.y / 2 + (p0.y + p2.y) / 4;
+  // raise the control so that height clears the corridor.
   const cleared = 2 * (corridorTop + ARC_CLEARANCE) - (p0.y + p2.y) / 2;
   return new Vector3((p0.x + p2.x) / 2, Math.max(lifted, cleared), (p0.z + p2.z) / 2);
 }
