@@ -21,7 +21,7 @@ import {
   ARCH_NOT_ANALYSED_NOTE, ARCH_RULES_CAPTION, ARCH_RULES_NONE_REASON, ARCH_VIOLATIONS_FALLOW_CAPTION,
   ARCH_VIOLATIONS_NOT_CONFIGURED, EVIDENCE_SOURCE_FALLOW_PARTIAL, FALLOW_BOUNDARIES_NOT_CONFIGURED, FALLOW_NOT_ANALYSED,
   OVERVIEW_IMPORTS_ROW, RELATIONS_SCOPE_SHORT, RELATION_CYCLES_CAPTION, RELATION_CYCLES_NOT_REPORTED, RULE_NOT_EVALUATED_PARTIAL,
-  ARCH_MAP_EYEBROW, ARCH_MATRIX_CAPTION, ARCH_NODE_LABEL, BOUNDARY_INSPECTOR_SUBTITLE, RULES_EMPTY, RULE_NOT_EVALUATED_REASON,
+  ARCH_MAP_EYEBROW, ARCH_MATRIX_CAPTION, ARCH_NODE_FILES, ARCH_NODE_LABEL, ARCH_NODE_LABEL_NOT_ANALYSED, ARCH_OMITTED_NOTE, BOUNDARY_INSPECTOR_SUBTITLE, RULES_EMPTY, RULE_NOT_EVALUATED_REASON,
 } from '../../src/ui/inspector-copy';
 import type { BoundaryRule } from '../../src/application/ports/review-repository';
 import { fallowDoc, rawReport, type FallowDoc } from '../fixtures/fallow-fixture';
@@ -396,5 +396,26 @@ describe('the approved Architecture wording (GCN12)', () => {
     expect(ARCH_NODE_LABEL('core', 1, 0, 0)).toBe('core: 1 file; evidenced imports: 0 outgoing, 0 incoming');
     expect(RULES_EMPTY).toBe("No boundary rules yet. Add one to check an intended boundary against fallow's evidenced imports.");
     expect(BOUNDARY_INSPECTOR_SUBTITLE).toBe('Your rule, checked against evidenced imports.');
+  });
+});
+
+// Ruling E9: plural agreement only. Each count reads correctly for 1 and for n.
+describe('plural agreement (E9)', () => {
+  it('ARCH_NODE_FILES', () => {
+    expect(ARCH_NODE_FILES(1)).toBe('1 file');
+    expect(ARCH_NODE_FILES(2)).toBe('2 files');
+  });
+  it('ARCH_NODE_LABEL_NOT_ANALYSED', () => {
+    expect(ARCH_NODE_LABEL_NOT_ANALYSED('core', 1)).toBe('core, 1 file, imports not analysed');
+    expect(ARCH_NODE_LABEL_NOT_ANALYSED('core', 2)).toBe('core, 2 files, imports not analysed');
+  });
+  it('RELATION_CYCLES_CAPTION agrees each count independently', () => {
+    expect(RELATION_CYCLES_CAPTION(1, 1, 1)).toBe('1 file · 1 group · 1 re-export cycle');
+    expect(RELATION_CYCLES_CAPTION(2, 2, 2)).toBe('2 files · 2 groups · 2 re-export cycles');
+    expect(RELATION_CYCLES_CAPTION(1, 2, 0)).toBe('1 file · 2 groups · 0 re-export cycles');
+  });
+  it('ARCH_OMITTED_NOTE', () => {
+    expect(ARCH_OMITTED_NOTE(1)).toBe('1 smaller module is not shown in the graph.');
+    expect(ARCH_OMITTED_NOTE(2)).toBe('2 smaller modules are not shown in the graph.');
   });
 });

@@ -128,8 +128,8 @@ export const ARCH_NODE_LABEL = (label: string, files: number, outgoing: number, 
 /** GRC8 (GCN12): appended to a Map node's aria-label when fallow reports a boundary violation
  *  between two files of that one module. */
 export const ARCH_NODE_SELF_VIOLATION = (n: number): string => `, ${n} boundary violation${n === 1 ? '' : 's'} inside`;
-export const ARCH_NODE_FILES = (files: number): string => `${files} files`;
-export const ARCH_OMITTED_NOTE = (n: number): string => `${n} smaller modules are not shown in the graph.`;
+export const ARCH_NODE_FILES = (files: number): string => `${files} file${files === 1 ? '' : 's'}`;
+export const ARCH_OMITTED_NOTE = (n: number): string => n === 1 ? '1 smaller module is not shown in the graph.' : `${n} smaller modules are not shown in the graph.`;
 export const ARCH_MATRIX_CAPTION = 'Evidenced imports from each row module to each column module (cycle and boundary imports only)';
 export const ARCH_MATRIX_CORNER = 'From ↓ / To →';
 export const ARCH_MATRIX_SELF = 'Same module';

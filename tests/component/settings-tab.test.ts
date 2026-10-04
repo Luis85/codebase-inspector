@@ -20,6 +20,7 @@ import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
 import type { SourceFileSystemPort } from '../../src/application/ports/source-filesystem-port';
 import type { CodebaseProfile, LocalBinding } from '../../src/domain/model';
 import { BINDING_MISSING_TEXT, STORAGE_DISCLOSURE_TEXT, SYMLINK_POLICY_TEXT } from '../../src/host/setting-definitions';
+import { CLAIM_SOURCE_UNCHANGED } from '../../src/ui/copy';
 import { createFakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
 import { createFakeInvestigationFolders } from '../fixtures/fake-investigation-folders';
 
@@ -196,7 +197,7 @@ describe('settings tab', () => {
     expect((row as { desc?: string }).desc).toBe(STORAGE_DISCLOSURE_TEXT);
     // Neither of task 12's evidence-gated claims has leaked forward (ruling M25).
     expect(STORAGE_DISCLOSURE_TEXT).not.toContain('Read-only source access');
-    expect(STORAGE_DISCLOSURE_TEXT).not.toContain('Scans and previews never change source files');
+    expect(STORAGE_DISCLOSURE_TEXT).not.toContain(CLAIM_SOURCE_UNCHANGED);
   });
 
   it('never hardcodes .obsidian anywhere in plugin source', () => {

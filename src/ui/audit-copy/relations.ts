@@ -30,7 +30,7 @@ export const RELATION_ROW_LOCATION = (otherPath: string, importerPath: string, l
 export const ARCH_CARD_EVIDENCED = 'Evidenced imports';
 export const RELATION_CARD_CYCLES = 'Import cycles reported by fallow';
 export const RELATION_CYCLES_CAPTION = (files: number, groups: number, reExports: number): string =>
-  `${files} files · ${groups} groups · ${reExports} re-export cycles`;
+  `${files} file${files === 1 ? '' : 's'} · ${groups} group${groups === 1 ? '' : 's'} · ${reExports} re-export cycle${reExports === 1 ? '' : 's'}`;
 export const ARCH_NOT_ANALYSED_NOTE = 'No fallow report is attached, so no imports are shown. Attach or run one in Data & scans.';
 /** Final review #8: a report IS attached, but it has no check section (a health-only or
  *  dupes-only run), so no import relation was reported. */
@@ -93,7 +93,7 @@ export const ARCH_FALLOW_ZONES_UNMATCHED = (n: number): string =>
   `${n} reported boundary violations involve files not in this snapshot:`;
 /** N5: a Map node's label without a report — no edge counts, which would read as 0. */
 export const ARCH_NODE_LABEL_NOT_ANALYSED = (label: string, files: number): string =>
-  `${label}, ${files} files, imports not analysed`;
+  `${label}, ${files} file${files === 1 ? '' : 's'}, imports not analysed`;
 
 /** PO1 (JP3): the split Boundary violations / Your rules violated cards. The Boundary
  *  violations card's caption once a report has been analysed — it is fallow's number
