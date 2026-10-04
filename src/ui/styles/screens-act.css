@@ -57,16 +57,18 @@
 
 /* WP-04 Task 13: the notes panel and the create-note dialog. */
 :where(.codebase-inspector-root) .ci-notes-panel__list { display: grid; gap: var(--ci-space-2); margin: 0; padding: 0; list-style: none; }
-:where(.codebase-inspector-root) .ci-notes-panel__item { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); }
-:where(.codebase-inspector-root) .ci-notes-panel__path { flex: 1 1 12em; overflow-wrap: anywhere; }
-:where(.codebase-inspector-root) .ci-notes-panel__status { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
-:where(.codebase-inspector-root) .ci-notes-panel__open-error { flex-basis: 100%; margin: 0; color: var(--ci-text-danger); }
+:where(.codebase-inspector-root) .ci-notes-panel__item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--ci-space-1) var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-notes-panel__path { grid-column: 1; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-notes-panel__status { grid-column: 1; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-notes-panel__actions { grid-column: 2; grid-row: 1 / span 2; display: flex; flex: none; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-notes-panel__open-error { grid-column: 1 / -1; margin: 0; color: var(--ci-text-danger); }
 /* WP-04 Task 14: the notes for findings not in this report, and the refresh dialog. */
 :where(.codebase-inspector-root) .ci-orphan-notes__list { display: grid; gap: var(--ci-space-2); margin: var(--ci-space-2) 0 0; padding: 0; list-style: none; }
-:where(.codebase-inspector-root) .ci-orphan-notes__item { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ci-space-2); }
-:where(.codebase-inspector-root) .ci-orphan-notes__path { flex: 1 1 12em; overflow-wrap: anywhere; }
-:where(.codebase-inspector-root) .ci-orphan-notes__status { color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
-:where(.codebase-inspector-root) .ci-orphan-notes__open-error { flex-basis: 100%; margin: 0; color: var(--ci-text-danger); }
+:where(.codebase-inspector-root) .ci-orphan-notes__item { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--ci-space-1) var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-orphan-notes__path { grid-column: 1; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-orphan-notes__status { grid-column: 1; color: var(--ci-text-muted); font-size: var(--font-ui-smaller, 0.8em); }
+:where(.codebase-inspector-root) .ci-orphan-notes__actions { grid-column: 2; grid-row: 1 / span 2; display: flex; flex: none; gap: var(--ci-space-2); }
+:where(.codebase-inspector-root) .ci-orphan-notes__open-error { grid-column: 1 / -1; margin: 0; color: var(--ci-text-danger); }
 :where(.codebase-inspector-root) .ci-orphan-notes__malformed { color: var(--ci-text-warning); }
 :where(.codebase-inspector-root) .ci-refresh-note { display: grid; gap: var(--ci-space-2); max-width: 34em; padding: var(--ci-space-4); overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-refresh-note h3,

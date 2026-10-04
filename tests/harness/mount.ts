@@ -46,7 +46,7 @@ export interface HarnessOptions {
   relations?: 'cycle';
   /** WP-04 IN40 (IP36): seed the Investigate screen's notes port and preview (route=
    *  investigate, with report=demo); 'create' also opens the create-note dialog. */
-  investigate?: 'demo' | 'stale' | 'create';
+  investigate?: 'demo' | 'stale' | 'create' | 'long-orphan';
 }
 
 export async function mountHarness(root: HTMLElement, options: HarnessOptions): Promise<void> {

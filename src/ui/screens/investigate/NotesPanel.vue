@@ -61,25 +61,27 @@ function guardedOpen(path: string): void {
       >
         <span class="ci-notes-panel__path">{{ link.path }}</span>
         <span class="ci-notes-panel__status">{{ NOTE_STATUS(link.status) }}</span>
-        <button
-          type="button"
-          class="ci-notes-panel__open"
-          :data-path="link.path"
-          :aria-label="NOTE_OPEN_LABEL(link.path)"
-          :aria-disabled="opening ? 'true' : undefined"
-          @click="guardedOpen(link.path)"
-        >
-          {{ NOTE_OPEN }}
-        </button>
-        <button
-          type="button"
-          class="ci-notes-panel__refresh"
-          :data-path="link.path"
-          :aria-label="REFRESH_OPEN_LABEL(link.path)"
-          @click="emit('refresh', link)"
-        >
-          {{ REFRESH_OPEN }}
-        </button>
+        <span class="ci-notes-panel__actions">
+          <button
+            type="button"
+            class="ci-notes-panel__open"
+            :data-path="link.path"
+            :aria-label="NOTE_OPEN_LABEL(link.path)"
+            :aria-disabled="opening ? 'true' : undefined"
+            @click="guardedOpen(link.path)"
+          >
+            {{ NOTE_OPEN }}
+          </button>
+          <button
+            type="button"
+            class="ci-notes-panel__refresh"
+            :data-path="link.path"
+            :aria-label="REFRESH_OPEN_LABEL(link.path)"
+            @click="emit('refresh', link)"
+          >
+            {{ REFRESH_OPEN }}
+          </button>
+        </span>
         <p
           v-if="openFailed === link.path"
           class="ci-notes-panel__open-error"

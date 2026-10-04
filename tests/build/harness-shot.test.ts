@@ -194,6 +194,15 @@ describe('harness-shot SHOTS', () => {
     }
   });
 
+  // Gap closure GRA9 (Task 9): the narrow Investigate shot whose orphan note has a long path.
+  it('captures the Investigate note rows at a narrow leaf with a long orphan path', () => {
+    const q = shotQuery('investigate-long-orphan-narrow-dark');
+    expect(q.get('route')).toBe('investigate');
+    expect(q.get('report')).toBe('demo');
+    expect(q.get('investigate')).toBe('long-orphan');
+    expect(q.get('width')).toBe('360');
+  });
+
   // Gap closure GRA5 (Task 8): the wide-leaf captures, at the leaf widths the measurement
   // rests on, with the inspector open (s07) and no `width=` (the leaf fills the page).
   it('captures the wide leaf at 1876 and 2560 with the inspector open', () => {

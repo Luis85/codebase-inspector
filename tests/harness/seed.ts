@@ -256,7 +256,7 @@ function previewLines(targetLine: number, title: string): readonly PreviewLine[]
  *  The fake vault's own base path IS the codebase root, so the create dialog's default
  *  folder overlaps it and shows the Exclude checkbox (IN26/IN29). */
 export function demoInvestigation(
-  snapshot: CodebaseSnapshot, mode: 'demo' | 'stale' | 'create',
+  snapshot: CodebaseSnapshot, mode: 'demo' | 'stale' | 'create' | 'long-orphan',
 ): { notes: InvestigationNotesPort; preview: SourcePreview; fingerprint: string } {
   const report = demoEvidenceReport(snapshot);
   const files = fileSummariesFor(snapshot);
@@ -297,8 +297,11 @@ export function demoInvestigation(
   const orphanIdentity = {
     codebaseId: snapshot.repositoryId, sourcePath: ORPHAN_SOURCE_PATH, snapshotId: snapshot.snapshotId, findingId: 'orphan-finding',
   };
+  // GRA9 (B13): `long-orphan` names the orphan note like a real, deeply described vault note,
+  // so the shot shows Open staying beside a path that fills the column.
+  const orphanName = mode === 'long-orphan' ? `Orphan note ${'with a very long descriptive file name '.repeat(3).trim()}` : 'Orphan note';
   void vault.app.vault.create(
-    `${folder}/Orphan note.md`,
+    `${folder}/${orphanName}.md`,
     `---\n${stringifyYaml(noteFrontmatter(orphanIdentity, clock.nowIso()))}---\n\n${EVIDENCE_BEGIN}\n${EVIDENCE_END}\n`,
   );
 
