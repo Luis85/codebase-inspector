@@ -27,6 +27,7 @@ export const useRunStore = defineStore('city-run', {
       this.generation = lifecycle.generation;
       this.publishedSnapshotId = lifecycle.publishedSnapshotId;
       this.banner = lifecycle.banner;
+      this.rootUnavailable = lifecycle.rootUnavailable;
       this.selectedEntityId = lifecycle.selectedEntityId;
       this.query = lifecycle.query;
     },

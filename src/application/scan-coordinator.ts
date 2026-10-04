@@ -25,6 +25,10 @@ const READING_FILES = 'Reading included files.';
 // feel live and rare enough that the notification storm is gone.
 const PROGRESS_THROTTLE_MS = 100;
 
+function rootUnavailableMessage(rootPath: string): string {
+  return `The source directory is no longer available: ${rootPath}`;
+}
+
 /** Every InventoryRunState variant except 'idle' carries a runId. Used instead of an
  *  `as` cast wherever this file needs to compare "is this still MY run" against a state
  *  that might, by the time it is inspected, be idle. */
@@ -150,7 +154,7 @@ export class ScanCoordinator {
       // attempted, and never substitutes a fallback root -- it simply fails.
       const rootStat = await this.deps.port.stat(scope.rootPath);
       if (!rootStat.exists || !rootStat.isDirectory) {
-        this.finishFailed(runId, `The source directory is no longer available: ${scope.rootPath}`);
+        this.finishFailed(runId, rootUnavailableMessage(scope.rootPath), 'root-unavailable');
         return;
       }
 
@@ -240,8 +244,14 @@ export class ScanCoordinator {
     this.dispatch({ type: 'COLLECTOR_STOPPED', runId });
   }
 
-  private finishFailed(runId: string, message: string): void {
-    this.dispatch({ type: 'SCAN_FAILED', runId, message });
+  private finishFailed(runId: string, message: string, cause?: 'root-unavailable'): void {
+    this.dispatch({ type: 'SCAN_FAILED', runId, message, ...(cause ? { cause } : {}) });
+  }
+
+  /** Spec 7 (GRA4): a refresh that finds the root gone before any run starts. Keeps the snapshot readable and
+   *  starts no run; ignored while a run is in flight. */
+  reportRootUnavailable(rootPath: string): void {
+    this.dispatch({ type: 'ROOT_UNAVAILABLE', message: rootUnavailableMessage(rootPath) });
   }
 
   private dispatch(action: RunAction): void {

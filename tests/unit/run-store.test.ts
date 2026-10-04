@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { useRunStore } from '../../src/ui/stores/run-store';
-import { CANCELLED_BANNER } from '../../src/application/run-state';
+import { CANCELLED_BANNER, initialScanLifecycleState } from '../../src/application/run-state';
 import type { ApprovedInventoryRun } from '../../src/domain/model';
 
 // Not in task-9-brief.md's own required test list (only escape-intent.test.ts and
@@ -28,7 +28,7 @@ describe('useRunStore — mirrors InventoryRunState (spec 4.1)', () => {
     store.setLifecycle({
       run: { status: 'running', runId: 'r1', generation: 0, approval, processedFiles: 3 },
       approval, generation: 0, publishedSnapshotId: null, banner: null,
-      selectedEntityId: null, query: '',
+      rootUnavailable: false, selectedEntityId: null, query: '',
     });
     expect(store.run).toEqual({ status: 'running', runId: 'r1', generation: 0, approval, processedFiles: 3 });
     expect(store.banner).toBeNull();
@@ -39,10 +39,17 @@ describe('useRunStore — mirrors InventoryRunState (spec 4.1)', () => {
     store.setLifecycle({
       run: { status: 'cancelled', runId: 'r1' },
       approval: null, generation: 0, publishedSnapshotId: 'snap-old', banner: CANCELLED_BANNER,
-      selectedEntityId: null, query: '',
+      rootUnavailable: false, selectedEntityId: null, query: '',
     });
     expect(store.banner).toBe(CANCELLED_BANNER);
     expect(store.run.status).toBe('cancelled');
+  });
+
+  it('mirrors rootUnavailable (GRA4)', () => {
+    const store = useRunStore();
+    expect(store.rootUnavailable).toBe(false);
+    store.setLifecycle({ ...initialScanLifecycleState(), rootUnavailable: true });
+    expect(store.rootUnavailable).toBe(true);
   });
 
   it('never mutates the ScanLifecycleState object it was handed', () => {
@@ -50,7 +57,7 @@ describe('useRunStore — mirrors InventoryRunState (spec 4.1)', () => {
     const lifecycle = {
       run: { status: 'idle' as const },
       approval: null, generation: 0, publishedSnapshotId: null, banner: null,
-      selectedEntityId: null, query: '',
+      rootUnavailable: false, selectedEntityId: null, query: '',
     };
     const before = JSON.stringify(lifecycle);
     store.setLifecycle(lifecycle);
@@ -64,7 +71,7 @@ describe('useRunStore — mirrors InventoryRunState (spec 4.1)', () => {
     storeA.setLifecycle({
       run: { status: 'running', runId: 'rA', generation: 0, approval, processedFiles: 1 },
       approval, generation: 0, publishedSnapshotId: null, banner: null,
-      selectedEntityId: null, query: '',
+      rootUnavailable: false, selectedEntityId: null, query: '',
     });
     expect(storeB.run.status).toBe('idle');
   });

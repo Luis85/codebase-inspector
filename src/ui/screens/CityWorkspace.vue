@@ -87,7 +87,7 @@ useCityEscape({
 interface CityStageExposed { stageEl: HTMLElement | null }
 const cityStageRef = ref<CityStageExposed | null>(null);
 
-// Task 9 fix round 1, item 4 (Important): renderer/root unavailability are
+// Task 9 fix round 1, item 4 (Important): renderer unavailability is
 // deliberately NEVER wired into this derivation. `view-surface.ts` still SUPPORTS
 // 'renderer-unavailable'/'context-lost' as states (StatusBanner/EmptyState's own
 // component tests exercise them directly), but feeding the real signal in here
@@ -98,6 +98,8 @@ const cityStageRef = ref<CityStageExposed | null>(null);
 // notice for exactly this signal (COPY-14 / the reconstruct notice), inside the
 // viewport pane, alongside whatever else is on screen — picking IT as the one
 // owner of that copy is what fixes the double-print too.
+// Root unavailability is safe to wire now (GRA4): the flag is set only by a failed or refused run, over a
+// snapshot, and the next scan start clears it, so it can never mask a running scan.
 // Phase 2c, M8: functions of `store.snapshot` ALONE. Inline in the computed below — which
 // also depends on `store.matchingIds`, i.e. on every debounced keystroke — an O(entities)
 // filter and an O(entities + observations) scan both re-ran per keystroke while depending
@@ -115,7 +117,7 @@ const viewSurfaceState = computed(() => deriveViewSurfaceState({
   query: store.query,
   partialRead: partialRead.value,
   rendererUnavailableReason: null,
-  rootUnavailable: false,
+  rootUnavailable: runStore.rootUnavailable && store.snapshot !== null,
 }));
 
 const rendererHost = computed(() => cityStageRef.value?.stageEl ?? null);

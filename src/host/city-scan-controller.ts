@@ -88,7 +88,7 @@ export class CityScanController {
         if (existing) {
           await runRefresh(
             this.plugin.app, this.coordinator, profile, existing.scope, this.deps.clock, this.deps.profileStore,
-            await this.deps.boundRoot(profile),
+            await this.deps.boundRoot(profile), this.deps.getFilesystem(),
           );
           return;
         }

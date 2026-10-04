@@ -44,6 +44,9 @@ export interface ScanLifecycleState {
   generation: number;
   publishedSnapshotId: string | null;
   banner: string | null;
+  /** Spec 7 (GRA4): the source folder was missing or unreadable at the last scan or refresh. Set only by a
+   *  failed run with that cause, or by a refused refresh (ROOT_UNAVAILABLE); a scan start clears it. */
+  rootUnavailable: boolean;
   selectedEntityId: EntityId | null;
   query: string;
 }
@@ -55,6 +58,7 @@ export function initialScanLifecycleState(): ScanLifecycleState {
     generation: 0,
     publishedSnapshotId: null,
     banner: null,
+    rootUnavailable: false,
     selectedEntityId: null,
     query: '',
   };
@@ -66,7 +70,8 @@ export type RunAction =
   | { type: 'CANCEL_REQUESTED' }
   | { type: 'COLLECTOR_STOPPED'; runId: string }
   | { type: 'SCAN_COMPLETED'; runId: string; snapshotId: string }
-  | { type: 'SCAN_FAILED'; runId: string; message: string };
+  | { type: 'SCAN_FAILED'; runId: string; message: string; cause?: 'root-unavailable' }
+  | { type: 'ROOT_UNAVAILABLE'; message: string };
 
 /** Ruling M34: derives a `RunIdentity` from `state.approval` (profileId,
  *  sourceFingerprint, scopeFingerprint) and from the run itself (runId, generation) --
@@ -129,6 +134,7 @@ export function reduce(state: ScanLifecycleState, action: RunAction): ScanLifecy
         approval: action.approval,
         generation: action.generation,
         banner: null,
+        rootUnavailable: false,
       };
     }
 
@@ -173,7 +179,15 @@ export function reduce(state: ScanLifecycleState, action: RunAction): ScanLifecy
         // publishedSnapshotId is UNCHANGED -- a failed run leaves the previous snapshot
         // intact (spec 7).
         banner: failureBanner(action.message),
+        rootUnavailable: action.cause === 'root-unavailable',
       };
+    }
+
+    case 'ROOT_UNAVAILABLE': {
+      // A refresh refused before it began (spec 7): there is no run to fail, so the run state is untouched.
+      // Ignored while a run is in flight, which owns the banner and will report its own outcome.
+      if (state.run.status === 'running' || state.run.status === 'cancelling') return state;
+      return { ...state, rootUnavailable: true, banner: failureBanner(action.message) };
     }
 
     default: {

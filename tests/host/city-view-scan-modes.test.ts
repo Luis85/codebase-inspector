@@ -22,6 +22,7 @@ import type { CityRendererPort } from '../../src/visualization/renderer-port';
 import type { CityViewDeps } from '../../src/host/city-view';
 import type { CodebaseProfile } from '../../src/domain/model';
 import type { ProfileStore } from '../../src/application/ports/profile-store';
+import type { SourceFileSystemPort } from '../../src/application/ports/source-filesystem-port';
 
 const FAKE_ROOT_SCOPE = { rootPath: '/fake-root', exclusions: [], maxFileBytes: 5_000_000, followSymlinks: false as const };
 
@@ -198,7 +199,12 @@ describe('scan-codebase after a Reconnect (WP-04.2 polish O1, PN5)', () => {
   async function boundView(bound: string | null) {
     const snapshotStore = new InMemorySnapshotStore(createFixedClock());
     snapshotStore.put(publishedSnapshot({ scope: ROOT_A }));
-    const { port } = createFakeSourceFileSystem({});
+    // These roots exist only as strings, so every stat says "a directory": refresh stats its target first (GRA4),
+    // and this block is about which root it scans and asks about, not about a root that is gone.
+    const fake = createFakeSourceFileSystem({}).port;
+    const port: SourceFileSystemPort = {
+      ...fake, stat: async () => ({ exists: true, isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 }),
+    };
     const profile: CodebaseProfile = { profileId: 'p1', name: 'Alpha', bindingId: 'b1', exclusions: ['.git'], maxFileBytes: 5_000_000 };
     const profileStore = makeProfileStoreDouble([profile]);
     const boundRoot = vi.fn(async () => bound);

@@ -198,8 +198,13 @@ async function persistThenScan(
  *  it, as below. */
 export async function runRefresh(
   app: App, coordinator: ScanCoordinator, profile: CodebaseProfile, storedScope: AnalysisScope,
-  clock: Clock, profileStore: ProfileStore, boundRoot: string | null,
+  clock: Clock, profileStore: ProfileStore, boundRoot: string | null, port: SourceFileSystemPort,
 ): Promise<void> {
+  // Spec 7 (GRA4): a root that is gone is reported, never offered for approval. The snapshot stays readable and no
+  // modal opens, whether the target is the stored root or a different bound one.
+  const target = boundRoot ?? storedScope.rootPath;
+  const rootStat = await port.stat(target);
+  if (!rootStat.exists || !rootStat.isDirectory) { coordinator.reportRootUnavailable(target); return; }
   // WP-04.2 polish O1 (PN5): a Reconnect names a new root, and WP-01 §4.1 says a changed root invalidates prior
   // approval. So when the live binding's root is not the snapshot's, the scope modal opens on the bound root (the
   // M57 path), and nothing is self-minted for it.

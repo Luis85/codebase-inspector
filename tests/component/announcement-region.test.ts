@@ -32,7 +32,7 @@ describe('AnnouncementRegion.vue', () => {
     runStore.setLifecycle({
       run: { status: 'complete', runId: 'r1', snapshotId: 's1' },
       approval: null, generation: 0, publishedSnapshotId: 's1', banner: null,
-      selectedEntityId: null, query: '',
+      rootUnavailable: false, selectedEntityId: null, query: '',
     });
     await nextTick();
     const polite = wrapper.get('[aria-live="polite"]');
@@ -41,7 +41,7 @@ describe('AnnouncementRegion.vue', () => {
     runStore.setLifecycle({
       run: { status: 'cancelled', runId: 'r1' },
       approval: null, generation: 0, publishedSnapshotId: null, banner: CANCELLED_BANNER,
-      selectedEntityId: null, query: '',
+      rootUnavailable: false, selectedEntityId: null, query: '',
     });
     await nextTick();
     expect(wrapper.get('[aria-live="polite"]').text()).toContain(CANCELLED_BANNER);
@@ -59,7 +59,7 @@ describe('AnnouncementRegion.vue', () => {
     runStore.setLifecycle({
       run: { status: 'cancelled', runId: 'r1' },
       approval: null, generation: 0, publishedSnapshotId: null, banner: null,
-      selectedEntityId: null, query: '',
+      rootUnavailable: false, selectedEntityId: null, query: '',
     });
     await nextTick();
     expect(wrapper.get('[aria-live="polite"]').text()).toBe('');
@@ -67,7 +67,7 @@ describe('AnnouncementRegion.vue', () => {
     runStore.setLifecycle({
       run: { status: 'failed', runId: 'r2', message: 'disk error' },
       approval: null, generation: 0, publishedSnapshotId: null, banner: null,
-      selectedEntityId: null, query: '',
+      rootUnavailable: false, selectedEntityId: null, query: '',
     });
     await nextTick();
     expect(wrapper.get('[aria-live="assertive"]').text()).toBe('');
@@ -91,7 +91,7 @@ describe('AnnouncementRegion.vue', () => {
     runStore.setLifecycle({
       run: { status: 'failed', runId: 'r1', message: 'disk error' },
       approval: null, generation: 0, publishedSnapshotId: null, banner: 'Scan failed: disk error',
-      selectedEntityId: null, query: '',
+      rootUnavailable: false, selectedEntityId: null, query: '',
     });
     await nextTick();
     expect(wrapper.get('[aria-live="assertive"]').text()).toContain('disk error');
@@ -172,7 +172,7 @@ describe('AnnouncementRegion.vue', () => {
     runStore.setLifecycle({
       run: { status: 'running', runId: 'r1', generation: 0, approval, processedFiles: 5 },
       approval, generation: 0, publishedSnapshotId: null, banner: null,
-      selectedEntityId: null, query: '',
+      rootUnavailable: false, selectedEntityId: null, query: '',
     });
     await nextTick();
     const progressEl = wrapper.find('[role="progressbar"]');

@@ -320,14 +320,14 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
     const profile = makeProfile({ profileId: 'p1', ...profileOverrides });
     const { store, update } = makeProfileStoreDouble(profile);
     const { coordinator, start } = makeCoordinator(port);
-    return { app, profile, store, update, coordinator, start };
+    return { app, profile, store, update, coordinator, start, port };
   }
 
   it('stays silent when the profile still matches: no modal, and the SNAPSHOT scope is scanned', async () => {
-    const { app, profile, store, update, coordinator, start } = setUp(
+    const { app, profile, store, update, coordinator, start, port } = setUp(
       { exclusions: ['.git'], maxFileBytes: 1_000_000 });
 
-    await runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null);
+    await runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null, port);
 
     expect(document.querySelector('.modal-container')).toBeNull();
     expect(start).toHaveBeenCalledTimes(1);
@@ -342,11 +342,11 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
   // ORDER, in a list long enough for order to exist. Mutating fingerprintScope to drop
   // its sort turns this red (verified: the scope modal opens and start is never called).
   it('re-orders exclusions without prompting: fingerprintScope sorts, so that is not divergence', async () => {
-    const { app, profile, store, coordinator, start } = setUp(
+    const { app, profile, store, coordinator, start, port } = setUp(
       { exclusions: ['.git', 'node_modules'], maxFileBytes: 1_000_000 });
     const reordered: AnalysisScope = { ...SNAPSHOT_SCOPE, exclusions: ['node_modules', '.git'] };
 
-    await runRefresh(app, coordinator, profile, reordered, createFixedClock(), store, null);
+    await runRefresh(app, coordinator, profile, reordered, createFixedClock(), store, null, port);
     expect(document.querySelector('.modal-container')).toBeNull();
     expect(start).toHaveBeenCalledTimes(1);
     // Not divergence, so the SNAPSHOT's own scope object is what gets scanned -- never a
@@ -355,10 +355,10 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
   });
 
   it('opens the SCOPE modal prefilled from the profile, carrying the snapshot root, when they diverge', async () => {
-    const { app, profile, store, coordinator, start } = setUp(
+    const { app, profile, store, coordinator, start, port } = setUp(
       { exclusions: ['.git', 'node_modules'], maxFileBytes: 2_000_000 });
 
-    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null);
+    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null, port);
     const modal = await waitForModal();
 
     // The scope modal, never the source modal: the root has not changed.
@@ -377,10 +377,10 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
   });
 
   it('scans and persists the newly approved scope once the user approves it', async () => {
-    const { app, profile, store, update, coordinator, start } = setUp(
+    const { app, profile, store, update, coordinator, start, port } = setUp(
       { exclusions: ['.git', 'node_modules'], maxFileBytes: 2_000_000 });
 
-    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null);
+    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null, port);
     await waitForModal();
     const ack = modalRoot().querySelector<HTMLInputElement>('[data-field="acknowledge"]')!;
     ack.checked = true;
@@ -405,10 +405,10 @@ describe('refresh detects a scope that has diverged from the snapshot (ruling M5
   });
 
   it('leaves everything untouched when the user cancels that consent screen', async () => {
-    const { app, profile, store, update, coordinator, start } = setUp(
+    const { app, profile, store, update, coordinator, start, port } = setUp(
       { exclusions: ['.git', 'node_modules'], maxFileBytes: 2_000_000 });
 
-    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null);
+    const runPromise = runRefresh(app, coordinator, profile, SNAPSHOT_SCOPE, createFixedClock(), store, null, port);
     await waitForModal();
     modalRoot().querySelector<HTMLButtonElement>('[data-action="cancel"]')!.click();
     await runPromise;

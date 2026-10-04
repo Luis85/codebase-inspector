@@ -7,10 +7,13 @@
 // modal, and the no-snapshot state (the snapshot store is in memory, WP-01 §4.5); workspace.json holds no absolute
 // path (WP-01 §4.4), in either of the vault's two spellings (NPF9: 8.3 and `realpathSync.native`'s long form).
 // Its "no scan" probe gets its own positive control: a modal scan started afterwards makes it read true (GRD6).
+// Scenario 42 (GRA4, GCO5): a refresh whose source folder is gone shows COPY-28 and keeps the snapshot readable, with
+// no scope modal; the folder is renamed on disk from the test process, and back in `finally`.
 // IPF20: nothing here matches Obsidian's own UI text; nav labels come from ROUTE_META (WP-04.2 E6).
-import { realpathSync } from 'node:fs';
+import { realpathSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect } from 'vitest';
+import { COPY_28 } from '../../src/ui/copy';
 import { ROUTE_META } from '../../src/ui/routes';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
@@ -51,6 +54,14 @@ const markedRemovals = (browser: NativeBrowser): Promise<number> => browser.exec
   if (!probe) throw new Error('no canvas observer installed');
   return probe.removed;
 });
+
+/** The city leaf's status banner text now, or null; queried afresh, as the banner element is replaced as the run changes. */
+const bannerText = (browser: NativeBrowser): Promise<string | null> => browser.executeObsidian(({ app }, type): string | null =>
+  app.workspace.getLeavesOfType(type)[0]?.view.containerEl.querySelector('.ci-status-banner')?.textContent?.trim() ?? null, CITY_VIEW_TYPE);
+
+/** How many file rows the city leaf's file list holds. */
+const fileRows = (browser: NativeBrowser): Promise<number> => browser.executeObsidian(({ app }, type): number =>
+  app.workspace.getLeavesOfType(type)[0]?.view.containerEl.querySelectorAll('.ci-file-list__row').length ?? 0, CITY_VIEW_TYPE);
 
 /** The first layout node whose view state names the city type: that view state's own `state`, or null. */
 function cityLeafIn(node: unknown): Record<string, unknown> | null {
@@ -211,4 +222,30 @@ describe('the city leaf in the real Obsidian host (WP-04.2 NE12, NE13)', () => {
     await expect.poll(() => commandAvailable(browser, 'cancel-scan'), { timeout: 30_000 }).toBe(false);
     await writeEvidence(directory, 'scan-control', { files: SYNTHETIC_FILES, runningAfterMs, stoppedAfterMs: Date.now() - started });
   }, 300_000);
+
+  test('the city shows the source as unavailable when its folder is gone, and keeps the snapshot readable', async ({ native: { browser, page, inspector } }) => {
+    const vault = page.getVaultPath();
+    const source = copyProject(vault, 'code');
+    const moved = join(vault, 'code-gone');
+    await inspector.openCity();
+    await inspector.scanFolder('code');
+    await inspector.navigate(ROUTE_META.city.title);
+    await expect.poll(() => inspector.screen('city').isDisplayed()).toBe(true);
+    // Positive control: the scanned city lists files, and COPY-28 is not showing.
+    const before = await inspector.snapshotId();
+    await expect.poll(() => fileRows(browser)).toBeGreaterThan(0);
+    expect(await bannerText(browser)).not.toBe(COPY_28);
+    const rows = await fileRows(browser);
+    renameSync(source, moved);
+    try {
+      await inspector.activateCity();
+      await browser.executeObsidianCommand('codebase-inspector:scan-codebase');
+      await expect.poll(() => bannerText(browser), { timeout: 30_000 }).toBe(COPY_28);
+      expect(await fileRows(browser)).toBe(rows);
+      expect(await inspector.snapshotId()).toBe(before);
+      expect(await browser.$$('.modal-container').length).toBe(0);
+    } finally {
+      renameSync(moved, source);
+    }
+  }, 240_000);
 });
