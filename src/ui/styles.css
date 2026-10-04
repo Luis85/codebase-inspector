@@ -649,7 +649,7 @@
   white-space: nowrap;
 }
 :where(.codebase-inspector-root) button.ci-viewport__retry:hover {
-  background: var(--ci-raised);
+  background: var(--ci-hover);
 }
 
 /* --- CameraControls (C09) ---------------------------------------------------- */
