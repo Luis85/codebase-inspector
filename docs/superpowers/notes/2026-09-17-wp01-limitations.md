@@ -115,11 +115,14 @@ section, where that gap is stated rather than closed.
   vocabulary and nothing emits it.
 - **An edge drag takes no `setPointerCapture`** (ruling M95), so an unclamped canvas
   point can raycast outside the frustum and pick an off-screen building.
-- **Three more surfaces with no production caller, recorded rather than removed.**
-  `ScanCoordinator.getLifecycle()` is named below; the final whole-branch review added
-  two, and **both are dead in `src/` while tests do use them** — which is exactly why
-  neither is visible to `npm run analyze` (see that gate below). `parseEntityId`
-  (`src/domain/entity-id.ts`) is called only by tests. `CityRendererPort.getCamera()`
+- **Two more surfaces with no production caller, recorded rather than removed.**
+  The final whole-branch review added two, and **both were dead in `src/` while tests
+  do use them** — which is exactly why neither is visible to `npm run analyze` (see that
+  gate below). (`ScanCoordinator.getLifecycle()`, recorded beside them, was deleted in
+  gap closure Part C, GRC12.) `parseEntityId`
+  (`src/domain/entity-id.ts`) was called only by tests. *Superseded: `review-state.ts`,
+  `review-record-codec.ts` and `work-items.ts` in `src/ui/read-models` call it.*
+  `CityRendererPort.getCamera()`
   (`src/visualization/renderer-port.ts`) has **no production caller**: `city-renderer.ts`
   IMPLEMENTS the member, delegating to the rig's own internal `getCamera`, and nothing in
   `src/` calls it through the port; `tests/component/canvas-camera.test.ts` and
@@ -141,9 +144,13 @@ section, where that gap is stated rather than closed.
   the wider layering holds at HEAD by inspection and nothing keeps it. Not added in the
   final fix wave because inventing a layering the spec never stated, during a release
   gate, is how a rule gets the direction wrong — it is a decision for the user.
-- **`ScanCoordinator.getLifecycle()` is dead code** — zero callers in `src/` or
-  `tests/`. Assessed as an inert accessor rather than a fake feature, reported rather
-  than removed, and it still ships in the bundle.
+  *Superseded: gap closure Part C (GRC1) added the layer bans to `eslint.config.mjs`
+  (`no-restricted-imports` for `ui`, `application` and `adapters`), pinned by
+  `tests/build/eslint-layering.test.ts`.*
+- **`ScanCoordinator.getLifecycle()` was dead code** — zero callers in `src/` or
+  `tests/`. Assessed as an inert accessor rather than a fake feature, and reported
+  rather than removed. *Superseded: gap closure Part C (GRC12) deleted it, and it no
+  longer ships in the bundle.*
 - **The shipped bundle contains an unreachable FileSaver island.** Pinia's own
   `dist/pinia.js` is the single entry its `exports` map offers (there is no production
   variant to select), and although the devtools code that uses it is eliminated by the
@@ -238,7 +245,7 @@ so `.ci-snapshot-status__claims` now declares `color: var(--ci-text)`. It is one
   seam, an unused type named by frozen §4.1, a duplicate `EntityId` spanning two frozen
   contracts, and a pre-existing `city-view ↔ leaf-registry` cycle. It is a **review list, not a gate**,
   which is why it sits outside `npm run verify`, and **nobody tuned it to green** — that
-  is deliberate, and the baseline is what makes a tenth finding visible. It also
+  is deliberate, and the baseline is what makes a fifth finding visible. It also
   fetches its tool at run time (`npx --yes fallow@3.27.0`), so it needs network and
   resolves outside the lockfile's integrity guarantees.
   **And it does not answer this branch's question 1**, which the gate-evidence document
