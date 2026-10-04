@@ -75,6 +75,8 @@ export class CityView extends ItemView {
   // `createPinia()` itself per-view (spec 4.4).
   private cityStore: ReturnType<typeof useCityStore> | null = null;
   private runStore: ReturnType<typeof useRunStore> | null = null;
+  /** The `run` object the last lifecycle reaction was for (see onLifecycleChange). */
+  private lastReactedRun: ScanLifecycleState['run'] | null = null;
   // Ruling M78: ONE monotonic token source per view, shared with `CityViewport`, which
   // writes setLayout to the same live port. Two private counters meant two sequences
   // against one `latestGeneration`, so a publish after a reconstruct was silently never
@@ -272,6 +274,10 @@ export class CityView extends ItemView {
    *  This method is just the host-specific wiring: which store, which snapshot store,
    *  which callbacks. */
   private onLifecycleChange(lifecycle: ScanLifecycleState): void {
+    // ROOT_UNAVAILABLE (GRA4) notifies with the PREVIOUS run's `run` object untouched: mirror it, but never replay that
+    // run's notice, layout publish or reconciliation.
+    if (lifecycle.run === this.lastReactedRun) { this.runStore?.setLifecycle(lifecycle); return; }
+    this.lastReactedRun = lifecycle.run;
     const updated = reactToLifecycleChange(
       lifecycle, this.deps.snapshotStore, this.state.snapshotId, this.runStore,
       { publishLayout: (snapshot) => { void this.layoutPublisher.publish(snapshot); }, showNotice: (m) => { this.showNotice(m); } },
