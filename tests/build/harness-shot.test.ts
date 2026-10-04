@@ -140,6 +140,21 @@ describe('harness-shot SHOTS', () => {
     }
   });
 
+  // Gap closure GRA7/GCO19/B2: the relations shot in a crowded and an almost empty city. Each
+  // selects the demo relations anchor of ITS city (tests/harness pins both literals), at the
+  // same viewport as the default relations shot.
+  it('captures the relations in a dense and a sparse city', () => {
+    for (const [kind, select] of [['dense', 'dir-4/file-4.ts'], ['sparse', 'dir-1/file-4.ts']] as const) {
+      const id = `wp03-city-relations-${kind}-dark`;
+      const q = shotQuery(id);
+      expect(q.get('city'), id).toBe(kind);
+      expect(q.get('report'), id).toBe('demo');
+      expect(q.get('screen'), id).toBe('s07');
+      expect(q.get('select'), id).toBe(select);
+      expect(SHOTS.find((s) => s.id === id)?.viewport, id).toEqual({ width: 1280, height: 1050 });
+    }
+  });
+
   // WP-03 N38 execution ruling: the Architecture screen now builds its graph only from
   // real relation evidence (an earlier WP-03 task deleted the sample-edges fixture), so
   // these three no longer show anything without report=demo — re-framed, same ids.

@@ -204,6 +204,18 @@ export const SHOTS = [
     id: 'wp03-city-relations-light', query: '?screen=s07&theme=light&report=demo&select=dir-4/file-4.ts',
     viewport: { width: 1280, height: 1050 },
   },
+  // Gap closure GRA7/GCO19/B2: the same relations shot in a crowded city (600 files, four 128-high
+  // towers mid-way along the selected file's arcs) and an almost empty one (24 files). The
+  // selected file is the demo report's own relations anchor in that city (its first demo file,
+  // dir-4/file-4.ts in the dense city, dir-1/file-4.ts in the sparse one); tests/build pins both.
+  {
+    id: 'wp03-city-relations-dense-dark', query: '?screen=s07&theme=dark&report=demo&select=dir-4/file-4.ts&city=dense',
+    viewport: { width: 1280, height: 1050 },
+  },
+  {
+    id: 'wp03-city-relations-sparse-dark', query: '?screen=s07&theme=dark&report=demo&select=dir-1/file-4.ts&city=sparse',
+    viewport: { width: 1280, height: 1050 },
+  },
   {
     id: 'wp03-city-cycle-dark', query: '?screen=s07&theme=dark&report=demo&select=dir-4/file-4.ts&relations=cycle',
     viewport: { width: 1280, height: 1050 },

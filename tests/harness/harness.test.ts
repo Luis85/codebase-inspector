@@ -41,6 +41,30 @@ describe('harness fixture', () => {
     expect(layout.districts.length).toBeGreaterThanOrEqual(6);
   });
 
+  // Gap closure GCO19/B2: the dense city exists to photograph arcs among towers, so pin that the
+  // four tall files really stand across the corridors from the selected file 4 (the layout packs
+  // taller items first, so a change to it could silently move them off the arcs).
+  it('puts a 128-high tower in the xz corridor of four arcs from file 4 in the dense city', () => {
+    const files = harnessSnapshot('dense').entities.filter((e) => e.kind === 'file');
+    const layout = harnessLayout('dense');
+    const lotOf = (i: number) => layout.lots.find((l) => l.entityId === files[i]!.id)!;
+    const a = lotOf(4);
+    for (const [tower, related] of [[341, 10], [55, 23], [480, 31], [412, 57]] as const) {
+      const lot = lotOf(tower);
+      const b = lotOf(related);
+      expect(lot.dimensions[1], `file ${tower} height`).toBeGreaterThanOrEqual(120);
+      const onCorridor = Array.from({ length: 101 }, (_, s) => s / 100).some((t) => (
+        Math.abs(a.center[0] + (b.center[0] - a.center[0]) * t - lot.center[0]) <= lot.dimensions[0] / 2
+        && Math.abs(a.center[2] + (b.center[2] - a.center[2]) * t - lot.center[2]) <= lot.dimensions[2] / 2));
+      expect(onCorridor, `file ${tower} stands on the corridor 4 -> ${related}`).toBe(true);
+    }
+  });
+
+  it('builds a sparse city of 24 files over 3 directories (plus the root district)', () => {
+    expect(harnessSnapshot('sparse').entities.filter((e) => e.kind === 'file')).toHaveLength(24);
+    expect(harnessLayout('sparse').districts).toHaveLength(4);
+  });
+
   it('is deterministic — two builds produce identical layouts', () => {
     expect(JSON.stringify(harnessLayout())).toEqual(JSON.stringify(harnessLayout()));
   });

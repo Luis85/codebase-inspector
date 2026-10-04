@@ -101,6 +101,18 @@ describe('the harness fallow report (?report=demo)', () => {
     expect(demoRelationsAnchorPath(harnessSnapshot())).toBe('dir-4/file-4.ts');
   });
 
+  // Gap closure GCO19/B2: the dense and sparse cities carry the same demo relations, anchored on
+  // the file the `city=` shots select (a sparse city has too few files for the fixed indexes).
+  it('anchors the demo relations in the dense and sparse harness cities, matching the harness-shot.mjs literals', () => {
+    for (const [kind, anchor] of [['dense', 'dir-4/file-4.ts'], ['sparse', 'dir-1/file-4.ts']] as const) {
+      const snapshot = harnessSnapshot(kind);
+      expect(demoRelationsAnchorPath(snapshot), kind).toBe(anchor);
+      const files = fileSummariesFor(snapshot);
+      const index = evidenceIndexFor(files, demoEvidenceReport(snapshot), snapshot.snapshotId);
+      expect(relationModelFor(files, index).edges, kind).toHaveLength(5);
+    }
+  });
+
   it('keeps its provenance, and says it is synthetic', () => {
     const snapshot = harnessSnapshot();
     expect(demoEvidenceReport(snapshot)).toMatchObject({

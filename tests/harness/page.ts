@@ -21,6 +21,8 @@
 //   ?investigate=demo|stale|create|long-orphan  seed the Investigate screen's notes port and a fixed
 //                      preview (route=investigate, with report=demo); 'create' also opens
 //                      the create-note dialog; 'long-orphan' gives the orphan note a long path
+//   ?city=dense|sparse  swap the default 144-file city for a crowded (600 files, tall
+//                      towers among the related files) or an almost empty (24 files) one
 //
 // `installObsidianDomExtensions` is called FIRST, before any other import runs its own
 // top-level code: the harness page has no Obsidian, and the REAL renderer reads
@@ -66,7 +68,9 @@ const select = params.get('select');
 const run = params.get('run');
 
 void mountHarness(leaf, {
-  screen, route, ...(select ? { select } : {}), ...(params.get('tab') ? { tab: params.get('tab')! } : {}),
+  screen, route, ...(select ? { select } : {}),
+  ...(params.get('city') === 'dense' || params.get('city') === 'sparse' ? { city: params.get('city') as 'dense' | 'sparse' } : {}),
+  ...(params.get('tab') ? { tab: params.get('tab')! } : {}),
   ...(params.get('items') === 'demo' ? { items: 'demo' as const } : {}),
   ...(params.get('edit') === 'first' ? { edit: 'first' as const } : {}),
   ...(run === 'running' || run === 'cancelling' ? { run } : {}),

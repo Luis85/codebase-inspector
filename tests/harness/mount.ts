@@ -47,6 +47,8 @@ export interface HarnessOptions {
   /** WP-04 IN40 (IP36): seed the Investigate screen's notes port and preview (route=
    *  investigate, with report=demo); 'create' also opens the create-note dialog. */
   investigate?: 'demo' | 'stale' | 'create' | 'long-orphan';
+  /** Gap closure GCO19/B2: a crowded or an almost empty city instead of the default one. */
+  city?: 'dense' | 'sparse';
 }
 
 export async function mountHarness(root: HTMLElement, options: HarnessOptions): Promise<void> {
@@ -117,7 +119,7 @@ export async function mountHarness(root: HTMLElement, options: HarnessOptions): 
   });
 
   const store = useCityStore();
-  store.setCity(harnessSnapshot(), harnessLayout());
+  store.setCity(harnessSnapshot(options.city), harnessLayout(options.city));
 
   applyScreenState(store, options.screen);
   if (options.select) {

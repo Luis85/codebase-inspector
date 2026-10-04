@@ -10,6 +10,8 @@ import type { CityPalette, EntityId, RelationArc } from './renderer-port';
 import { disposeObject3D } from './disposal';
 
 export const MAX_RELATION_ARCS = 64;
+/** World units an arc's apex keeps above the tallest roof in its xz corridor (GRA7). */
+export const ARC_CLEARANCE = 2;
 const SEGMENTS = 24;
 const ARROW_AT = 0.92;
 const LIFT_PER_DISTANCE = 0.35;
@@ -31,9 +33,72 @@ function bezier(p0: Vector3, p1: Vector3, p2: Vector3, t: number): { point: Vect
   return { point, tangent };
 }
 
-function controlPoint(p0: Vector3, p2: Vector3): Vector3 {
+function controlPoint(p0: Vector3, p2: Vector3, corridorTop: number): Vector3 {
   const horizontal = Math.hypot(p2.x - p0.x, p2.z - p0.z);
-  return new Vector3((p0.x + p2.x) / 2, Math.max(p0.y, p2.y) + LIFT_PER_DISTANCE * horizontal + LIFT_BASE, (p0.z + p2.z) / 2);
+  const lifted = Math.max(p0.y, p2.y) + LIFT_PER_DISTANCE * horizontal + LIFT_BASE;
+  // The quadratic's apex is control.y / 2 + (p0.y + p2.y) / 4; raise the control so the apex clears the corridor.
+  const cleared = 2 * (corridorTop + ARC_CLEARANCE) - (p0.y + p2.y) / 2;
+  return new Vector3((p0.x + p2.x) / 2, Math.max(lifted, cleared), (p0.z + p2.z) / 2);
+}
+
+/** Every lot's ground rectangle and roof, flat (5 numbers per lot) so the per-arc corridor
+ *  scan allocates nothing: minX, maxX, minZ, maxZ, roof. Built once per setLots. */
+function rectsOf(list: readonly CityLot[]): Float64Array {
+  const rects = new Float64Array(list.length * 5);
+  list.forEach((lot, i) => {
+    rects[i * 5] = lot.center[0] - lot.dimensions[0] / 2;
+    rects[i * 5 + 1] = lot.center[0] + lot.dimensions[0] / 2;
+    rects[i * 5 + 2] = lot.center[2] - lot.dimensions[2] / 2;
+    rects[i * 5 + 3] = lot.center[2] + lot.dimensions[2] / 2;
+    rects[i * 5 + 4] = lot.center[1] + lot.dimensions[1] / 2;
+  });
+  return rects;
+}
+
+/** Slab test: does the xz segment (ax,az)-(bx,bz) touch the rectangle? */
+function segmentHitsRect(ax: number, az: number, bx: number, bz: number, minX: number, maxX: number, minZ: number, maxZ: number): boolean {
+  const dx = bx - ax;
+  const dz = bz - az;
+  let t0 = 0;
+  let t1 = 1;
+  if (dx === 0) {
+    if (ax < minX || ax > maxX) return false;
+  } else {
+    const near = (minX - ax) / dx;
+    const far = (maxX - ax) / dx;
+    t0 = Math.max(t0, Math.min(near, far));
+    t1 = Math.min(t1, Math.max(near, far));
+    if (t0 > t1) return false;
+  }
+  if (dz === 0) return az >= minZ && az <= maxZ;
+  const near = (minZ - az) / dz;
+  const far = (maxZ - az) / dz;
+  return Math.max(t0, Math.min(near, far)) <= Math.min(t1, Math.max(near, far));
+}
+
+/** The tallest roof among lots other than the arc's own ends whose ground rectangle the
+ *  arc's xz corridor crosses, or -Infinity when it crosses none. */
+function corridorTopOf(list: readonly CityLot[], rects: Float64Array, from: CityLot, to: CityLot): number {
+  const ax = from.center[0];
+  const az = from.center[2];
+  const bx = to.center[0];
+  const bz = to.center[2];
+  const loX = Math.min(ax, bx);
+  const hiX = Math.max(ax, bx);
+  const loZ = Math.min(az, bz);
+  const hiZ = Math.max(az, bz);
+  let top = -Infinity;
+  for (let i = 0; i < list.length; i++) {
+    const k = i * 5;
+    const roof = rects[k + 4]!;
+    if (roof <= top) continue;
+    // Bounding-box reject first: most lots are nowhere near a given corridor.
+    if (rects[k + 1]! < loX || rects[k]! > hiX || rects[k + 3]! < loZ || rects[k + 2]! > hiZ) continue;
+    const lot = list[i]!;
+    if (lot === from || lot === to) continue;
+    if (segmentHitsRect(ax, az, bx, bz, rects[k]!, rects[k + 1]!, rects[k + 2]!, rects[k + 3]!)) top = roof;
+  }
+  return top;
 }
 
 export interface RelationArcs {
@@ -51,6 +116,8 @@ export function createRelationArcs(): RelationArcs {
 
   let arcs: readonly RelationArc[] | null = null;
   let lots: Map<EntityId, CityLot> | null = null;
+  let lotList: readonly CityLot[] = [];
+  let lotRects: Float64Array = new Float64Array(0);
   let palette: CityPalette | null = null;
   let drawn: readonly RelationArc[] = [];
 
@@ -113,9 +180,11 @@ export function createRelationArcs(): RelationArcs {
 
     let vertex = 0;
     for (const arc of valid) {
-      const from = topOf(currentLots.get(arc.from)!);
-      const to = topOf(currentLots.get(arc.to)!);
-      const control = controlPoint(from, to);
+      const fromLot = currentLots.get(arc.from)!;
+      const toLot = currentLots.get(arc.to)!;
+      const from = topOf(fromLot);
+      const to = topOf(toLot);
+      const control = controlPoint(from, to, corridorTopOf(lotList, lotRects, fromLot, toLot));
       let prev = from;
       for (let s = 1; s <= SEGMENTS; s++) {
         const { point } = bezier(from, control, to, s / SEGMENTS);
@@ -162,6 +231,8 @@ export function createRelationArcs(): RelationArcs {
     },
     setLots(next: readonly CityLot[] | null): void {
       lots = next ? new Map(next.map((lot) => [lot.entityId, lot] as const)) : null;
+      lotList = next ?? [];
+      lotRects = rectsOf(lotList);
       rebuild();
     },
     setColors(next: CityPalette): void {

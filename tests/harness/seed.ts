@@ -114,7 +114,13 @@ export function filePathsOf(snapshot: CodebaseSnapshot): string[] {
  *  paths in this order. */
 function demoPaths(snapshot: CodebaseSnapshot): string[] {
   const paths = filePathsOf(snapshot);
-  return DEMO_FILE_INDEXES.map((i) => {
+  // A city too small for the fixed indexes (the sparse harness city, GCO19) spreads ten
+  // measured files evenly from file 4 instead, so the report and its relations still anchor.
+  const last = DEMO_FILE_INDEXES[DEMO_FILE_INDEXES.length - 1]!;
+  const indexes = paths.length > last
+    ? DEMO_FILE_INDEXES
+    : DEMO_FILE_INDEXES.map((_, k) => 4 + Math.floor((k * (paths.length - 5)) / DEMO_FILE_INDEXES.length));
+  return indexes.map((i) => {
     const path = paths[i];
     if (path === undefined) throw new Error(`harness: report=demo needs a file at index ${i}`);
     return path;
