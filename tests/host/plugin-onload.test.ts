@@ -1,4 +1,5 @@
-import { describe, expect, it, vi, type MockInstance } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
+import { REVISION } from 'three';
 import CodebaseInspectorPlugin from '../../src/main';
 import { CITY_VIEW_TYPE } from '../../src/host/city-view';
 import { CodebaseInspectorSettingTab } from '../../src/host/settings-tab';
@@ -36,6 +37,13 @@ function makeApp() {
     saveLocalStorage: vi.fn((key: string, data: unknown) => { localStorage.set(key, data); }),
   };
 }
+
+// This project runs in plain Node, where `window` does not exist. onunload now reaches for
+// the main window (GCP6, below), so every test starts with an empty one; the marker tests
+// replace it with their own. Platform.isDesktopApp was read at module load, long before
+// this stub, so nothing else in onload sees it.
+beforeEach(() => { vi.stubGlobal('window', {}); });
+afterEach(() => { vi.unstubAllGlobals(); });
 
 type PluginDouble = CodebaseInspectorPlugin & {
   app: ReturnType<typeof makeApp>;
@@ -157,6 +165,28 @@ describe('onload', () => {
   it('types onunload as void, so teardown is never awaited', () => {
     const p = makePluginDouble();
     expect(p.onunload()).toBeUndefined();
+  });
+
+  // Gap closure GCP6. Three.js writes `window.__THREE__ = REVISION` as it evaluates and
+  // warns about "multiple instances" when it finds one, so a plugin reload in one session
+  // warned about a bundle that was in fact unloaded. Unload clears OUR marker, and only ours.
+  it('GCP6: onunload clears the Three.js marker this bundle wrote', () => {
+    const marker: { __THREE__?: unknown } = { __THREE__: REVISION };
+    vi.stubGlobal('window', marker);
+    const p = makePluginDouble();
+    p.onload();
+    p.onunload();
+    expect(marker.__THREE__).toBeUndefined();
+  });
+
+  it('GCP6: onunload leaves a marker written by another Three.js revision alone', () => {
+    const foreign = REVISION === '185' ? '184' : '185';
+    const marker: { __THREE__?: unknown } = { __THREE__: foreign };
+    vi.stubGlobal('window', marker);
+    const p = makePluginDouble();
+    p.onload();
+    p.onunload();
+    expect(marker.__THREE__).toBe(foreign);
   });
 });
 

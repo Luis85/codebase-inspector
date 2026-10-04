@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { fileURLToPath } from 'node:url';
 import { builtinModules } from 'node:module';
+import { piniaSaveAsPure } from './scripts/pinia-saveas-pure.mjs';
 
 // Both forms, so a transitive dependency referencing either is not bundled.
 const nodeBuiltins = [...builtinModules, ...builtinModules.map((m) => `node:${m}`)];
@@ -12,7 +13,8 @@ const CODEMIRROR = ['@codemirror/autocomplete', '@codemirror/collab', '@codemirr
 const LEZER = ['@lezer/common', '@lezer/highlight', '@lezer/lr'];
 
 export default defineConfig({
-  plugins: [vue()],
+  // GRA10/B23: piniaSaveAsPure() lets Rollup drop pinia's dead FileSaver XHR island.
+  plugins: [piniaSaveAsPure(), vue()],
   // Guards the r186 CommonJS deprecation: never let the bundler resolve the `require`
   // condition, which would pull build/three.cjs — a process.emitWarning stub.
   resolve: { conditions: ['import', 'module', 'browser', 'default'] },

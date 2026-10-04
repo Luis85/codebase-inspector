@@ -8,6 +8,7 @@
 // listener per leaf (its unknown-view pane's, registered from app.js during the swap). Scenario 1 measures that
 // cost on the core Outline view in the same test and allows exactly it per city leaf, never anything else.
 import type { EventRef } from 'obsidian';
+import { REVISION } from 'three';
 import { describe, expect } from 'vitest';
 import { INVESTIGATE_ROW_DISPOSITION, INVESTIGATE_WORK_ITEM_LINE, NOTES_FOLDER_SETTING_NAME } from '../../src/ui/audit-copy/investigation';
 import { FINDING_DIALOG_REASON, FINDING_STATUS_LABEL } from '../../src/ui/audit-copy/quality';
@@ -26,7 +27,8 @@ import { RECORDING, copyProject, cycleFinding, unusedExportFinding } from './wor
 type ProbeWindow = Window & { ciProbeRef?: EventRef; ciProbeInterval?: number };
 /** FM11: `app.vault`'s internal event-emitter shape, cast at both probe sites below. */
 type EventsTable = { _: Record<string, unknown> };
-interface HostState { cityLeaves: number; leafTypes: string[]; roots: number; canvases: number; allCanvases: number }
+/** `three` is the page's `window.__THREE__` marker (GCP6), or null when it is absent. */
+interface HostState { cityLeaves: number; leafTypes: string[]; roots: number; canvases: number; allCanvases: number; three: unknown }
 interface SavedReviews { dispositions?: Record<string, unknown>[]; workItems?: Record<string, unknown>[] }
 
 /** plugin-data-binding-store.ts's MACHINE_ID_KEY (not exported): a storage key, not a word on screen. */
@@ -37,7 +39,7 @@ const DISPOSITION = 'acknowledged';
 /** The note index's four registerEvent listeners (investigation-note-index.ts), started by Investigate. */
 const NOTE_INDEX_EVENTS = ['metadataCache:changed', 'metadataCache:resolved', 'vault:delete', 'vault:rename'];
 
-/** Probe b plus the DOM: the city leaves, every leaf's view type, and the plugin's roots and canvases. */
+/** Probe b plus the DOM: the city leaves, every leaf's view type, the plugin's roots and canvases, and Three.js's marker. */
 function hostState(browser: NativeBrowser): Promise<HostState> {
   return browser.executeObsidian(({ app }, type): HostState => {
     const leafTypes: string[] = [];
@@ -47,6 +49,7 @@ function hostState(browser: NativeBrowser): Promise<HostState> {
       roots: document.querySelectorAll('.codebase-inspector-root').length,
       canvases: document.querySelectorAll('.codebase-inspector-root canvas').length,
       allCanvases: document.querySelectorAll('canvas').length,
+      three: (window as Window & { __THREE__?: unknown }).__THREE__ ?? null,
     };
   }, CITY_VIEW_TYPE);
 }
@@ -109,6 +112,8 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
     // The first enable's precondition: no city leaf exists while disabled (NPF3), so any city leaf after the enable
     // below could only have been opened by the enable itself.
     expect(disabled).toMatchObject({ cityLeaves: 0, roots: 0 });
+    // GCP6: the first disable already released the plugin's own Three.js marker.
+    expect(disabled.three).toBeNull();
     const before = await listenerCounts(browser);
     await trackIntervals(browser);
     // Positive control: an interval made now is counted while live, and not once cleared.
@@ -135,6 +140,9 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
     await expect.poll(async () => (await hostState(browser)).canvases).toBeGreaterThanOrEqual(1);
     const open = await hostState(browser);
     const during = await listenerCounts(browser);
+    // GCP6 positive control: the enabled plugin's Three.js wrote its own marker, so the null after the disable is
+    // a release and not an absence (the first enable re-evaluated the bundle after the first disable cleared it).
+    expect(open.three).toBe(REVISION);
     // Non-vacuous: the open plugin holds each listener the disable must release.
     expect(leakedListeners(before, during)).toEqual(expect.arrayContaining([...NOTE_INDEX_EVENTS, 'workspace:css-change']));
 
@@ -158,6 +166,8 @@ describe('the plugin lifecycle in the real Obsidian host (WP-04.2 NE10, NE11)', 
     expect(growth(before, released)).toEqual(scaled(host.growth, open.cityLeaves));
     expect(intervals).toBe(0);
     expect(after).toMatchObject({ cityLeaves: 0, roots: 0, canvases: 0, allCanvases: disabled.allCanvases });
+    // GCP6: a disable clears the Three.js marker the plugin wrote, so a re-enable does not warn about a double bundle.
+    expect(after.three).toBeNull();
   });
 
   test('keeps profiles, bindings, the notes folder, dispositions and work items across a plugin reload', async ({ native: { browser, page, inspector, directory } }) => {

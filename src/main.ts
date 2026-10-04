@@ -19,6 +19,7 @@ import { createCancellationToken } from './application/scan-coordinator';
 import { watchAnalysisFailures } from './host/analysis-notices';
 import { createInvestigationServices } from './host/investigation-services';
 import type { Clock } from './application/ports/clock';
+import { releaseThreeMarker } from './visualization/three-marker';
 import './ui/styles.css';
 import './ui/styles/kit.css';
 import './ui/styles/shell.css';
@@ -136,5 +137,8 @@ export default class CodebaseInspectorPlugin extends Plugin {
     this.unwatchSettings = null;
     this.analysis?.shutdown();
     this.analysis = null;
+    // GCP6, last: Three.js's own `window.__THREE__` marker, cleared only when it is ours, so a
+    // reload in one session does not warn "multiple instances" about a bundle that is gone.
+    releaseThreeMarker(window as unknown as { __THREE__?: unknown });
   }
 }

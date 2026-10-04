@@ -150,32 +150,39 @@ section, where that gap is stated rather than closed.
   `tests/`. Assessed as an inert accessor rather than a fake feature, and reported
   rather than removed. *Superseded: gap closure Part C (GRC12) deleted it, and it no
   longer ships in the bundle.*
-- **The shipped bundle contains an unreachable FileSaver island.** Pinia's own
-  `dist/pinia.js` is the single entry its `exports` map offers (there is no production
+- **The shipped bundle no longer contains pinia's unreachable FileSaver island.** Pinia's
+  own `dist/pinia.js` is the single entry its `exports` map offers (there is no production
   variant to select), and although the devtools code that uses it is eliminated by the
-  production `NODE_ENV` define, a small download helper survives tree-shaking and
-  carries two `XMLHttpRequest` constructions. It is a closed island: its only caller is
-  itself, verified by counting every reference to each of its symbols in
-  `dist/main.js`. **Two guards stand behind the README's no-network statement, not one,
-  and they cover different things.** `tests/host/clean-vault-install.test.ts` sweeps
+  production `NODE_ENV` define, a small download helper used to survive tree-shaking and
+  carry two `XMLHttpRequest` constructions. It was a closed island: its only caller was
+  itself. *Resolved: gap closure (GRA10, B23).* `scripts/pinia-saveas-pure.mjs` is a
+  `enforce: 'pre'` Vite plugin that rewrites exactly one statement in that one file, pinia's
+  `const saveAs = ...` initialiser, to a `/*#__PURE__*/` call, which lets Rollup drop the
+  unreferenced declaration and the helpers only it reaches. **It fails the build if the
+  statement disappears** (the error names GRA10), so a pinia bump cannot quietly turn the
+  transform into a no-op. **Two guards stand behind the README's no-network statement, not
+  one, and they cover different things.** `tests/host/clean-vault-install.test.ts` sweeps
   `src/`, which reaches no network API at all; `tests/host/build-output.test.ts` sweeps
-  **the shipped artefact** — the bundle's network-API census is pinned to exactly these
-  two `XMLHttpRequest` constructions and zero of `fetch(`, `WebSocket`, `EventSource`,
-  `sendBeacon` and `requestUrl`, and pinia's devtools entry points
-  (`setupDevtoolsPlugin`, `__VUE_DEVTOOLS_GLOBAL_HOOK__`, `devtools`) must be absent,
-  because that devtools path is the only thing that reaches the island. The source sweep
-  alone was not enough: flipping the production `NODE_ENV` define brings the devtools
-  code back with a live `fetch` in it and leaves the source sweep green, which is how the
-  bundle census was verified. **What is pinned is the census and that one route, not
-  reachability in general** — a vendor bump that made the island live without adding an
-  XHR or a devtools hook would still pass. A reviewer grepping the bundle will find the
-  string, so it is written down here rather than discovered there.
-- **The Three.js "multiple instances" warning appears on every re-enable, and its claim
-  is false.** Three sets a marker on `globalThis` the first time its module initialises;
-  Obsidian tears down a disabled plugin's module scope without clearing that marker, so
-  the next enable sees a marker it set itself. One instance re-initialising. It is
-  disclosed rather than suppressed, deliberately: suppressing it would also hide a real
-  double-bundling defect if one ever occurred.
+  **the shipped artefact** — the bundle's network-API census is now pinned to zero
+  `XMLHttpRequest` and zero of `fetch(`, `WebSocket`, `EventSource`, `sendBeacon` and
+  `requestUrl`, and pinia's devtools entry points (`setupDevtoolsPlugin`,
+  `__VUE_DEVTOOLS_GLOBAL_HOOK__`, `devtools`) must stay absent, because flipping the
+  production `NODE_ENV` define would bring the devtools code back with a live `fetch` in it
+  and leave the source sweep green. Its non-vacuity anchor is a pinia member name that
+  survives minification (`$onAction`); pinia's error messages are dev-only and are stripped.
+  **What is pinned is the census, that one route and the transform's needle, not
+  reachability in general.**
+- **The Three.js "multiple instances" warning on re-enable is fixed.** Three sets
+  `window.__THREE__` the first time its module initialises and warns when it finds the
+  marker already set. Obsidian tears down a disabled plugin's module scope without clearing
+  that marker, so the next enable saw a marker it had set itself: one instance
+  re-initialising, and a false claim. *Resolved: gap closure (GCP6), reversing the earlier
+  "disclosed rather than suppressed" stance.* `onunload` now calls `releaseThreeMarker`
+  (`src/visualization/three-marker.ts`) on the main window, which deletes the marker **only
+  when it equals this bundle's own Three.js `REVISION`**. A marker written by a different
+  revision, or by another plugin's Three.js, is left alone, and a genuine double bundle in
+  one session still warns. Verified natively by the plugin-lifecycle scenario, which reads
+  the marker before and after a real disable.
 - **Nothing in the last several rounds was seen in a browser.** The stage-height fix,
   the file-list row rendering and the selected-row highlight all rest on a cascade read
   out of the shipped `obsidian.asar`. The user's retest was positive but was not
