@@ -10,6 +10,7 @@ import { isContained, normalizeAbsolutePath, normalizeRelativePath } from '../..
 // The ONE catalogue, not a second copy of the same sentence -- see scope-modal.ts's
 // own note (task 12, carried finding 3).
 import { COPY_03 } from '../../ui/copy';
+import { labelFor } from '../field-label';
 
 export type SourceMode = 'vault' | 'vault-folder' | 'external';
 
@@ -110,7 +111,7 @@ class SourceModal extends Modal {
     const radio = row.createEl('input', {
       attr: { type: 'radio', name: 'source-mode', value: mode, ...(checked ? { checked: true } : {}) },
     });
-    row.createEl('label', { text: label });
+    labelFor(row.createEl('label', { text: label }), radio, 'ci-source-mode');
     row.createEl('p', { text: description });
     radio.addEventListener('change', () => {
       if (!radio.checked) return;
@@ -123,15 +124,15 @@ class SourceModal extends Modal {
   private renderDetail(): void {
     this.detailEl.empty();
     if (this.mode === 'vault-folder') {
-      this.detailEl.createEl('label', { text: 'Folder path inside this vault' });
-      this.detailEl.createEl('input', {
+      const label = this.detailEl.createEl('label', { text: 'Folder path inside this vault' });
+      labelFor(label, this.detailEl.createEl('input', {
         attr: { type: 'text', placeholder: 'Folder name inside this vault, for example src', 'data-field': 'vault-folder-path' },
-      });
+      }), 'ci-source-path');
     } else if (this.mode === 'external') {
-      this.detailEl.createEl('label', { text: 'Absolute path to the folder' });
-      this.detailEl.createEl('input', {
+      const label = this.detailEl.createEl('label', { text: 'Absolute path to the folder' });
+      labelFor(label, this.detailEl.createEl('input', {
         attr: { type: 'text', placeholder: 'For example, /home/user/project', 'data-field': 'external-path' },
-      });
+      }), 'ci-source-path');
     }
   }
 

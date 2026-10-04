@@ -10,6 +10,7 @@ import type { CodebaseProfile, LocalBinding } from '../domain/model';
 import type { AnalyzerBindingRead } from '../application/analysis/analyzer-record';
 import { FALLOW_TESTED_VERSIONS } from '../application/analysis/fallow-invocation';
 import { COPY_28 } from '../ui/copy';
+import { nameByRow } from './field-label';
 import {
   FALLOW_EXE_INVALID, FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE, FALLOW_EXE_UNSUPPORTED, FALLOW_TRUST_VALUE,
   NOTES_FOLDER_SETTING_DESC, NOTES_FOLDER_SETTING_NAME,
@@ -74,6 +75,7 @@ export const SYMLINK_POLICY_TEXT =
 function renderNameRow(setting: Setting, profile: CodebaseProfile, onChange: (name: string) => void): void {
   setting.setName('Name').setDesc('Shown in the profile list.');
   const input = setting.controlEl.createEl('input', { attr: { type: 'text', value: profile.name } });
+  nameByRow(setting, input);
   input.addEventListener('change', () => { onChange(input.value); });
 }
 
@@ -86,6 +88,7 @@ function renderExclusionsRow(setting: Setting, profile: CodebaseProfile, onChang
   // normalizeExclusion (path-safety.ts) refuses a * or ? with a visible reason.
   setting.setName('Excluded paths').setDesc('One relative path per line.');
   const textarea = setting.controlEl.createEl('textarea', { text: profile.exclusions.join('\n') });
+  nameByRow(setting, textarea);
   textarea.addEventListener('change', () => { onChange(textarea.value); });
 }
 
@@ -96,12 +99,14 @@ function renderExclusionsRow(setting: Setting, profile: CodebaseProfile, onChang
 function renderInvestigationFolderRow(setting: Setting, entry: ProfileEntry, onChange: (rawValue: string) => void): void {
   setting.setName(NOTES_FOLDER_SETTING_NAME).setDesc(NOTES_FOLDER_SETTING_DESC);
   const input = setting.controlEl.createEl('input', { attr: { type: 'text', value: entry.investigationFolder } });
+  nameByRow(setting, input);
   input.addEventListener('change', () => { onChange(input.value); });
 }
 
 function renderMaxFileBytesRow(setting: Setting, profile: CodebaseProfile, onChange: (rawValue: string) => void): void {
   setting.setName('Maximum file size to read').setDesc('Files larger than this are skipped, never truncated.');
   const input = setting.controlEl.createEl('input', { attr: { type: 'number', value: String(profile.maxFileBytes) } });
+  nameByRow(setting, input);
   input.addEventListener('change', () => { onChange(input.value); });
 }
 
@@ -173,6 +178,7 @@ function renderAnalyzerRow(setting: Setting, entry: ProfileEntry, callbacks: Set
 function renderAnalyzerLimitRow(setting: Setting, seconds: number, onChange: (rawValue: string) => void): void {
   setting.setName(SETTINGS_FALLOW_LIMIT_NAME).setDesc(SETTINGS_FALLOW_LIMIT_DESC);
   const input = setting.controlEl.createEl('input', { attr: { type: 'number', min: '10', max: '1800', step: '1', value: String(seconds) } });
+  nameByRow(setting, input);
   input.addEventListener('change', () => { onChange(input.value); });
 }
 

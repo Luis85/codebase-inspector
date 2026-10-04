@@ -8,6 +8,7 @@ import type { App } from 'obsidian';
 import { approve } from '../../application/approval';
 import { CLAIM_READ_ONLY_ACCESS, CLAIM_SOURCE_UNCHANGED, COPY_04, COPY_05, COPY_06, COPY_07 } from '../../ui/copy';
 import { scopeValidationReasons } from '../../domain/validator';
+import { labelFor } from '../field-label';
 import type { Clock } from '../../application/ports/clock';
 import type { AnalysisScope, ApprovedInventoryRun, CodebaseProfile } from '../../domain/model';
 
@@ -132,18 +133,20 @@ class ScopeModal extends Modal {
 
     this.contentEl.createEl('p', { text: `Source: ${this.analysisScope.rootPath}`, cls: 'scope-modal-root' });
 
-    this.contentEl.createEl('label', { text: 'Excluded paths' });
+    const exclusionsLabel = this.contentEl.createEl('label', { text: 'Excluded paths' });
     const exclusions = this.contentEl.createEl('textarea', {
       text: this.analysisScope.exclusions.join('\n'), attr: { 'data-field': 'exclusions' },
     });
+    labelFor(exclusionsLabel, exclusions, 'ci-scope-exclusions');
     exclusions.addEventListener('input', () => {
       this.updateScope({ exclusions: parseExclusions(exclusions.value) });
     });
 
-    this.contentEl.createEl('label', { text: 'Maximum file size to read (bytes)' });
+    const maxBytesLabel = this.contentEl.createEl('label', { text: 'Maximum file size to read (bytes)' });
     const maxBytes = this.contentEl.createEl('input', {
       attr: { type: 'number', value: String(this.analysisScope.maxFileBytes), 'data-field': 'max-file-bytes' },
     });
+    labelFor(maxBytesLabel, maxBytes, 'ci-scope-max-bytes');
     maxBytes.addEventListener('input', () => {
       this.updateScope({ maxFileBytes: Number(maxBytes.value) });
     });
