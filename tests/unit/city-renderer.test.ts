@@ -119,7 +119,7 @@ describe('createCityRenderer', () => {
 function selectionLayoutFixture(): LayoutResult {
   const entityId = 'repo\0file\0src/tall.ts';
   return {
-    snapshotId: 's1', layoutVersion: '1',
+    snapshotId: 's1', layoutVersion: '2',
     lots: [
       { entityId, directoryId: 'repo\0directory\0src',
         center: [0, 3, 0], dimensions: [2, 6, 2], colorKey: CATEGORY_IDS[0], metricState: 'measured' },
@@ -247,7 +247,7 @@ function districtFocusLayoutFixture(): LayoutResult {
   const fileId = 'repo\0file\0src/a.ts';
   const districtId = 'repo\0directory\0src';
   return {
-    snapshotId: 's3', layoutVersion: '1',
+    snapshotId: 's3', layoutVersion: '2',
     lots: [
       { entityId: fileId, directoryId: districtId,
         center: [0, 1, 0], dimensions: [2, 2, 2], colorKey: CATEGORY_IDS[0], metricState: 'measured' },

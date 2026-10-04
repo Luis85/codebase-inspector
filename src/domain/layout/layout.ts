@@ -7,7 +7,7 @@ import type { CityDistrict, CityLot, LayoutResult } from './types';
 import { deriveCap, scaleNameFor, unitForMetric } from './scale';
 import { buildDistrictLayout } from './districts';
 
-const LAYOUT_VERSION = '1';
+const LAYOUT_VERSION = '2';
 
 export type MetricId = 'physical-lines' | 'byte-size';
 

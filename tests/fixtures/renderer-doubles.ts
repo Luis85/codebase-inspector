@@ -17,7 +17,7 @@ const DIR = 'repo\0directory\0src';
 
 export function layoutOf(snapshotId: string, count: number): LayoutResult {
   return {
-    snapshotId, layoutVersion: '1',
+    snapshotId, layoutVersion: '2',
     lots: Array.from({ length: count }, (_, i) => ({
       entityId: ID(`src/f${i}.ts`), directoryId: DIR,
       center: [i * 3, 1, 0] as [number, number, number],

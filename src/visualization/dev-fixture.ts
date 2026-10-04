@@ -41,7 +41,7 @@ export function devFixtureLayout(): LayoutResult {
 
   return {
     snapshotId: 'dev-fixture-snapshot',
-    layoutVersion: '1',
+    layoutVersion: '2',
     lots,
     districts: [{
       directoryId: DIR,

@@ -1,4 +1,4 @@
-// GRA1 / GCO2 / GCP3 -- the F2 baseline: root district occupancy under today's shelf packing, on a frozen real tree.
+// GRA1 / GCO2 / GCP3 -- root district occupancy on a frozen real tree: the F2 shelf baseline and the NFDH adoption (ruling E15).
 //
 // Definition (the F2 note's own wording, docs/superpowers/notes/2026-09-21-wp01b-open-decisions.md §1): "own area" is
 // the root district's extent INCLUDING its 2 x DISTRICT_PADDING border; "used area" is the sum of the root's direct
@@ -14,16 +14,20 @@
 // The note's scan had 1,087 files including untracked ones, and its scope is not recorded.
 //
 // So, per GCP3, the baseline is shelf packing on the plan-base tree: `git ls-files` at 3df98ea, 1,236 paths, frozen in
-// tests/fixtures/real-tree.json, every lot measured (LOT_FOOTPRINT). Root 1624 x 1470, 16 lots and 5 child districts,
-// 127 districts, maximum depth 6: 54.66 % (used 1,304,968 / own 2,387,280). GCO2's adoption bar is this + 10 points.
+// tests/fixtures/real-tree.json, every lot measured (LOT_FOOTPRINT). Under shelf packing the root was 1624 x 1470,
+// 16 lots and 5 child districts, 127 districts, maximum depth 6: 54.66 % (used 1,304,968 / own 2,387,280).
+// GCO2's adoption bar is that + 10 points = 64.66 %. NFDH packing (src/domain/layout/pack.ts, ruling E15) measures
+// NFDH_OCCUPANCY on the same tree, through the real computeLayout.
 import { describe, expect, it } from 'vitest';
 import { computeLayout } from '../../src/domain/layout/layout';
 import { REAL_TREE_PATHS, snapshotFromPaths } from '../fixtures/path-tree';
 import { rootOccupancy } from '../support/occupancy';
 
 const SHELF_BASELINE = 54.66;
+const ADOPTION_FLOOR = SHELF_BASELINE + 10;
+const NFDH_OCCUPANCY = 71.87;
 
-describe('root occupancy on the frozen plan-base tree (GRA1 baseline)', () => {
+describe('root occupancy on the frozen plan-base tree (GRA1)', () => {
   it('measures every one of the 1,236 files as a full LOT_FOOTPRINT lot', () => {
     const layout = computeLayout(snapshotFromPaths(REAL_TREE_PATHS, 'plan-base'));
     expect(REAL_TREE_PATHS).toHaveLength(1236);
@@ -31,9 +35,14 @@ describe('root occupancy on the frozen plan-base tree (GRA1 baseline)', () => {
     expect(layout.lots.every((l) => l.metricState === 'measured' && l.dimensions[0] === 10 && l.dimensions[2] === 10)).toBe(true);
   });
 
-  it(`is ${SHELF_BASELINE} % under shelf packing, to 0.1 points`, () => {
+  it(`clears the adoption bar of ${ADOPTION_FLOOR.toFixed(2)} % (shelf baseline + 10 points)`, () => {
     const layout = computeLayout(snapshotFromPaths(REAL_TREE_PATHS, 'plan-base'));
-    expect(rootOccupancy(layout)).toBeCloseTo(SHELF_BASELINE, 1);
+    expect(rootOccupancy(layout)).toBeGreaterThanOrEqual(ADOPTION_FLOOR);
+  });
+
+  it(`is ${NFDH_OCCUPANCY} % under NFDH packing, to 0.1 points`, () => {
+    const layout = computeLayout(snapshotFromPaths(REAL_TREE_PATHS, 'plan-base'));
+    expect(rootOccupancy(layout)).toBeCloseTo(NFDH_OCCUPANCY, 1);
   });
 
   it('is the same figure for the reversed path list (determinism)', () => {
@@ -41,6 +50,6 @@ describe('root occupancy on the frozen plan-base tree (GRA1 baseline)', () => {
     const forward = rootOccupancy(computeLayout(snapshotFromPaths(REAL_TREE_PATHS, 'plan-base')));
     const backward = rootOccupancy(computeLayout(snapshotFromPaths(reversed, 'plan-base')));
     expect(backward).toBe(forward);
-    expect(backward).toBeCloseTo(SHELF_BASELINE, 1);
+    expect(backward).toBeGreaterThanOrEqual(ADOPTION_FLOOR);
   });
 });

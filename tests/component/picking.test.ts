@@ -53,7 +53,7 @@ function layoutFixture(): LayoutResult {
     colorKey: CATEGORY_IDS[0], metricState: 'measured',
   });
   return {
-    snapshotId: 's1', layoutVersion: '1',
+    snapshotId: 's1', layoutVersion: '2',
     lots: [at('src/domain/model.ts', -6), at('src/domain/layout.ts', 0), at('src/domain/scale.ts', 6)],
     districts: [{
       directoryId: DIR, parentId: null, name: 'domain', depth: 0,
