@@ -100,6 +100,30 @@ Four read-only audits then gave every row its evidence and design. These are the
 |---|---|
 | GCQ2 | **Ruling:** Tasks 7 and 8 also run the axe test files (`tests/component/axe-*.test.ts`) in their per-task gate. — Their component and copy changes can break a passing axe check, and Task 6 lands before them. — None. |
 
+### Part A (2026-10-04 at `20159bc`)
+
+**Consumes names:** checked against the code while planning:
+- `CityViewport.vue` is at 400 lines and frozen. Its local `unavailableReason` is exposed through `defineExpose`, and it injects `'createCityRenderer'`.
+- `makeInertPort` exists.
+- `finishFailed` carries no cause.
+- `runRefresh` never stats the root.
+- `watchPluginData(plugin, keys, listener)` is at `plugin-data-shape.ts:62`.
+- The build-output test lives in `tests/host/`.
+- pinia resolves to `dist/pinia.js`, with the `saveAs` needle at `:174`.
+- `LAYOUT_VERSION` is not persisted.
+- The jsdom host glob already covers the new host test.
+
+**Pair checks:**
+- Tasks 1→2 share the occupancy test.
+- Task 2 changes every later city capture.
+- Tasks 4↔6 both edit `city-view.ts` (297 + ~20 lines, within the 360 budget) and `styles.css`, in disjoint rules.
+- Task 7 produces the `--wide` CLI that Task 8 consumes.
+- Tasks 8–10 all add harness shots.
+- Tasks 6, 11 and 12 all edit LIM.
+- Task 12 runs the full gate at 42 scenarios.
+
+**Result:** 0 blocking, 0 rework. No GCQ ruling was needed.
+
 ## Execution rulings
 
 ### Part D
@@ -205,5 +229,83 @@ The task reviews and the final review triaged these as acceptable follow-ups:
 - axe never mounts the self-violation marker (it is aria-hidden, with visually hidden text); the source preview region could be named by its Panel heading.
 - `selfViolations` counts file-pair edges while the Violations card counts findings, so they differ when one file reaches a same-module target through two specifiers; the matrix marker has no `title`.
 - At 176 px "Your rules violated" wraps to three lines; the card-fit test pins token values as a sanity check, and its local `declared()` duplicates one in `contrast-tokens.test.ts`.
+
+### Part A
+
+| # | Ruling |
+|---|---|
+| Gap-closure E14 | **Ruling:** subagents return their report as text, and the controller saves it to the task's report file. Sections that can be reproduced are condensed; for example, Task 1's spike harness is kept as the NFDH rule plus a description. — The Write tool now refuses report files from subagents. — Low: a condensed report loses detail that the transcript still holds. |
+| Gap-closure E15 | **Ruling (GRA1, GCO2):** adopt NFDH. — All three candidates cleared +10 points, with the root aspect inside 0.7–1.43 and no overlap. NFDH is the simplest (today's shelf loop over a footprint-descending, path-tie-broken order), has the largest gain (54.66 → 71.87 %), and is the cheapest (about 1.2× shelf; skyline is about 15×). — Low: it changes every city capture; the revert is one commit. |
+| Gap-closure E16 | **Ruling:** a refresh-time root-unavailable raises no Notice; COPY-28 in the status banner is the one signal, as GRA4's proof names. — No run starts, so the run status stays as it was. — Low: a user who misses the banner gets no toast. |
+| Gap-closure E17 | **Ruling:** an existing root whose listing fails (readdir EACCES) stays a generic failure in Part A. — "Unreadable" as its own state is GRB17 in Part B. — Low: until then, an unlistable root reads "Scan failed…" instead of COPY-28. |
+| Gap-closure E18 | **Ruling (amends Task 7):** the threshold sweep measures what the threshold gates. For each candidate T it checks the city at content = T (leaf = T + 220, nav inline) on s05 and s07, and the nav band at leaf = T. Topbar clipping in drawer mode at sidebar widths is recorded, not used as threshold input. — The first sweep set leaf = T and so only ever measured the drawer layout, because the `@container` resolves on `.ci-shell__content` (leaf − 220). The corrected sweep found `.ci-inspector__actions` overflowing at every width, which was fixed with `flex-wrap`. — Low: the threshold is set against the content box, and nav-inline moves with it. |
+| Gap-closure E19 | **Ruling:** reopen Task 4 for one fix. The Retry 3D hover paints `--ci-hover`, as contrast decision #4 requires; `contrast-tokens.test.ts` had not been in Task 4's gate. — Low. |
+| Gap-closure E20 | **Ruling (GCO19's optional half):** the selected file's arc lines and cones draw with `depthTest: false` and `renderOrder` 1, with WP-03 N29 and §6 item 6 amended in writing. — The dense-city capture showed the arrowheads, which are the only carrier of direction, hidden behind front-row buildings even after corridor clearance. — Low: an arc can draw over a building that stands in front of its far end. |
+| Gap-closure E21 | **Ruling:** accept the unrequested `.oxlintrc.json` allowance of `no-underscore-dangle` for exactly `__THREE__`. — The name belongs to Three.js. — Low. |
+| Gap-closure E22 | **Ruling:** one `verify` run's single EPERM failure, a temp-folder rename in `tests/integration/scan-lifecycle.test.ts`, is environmental. — No Part A commit touches that area, the runs on either side of it passed on the same tree, and the native gate was never retried. — Low: an intermittent integration failure could hide there. |
+| Gap-closure E23 | **Ruling:** Task 12's per-task review is folded into the final whole-branch review, as in E11. — Low. |
+| Gap-closure E24 | **Ruling:** GRA5's ≥ 1140 px and GRA6's ≥ 320 px both mean the stage's content box (`clientWidth`, which is what `CityViewport` measures). `harness-measure` records it and decides on it. The list percentage moves from 16 % to 15 %. — The border box had read 324 (322 content) at 760, and 1140.2 (1138 content) at 1876. — Low: the list is one point narrower. |
+| Gap-closure E25 | **Ruling:** the one fix wave takes the final review's three Important findings and every deferred minor it promoted, plus a harness-seeded codebase name and occupancy no-overlap and aspect pins. — Each promoted item is a pin that could not fail, or prose that was not literally true. — Low: a larger fix wave, in one commit. |
+| Gap-closure E26 | **Ruling:** after the fix wave, re-run the native gate on the 1.13.4 baseline only. — The wave changed a layout percentage and added a try/catch in picking, both of which reach the real renderer. — Low: a latest-only regression would surface in Part B's gate. |
+| Gap-closure E27 | **Ruling:** three files created in Part A as CRLF (`scripts/harness-measure.mjs`, `tests/component/retry-3d.test.ts`, `tests/unit/investigate-rows.test.ts`) are renormalized to LF in a chore commit (`git diff -w` empty). — The subagents' Write tool produced CRLF, as it did for `tests/harness/fixture.ts` in Task 10. — None. |
+| Gap-closure E28 | **Ruling:** the E27 chore commit's message is amended in place to carry the plan's literal trailer (it was an unpushed tip, and only the message changed; the tree is identical). — The trailer is a Global Constraint. — None. |
+
+**Native and full-suite runs of Part A:**
+- **Tasks 1–11:** no full suite was run during these tasks; each ran its touched and importing test files.
+- **Task 5:** scenario 42 was run alone. RED: the banner was null, because a refresh now reports without failing the run (load 5 %). GREEN: 3/3 (load 13 %).
+- **Task 11:** the unload scenario was run alone. RED: "186" (load 8 %). GREEN: 2/2 (load 16 %).
+- **Task 12:**
+  - `npm run test` exited 1 on the expected count drift only (350 files, 3,935 tests). Z38 ran.
+  - `verify` #1: exit 0, 3,934 passed, 1 skipped. Z38: 20.9; 24.9/16.3/21.4; 24.2/16.1/15.9; 23.9 ms.
+  - `verify` #2: exit 1, the one EPERM failure (E22).
+  - `verify` #3: exit 0, on the same tree.
+  - Native 1.13.4: 42/42 (load 7 %). Native latest (1.13.7): 42/42 (load 10 %).
+  - `test:fallow` 11/11; `analyze` 4; `npm audit` 0 (also with `--omit=dev`).
+- **Final fix wave:**
+  - `npm run test`: exit 0, 3,944 passed, 1 skipped. Z38: 19.6; 22.9/25.0/16.8; 24.9/16.1/21.3; 23.2 ms.
+  - `verify`: exit 0. Z38: 21.9; 21.5/21.6/16.7; 23.1/16.0/16.1; 16.8 ms.
+  - Native 1.13.4 (E26): "Verified 42 executed native Vitest cases, including all 42 required scenarios." (load 10 %).
+- **Z38 across Part A:** it executed and passed in every full-suite run.
+
+**Final whole-branch review (opus, `3df98ea..8e60ccf`): fix wave needed.**
+- It found 0 Critical and 3 Important issues:
+  - the stage-margin evidence quoted the border box;
+  - three LIM and deliverable claims were inaccurate;
+  - three Review Focus pins could not fail (Retry through the host, a two-leaf rename, pointer release without capture).
+- It confirmed:
+  - `CityViewport.vue` is untouched;
+  - the budgets hold;
+  - the §4 amendments are exactly GCN3's;
+  - all 18 trailers are present;
+  - the CRLF notes are intact;
+  - the `city-view` ordering is correct (the guard never blocks the completion refresh).
+- One fix wave (`2ac9772`) and the E27 chore (`ab7d7b6`) followed. The scoped re-review found every Important finding and promoted item addressed. Its one residual was the chore commit's trailer, which a subagent had written as Haiku. The commit was unpushed, so its message was amended in place (Gap-closure E28: message only, tree identical).
+
+**Per-task fix rounds:**
+- Task 5: the lastReactedRun guard. A refresh-time ROOT_UNAVAILABLE had replayed the previous run's notice or republish.
+- Task 6: the name refresh after a late `setState`.
+- Task 10: the fixture line endings, truthful tower corridors, and an endpoint-skip control.
+- Task 4's regression fix (E19).
+
+**Commit trailers:** every Part A commit ends with the literal trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>", checked one commit at a time before the push.
+
+### Part A deferred minors
+
+The task reviews and the final review triaged these as acceptable follow-ups:
+- **Layout and threshold:**
+  - `path-tree.ts` reads its JSON via `process.cwd()`.
+  - The threshold sweep's `clipped` check cannot see overflow inside scroll or overflow-hidden descendants, and it has no `!navInline` check at T−1 for candidates above the constant.
+  - The 760 margin is 2 px (content box).
+- **Root-unavailable:**
+  - It outranks no-search-matches in the view-surface priority, so COPY-28 persists while a query has no matches.
+  - The banner persists after the folder returns, until the next scan start (this conforms to the spec).
+  - Scenario 42's no-modal assertion cannot fail on its path; the host tests carry that case.
+- **Reconstruct cap:** "migration does not count" is proven only in the model, not by native event order.
+- **Name:** a later `setState` without a name blanks the toolbar name until the refresh resolves.
+- **Arcs:**
+  - The clearance is guaranteed only at the corridor's midpoint (t = 0.5); this is moot visually since E20.
+  - The arrowhead cones are 1–2 px at fit zoom (recorded in LIM).
+- **Stale "820" in test comments:** in `container-box`, `responsive-floor`, `stage-height`, `use-city-floor`, `welcome-state` and `window-migration` (src is clean).
+- **Narrow widths:** the topbar breadcrumb clips at narrow drawer-mode widths (360, 480 and 700 px looked at; recorded in LIM). This is a follow-up outside Part A's rows.
 
 **Owner action:** this machine's system Node is 24.15.0, so native runs refuse until it is upgraded to Node ≥ 24.16.0 (the current 24 LTS is 24.21.0).
