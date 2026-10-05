@@ -179,14 +179,19 @@ proves both halves: with the **right** name passed, nothing under it is opened; 
 exclude the configured directory" would be indistinguishable from "we exclude a directory
 that happens to be called `.obsidian`".
 
-> **This property is load-bearing and it has a known pending decision against it.**
-> Ruling M108 left the scanner **sequential**. Bounded concurrency measured about four
-> times faster but reads up to *N−1* files after a cancellation — and those reads **enter
-> this read log**. If the user later takes the speed, the read-log property recorded here
-> changes shape: "no excluded path is ever opened" survives, but "a cancelled run opens
-> nothing further" does not. That question is open with the user and carried to
-> checkpoint #4. It is written here rather than buried so the amendment is a one-paragraph
-> edit rather than a re-derivation.
+> **This property is load-bearing, and its cancel half was amended in writing (gap closure
+> GRB2, GCO8, 2026-10-05).** The user took the speed (ruling M108 decided): the walker now
+> prepares up to 8 entries of a directory at once, so by the time a cancel is observed up
+> to 7 entries beyond the one handed over may already have been opened, and those opens
+> **enter this read log**. The sequential guarantee "a cancelled run opens nothing
+> further" is therefore replaced by: **no excluded path is ever opened; nothing new is
+> dispatched after a cancel; in-flight reads drain before the run reports cancelled.**
+> Only the read log's *order* becomes completion-dependent; its contents, and the
+> emission order, are unchanged. Pinned by `tests/integration/walker-concurrency.test.ts`
+> (order under reversed I/O timing, the read log as a multiset, one lstat per entry, and
+> the cancel: no lstat or read after it, reads ≤ 3 + W − 1, the excluded path never
+> opened, nothing in flight at the rejection) and by `tests/unit/inventory-collector.test.ts`
+> (no open dispatched after the cancel).
 
 ### Pruned directories are reported honestly
 

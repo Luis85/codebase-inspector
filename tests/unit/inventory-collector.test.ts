@@ -109,22 +109,37 @@ describe('collectInventory', () => {
   // earlier: reading happens INSIDE the already cancellation-checked walk loop, so this
   // cancels from inside the walk's own iteration instead, after the FIRST kept file has
   // already been yielded (and therefore already read).
-  it('rejects and stops reading further files when cancelled during the walk (which now does the only read)', async () => {
-    const { port, clock } = setUp({
-      'a.ts': 'a\n', 'b.ts': 'b\n', 'c.ts': 'c\n', 'd.ts': 'd\n',
-    });
+  //
+  // Gap closure GRB2 (ruling M108, GCO8): the walk now prepares up to 8 entries of a
+  // directory at once, so by the time the first file reaches this wrapper the rest of
+  // that window may already be open — "opens nothing further" was weakened in writing to
+  // "nothing new is dispatched after a cancel". The fixture is therefore WIDER than the
+  // window (12 files against 8), so the files beyond it are what a walk that kept
+  // dispatching after the cancel would open.
+  it('rejects, and dispatches no open after the cancel, when cancelled during the walk (which does the only read)', async () => {
+    const tree: Record<string, string> = {};
+    for (let i = 0; i < 12; i += 1) tree[`f${String(i).padStart(2, '0')}.ts`] = `${i}\n`;
+    const { port, clock } = setUp(tree);
     const { token, cancel } = createCancellationToken();
     let filesYielded = 0;
+    let opensAtCancel = -1;
     const wrappedPort: SourceFileSystemPort = {
       ...port,
       walk: (root, opts, walkToken) => ({
         async *[Symbol.asyncIterator]() {
           for await (const entry of port.walk(root, opts, walkToken)) {
+            yield entry;
+            // Cancels AFTER the collector has taken the first kept file and asked for
+            // the next entry, so it is the WALK, resuming, that must observe the cancel
+            // and dispatch nothing (cancelling before the hand-over lets the collector
+            // notice first and close the walk without ever resuming it).
             if (entry.kind === 'file') {
               filesYielded += 1;
-              if (filesYielded === 1) cancel();   // fires once the first kept file is read
+              if (filesYielded === 1) {
+                cancel();
+                opensAtCancel = port.readLog().length;
+              }
             }
-            yield entry;
           }
         },
       }),
@@ -132,10 +147,8 @@ describe('collectInventory', () => {
 
     await expect(collectInventory(wrappedPort, SCOPE, APPROVAL, token, clock))
       .rejects.toBeInstanceOf(CancellationError);
-    // Stopped promptly: only the FIRST file was ever read — the walk noticed the
-    // cancellation (checked at the top of its own per-entry loop) before processing a
-    // second entry, not after reading all four kept files (which is what the
-    // uncancelled path would have done).
+    // Stopped promptly: the walk noticed the cancellation before handing over a second
+    // entry, not after reading all twelve kept files.
     expect(filesYielded).toBe(1);
     // Fix wave item 7 (I6 part 1). `filesYielded` alone counts what this test's own
     // wrapper saw; this counts what the PORT actually opened, which is the assertion
@@ -143,8 +156,13 @@ describe('collectInventory', () => {
     // the result was discarded". Both produce a CancellationError, so the rejection
     // above cannot tell them apart -- ruling M41 deferred exactly this distinction to a
     // manual checkpoint line because no test then made it.
-    expect(port.readLog().length).toBeLessThan(4);
-    expect(port.readLog().some((p) => p.endsWith('d.ts'))).toBe(false);
+    // No open dispatched after the cancel: the log is exactly what it was at the cancel.
+    expect(opensAtCancel).toBeGreaterThan(0);
+    expect(port.readLog()).toHaveLength(opensAtCancel);
+    // ...which is at most the root plus one window (an lstat and a read per file), and
+    // never the files beyond that window.
+    expect(port.readLog().length).toBeLessThanOrEqual(1 + 8 * 2);
+    expect(port.readLog().some((p) => p.endsWith('f11.ts'))).toBe(false);
   });
 
   // Fix wave item 7 (I6 part 2): the gap the checks either side of the observation phase

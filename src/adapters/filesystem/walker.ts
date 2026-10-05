@@ -19,7 +19,7 @@ export interface WalkerStats {
 }
 
 // `bytes` travels alongside `text` here because both are needed a moment later, inside
-// `classifyEntry`, to compute `lineCount`/`byteLength` (task 2's own metric functions,
+// `settle`, to compute `lineCount`/`byteLength` (task 2's own metric functions,
 // fix round 4). Neither `text` nor `bytes` themselves leave this module: only the two
 // resulting numbers are carried forward onto the 'file' WalkEntry -- see that type's own
 // comment (source-filesystem-port.ts) for why round 3's original text/bytes-carrying
@@ -101,12 +101,34 @@ function message(e: unknown): string {
 
 interface StackFrame { absPath: string; relPath: string; depth: number }
 
+// Gap closure GRB2 (ruling M108, GCO8): within one directory, up to SCAN_WINDOW upcoming
+// entries are PREPARED at once (lstat, plus readAsText for a regular file within the size
+// cap), always the next ones in index order. Everything observable is still decided one
+// entry at a time, in index order: the emitted entries, the directory pushes onto the
+// stack and the `maxEntries` accounting are exactly what the sequential walk produced
+// (tests/integration/walker-concurrency.test.ts pins them under reversed I/O timing). Only
+// the ORDER of the read log becomes completion-dependent; its contents do not (GCN5).
+const SCAN_WINDOW = 8;
+
+/** What an entry's preparation found. It never rejects: an lstat or read failure is
+ *  carried as `failed` and becomes that entry's own `unreadable` skip, so one bad entry
+ *  cannot drop or reorder the others in its window. */
+type Prepared =
+  | { kind: 'failed'; reason: string }
+  | { kind: 'stat'; stat: WalkerStats; read?: ReadTextOutcome };
+
+/** One dispatched entry. `early` is decided BEFORE anything is opened: a path-safety or
+ *  containment skip, or 'excluded' (yields nothing, opens nothing, logs nothing). */
+interface Slot { relPath: string; absPath: string; early: WalkEntry | 'excluded' | null; prep: Promise<Prepared> | null }
+
 /** Explicit stack, not recursion (task-5 brief step 5, non-negotiable rule) — an
- *  arbitrarily deep real tree must never grow the JS call stack. Cancellation is checked
- *  at every directory boundary (popping a frame, the brief's own non-negotiable minimum)
- *  AND before every single entry within a directory — the entry-level check is stricter
- *  than the brief's stated minimum, added because "stops promptly" (acceptance
- *  criterion 6) means within one entry of a cancel, not within up to `YIELD_EVERY`. */
+ *  arbitrarily deep real tree must never grow the JS call stack. Cancellation (GCO8):
+ *  `throwIfCancelled()` runs before EVERY dispatch, so nothing new is opened once a cancel
+ *  is observed; it also runs at every directory boundary and before every entry is
+ *  consumed ("stops promptly", acceptance criterion 6). Preparations already in flight
+ *  are drained in `finally` before the cancel propagates, so the run reports cancelled
+ *  only after its reads have stopped (spec §7: the UI never claims work stopped before
+ *  the collector confirms it). */
 export async function* walkTree(
   root: string,
   opts: WalkOptions,
@@ -135,118 +157,151 @@ export async function* walkTree(
       // wasDirectory: true (fix-round-1 finding 7) — this path was already yielded once
       // as a 'directory' WalkEntry when it was first discovered as its parent's child;
       // this second, later entry is a DIFFERENT fact ("its contents could not be
-      // enumerated"), not a restatement of the first, so it is not suppressed. What
-      // changes is that the collector can now tell it apart from a skipped FILE and stop
-      // building a `kind: 'file'` entity for a directory.
+      // enumerated"), not a restatement of the first, so it is not suppressed.
       yield { kind: 'skipped', relativePath: frame.relPath, reason: `directory is unreadable: ${message(e)}`, wasDirectory: true };
       continue;
     }
     names.sort();
 
-    for (const name of names) {
-      // Checked before EVERY entry, not only at directory boundaries and per-tick
-      // yields: "stops promptly" (acceptance criterion 6) means within one entry of a
-      // cancel, not within up to YIELD_EVERY of one — throwIfCancelled() itself is a
-      // cheap boolean read (src/application/ports/cancellation-token.ts), so checking
-      // this often costs nothing measurable.
-      token.throwIfCancelled();
-      entryCount += 1;
-      const relPath = frame.relPath ? `${frame.relPath}/${name}` : name;
-      if (entryCount > maxEntries) {
-        yield { kind: 'skipped', relativePath: relPath, reason: `entry limit of ${maxEntries} exceeded` };
-        return;
-      }
-
-      sinceTick += 1;
-      if (sinceTick >= YIELD_EVERY) {
-        sinceTick = 0;
-        await tick();
+    // Entry i of this directory is the walk's (base + i + 1)-th entry: only this
+    // directory's own entries move the count while it is being consumed, so whether an
+    // entry is within `maxEntries` is known before it is dispatched — and once the cap is
+    // reached, nothing further is dispatched at all.
+    const base = entryCount;
+    const withinCap = (i: number): boolean => i < names.length && base + i + 1 <= maxEntries;
+    const queue: Slot[] = [];
+    let dispatched = 0;
+    try {
+      for (let i = 0; i < names.length; i += 1) {
+        while (dispatched < i + SCAN_WINDOW && withinCap(dispatched)) {
+          token.throwIfCancelled();   // the dispatch guard: never open anything after a cancel
+          queue.push(dispatch(root, frame, names[dispatched]!, opts, deps, token));
+          dispatched += 1;
+        }
         token.throwIfCancelled();
-      }
+        entryCount += 1;
+        if (entryCount > maxEntries) {
+          const relPath = frame.relPath ? `${frame.relPath}/${names[i]!}` : names[i]!;
+          yield { kind: 'skipped', relativePath: relPath, reason: `entry limit of ${maxEntries} exceeded` };
+          return;
+        }
 
-      const absPath = deps.joinPath(frame.absPath, name);
-      yield* classifyEntry(root, relPath, absPath, frame.depth, maxDepth, opts, deps, stack);
+        sinceTick += 1;
+        if (sinceTick >= YIELD_EVERY) {
+          sinceTick = 0;
+          await tick();
+          token.throwIfCancelled();
+        }
+
+        // Strictly the oldest slot, which is entry i: results are CONSUMED in index order
+        // however their preparations happened to complete. It leaves the queue only once
+        // settled, so `finally` drains it too if anything throws while it is awaited.
+        const slot = queue[0]!;
+        const prepared = slot.prep ? await slot.prep : null;
+        queue.shift();
+        // A cancel that landed while this entry was being prepared is honoured before
+        // anything the preparation produced is emitted.
+        token.throwIfCancelled();
+        const settled = settle(slot, prepared, frame.depth, maxDepth, opts);
+        if (settled.entry) yield settled.entry;
+        if (settled.descend) stack.push(settled.descend);
+      }
+    } finally {
+      // Drain: a cancel (or a consumer that stops early) propagates only once every
+      // preparation already in flight has settled — none of them is left reading behind
+      // a run that has already reported itself stopped.
+      await Promise.allSettled(queue.flatMap((slot) => (slot.prep ? [slot.prep] : [])));
     }
   }
 }
 
-/** One directory entry's full classification pipeline: path safety, containment,
- *  exclusion (rule: applied before opening anything), symlink, size, content. Split out
- *  of walkTree to keep both functions under the 400-line file limit and each single
- *  responsibility readable on its own. Always yields exactly one WalkEntry, except for
- *  an excluded path (yields nothing at all — pruned, never even logged) and a kept
- *  directory (yields the directory entry, then possibly a second "too deep" skip). */
-async function* classifyEntry(
-  root: string, relPath: string, absPath: string, depth: number, maxDepth: number,
-  opts: WalkOptions, deps: WalkerDeps, stack: StackFrame[],
-): AsyncGenerator<WalkEntry> {
+function dispatch(
+  root: string, frame: StackFrame, name: string, opts: WalkOptions, deps: WalkerDeps, token: CancellationToken,
+): Slot {
+  const relPath = frame.relPath ? `${frame.relPath}/${name}` : name;
+  const absPath = deps.joinPath(frame.absPath, name);
+  const early = precheck(root, relPath, absPath, opts, deps);
+  if (early !== null) return { relPath, absPath, early, prep: null };
+  return { relPath, absPath, early: null, prep: prepare(absPath, opts, deps, token) };
+}
+
+/** Path safety, containment and exclusion, in that order — all decided before anything is
+ *  opened for `absPath` (non-negotiable rule): an excluded path never reaches `onOpen`, so
+ *  it never appears in readLog() (tests/integration/read-log.test.ts). */
+function precheck(
+  root: string, relPath: string, absPath: string, opts: WalkOptions, deps: WalkerDeps,
+): WalkEntry | 'excluded' | null {
   try {
     normalizeRelativePath(relPath);
   } catch (e) {
-    yield { kind: 'skipped', relativePath: relPath, reason: `unsafe path: ${message(e)}` };
-    return;
+    return { kind: 'skipped', relativePath: relPath, reason: `unsafe path: ${message(e)}` };
   }
-  // Containment is checked on every entry, before any read (non-negotiable rule).
   if (!isContained(root, absPath, { caseSensitive: deps.caseSensitive })) {
-    yield { kind: 'skipped', relativePath: relPath, reason: 'resolves outside the approved root' };
-    return;
+    return { kind: 'skipped', relativePath: relPath, reason: 'resolves outside the approved root' };
   }
-  // Exclusions are applied before opening anything: no onOpen call above this line for
-  // `absPath` itself, so an excluded path never appears in readLog() (proved by
-  // tests/integration/read-log.test.ts).
-  if (isExcluded(relPath, opts.exclusions, deps.caseSensitive)) return;
+  if (isExcluded(relPath, opts.exclusions, deps.caseSensitive)) return 'excluded';
+  return null;
+}
 
+/** The I/O for one entry: one lstat, then — only for a regular file within the size cap —
+ *  one readAsText. A cancel observed between the two starts no read: the preparation
+ *  settles at once and walkTree's own check throws before its result is ever used. */
+async function prepare(absPath: string, opts: WalkOptions, deps: WalkerDeps, token: CancellationToken): Promise<Prepared> {
   let stat: WalkerStats;
   try {
     deps.onOpen(absPath);
     stat = await deps.lstat(absPath);
   } catch (e) {
-    yield { kind: 'skipped', relativePath: relPath, reason: `unreadable: ${message(e)}` };
-    return;
+    return { kind: 'failed', reason: `unreadable: ${message(e)}` };
   }
+  if (stat.isSymbolicLink() || !stat.isFile() || stat.size > opts.maxFileBytes) return { kind: 'stat', stat };
+  if (token.cancelled) return { kind: 'stat', stat, read: { ok: false, reason: 'not read: the scan was cancelled' } };
+  try {
+    return { kind: 'stat', stat, read: await deps.readAsText(absPath) };
+  } catch (e) {
+    return { kind: 'failed', reason: `unreadable: ${message(e)}` };
+  }
+}
 
-  if (stat.isSymbolicLink()) {
-    yield { kind: 'skipped', relativePath: relPath, reason: 'symlink: not followed (followSymlinks is false)' };
-    return;
-  }
+/** One entry's classification from what was found, in the sequential walk's exact order:
+ *  symlink, directory (depth), non-file, size, content. Yields exactly one entry, except
+ *  an excluded path (nothing at all — pruned, never even logged). A kept directory is
+ *  returned as `descend`, pushed by walkTree after its entry is yielded. */
+function settle(
+  slot: Slot, prepared: Prepared | null, depth: number, maxDepth: number, opts: WalkOptions,
+): { entry: WalkEntry | null; descend: StackFrame | null } {
+  const { relPath, absPath } = slot;
+  const skip = (reason: string): { entry: WalkEntry; descend: null } =>
+    ({ entry: { kind: 'skipped', relativePath: relPath, reason }, descend: null });
+  if (slot.early === 'excluded') return { entry: null, descend: null };
+  if (slot.early !== null) return { entry: slot.early, descend: null };
+  if (prepared === null) throw new Error(`walker: ${relPath} was opened without a preparation`);
+  if (prepared.kind === 'failed') return skip(prepared.reason);
+  const { stat, read } = prepared;
+  if (stat.isSymbolicLink()) return skip('symlink: not followed (followSymlinks is false)');
   if (stat.isDirectory()) {
-    // Fix-round-1 finding 7: this used to yield BOTH a 'directory' entry AND a
-    // 'skipped' entry for the exact same relativePath, back to back in the same call —
-    // a genuine duplicate (unlike the unreadable-directory case above, these two facts
-    // are discovered at the same instant, not at different times), and the collector
-    // built a mislabelled `kind: 'file'` entity from the second one. At the depth
-    // limit, yield ONLY the 'skipped' entry (marked wasDirectory), never the
-    // 'directory' one — a directory the walk refuses to descend into contributes
-    // nothing else a consumer could use the 'directory' entry for anyway.
+    // Fix-round-1 finding 7: at the depth limit, ONLY the 'skipped' entry (marked
+    // wasDirectory), never ALSO a 'directory' entry for the same path.
     if (depth + 1 > maxDepth) {
-      yield { kind: 'skipped', relativePath: relPath, reason: `exceeds the maximum depth of ${maxDepth}`, wasDirectory: true };
-      return;
+      return { entry: { kind: 'skipped', relativePath: relPath, reason: `exceeds the maximum depth of ${maxDepth}`, wasDirectory: true }, descend: null };
     }
-    yield { kind: 'directory', absolutePath: absPath, relativePath: relPath, byteSize: 0 };
-    stack.push({ absPath, relPath, depth: depth + 1 });
-    return;
+    return {
+      entry: { kind: 'directory', absolutePath: absPath, relativePath: relPath, byteSize: 0 },
+      descend: { absPath, relPath, depth: depth + 1 },
+    };
   }
-  if (!stat.isFile()) {
-    yield { kind: 'skipped', relativePath: relPath, reason: 'not a regular file or directory' };
-    return;
-  }
-  if (stat.size > opts.maxFileBytes) {
-    yield { kind: 'skipped', relativePath: relPath, reason: `exceeds the maximum file size of ${opts.maxFileBytes} bytes` };
-    return;
-  }
-
-  const read = await deps.readAsText(absPath);
-  if (!read.ok) {
-    yield { kind: 'skipped', relativePath: relPath, reason: read.reason };
-    return;
-  }
-  // Fix round 3 (ruling M45), revised fix round 4: carries the MEASUREMENTS this
-  // call's read already makes possible forward on the entry itself -- never the text
-  // or bytes themselves (peak-memory finding, round 4) -- so collectInventory never
-  // opens and re-reads the same file again, without pinning the whole codebase's
-  // decoded content in memory for the length of the walk.
-  yield {
-    kind: 'file', absolutePath: absPath, relativePath: relPath, byteSize: stat.size,
-    lineCount: countPhysicalLines(read.text), byteLength: byteSize(read.bytes),
+  if (!stat.isFile()) return skip('not a regular file or directory');
+  if (stat.size > opts.maxFileBytes) return skip(`exceeds the maximum file size of ${opts.maxFileBytes} bytes`);
+  if (read === undefined) throw new Error(`walker: ${relPath} was prepared without its read`);
+  if (!read.ok) return skip(read.reason);
+  // Fix round 3 (ruling M45), revised fix round 4: carries the MEASUREMENTS forward on
+  // the entry itself -- never the text or bytes -- so collectInventory never re-reads the
+  // file, without pinning the codebase's decoded content in memory for the walk.
+  return {
+    entry: {
+      kind: 'file', absolutePath: absPath, relativePath: relPath, byteSize: stat.size,
+      lineCount: countPhysicalLines(read.text), byteLength: byteSize(read.bytes),
+    },
+    descend: null,
   };
 }

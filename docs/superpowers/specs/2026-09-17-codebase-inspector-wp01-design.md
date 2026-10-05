@@ -996,6 +996,12 @@ section 7 actually requires.
 - `cancelling` is distinct from `cancelled`: publication is forbidden
   immediately, but the UI never claims work stopped before the collector
   confirms it.
+- **What a cancelled scan may have opened.** The scan reads up to 8 entries of
+  a directory at once, so the sequential guarantee "a cancelled run opens
+  nothing further" no longer holds. It is replaced by: no excluded path is ever
+  opened; nothing new is dispatched after a cancel; in-flight reads drain
+  before the run reports cancelled (amended by gap closure GRB2, GCO8,
+  2026-10-05).
 - **Run identity is the full tuple** `{profileId, sourceFingerprint,
   scopeFingerprint, runId, generation}`. A result may publish only if every
   identity still matches, cancellation has not invalidated it, and validation
