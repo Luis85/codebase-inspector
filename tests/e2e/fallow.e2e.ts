@@ -27,7 +27,10 @@ import type { InspectorPage } from './inspector';
 import type { NativeBrowser } from './session';
 import { copyProject, expectedFindingCount, writeSyntheticTree } from './workspace-files';
 
-interface SavedAnalyzer { executablePath: string; trust: { version: string } | null }
+/** Gap closure GRB10/E47: one device's binding inside a v2 analyzer record. */
+interface DeviceAnalyzer { executablePath: string; trust: { version: string } | null }
+/** The v2 analyzer record: `{ v: 2, provider: 'fallow', devices: { [machineId]: DeviceAnalyzer } }`. */
+interface SavedAnalyzer { v: number; provider: string; devices: Record<string, DeviceAnalyzer> }
 
 /** NPF8: the tree for cancel-fallow-analysis (an uncancelled run took about 11 s), and the shortest uncancelled run
  *  that leaves a window to cancel in. */
@@ -39,9 +42,18 @@ const RUN_TIMEOUT = { timeout: 120_000 };
 const vaultHas = async (browser: NativeBrowser, path: string): Promise<boolean> =>
   Boolean(await browser.executeObsidian(({ app }, target) => app.vault.adapter.exists(target), path));
 
-/** This device's analyzer records in a pluginData read (main window), by profile id; undefined before any trust. */
+/** The analyzer records in a pluginData read (main window), by profile id; undefined before any trust. */
 const analyzersOf = (data: Record<string, unknown>): Record<string, SavedAnalyzer> | undefined =>
   data.analyzers as Record<string, SavedAnalyzer> | undefined;
+
+/** E47: a profile's v2 record holds exactly one device entry here (one test machine), and that entry is returned. */
+function onlyDevice(record: SavedAnalyzer | undefined): DeviceAnalyzer | undefined {
+  expect(record?.v).toBe(2);
+  expect(record?.provider).toBe('fallow');
+  const devices = Object.values(record?.devices ?? {});
+  expect(devices).toHaveLength(1);
+  return devices[0];
+}
 
 /** Data & scans, where the fallow card and its run panel are. */
 async function openSources(inspector: InspectorPage): Promise<void> {
@@ -75,7 +87,8 @@ describe('the installed fallow run by command id in the real Obsidian host (WP-0
     await expect.poll(() => inspector.fallowCollectedAt(), RUN_TIMEOUT).not.toBeNull();
     await expect.poll(() => commandAvailable(browser, 'cancel-fallow-analysis')).toBe(false);
     const ran = await pluginData(browser);
-    const version = analyzersOf(ran)?.[onlyProfile(ran).profileId]?.trust?.version ?? null;
+    const record = analyzersOf(ran)?.[onlyProfile(ran).profileId];
+    const version = Object.values(record?.devices ?? {})[0]?.trust?.version ?? null;
     const card = { banner: await inspector.fallowBanner(), collectedAt: await inspector.fallowCollectedAt() };
 
     // Investigate lists the findings the recording's normaliser gives this project, every page shown.
@@ -84,6 +97,7 @@ describe('the installed fallow run by command id in the real Obsidian host (WP-0
     await writeEvidence(directory, 'fallow-run', {
       binary, version, tested: FALLOW_TESTED_VERSIONS, ...card, listed, expected,
     });
+    expect(onlyDevice(record)?.executablePath).toBe(binary);
     expect(version).not.toBeNull();
     expect(listed).toBe(expected);
     // Each listed finding came from this run: its evidence says origin collected.
@@ -186,9 +200,9 @@ describe('the installed fallow run by command id in the real Obsidian host (WP-0
     await inspector.trustAndRun();
     await expect.poll(() => inspector.fallowCollectedAt(), RUN_TIMEOUT).not.toBeNull();
     // Positive control: the trust wrote this codebase's executable and its trust to data.json.
-    const record = analyzersOf(await pluginData(browser))?.[profile.profileId];
-    expect(record?.executablePath).toBe(binary);
-    const version = record?.trust?.version ?? '';
+    const device = onlyDevice(analyzersOf(await pluginData(browser))?.[profile.profileId]);
+    expect(device?.executablePath).toBe(binary);
+    const version = device?.trust?.version ?? '';
     expect(version).toMatch(/^\d+\.\d+\.\d+$/u);
     const trust = FALLOW_TRUST_VALUE(version, FALLOW_TESTED_VERSIONS.includes(version));
 
@@ -199,6 +213,6 @@ describe('the installed fallow run by command id in the real Obsidian host (WP-0
     expect(shown.startsWith(binary)).toBe(true);
     expect(shown.endsWith(trust)).toBe(true);
     await closeSettings(browser);
-    await writeEvidence(directory, 'settings-analyzer', { binary, record, shown });
+    await writeEvidence(directory, 'settings-analyzer', { binary, record: device, shown });
   }, 300_000);
 });

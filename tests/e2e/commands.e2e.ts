@@ -27,8 +27,9 @@ import { RECORDING, copyProject, cycleFinding, expectedFindingCount, writeSynthe
 /** NPF12: the plugin's own ribbon label (main.ts's addRibbonIcon). */
 const RIBBON = '.side-dock-ribbon-action[aria-label="Open codebase city"]';
 /** WP-04.2 E8 (amends NPF8): the synthetic tree for cancel-scan, sized so an uncancelled REFRESH takes about 3 s, and
- *  the shortest uncancelled run that leaves a window to cancel in. */
-const SYNTHETIC_FILES = 4_000;
+ *  the shortest uncancelled run that leaves a window to cancel in. Gap closure E47: the walker's window of 8 (GRB2)
+ *  made the 4,000-file refresh 907 ms, so the tree grew until a refresh measured at least 3 s again. */
+const SYNTHETIC_FILES = 14_000;
 const MIN_WINDOW_MS = 2_000;
 
 const cityLeaves = (browser: NativeBrowser): Promise<number> =>
