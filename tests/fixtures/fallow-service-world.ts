@@ -20,9 +20,12 @@ export const SNAPSHOT = snapshotWithPaths(FIXTURE_PROJECT_FILES, 'p1');
 export const ROOT = SNAPSHOT.scope.rootPath;
 export const EXE = '/opt/fallow/bin/fallow';
 export const subjectOf = (facts = factsFor(EXE)): TrustSubject => ({ profileId: 'p1', machineId: 'm', rootPath: ROOT, args: FALLOW_RUN_ARGS(ROOT), facts });
-/** A SourceFileSystemPort whose `stat` answers for the root; the other members are unused here. */
-export const dirPort = (exists: () => boolean): SourceFileSystemPort => ({
-  stat: () => Promise.resolve({ exists: exists(), isDirectory: exists(), isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 }),
+/** A SourceFileSystemPort whose `stat` answers for the root; the other members are unused here.
+ *  GRB9: a path ending in one of `configNames` answers as a regular file, any other as the root. */
+export const dirPort = (exists: () => boolean, configNames: () => readonly string[] = () => []): SourceFileSystemPort => ({
+  stat: (absPath: string) => (configNames().some((n) => absPath.endsWith(`/${n}`) || absPath.endsWith(`\\${n}`))
+    ? Promise.resolve({ exists: true, isDirectory: false, isFile: true, isSymbolicLink: false, size: 1, mtimeMs: 0 })
+    : Promise.resolve({ exists: exists(), isDirectory: exists(), isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 })),
 }) as unknown as SourceFileSystemPort;
 
 export function createServiceWorld(store: AnalyzerBindingStore = createInMemoryAnalyzerStore('m')) {
@@ -34,10 +37,11 @@ export function createServiceWorld(store: AnalyzerBindingStore = createInMemoryA
   const coordinator = new AnalysisCoordinator({ process, evidence, snapshots, clock, createCancellationToken });
   const inspector = createFakeExecutableInspector('fallow');
   const root = { exists: true };
+  const config = { names: [] as string[] };
   const service = createFallowAnalysisService({
-    store, inspector, coordinator, snapshots, getFilesystem: () => dirPort(() => root.exists), machineId: 'm', clock,
+    store, inspector, coordinator, snapshots, getFilesystem: () => dirPort(() => root.exists, () => config.names), machineId: 'm', clock,
   });
-  return { process, evidence, snapshots, coordinator, store, inspector, root, service };
+  return { process, evidence, snapshots, coordinator, store, inspector, root, config, service };
 }
 
 export type ServiceWorld = ReturnType<typeof createServiceWorld>;

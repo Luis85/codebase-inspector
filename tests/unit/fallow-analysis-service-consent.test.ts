@@ -28,7 +28,7 @@ describe('Polish B1: the busy re-check before the bind', () => {
     const review = await reviewed(s);
     const inspect = s.inspector.answer;
     s.inspector.answer = (path) => {
-      s.coordinator.start({ subject: subjectOf(factsFor(OLD_EXE)), snapshotId: SNAPSHOT.snapshotId, timeoutSeconds: 120, onProbePassed: () => Promise.resolve('continue') });
+      s.coordinator.start({ subject: subjectOf(factsFor(OLD_EXE)), snapshotId: SNAPSHOT.snapshotId, timeoutSeconds: 120, configFiles: [], onProbePassed: () => Promise.resolve('continue') });
       return inspect(path);
     };
     expect(await s.service.trustAndRun('p1', SNAPSHOT, review)).toEqual({ kind: 'busy' });

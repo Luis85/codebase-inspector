@@ -17,6 +17,7 @@ import { AnalyzerStoreError, type AnalyzerBinding, type AnalyzerBindingRead } fr
 import { fingerprintTrust, isTrustCurrent, type TrustSubject } from './analyzer-trust';
 import { isActive, type AnalysisRunState } from './analysis-state';
 import type { AnalysisCoordinator } from './analysis-coordinator';
+import { listConfigFiles } from './fallow-config-files';
 import {
   FALLOW_ENV_ALLOW_LIST, FALLOW_RUN_ARGS, FALLOW_TIMEOUT_DEFAULT_S, FALLOW_VERSION_ARGS, isValidTimeoutSeconds,
 } from './fallow-invocation';
@@ -209,9 +210,15 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
     };
   }
 
-  function startPlan(profileId: string, snapshot: CodebaseSnapshot, subject: TrustSubject, timeoutSeconds: number, trustedVersion: string | null): TrustAndRunOutcome {
+  /** GRB9 (GCQ5): the fallow config files in the root, listed before the run starts. */
+  const configFilesOf = (rootPath: string): Promise<readonly string[]> => listConfigFiles(deps.getFilesystem(), rootPath);
+
+  function startPlan(
+    profileId: string, snapshot: CodebaseSnapshot, subject: TrustSubject, timeoutSeconds: number, trustedVersion: string | null,
+    configFiles: readonly string[],
+  ): TrustAndRunOutcome {
     const started = coordinator.start({
-      subject, snapshotId: snapshot.snapshotId, timeoutSeconds,
+      subject, snapshotId: snapshot.snapshotId, timeoutSeconds, configFiles,
       onProbePassed: async (version) => {
         try {
           if (trustedVersion === null) {
@@ -260,9 +267,10 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
     run: (profileId, snapshot) => reserve(profileId, async () => {
       if (!isLatest(profileId, snapshot)) return { kind: 'refused', code: 'snapshot-changed', detail: '' };
       const checked = await precheck(profileId, snapshot);
+      const configFiles = checked.kind === 'trusted' ? await configFilesOf(checked.subject.rootPath) : [];
       if (purged(profileId)) return REMOVED;
       switch (checked.kind) {
-        case 'trusted': return startPlan(profileId, snapshot, checked.subject, checked.binding.timeoutSeconds, checked.version);
+        case 'trusted': return startPlan(profileId, snapshot, checked.subject, checked.binding.timeoutSeconds, checked.version, configFiles);
         case 'review': return { kind: 'review', review: checked.review, reason: checked.reason };
         case 'unbound': return { kind: 'choose-executable', read: checked.read };
         default: return checked;
@@ -280,6 +288,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
       if (!inspection.ok) return { kind: 'refused', ...refusalOf(inspection) };
       const subject = subjectOf(profileId, snapshot, inspection.facts);
       if (fingerprintTrust(subject, '') !== reviewed.subjectFingerprint) return { kind: 'refused', code: 'changed-since-review', detail: '' };
+      const configFiles = await configFilesOf(subject.rootPath);
       // Polish B1, defence in depth: the reservation keeps the service's own starts out; this
       // still refuses a run started on the coordinator directly during the awaits above.
       if (isActive(coordinator.stateOf(profileId))) return { kind: 'busy' };
@@ -295,7 +304,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
       const bound = await store.read(profileId);
       if (purged(profileId)) { await store.purge(profileId); return REMOVED; }
       const timeoutSeconds = bound.kind === 'bound' ? bound.binding.timeoutSeconds : FALLOW_TIMEOUT_DEFAULT_S;
-      return startPlan(profileId, snapshot, subject, timeoutSeconds, null);
+      return startPlan(profileId, snapshot, subject, timeoutSeconds, null, configFiles);
     }),
 
     cancel(profileId) {

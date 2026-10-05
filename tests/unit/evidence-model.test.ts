@@ -18,7 +18,7 @@ describe('originOf (Z25)', () => {
       collected: {
         origin: 'collected', sourceMatch: 'verified', runId: 'r1', rootPath: 'C:\\repo', executablePath: 'C:\\Tools\\fallow\\fallow.exe',
         args: ['--format', 'json', '--no-cache', '--quiet', '--root', 'C:\\repo'], exitCode: 1,
-        startedAt: '2026-09-23T10:00:00.000Z', durationMs: 900, versionTested: true,
+        startedAt: '2026-09-23T10:00:00.000Z', durationMs: 900, versionTested: true, configFiles: [],
       },
     };
     expect(originOf(collected)).toBe('collected');

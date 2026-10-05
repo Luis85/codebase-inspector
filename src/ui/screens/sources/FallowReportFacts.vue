@@ -5,7 +5,7 @@
 import { computed } from 'vue';
 import { formatAbsoluteTime } from '../../copy';
 import {
-  FALLOW_CATEGORY_LINE, FALLOW_MATCHED, FALLOW_NONE, FALLOW_NOT_SHOWN_ITEM, FALLOW_REPORT_VALUE, FALLOW_ROW_CATEGORIES,
+  FALLOW_CATEGORY_LINE, FALLOW_CONFIG_FILES, FALLOW_CONFIG_NONE, FALLOW_ROW_CONFIG, FALLOW_MATCHED, FALLOW_NONE, FALLOW_NOT_SHOWN_ITEM, FALLOW_REPORT_VALUE, FALLOW_ROW_CATEGORIES,
   FALLOW_ROW_COLLECTED, FALLOW_ROW_EXECUTABLE, FALLOW_ROW_FILE, FALLOW_ROW_IMPORTED, FALLOW_ROW_MATCHED, FALLOW_ROW_NOT_SHOWN,
   FALLOW_ROW_REPORT, FALLOW_ROW_UNMATCHED, FALLOW_ROW_WARNINGS, FALLOW_NOT_SHOWN_SUMMARY, FALLOW_UNMATCHED_SUMMARY,
   FALLOW_WARNINGS_SUMMARY, FINDING_KIND_LABEL, fallowNotShownLabel,
@@ -19,6 +19,8 @@ const props = defineProps<{
 }>();
 const importedAt = computed(() => formatAbsoluteTime(props.report.importedAt, Intl));
 const collected = computed(() => props.report.collected !== undefined);
+/** GRB9: a collected run's config files; null for an imported report, which has no root to name. */
+const configFiles = computed(() => props.report.collected?.configFiles ?? null);
 /** WP-03 N11: `notConfigured` (boundaries fallow did not check) wins over the category's
  *  own not-analysed reading. */
 const categories = computed(() => FINDING_CATEGORIES.map((c) => FALLOW_CATEGORY_LINE(
@@ -49,6 +51,12 @@ const warnings = computed(() => props.report.normalized.warnings.slice(0, UNMATC
     <template v-if="showImportedAt">
       <dt>{{ collected ? FALLOW_ROW_COLLECTED : FALLOW_ROW_IMPORTED }}</dt>
       <dd>{{ importedAt }}</dd>
+    </template>
+    <template v-if="configFiles !== null">
+      <dt>{{ FALLOW_ROW_CONFIG }}</dt>
+      <dd class="ci-fallow-facts__config">
+        {{ configFiles.length === 0 ? FALLOW_CONFIG_NONE : FALLOW_CONFIG_FILES(configFiles) }}
+      </dd>
     </template>
     <dt>{{ FALLOW_ROW_CATEGORIES }}</dt>
     <dd class="ci-fallow-facts__categories">

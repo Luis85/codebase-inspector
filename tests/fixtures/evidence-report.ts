@@ -175,7 +175,7 @@ export function collectedEvidenceReport(snapshot: CodebaseSnapshot, versionTeste
     collected: {
       origin: 'collected', sourceMatch: 'verified', runId: 'run-collected', rootPath: snapshot.scope.rootPath,
       executablePath: 'C:\\Tools\\fallow\\fallow.exe', args: ['--format', 'json', '--no-cache', '--quiet', '--root', snapshot.scope.rootPath],
-      exitCode: 0, startedAt: IMPORTED_AT, durationMs: 900, versionTested,
+      exitCode: 0, startedAt: IMPORTED_AT, durationMs: 900, versionTested, configFiles: [],
     },
   };
 }

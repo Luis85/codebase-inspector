@@ -169,7 +169,7 @@ export function demoCollectedReport(snapshot: CodebaseSnapshot): EvidenceReport 
     collected: {
       origin: 'collected', sourceMatch: 'verified', runId: 'harness-fallow-run', rootPath: snapshot.scope.rootPath,
       executablePath: HARNESS_EXECUTABLE, args: FALLOW_RUN_ARGS(snapshot.scope.rootPath), exitCode: 0,
-      startedAt: AT.toISOString(), durationMs: 1_450, versionTested: true,
+      startedAt: AT.toISOString(), durationMs: 1_450, versionTested: true, configFiles: ['.fallowrc.json'],
     },
   };
 }

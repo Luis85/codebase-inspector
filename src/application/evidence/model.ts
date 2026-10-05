@@ -144,6 +144,9 @@ export interface CollectedRunProvenance {
   startedAt: string;
   durationMs: number;
   versionTested: boolean;
+  /** Gap closure GRB9: the fallow config file names found directly in `rootPath` when the run
+   *  started (fallow-config-files.ts), in fallow's precedence order. Empty means none. */
+  configFiles: readonly string[];
 }
 
 export type EvidenceOrigin = 'imported' | 'collected';

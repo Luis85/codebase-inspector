@@ -37,7 +37,7 @@ function setup() {
   return { process, evidence, snapshots, clock, coordinator, seen };
 }
 const plan = (overrides: Partial<RunPlan> = {}): RunPlan => ({
-  subject: SUBJECT, snapshotId: SNAPSHOT.snapshotId, timeoutSeconds: 120,
+  subject: SUBJECT, snapshotId: SNAPSHOT.snapshotId, timeoutSeconds: 120, configFiles: [],
   onProbePassed: () => Promise.resolve('continue'), ...overrides,
 });
 async function probed(s: ReturnType<typeof setup>, p: RunPlan = plan()): Promise<void> {
@@ -67,8 +67,15 @@ describe('AnalysisCoordinator: the happy path (Z21)', () => {
     expect(report?.collected).toEqual({
       origin: 'collected', sourceMatch: 'verified', runId: state.status === 'completed' ? state.runId : '', rootPath: ROOT,
       executablePath: FACTS.executablePath, args: FALLOW_RUN_ARGS(ROOT), exitCode: 0,
-      startedAt: '2026-09-23T10:00:00.000Z', durationMs: 900, versionTested: true,
+      startedAt: '2026-09-23T10:00:00.000Z', durationMs: 900, versionTested: true, configFiles: [],
     });
+  });
+
+  it('GRB9: records the fallow config files the plan names, copied as given (the coordinator reads no filesystem)', async () => {
+    const s = setup();
+    await probed(s, plan({ configFiles: ['.fallowrc.json', 'fallow.toml'] }));
+    await s.process.settle(exitedWith(0, REPORT));
+    expect(s.evidence.get('p1')?.collected?.configFiles).toEqual(['.fallowrc.json', 'fallow.toml']);
   });
 
   it('exit 1 with findings is completed, and records exit code 1', async () => {

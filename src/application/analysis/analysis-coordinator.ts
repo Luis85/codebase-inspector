@@ -28,6 +28,9 @@ export interface RunPlan {
   subject: TrustSubject;
   snapshotId: string;
   timeoutSeconds: number;
+  /** GRB9: the fallow config files in the root, listed by the service before the run and
+   *  recorded as given (this coordinator has no filesystem). */
+  configFiles: readonly string[];
   /** Called once the probe passed, before the analysis (A7). Every verdict but `continue`
    *  ends the run as that (non-operational) failure (Polish B2). */
   onProbePassed: (version: string) => Promise<'continue' | 'version-changed' | 'changed-since-review' | 'store-unsupported'>;
@@ -140,6 +143,7 @@ export class AnalysisCoordinator {
           origin: 'collected', sourceMatch: 'verified', runId, rootPath: root, executablePath: plan.subject.facts.executablePath,
           args: FALLOW_RUN_ARGS(root), exitCode: outcome.kind === 'exited' && outcome.exitCode === 1 ? 1 : 0,
           startedAt, durationMs: this.deps.clock.now().getTime() - startedMs, versionTested: version.tested,
+          configFiles: plan.configFiles,
         },
       };
       const paths = new Set(snapshot.entities.filter((e) => e.kind === 'file').map((e) => e.path));

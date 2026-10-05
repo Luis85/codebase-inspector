@@ -100,6 +100,11 @@ export const FALLOW_BOUNDARIES_NOT_CONFIGURED = 'Boundaries are not configured i
 /** MetricValue provenance detail for an imported or collected value (Y33, Part 7 Z27). */
 export const FALLOW_PROVENANCE_DETAIL = (version: string, origin: EvidenceOrigin = 'imported'): string =>
   (origin === 'collected' ? `collected run ${version}` : `imported report ${version}`);
+/** Gap closure GRB9 (GCN12): the fallow facts' config row, for a collected run only. `files` are the
+ *  names found in the root (fallow-config-files.ts), shown as text. */
+export const FALLOW_ROW_CONFIG = 'Configuration';
+export const FALLOW_CONFIG_FILES = (files: readonly string[]): string => `fallow config files in the root: ${files.join(', ')}`;
+export const FALLOW_CONFIG_NONE = 'No fallow config file in the root';
 /** Overview findings card caption; `high` is already formatted (a count, or the no-value mark). */
 export const OVERVIEW_FINDINGS_CAPTION = (high: string): string => `${high} critical or high severity`;
 /** Overview evidence-coverage row (R6: replaces the sample "Static signals" row). */
