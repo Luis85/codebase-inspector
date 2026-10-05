@@ -24,6 +24,7 @@ import type {
 } from '../application/ports/investigation-notes-port';
 import type { InvestigationFolderStore } from '../adapters/storage/plugin-data-investigation-store';
 import { createNoteIndexSource } from './investigation-note-index';
+import { rewriteFrontmatterLines } from './frontmatter-lines';
 
 export interface InvestigationNotesDeps {
   readonly folders: InvestigationFolderStore; readonly profiles: ProfileStore; readonly clock: Clock;
@@ -224,18 +225,25 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
     if (file === null) return 'missing';
     const record = readNoteFrontmatter(file.path, app.metadataCache.getFileCache(file)?.frontmatter);
     if (record?.kind !== 'linked' || record.link.codebaseId !== request.codebaseId) return 'not-linked';
-    const state = { refused: false };
+    const state = { refused: false, rewritten: false };
     try {
       // IN31: the callback may see newer text than the cache did, so the markers are
       // re-validated here; a refusal returns the text unchanged and is never retried.
       await app.vault.process(file, (data) => {
         const spliced = spliceEvidenceBlock(data, request.block);
-        if (spliced.ok) return spliced.text;
-        state.refused = true;
-        return data;
+        if (!spliced.ok) {
+          state.refused = true;
+          return data;
+        }
+        // GRB5: the two frontmatter lines are rewritten in the same write, so the note's own comments and quoting
+        // survive. A note whose lines cannot be told apart with certainty keeps the processFrontMatter path below.
+        const lines = rewriteFrontmatterLines(spliced.text, { snapshot_id: request.snapshotId, source_path: request.sourcePath });
+        state.rewritten = lines.ok;
+        return lines.ok ? lines.text : spliced.text;
       });
     } catch { return 'write-failed'; }
     if (state.refused) return 'markers-edited';
+    if (state.rewritten) return 'refreshed';
     try {
       // IN32 (IP8): only these two keys change; every other value is kept.
       await app.fileManager.processFrontMatter(file, (frontmatter: unknown) => {

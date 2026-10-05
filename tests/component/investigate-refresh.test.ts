@@ -97,6 +97,8 @@ describe('refreshing a linked note (IN31, IN32; IP8, IP25, E40)', () => {
     const ctx = await setup();
     const { w, fake, path } = ctx;
     await rescan(ctx);
+    // A comment on the snapshot_id line is what sends the refresh to processFrontMatter (GRB5), where `partial` lives.
+    await userEdit(ctx, (text) => text.replace(/^(snapshot_id: .*)$/m, '$1 # kept'));
     vi.spyOn(fake.app.fileManager, 'processFrontMatter').mockRejectedValueOnce(new Error('locked'));
     await click(w, '.ci-notes-panel__refresh');
     await click(w, '.ci-refresh-note__confirm');

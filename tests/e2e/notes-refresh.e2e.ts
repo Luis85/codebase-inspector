@@ -4,6 +4,8 @@
 // a frontmatter update that rejects after the block was spliced is announced as `partial`; the block is new while the
 // frontmatter still names the old snapshot. Scenario 21 (NE14): a note moved into the codebase root is scanned as a
 // file of the codebase and refreshed, and nothing else under the root changes.
+// Scenario 44 (GRB5): a refresh rewrites only the note's snapshot_id and source_path lines, so the person's frontmatter
+// comments and quoting survive it.
 // IPF20: the plugin's words are matched only through the imported copy constants; nothing matches Obsidian's own UI.
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
@@ -13,7 +15,7 @@ import { REFRESH_DONE, REFRESH_MARKERS_EDITED, REFRESH_PARTIAL } from '../../src
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import type { NativeContext } from './fixture';
-import { RECORDING, cycleFinding, hashTree } from './workspace-files';
+import { CYCLE_ANCHOR, RECORDING, cycleFinding, hashTree } from './workspace-files';
 import { noteForCycle, storeSnapshot } from './cycle-note';
 
 type Browser = NativeContext['browser'];
@@ -48,6 +50,21 @@ const restoreFrontMatter = (browser: Browser): Promise<boolean> => browser.execu
   return Object.prototype.hasOwnProperty.call(app.fileManager, 'processFrontMatter');
 });
 
+/** The person's own edit of a note's frontmatter, as a real vault.process: a comment line of their own, and one other key
+ *  single-quoted with a trailing comment. Neither is a key the refresh owns. */
+const COMMENT_LINE = '# the reviewer keeps this comment';
+const QUOTED_LINE = "status: 'open'  # and this one";
+async function editFrontmatter(browser: Browser, path: string): Promise<void> {
+  await browser.executeObsidian(async ({ app }, target, comment, quoted) => {
+    const file = app.vault.getFileByPath(target);
+    if (file === null) throw new Error(`no note at ${target}`);
+    await app.vault.process(file, (text) => text.replace(/^status: .*$/m, `${comment}\n${quoted}`));
+  }, path, COMMENT_LINE, QUOTED_LINE);
+}
+
+/** The note's frontmatter lines, exactly as written (the part between the opening and closing `---`). */
+const frontmatterText = (text: string): string => text.slice(text.indexOf('\n') + 1, text.indexOf('\n---\n', 3));
+
 /** A rescan against the stored scope, the recording again and the same finding: returns the new snapshot id. */
 async function rescanAndReimport({ inspector }: NativeContext): Promise<string | null> {
   const before = await inspector.snapshotId();
@@ -59,7 +76,7 @@ async function rescanAndReimport({ inspector }: NativeContext): Promise<string |
   return next;
 }
 
-describe('refresh outcomes in the real vault (WP-04.2 rows 18, 19, 21)', () => {
+describe('refresh outcomes in the real vault (WP-04.2 rows 18, 19, 21; GRB5)', () => {
   test('refresh refuses a note whose markers were edited and leaves it byte-identical', async ({ native }) => {
     const { browser, inspector, directory } = native;
     const { path } = await noteForCycle(native);
@@ -99,6 +116,12 @@ describe('refresh outcomes in the real vault (WP-04.2 rows 18, 19, 21)', () => {
     const { browser, inspector, directory } = native;
     const { path, snapshot: first } = await noteForCycle(native);
     const next = await rescanAndReimport(native);
+    // A comment on the snapshot_id line sends the refresh to processFrontMatter (GRB5), the only path where `partial` is possible.
+    await browser.executeObsidian(async ({ app }, target) => {
+      const file = app.vault.getFileByPath(target);
+      if (file === null) throw new Error(`no note at ${target}`);
+      await app.vault.process(file, (text) => text.replace(/^(snapshot_id: .*)$/m, '$1 # kept'));
+    }, path);
     const before = await inspector.readNote(path);
     try {
       await rejectFrontMatterOnce(browser);
@@ -184,5 +207,32 @@ describe('refresh outcomes in the real vault (WP-04.2 rows 18, 19, 21)', () => {
     // Positive control: the hash sees the refresh's own write to the note.
     expect(movedHash[inRoot]).toBe(sha256(before));
     expect(noteEntry).not.toBe(movedHash[inRoot]);
+  });
+
+  test('refreshing a note keeps its frontmatter comments and quoting', async ({ native }) => {
+    const { browser, inspector, directory } = native;
+    const { path, snapshot: first } = await noteForCycle(native);
+    await editFrontmatter(browser, path);
+    const before = await inspector.readNote(path);
+    expect(frontmatterText(before)).toContain(COMMENT_LINE);
+    expect(frontmatterText(before)).toContain(QUOTED_LINE);
+    const next = await rescanAndReimport(native);
+    expect(next).not.toBe(first);
+
+    await inspector.refreshNote(path);
+    await expect.poll(() => inspector.announced()).toBe(REFRESH_DONE(path));
+    await expect.poll(async () => (await inspector.frontmatter(path)).snapshot_id).toBe(next);
+    const after = await inspector.readNote(path);
+    const kept = (text: string): string[] => frontmatterText(text).split('\n').filter((l) => !/^(snapshot_id|source_path):/.test(l));
+    await writeEvidence(directory, 'frontmatter-kept', { path, first, next, before, after });
+
+    // Positive control: the two keys the refresh owns are updated (whatever their quoting), and the block is new.
+    expect((await inspector.frontmatter(path)).source_path).toBe(CYCLE_ANCHOR);
+    expect(frontmatterText(after).split('\n').filter((l) => l.startsWith('snapshot_id: '))).toEqual([expect.stringContaining(String(next))]);
+    expect(blockOf(after)).toContain(String(next));
+    // The comment line, the single-quoted key and every other frontmatter line are byte-identical.
+    expect(frontmatterText(after)).toContain(`\n${COMMENT_LINE}\n${QUOTED_LINE}\n`);
+    expect(kept(after)).toEqual(kept(before));
+    expect(afterEnd(after)).toBe(afterEnd(before));
   });
 });
