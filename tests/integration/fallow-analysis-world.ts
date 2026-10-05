@@ -41,7 +41,8 @@ export const pids: number[] = [];
 export const alive = (pid: number): boolean => { try { process.kill(pid, 0); return true; } catch { return false; } };
 export const trackedSpawn: SpawnLike = (command, args, options) => {
   const child = realSpawn(command, args, options);
-  if (child.pid !== undefined) pids.push(child.pid);
+  // E42: only fallow's own spawns (they carry a cwd), never the Windows taskkill a stop now causes.
+  if (child.pid !== undefined && 'cwd' in options) pids.push(child.pid);
   return child;
 };
 

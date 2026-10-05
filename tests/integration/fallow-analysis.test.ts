@@ -153,6 +153,9 @@ describe('the real stack: cancelled or superseded runs never publish (acceptance
     expect(w.service.stateOf('p1').status).toBe('cancelled');
     expect(w.evidence.get('p1')).toBeNull();
     expect(pids).toHaveLength(2);
+    // E42: shutdown settles at once, and on Windows the process dies when the taskkill it
+    // spawned (then the direct kill) lands, a moment later: a deadline, never a fixed sleep.
+    await until(() => !alive(pids[pids.length - 1]!), 'fallow to be gone', 5_000);
     expect(alive(pids[pids.length - 1]!)).toBe(false);
   }, 30_000);
 });
