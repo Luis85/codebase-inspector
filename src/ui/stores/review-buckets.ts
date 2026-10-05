@@ -26,6 +26,8 @@ export interface ReviewBucket {
    *  apply what it listed, and how many loads are still in flight. */
   loadTicket: number;
   loading: number;
+  /** E37: waiters for `loading` to reach 0 (`whenIdle`). */
+  idle: Array<() => void>;
 }
 
 export type ReviewRepositoryFactory = (repositoryId: string) => ReviewRepository;
@@ -39,7 +41,7 @@ export interface BucketState {
 }
 
 const newBucket = (repository: ReviewRepository, ready: boolean): ReviewBucket =>
-  ({ repository: markRaw(repository), ready, ownWrites: 0, loadTicket: 0, loading: 0 });
+  ({ repository: markRaw(repository), ready, ownWrites: 0, loadTicket: 0, loading: 0, idle: [] });
 const inMemoryBucket = (): ReviewBucket => newBucket(createInMemoryReviewRepository(), true);
 
 /** Raw: nothing renders from it. Starts with the unbound `''` bucket. */
@@ -70,23 +72,30 @@ function reloadIfBound(store: Reloadable, bucket: ReviewBucket): void {
 
 /** Polish E4 (L16): an own add or decision, once its write to `repo` has settled. When no load
  *  of the bucket started during the write (`ticket` still current), `upsert` shows it. When one
- *  did, it may reflect another leaf's change that removed the item, so the stored truth is
- *  reloaded as well: the upsert is only the interim, and the reload, applied, replaces the
- *  lists with what is stored (a removal wins). GRB14: the upsert comes first and always, since
- *  a newer load can overtake the reload and then nothing would be applied: the item must show
- *  whichever load wins. Fix round 1: the reload is awaited, so the caller's key stays reserved
- *  until the lists show what was saved (an identical second add is refused meanwhile). A failed reload sets `loadFailed` (R1, which Settings reports); the
+ *  did, it may reflect another leaf's change that removed the item, and an upsert could put it
+ *  back (and `updateWorkItem` would then write it to storage), so nothing is upserted: the
+ *  stored truth is reloaded instead. E37 (GRB14): a newer load can overtake that reload and
+ *  apply nothing, so the caller's key stays reserved until the bucket has no load in flight
+ *  (`whenIdle`): the lists then show a load's stored truth, and an identical second add is
+ *  refused meanwhile. A failed reload sets `loadFailed` (R1, which Settings reports); the
  *  caller still returns what it saved, because the write itself succeeded and reporting a
  *  failure would invite a duplicate retry. Nothing while another codebase is bound (V9).
- *  Not `async`, like ownWrite: it returns the reload for the caller to await, or null, so the
+ *  Not `async`, like ownWrite: it returns the wait for the caller to await, or null, so the
  *  usual upsert path adds no microtask turn before the caller resolves. */
 export function settleOwnWrite(
   store: Reloadable, repo: ReviewRepository, bucket: ReviewBucket, ticket: number, upsert: () => void,
 ): Promise<void> | null {
   if (store.repository !== repo) return null;
-  const reload = bucket.loadTicket !== ticket;
+  if (bucket.loadTicket !== ticket) return store.load().catch(noop).then(() => whenIdle(bucket));
   upsert();
-  return reload ? store.load().catch(noop) : null;
+  return null;
+}
+
+/** E37: resolves once no load of `bucket` is in flight (`endLoad` runs it, failed loads
+ *  included, so a failure releases the wait). Resolves at once when none is. */
+function whenIdle(bucket: ReviewBucket): Promise<void> {
+  if (bucket.loading === 0) return Promise.resolve();
+  return new Promise<void>((resolve) => { bucket.idle.push(resolve); });
 }
 
 /** Task 2 fix round 1: starts a load of `bucket` and returns its ticket. */
@@ -100,6 +109,7 @@ export function beginLoad(bucket: ReviewBucket): number {
  *  (a reload that listed before a newer write) settles without touching the store. */
 export function endLoad(bucket: ReviewBucket, ticket: number): boolean {
   bucket.loading -= 1;
+  if (bucket.loading === 0) bucket.idle.splice(0).forEach((resolve) => { resolve(); });
   return ticket === bucket.loadTicket;
 }
 

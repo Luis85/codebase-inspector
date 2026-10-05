@@ -180,7 +180,7 @@ export const useReviewStore = defineStore('review', {
       try {
         await ownWrite(bucket, () => repo.saveWorkItem(item), this);
         // Part 5 V9: saved in its own codebase either way (so the real result is returned),
-        // but shown only while that codebase is still bound; Polish E4: or reloaded (settleOwnWrite).
+        // but shown only while that codebase is still bound; Polish E4/E37: or reloaded, never upserted.
         const reload = settleOwnWrite(this, repo, bucket, ticket, () => {
           if (!this.workItems.some((w) => w.id === item.id)) this.workItems.push(item);
         });
@@ -321,8 +321,8 @@ export const useReviewStore = defineStore('review', {
       reserve(this.pending, codebase, 'fingerprint', fp);
       try {
         await ownWrite(bucket, () => repo.saveDisposition(disposition), this);
-        // Polish E4 (L16): a load that started during this write reflects another leaf's
-        // change; an upsert now could put back what that change removed (settleOwnWrite).
+        // Polish E4 (L16) / E37: a load that started during this write may reflect another leaf's
+        // removal, so it is reloaded instead of upserted, and the key waits for the newest load.
         const reload = settleOwnWrite(this, repo, bucket, ticket, () => {
           this.dispositions = [...this.dispositions.filter((d) => d.fingerprint !== fp), disposition];
         });

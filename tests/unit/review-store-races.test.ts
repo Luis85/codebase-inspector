@@ -1,5 +1,6 @@
-// Polish E3, E4: the review store refuses a decision before its codebase is read, and never puts
-// back what another leaf removed while its own write was in flight.
+// Polish E3, E4: the review store refuses a decision before its codebase is read, and never shows
+// or writes back what another leaf removed while its own write was in flight (E37: an add a
+// reload overtook keeps its key reserved until the newest load settles; the lists show only stored truth).
 import { describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { createPinia } from 'pinia';
@@ -173,7 +174,29 @@ describe('Polish E4 fix round 1: the add stays reserved until its reload settles
     expect(a.rules).toHaveLength(2);
   });
 
-  it('a newer load that overtakes the settle reload leaves the saved item shown, so a second identical add is refused (GRB14)', async () => {
+  it('an item another leaf removed is never shown again while the settle reload is in flight, so it cannot be written back (E37)', async () => {
+    const { shared, slow, a, b } = await twoLeaves();
+    const adding = a.addWorkItem(FILE_A, 'refactor', 'Split a.ts', new Date(AT));
+    await flushPromises();
+    const id = b.workItems[0]?.id ?? '';
+    expect(id).not.toBe('');
+    expect(await b.removeWorkItem(id)).toBe(true);
+    await flushPromises();   // A's reload of that foreign change lists []
+    expect(a.workItems).toEqual([]);
+    const release = holdListsOf(a);
+    slow.open();
+    await flushPromises();   // A's save settles; the reload that follows is held
+    expect(a.workItems).toEqual([]);   // never an upsert of what was removed
+    expect(await a.updateWorkItem(id, { title: 'Edited' }, new Date(AT))).toBeNull();
+    expect(await shared.listWorkItems()).toEqual([]);
+    release();
+    expect((await adding)?.id).toBe(id);
+    await flushPromises();
+    expect(a.workItems).toEqual([]);
+    expect(await shared.listWorkItems()).toEqual([]);
+  });
+
+  it('a newer load that overtakes the settle reload keeps the add reserved until it lands, so a second identical add is refused (GRB14)', async () => {
     const { shared, slow, a, b } = await twoLeaves(true);
     const adding = a.addWorkItem(FILE_A, 'refactor', 'Split a.ts', new Date(AT));
     await flushPromises();
@@ -192,11 +215,11 @@ describe('Polish E4 fix round 1: the add stays reserved until its reload settles
     await flushPromises();
     expect(gates).toHaveLength(settleLoads + 1);
     gates.slice(0, settleLoads).forEach((g) => { g.open(); });
-    expect((await adding)?.target).toEqual(FILE_A);   // the overtaken settle reload applied nothing...
-    expect(targets(a.workItems)).toContain(FILE_A.entityId);   // ...yet the saved item is shown
+    await flushPromises();   // the overtaken settle reload applied nothing: the add waits for the newest load
     expect(await a.addWorkItem(FILE_A, 'refactor', 'Split a.ts', new Date(AT))).toBeNull();
     gates[settleLoads]?.open();
     await newer;
+    expect((await adding)?.target).toEqual(FILE_A);
     expect(targets(await shared.listWorkItems())).toEqual([FILE_A.entityId, FILE_B.entityId]);
     expect(targets(a.workItems)).toEqual([FILE_A.entityId, FILE_B.entityId]);
   });
