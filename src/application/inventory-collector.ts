@@ -9,6 +9,7 @@ import { validateSnapshot } from '../domain/validator';
 import type {
   AnalysisScope, ApprovedInventoryRun, CodebaseSnapshot, CodeEntity, Observation,
 } from '../domain/model';
+import { wildcardExclusionWarnings } from './scan-warnings';
 import type { SourceFileSystemPort, WalkOptions } from './ports/source-filesystem-port';
 import type { CancellationToken } from './ports/cancellation-token';
 import type { Clock } from './ports/clock';
@@ -253,8 +254,10 @@ export async function collectInventory(
     entities,
     observations,
     fileSetDigest,
+    // GCQ4: completeness comes from the skip reasons alone. A wildcard exclusion is a
+    // settings problem, not missing data, so it joins `warnings` without making this partial.
     completeness: warningReasons.size > 0 ? 'partial' : 'complete',
-    warnings: [...warningReasons],
+    warnings: [...warningReasons, ...wildcardExclusionWarnings(scope.exclusions)],
   };
 
   return validateSnapshot(snapshot);
