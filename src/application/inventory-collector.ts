@@ -2,6 +2,7 @@
 // CodebaseSnapshot (task-5 brief step 9). Publication is task 8's job — this function
 // only produces.
 import { classify } from '../domain/classify';
+import { fnv1a64Hex } from '../domain/hash';
 import { makeEntityId } from '../domain/entity-id';
 import { METRIC_PHYSICAL_LINES, METRIC_BYTE_SIZE } from '../domain/metrics';
 import { validateSnapshot } from '../domain/validator';
@@ -43,20 +44,6 @@ function rootDisplayName(rootPath: string): string {
   const trimmed = rootPath.replace(/[\\/]+$/, '');
   const lastSep = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
   return lastSep === -1 ? trimmed : trimmed.slice(lastSep + 1);
-}
-
-/** A tiny, deterministic, non-cryptographic string hash (FNV-1a), used ONLY for
- *  `fileSetDigest`. Not `entity-id.ts`'s job (identity is explicitly NEVER hashed — spec
- *  4.1) and not a security boundary: this is a change-detection fingerprint over the set
- *  of kept relative paths, cheap enough to not need Node's `crypto` (which
- *  no-nodejs-modules forbids importing anywhere in src/**, this file included). */
-function fnv1a(input: string): string {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
 interface DirectoryPlan { path: string; parentPath: string | null }
@@ -247,7 +234,9 @@ export async function collectInventory(
   checkCancelled(token);
 
   const completedAt = clock.nowIso();
-  const fileSetDigest = fnv1a([...keptFiles.map((f) => f.path), ...skipped.map((s) => s.path)].sort().join('\u0000'));
+  // `fileSetDigest` is a change-detection fingerprint over the set of relative paths, not
+  // an identity (spec 4.1: identity is never hashed) and not a security boundary; 64-bit (GRB11).
+  const fileSetDigest = fnv1a64Hex([...keptFiles.map((f) => f.path), ...skipped.map((s) => s.path)].sort().join('\u0000'));
 
   const snapshot: CodebaseSnapshot = {
     snapshotId: `snapshot:${repositoryId}:${capturedAt}`,

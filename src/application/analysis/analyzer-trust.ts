@@ -3,7 +3,7 @@
 // does not resist a deliberate forgery (spec §6). The time limit is deliberately NOT
 // covered: changing it cannot widen what runs.
 import { fnv1a32Hex } from '../../domain/hash';
-import { fingerprintSource } from '../approval';
+import { normalizeRootForFingerprint } from '../approval';
 import type { ExecutableFacts } from '../ports/executable-inspector';
 
 /** Z1: stored in data.json `analyzers[profileId].trust`, only after the version probe passed. */
@@ -36,8 +36,9 @@ export function fingerprintTrust(subject: TrustSubject, version: string): string
     real: f.realPath,
     size: f.size,
     mtime: Math.trunc(f.mtimeMs),
-    // Case-sensitive on purpose (M29): a root that differs only in case re-asks.
-    root: fingerprintSource(subject.rootPath),
+    // Case-sensitive on purpose (M29): a root that differs only in case re-asks. Stays
+    // 32-bit (GCQ3): this value is persisted, and fingerprintSource is 64-bit now.
+    root: fnv1a32Hex(normalizeRootForFingerprint(subject.rootPath)),
     args: subject.args,
     version,
   }));

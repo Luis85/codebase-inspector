@@ -2,23 +2,8 @@
 // (spec 4.1). ApprovedInventoryRun's five fields are a frozen §4 contract -- this file
 // only produces and validates that shape, never redefines it.
 import type { Clock } from './ports/clock';
+import { fnv1a64Hex } from '../domain/hash';
 import type { AnalysisScope, ApprovedInventoryRun } from '../domain/model';
-
-/** A tiny, deterministic, non-cryptographic string hash (FNV-1a). Same algorithm as
- *  inventory-collector.ts's fnv1a (duplicated rather than imported: that module's copy
- *  is scoped to fileSetDigest, a different concept, and importing across unrelated
- *  application-layer modules for eight lines is not worth the coupling). Not a security
- *  boundary -- a fingerprint exists to detect an incidental change, not to resist a
- *  deliberate forgery, and it costs no Node `crypto` dependency (no-nodejs-modules
- *  forbids importing one anywhere in src/** in any case). */
-function fnv1a(input: string): string {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, '0');
-}
 
 /** Normalises separators and strips a trailing separator, but never folds case.
  *
@@ -33,12 +18,16 @@ function fnv1a(input: string): string {
  *  filesystem access, the fail-safe direction is to invalidate and re-ask -- so this
  *  stays case-SENSITIVE even on a case-insensitive filesystem (ruling M29). Do not "fix"
  *  this to match isContained; the divergence is the point. */
-function normalizeRootForFingerprint(resolvedRoot: string): string {
+export function normalizeRootForFingerprint(resolvedRoot: string): string {
   return resolvedRoot.replace(/\\/g, '/').replace(/\/+$/, '');
 }
 
+/** 64-bit FNV-1a (GRB11), held in memory only. Not a security boundary: a fingerprint
+ *  exists to detect an incidental change, not to resist a deliberate forgery, and it
+ *  costs no Node `crypto` dependency (no-nodejs-modules). The persisted trust fingerprint
+ *  stays 32-bit and no longer borrows this function (GCQ3). */
 export function fingerprintSource(resolvedRoot: string): string {
-  return fnv1a(normalizeRootForFingerprint(resolvedRoot));
+  return fnv1a64Hex(normalizeRootForFingerprint(resolvedRoot));
 }
 
 /** Sorted before hashing, so re-ordering the SAME exclusion set never spuriously
@@ -49,7 +38,7 @@ export function fingerprintScope(scope: AnalysisScope): string {
     maxFileBytes: scope.maxFileBytes,
     followSymlinks: scope.followSymlinks,
   });
-  return fnv1a(payload);
+  return fnv1a64Hex(payload);
 }
 
 /** The ONLY place an ApprovedInventoryRun is constructed. Takes the injected Clock --
