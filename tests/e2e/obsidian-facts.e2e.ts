@@ -212,7 +212,11 @@ describe('Obsidian facts the investigation notes rely on', () => {
   });
 
   test('email addresses stay inert after noteText escaping', async ({ native: { browser, directory } }) => {
-    const forms = { angle: '<a@x.io>', bare: 'a@x.io', escapedAngle: noteText('<a@x.io>'), escapedBare: noteText('a@x.io') };
+    // GRB16: a package scope cannot start an email, so noteText leaves its `@` bare.
+    const forms = {
+      angle: '<a@x.io>', bare: 'a@x.io', escapedAngle: noteText('<a@x.io>'), escapedBare: noteText('a@x.io'),
+      scope: noteText('@scope/pkg'),
+    };
     const reading: Record<string, Awaited<ReturnType<typeof renderReading>>> = {};
     const livePreview: Record<string, Awaited<ReturnType<typeof renderLivePreview>>> = {};
     for (const [name, md] of Object.entries(forms)) {
@@ -225,9 +229,15 @@ describe('Obsidian facts the investigation notes rely on', () => {
     const urlTokens = (name: string) => livePreview[name]?.classes.filter((token) => token.includes('url'));
     for (const selector of EMAIL_SELECTORS) expect.soft(reading.angle?.counts[selector], `control ${selector}`).toBeGreaterThan(0);
     expect.soft(urlTokens('angle'), 'control live-preview url token').not.toEqual([]);
-    for (const name of ['escapedAngle', 'escapedBare']) {
+    for (const name of ['escapedAngle', 'escapedBare', 'scope']) {
       for (const selector of EMAIL_SELECTORS) expect.soft(reading[name]?.counts[selector], `${name} ${selector}`).toBe(0);
       expect.soft(urlTokens(name), `${name} live-preview url token`).toEqual([]);
     }
+    // GRB16: the package scope shows its `@` with no backslash, in the note text and in both views.
+    expect.soft(forms.scope, 'scope note text').toBe('@scope/pkg');
+    expect.soft(reading.scope?.text, 'scope reading text').toContain('@scope/pkg');
+    expect.soft(reading.scope?.text, 'scope reading backslash').not.toContain('\\');
+    expect.soft(livePreview.scope?.text, 'scope live-preview text').toContain('@scope/pkg');
+    expect.soft(livePreview.scope?.text, 'scope live-preview backslash').not.toContain('\\');
   });
 });

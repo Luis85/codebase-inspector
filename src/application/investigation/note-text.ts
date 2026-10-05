@@ -26,7 +26,10 @@ const LINE_BREAKS = new RegExp(`[\\r\\n${LINE_SEPARATOR_CHARS}]+`, 'g');
 // /…/ pattern), so no disable comment is needed here, unlike the old regex literal.
 const INVISIBLE = new RegExp(`[\\u0000-\\u0008\\u000B-\\u001F\\u007F-\\u009F${INVISIBLE_CONTROLS}]`, 'g');
 // NE16 (WP-04 Part 2 Task 11): `@` too — Obsidian autolinks a bare email, and `\<a@x.io\>` still linked natively.
-const PUNCTUATION = /[\\`*_[\]<>#|~=$%^!{}&:@]/g;
+// GRB16: but only an `@` that could START an email is escaped (see EMAIL_LOCAL_PART), so `@scope/pkg` reads without a backslash.
+const PUNCTUATION = /[\\`*_[\]<>#|~=$%^!{}&:]|@/g;
+// The GFM email local-part characters: ASCII letters, digits and .!#$%&'*+/=?^_`{|}~-
+const EMAIL_LOCAL_PART = /[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]/;
 
 function flatten(value: string, max: number): string {
   // Review round 1, finding 6: a caller passing max <= 0 must not turn the cap into a
@@ -41,7 +44,11 @@ export function noteText(value: string, max: number = NOTE_VALUE_MAX): string {
   // Review round 1, finding 2 (WP-04 E4): www. must be escaped wherever it occurs, not only
   // at a word boundary — `\b` failed to match after a leading escaped `_`, so `_www.evil.
   // example` kept its live autolink.
-  const escaped = flatten(value, max).replace(PUNCTUATION, '\\$&').replace(/(www)\./gi, '$1\\.');
+  // GRB16: the `@` test reads the ORIGINAL character before it (`whole[offset - 1]`), never the escaped output.
+  const escaped = flatten(value, max)
+    .replace(PUNCTUATION, (match, offset: number, whole: string) =>
+      match === '@' && !EMAIL_LOCAL_PART.test(whole[offset - 1] ?? '') ? match : `\\${match}`)
+    .replace(/(www)\./gi, '$1\\.');
   return escaped.replace(/^([-+])/, '\\$1').replace(/^(\d+)([.)])/, '$1\\$2');
 }
 
