@@ -68,7 +68,18 @@ describe('decodeAnalyzerRecord (Z2, GRB10)', () => {
     expect(reasonFor({ ...V1, timeoutSeconds: 5 })).toContain('timeoutSeconds');
     expect(reasonFor({ ...V1, extra: 1 })).toContain('extra');
     expect(reasonFor({ v: 2, provider: 'fallow' })).toContain('devices');
-    expect(reasonFor({ v: 2, provider: 'other', devices: {} })).toContain('provider');
+    expect(reasonFor({ v: 2, provider: 'fallow', devices: {}, extra: 1 })).toContain('extra');
+  });
+
+  it('E44 a: an invalid v1 record owned by another device reads none here, and invalid (with its reason) on its owner', () => {
+    const foreign = { ...V1, timeoutSeconds: 5 };
+    expect(decodeAnalyzerRecord({ p1: foreign }, 'p1', B)).toEqual({ kind: 'none' });
+    expect(reasonOf(decodeAnalyzerRecord({ p1: foreign }, 'p1', M))).toContain('timeoutSeconds');
+  });
+
+  it('E44 c: an envelope whose provider is not fallow reads unsupported (v1 and v2)', () => {
+    expect(decodeAnalyzerRecord({ p1: { v: 2, provider: 'x', devices: { [M]: DEVICE } } }, 'p1', M)).toEqual({ kind: 'unsupported' });
+    expect(decodeAnalyzerRecord({ p1: { ...V1, provider: 'x' } }, 'p1', M)).toEqual({ kind: 'unsupported' });
   });
 
   it('never reads an Object.prototype member as a record or a device', () => {
@@ -126,8 +137,37 @@ describe('applyAnalyzerWrite (Z2, Z3, GRB10)', () => {
   it('bind on an invalid v1 record or an invalid envelope replaces it (an explicit user choice)', () => {
     expect(applyAnalyzerWrite({ p1: { ...V1, timeoutSeconds: 5 } }, 'p1', M, { op: 'bind', executablePath: 'D:\\fallow.exe' }))
       .toEqual({ p1: v2({ [M]: { executablePath: 'D:\\fallow.exe', timeoutSeconds: 120, trust: null } }) });
-    expect(applyAnalyzerWrite({ p1: { v: 2, provider: 'x', devices: { [B]: DEVICE } } }, 'p1', M, { op: 'bind', executablePath: 'D:\\fallow.exe' }))
+    expect(applyAnalyzerWrite({ p1: { v: 2, provider: 'fallow', extra: 1, devices: { [B]: DEVICE } } }, 'p1', M, { op: 'bind', executablePath: 'D:\\fallow.exe' }))
       .toEqual({ p1: v2({ [B]: DEVICE, [M]: { executablePath: 'D:\\fallow.exe', timeoutSeconds: 120, trust: null } }) });
+  });
+
+  it('E44 a: bind and forget here leave another device\'s invalid v1 record intact (carried into devices)', () => {
+    const foreign = { ...V1, timeoutSeconds: 5 };
+    const carried = { executablePath: DEVICE.executablePath, timeoutSeconds: 5, trust: TRUST };
+    expect(applyAnalyzerWrite({ p1: foreign }, 'p1', B, { op: 'forget' })).toEqual({ p1: foreign });
+    const afterBind = applyAnalyzerWrite({ p1: foreign }, 'p1', B, { op: 'bind', executablePath: 'D:\\fallow.exe' });
+    expect(afterBind).toEqual({ p1: v2({ [M]: carried, [B]: { executablePath: 'D:\\fallow.exe', timeoutSeconds: 120, trust: null } }) });
+    expect(reasonOf(decodeAnalyzerRecord(afterBind, 'p1', M))).toContain('timeoutSeconds');
+    expect(decodeAnalyzerRecord(afterBind, 'p1', B)).toMatchObject({ kind: 'bound' });
+  });
+
+  it('E44 b: forget on a device with no entry is a no-op whatever the envelope state', () => {
+    for (const entry of [
+      { v: 2, provider: 'fallow', extra: 1, devices: { [B]: DEVICE } },
+      { ...V1, machineId: B, timeoutSeconds: 5 },
+      v2({ [B]: { ...DEVICE, timeoutSeconds: 5 } }),
+    ]) {
+      const slice = { p1: entry };
+      expect(applyAnalyzerWrite(slice, 'p1', M, { op: 'forget' })).toBe(slice);
+    }
+  });
+
+  it('E44 c: a foreign provider refuses every write but purge, so a bind never relabels its entries', () => {
+    const slice = { p1: { v: 2, provider: 'x', devices: { [B]: DEVICE } } };
+    for (const write of [{ op: 'bind', executablePath: 'D:\\fallow.exe' }, { op: 'forget' }, { op: 'revoke' }] as const) {
+      expect(codeOf(() => applyAnalyzerWrite(slice, 'p1', M, write)), write.op).toBe('unsupported');
+    }
+    expect(applyAnalyzerWrite(slice, 'p1', M, { op: 'purge' })).toEqual({});
   });
 
   it('(d) an unsupported entry or slice refuses every write, so it is never overwritten', () => {

@@ -97,6 +97,34 @@ export function runAnalyzerBindingStoreContract(label: string, make: (initial?: 
       });
     });
 
+    it('E44: another device\'s invalid v1 record survives bind and forget here, and reads invalid on its owner', async () => {
+      const foreign = { v: 1, provider: 'fallow', machineId: 'machine-other', executablePath: EXE, timeoutSeconds: 5, trust: null };
+      const { store, slice } = await make({ p1: foreign });
+      expect(await store.read('p1')).toEqual({ kind: 'none' });
+      await store.forget('p1');
+      expect(await slice()).toEqual({ p1: foreign });
+      await store.bind('p1', EXE);
+      expect(await slice()).toEqual({
+        p1: { v: 2, provider: 'fallow', devices: {
+          'machine-other': { executablePath: EXE, timeoutSeconds: 5, trust: null },
+          [CONTRACT_MACHINE]: { executablePath: EXE, timeoutSeconds: 120, trust: null },
+        } },
+      });
+      await store.forget('p1');
+      expect(await slice()).toEqual({ p1: { v: 2, provider: 'fallow', devices: { 'machine-other': { executablePath: EXE, timeoutSeconds: 5, trust: null } } } });
+    });
+
+    it('E44: forget with no device entry on an invalid envelope is a no-op, and a foreign provider is read-only', async () => {
+      const odd = { v: 2, provider: 'fallow', extra: 1, devices: { 'machine-other': { executablePath: EXE, timeoutSeconds: 120, trust: null } } };
+      const foreign = { v: 2, provider: 'x', devices: {} };
+      const { store, slice } = await make({ p1: odd, p2: foreign });
+      await store.forget('p1');
+      expect(await slice()).toEqual({ p1: odd, p2: foreign });
+      expect(await store.read('p2')).toEqual({ kind: 'unsupported' });
+      expect(await codeOf(store.bind('p2', EXE))).toBe('unsupported');
+      expect(await slice()).toEqual({ p1: odd, p2: foreign });
+    });
+
     it('keeps a newer-format record read-only: every write but purge is refused and it stays as it was', async () => {
       const newer = { v: 3, provider: 'fallow', executable: { path: EXE } };
       const { store, slice } = await make({ p1: newer, p2: newer });

@@ -6,7 +6,8 @@
 //   A bind on one device never touches another device's binding.
 // - A v1 record (one device) reads as a one-device v2 and is migrated by the next write on any
 //   device: every write stores v2 and carries the other devices over verbatim (GCN10).
-// - A newer format (`v` neither 1 nor 2, a non-object entry, or a non-object slice) is READ-ONLY:
+// - A newer or foreign format (`v` neither 1 nor 2, a `provider` other than 'fallow', a non-object
+//   entry, or a non-object slice) is READ-ONLY:
 //   every write but purge is refused, so it is never overwritten (Y7's rule, GCQ6).
 // - A malformed entry or device reads as `invalid` with a reason naming the field. It is never
 //   used and is kept as it is; `bind` replaces only this device, `forget` removes only this device.
@@ -110,31 +111,48 @@ function without(record: Record<string, unknown>, key: string): Record<string, u
   return Object.fromEntries(Object.entries(record).filter(([k]) => k !== key));
 }
 
-/** `others` is every OTHER device's binding, verbatim (a malformed one included). */
+/** `others` is every OTHER device's binding, verbatim (a malformed one included). `hasDevice` on
+ *  an invalid entry says whether the fault is this device's (or cannot be pinned on another):
+ *  Forget removes only then, and is otherwise a no-op (E44 b). */
 type ParsedEntry =
   | { status: 'unsupported' }
-  | { status: 'invalid'; reason: string; others: Record<string, unknown> }
+  | { status: 'invalid'; reason: string; others: Record<string, unknown>; hasDevice: boolean }
   | { status: 'ok'; own: Device | undefined; others: Record<string, unknown> };
 
 function parseEntry(entry: unknown, machineId: string): ParsedEntry {
   if (!isPlainObject(entry) || (entry.v !== 1 && entry.v !== 2)) return { status: 'unsupported' };
+  // E44 c: an entry of another provider is not ours to read or relabel (read-only, like a newer v).
+  if (entry.provider !== 'fallow') return { status: 'unsupported' };
   if (entry.v === 1) {
     const parsed = V1.safeParse(entry);
-    if (!parsed.success) return { status: 'invalid', reason: reasonOf(parsed.error), others: {} };
+    if (!parsed.success) {
+      // E44 a: a malformed v1 record whose `machineId` names ANOTHER device is that device's: it reads
+      // as none here and is carried verbatim into devices (its owner then reads it as invalid).
+      const owner = MACHINE_ID.safeParse(entry.machineId);
+      if (owner.success && owner.data !== machineId) {
+        const fields = Object.fromEntries(Object.entries(entry).filter(([key]) => key !== 'v' && key !== 'provider' && key !== 'machineId'));
+        return { status: 'ok', own: undefined, others: { [owner.data]: fields } };
+      }
+      return { status: 'invalid', reason: reasonOf(parsed.error), others: {}, hasDevice: true };
+    }
     const { machineId: owner, executablePath, timeoutSeconds, trust } = parsed.data;
     const device = { executablePath, timeoutSeconds, trust };
     return owner === machineId ? { status: 'ok', own: device, others: {} } : { status: 'ok', own: undefined, others: { [owner]: device } };
   }
   const parsed = V2.safeParse(entry);
   if (!parsed.success) {
-    const others = isPlainObject(entry.devices) ? without(entry.devices, machineId) : {};
-    return { status: 'invalid', reason: reasonOf(parsed.error), others };
+    const { devices } = entry;
+    const attributable = isPlainObject(devices);
+    return {
+      status: 'invalid', reason: reasonOf(parsed.error), others: attributable ? without(devices, machineId) : {},
+      hasDevice: !attributable || hasOwn(devices, machineId),
+    };
   }
   const { devices } = parsed.data;
   const others = without(devices, machineId);
   if (!hasOwn(devices, machineId)) return { status: 'ok', own: undefined, others };
   const own = DEVICE.safeParse(devices[machineId]);
-  if (!own.success) return { status: 'invalid', reason: reasonOf(own.error), others };
+  if (!own.success) return { status: 'invalid', reason: reasonOf(own.error), others, hasDevice: true };
   return { status: 'ok', own: own.data, others };
 }
 
@@ -179,7 +197,7 @@ export function applyAnalyzerWrite(slice: unknown, profileId: string, machineId:
     return withDevice(base, profileId, machineId, parsed.others, device);
   }
   if (write.op === 'forget') {
-    if (parsed.status === 'ok' && own === undefined) return slice;
+    if (parsed.status === 'ok' ? own === undefined : !parsed.hasDevice) return slice;
     if (Object.keys(parsed.others).length === 0) return withoutEntry(base, profileId);
     return { ...withoutEntry(base, profileId), [profileId]: { v: 2, provider: 'fallow', devices: parsed.others } };
   }
