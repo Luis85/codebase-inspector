@@ -59,7 +59,8 @@ function taskkillPath(env: Readonly<Record<string, string | undefined>>): string
 }
 
 /** Polish A6 (L12): the module's own spawn, read, never wrapped in a second call: the
- *  runner's `spawn(…)` in `run` is this file's only spawn call (the guard counts them). */
+ *  runner's `spawn(…)` calls (fallow in `run`, taskkill in `signal`; E41) are this file's
+ *  only two spawn calls (the guard counts them). */
 function defaultSpawn(): SpawnLike | null {
   return childProcess?.spawn ?? null;
 }
@@ -79,6 +80,11 @@ function defaultSetTimer(fn: () => void, ms: number): unknown {
 function defaultClearTimer(handle: unknown): void {
   const unschedule = clearTimeout;
   unschedule(handle as ReturnType<typeof setTimeout>);
+}
+
+/** Node timers can be unref'd (so the bound never holds the process open); fakes need not. */
+function unrefTimer(handle: unknown): void {
+  if (typeof handle === 'object' && handle !== null) (handle as { unref?: () => void }).unref?.();
 }
 
 export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcessPort {
@@ -124,6 +130,8 @@ export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcess
         try { running.kill(name); } catch { /* not signalled; the deadline settles the run */ }
       };
       const signal = (name: 'SIGTERM' | 'SIGKILL'): void => {
+        // Once the child has exited its pid is free for reuse: never signal it (nor taskkill /T it).
+        if (exited) return;
         const pid = running.pid;
         if (platform !== 'win32' && pid !== undefined) {
           try {
@@ -137,13 +145,22 @@ export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcess
         }
         if (taskkill === null || pid === undefined) { killChild(); return; }
         // E41: the tree first; the direct child once taskkill ended, failed, or the bound passed.
+        // The bound is its own timer, NOT in `timers`: finish() clears those at once on killAll,
+        // and a hung taskkill must still end in the direct kill. It clears itself when it fires.
         let killed = false;
-        const direct = (): void => { if (!killed) { killed = true; killChild(); } };
+        let bound: unknown = null;
+        const direct = (): void => {
+          if (killed) return;
+          killed = true;
+          if (bound !== null) clearTimer(bound);
+          killChild();
+        };
         try {
           const tree = spawn(taskkill, ['/PID', String(pid), '/T', '/F'], { shell: false, windowsHide: true, stdio: 'ignore' });
           tree.on('error', direct);
           tree.on('exit', direct);
-          after(TASKKILL_BOUND_MS, direct);
+          bound = setTimer(direct, TASKKILL_BOUND_MS);
+          unrefTimer(bound);
         } catch {
           direct();
         }

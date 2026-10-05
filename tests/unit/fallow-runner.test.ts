@@ -147,7 +147,7 @@ describe('stopping a process (Z17, Z18)', () => {
       expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('a taskkill that never reports does not keep the direct kill waiting past 1 s', async () => {
+    it('a taskkill that never reports does not keep the direct kill waiting past 1 s on a stop', async () => {
       const s = setup('win32', WIN_ENV);
       const done = s.runner.run(REQUEST, s.token);
       s.cancel();
@@ -184,15 +184,41 @@ describe('stopping a process (Z17, Z18)', () => {
       await expect(run).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
     });
 
-    it('killAll tree-kills too, and settles at once without a timer', async () => {
+    it('killAll tree-kills too and settles at once; the direct kill follows taskkill, and no timer is left', async () => {
       const s = setup('win32', WIN_ENV);
       const done = s.runner.run(REQUEST, s.token);
       s.runner.killAll();
       expect(s.spawned.calls[1]?.args).toEqual(['/PID', '4242', '/T', '/F']);
       await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
-      expect(vi.getTimerCount()).toBe(0);
       s.spawned.children[1]!.exit(0);
       expect(s.child().kills).toEqual([undefined]);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('a hung taskkill still leads to the direct kill within 1 s on killAll, though finish() cleared the run\'s timers', async () => {
+      const s = setup('win32', WIN_ENV);
+      const done = s.runner.run(REQUEST, s.token);
+      s.runner.killAll();
+      await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+      vi.advanceTimersByTime(999);
+      expect(s.child().kills).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(s.child().kills).toEqual([undefined]);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('never signals a child that has exited but not yet closed: no taskkill, no kill (its pid may be reused)', async () => {
+      for (const platform of ['win32', 'linux']) {
+        const s = setup(platform, WIN_ENV);
+        const done = s.runner.run(REQUEST, s.token);
+        s.child().exit(0);
+        s.runner.killAll();
+        await expect(done, platform).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+        expect(s.spawned.calls, platform).toHaveLength(1);
+        expect(s.kills, platform).toEqual([]);
+        expect(s.child().kills, platform).toEqual([]);
+        expect(vi.getTimerCount(), platform).toBe(0);
+      }
     });
 
     it('control: no usable SystemRoot means no taskkill, and the direct kill still happens at once', async () => {
