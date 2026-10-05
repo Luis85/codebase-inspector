@@ -82,3 +82,9 @@ mode this runner uses — ignores `--fail-on-issues` and exits 0 regardless of f
 The real-binary exit-1 test in G6/Z41.7 therefore runs `fallow dead-code --fail-on-issues`
 instead, a call made only from the test file and never from `src/`. The design document's
 §1 probe-facts row and its Z41.7 bullet are corrected in the same commit.
+
+Gap-closure Part B (branch `feat/gap-closure`, 2026-10-05) changed the runner, the provenance and the binding record:
+
+- **GRB3:** a probe found fallow 3.27.0 spawning `git` (and git a second git) during a run, so on Windows a stop or a shutdown now runs `%SystemRoot%\System32\taskkill.exe /PID <pid> /T /F` before the direct kill, bounded at 1 s, recorded as a widening of Part 7's Z14, Z15, Z37 and Z38 (ruling E41). The contract test proves a detached grandchild gone.
+- **GRB9:** the fallow config files present in the analysed root (`.fallowrc.json`, `.fallowrc.jsonc`, `fallow.toml`, `.fallow.toml`, the names fallow 3.27.0 documents) are recorded in a collected run's provenance and shown in the fallow facts.
+- **GRB10:** the executable binding is stored per device (analyzer record v2). Binding fallow on a second device keeps the first device's binding; a v1 record is read as one device and migrated on the next write; an invalid entry is reported with its reason; an older build reads v2 as unsupported and never overwrites it.

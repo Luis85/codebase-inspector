@@ -113,10 +113,16 @@ section, where that gap is stated rather than closed.
   so "scan only `src` and `test`" is not expressible.
 - **The FNV-1a hash under-invalidates.** Ruling M58 left the 32-bit hash at both call
   sites. Two different inputs can collide, and a colliding change is not seen as a
-  change. Recorded as a property, not fixed.
+  change. Recorded as a property, not fixed. *Resolved for the in-memory fingerprints: gap
+  closure GRB11 (GCQ3, 2026-10-05).* `fingerprintSource`, `fingerprintScope`,
+  `fileSetDigest` and the root fingerprint are 64-bit FNV-1a; the persisted trust value stays
+  32-bit, so every stored trust grant stays valid.
 - **An exclusion containing `*` or `?` persisted before ruling M62** is accepted on read
   and **matches nothing** until the user next passes it through an input surface, which
   now refuses it with a visible reason. There is no glob support anywhere in the walk.
+  *Resolved: gap closure GRB12 (GCQ4, 2026-10-05).* Each such exclusion adds a snapshot
+  warning ("The exclusion "{x}" contains * or ? and matches nothing. Edit it in Settings."),
+  shown on Data & scans; it does not mark the snapshot partial.
 - **`CityViewport`'s self-reconstruction had no attempt cap.** A context that was lost
   repeatedly was reconstructed repeatedly. *Resolved: gap closure (GRA2).*
   `src/visualization/reconstruct-cap.ts` wraps the renderer factory the host provides: after
@@ -129,7 +135,13 @@ section, where that gap is stated rather than closed.
   approve a missing folder (the host tests, `tests/host/scan-flow-root-unavailable.test.ts`;
   native scenario 42 pins the banner). An existing root whose listing fails
   (for example `EACCES`) stays a generic scan failure; "unreadable" as its own state is
-  Part B's GRB17.
+  Part B's GRB17. *Resolved: gap closure GRB17b (GCQ9, 2026-10-05).* A root whose stat is
+  unreadable, or whose listing throws, is reported as unavailable too (COPY-28) and its
+  message names the code; `StatResult.unreadable` carries it, the preview reports
+  `read-error` rather than missing, and the source modal says "The folder cannot be read
+  ({code})." (`tests/unit/stat-unreadable.test.ts`,
+  `tests/host/source-modal-unreadable.test.ts`). Not natively exercised: an `EACCES`
+  folder cannot be made on this Windows machine without changing its ACLs.
 - **An edge drag took no `setPointerCapture`** (ruling M95), so an unclamped canvas
   point could raycast outside the frustum and pick an off-screen building. *Resolved:
   gap closure (GRA3).* The pointer is captured on press and a pick outside the canvas is
@@ -276,7 +288,12 @@ so `.ci-snapshot-status__claims` now declares `color: var(--ci-text)`. It is one
   a cancel, and those reads enter the read log, which is the G2 evidence surface. Four
   gate tests pin the current behaviour. If the speed is taken, "no excluded path is ever
   opened" survives but "a cancelled run opens nothing further" does not. **This is a
-  trade for the user to make**, not a defect.
+  trade for the user to make**, not a defect. *Decided and closed: gap closure GRB2
+  (GCO8, GCN5, 2026-10-05).* The user took the speed. The walker prepares a window of 8
+  entries per directory; no excluded path is opened, nothing new is dispatched after a
+  cancel is observed, and in-flight reads drain before the run reports cancelled. Only the
+  read log's order became completion-dependent. The four gate tests were rewritten to that
+  guarantee (gate evidence, G2).
 - **Whether the city feels too small** at a wide (~1,876 px) leaf: the panel caps moved
   the stage from 1,280 px to 1,140 px there; after GRA5 (list 15 %, inspector 12 %) the
   stage's content box measures 1,154 px (border box 1,156.4 px) at a 1,876 px leaf with
@@ -376,13 +393,22 @@ round-trip).
 
 - **No process-tree kill on Windows.** `child.kill()` ends the direct `fallow.exe` only.
   A process it started itself could outlive a cancel, a timeout or a shutdown. No
-  `taskkill` is spawned, to keep the process surface to one executable.
+  `taskkill` is spawned, to keep the process surface to one executable. *Superseded: gap
+  closure GRB3 (E41, 2026-10-05).* The probe found fallow 3.27.0 spawning `git` (and git a
+  second git), so on Windows the stop and the shutdown now run
+  `%SystemRoot%\System32\taskkill.exe /PID <pid> /T /F` before the direct kill, bounded at
+  1 s; the contract test proves a detached grandchild gone. A force-quit is still not
+  covered (below).
 - **Not a sandbox.** An authorised fallow runs with the user's permissions and can read
   and change anything the account can. Trust is an application safeguard, and its FNV
   fingerprint detects incidental change, not deliberate forgery.
 - **Config files in the root are honoured.** A `.fallowrc.json` or other fallow
   configuration in the analysed folder changes what fallow reports. It is not recorded
-  in the provenance. Remote `extends` is never fetched.
+  in the provenance. Remote `extends` is never fetched. *Partly superseded: gap closure GRB9
+  (GCQ5, GCP7, 2026-10-05).* The names fallow 3.27.0 documents (`.fallowrc.json`,
+  `.fallowrc.jsonc`, `fallow.toml`, `.fallow.toml`) found in the root are recorded in the
+  run's provenance and shown in the fallow facts. A config fallow finds by walking up, or
+  through `extends`, is not listed.
 - **The git history may be read.** Health analysis may read the repository's git data
   (read-only).
 - **Scan exclusions do not apply to fallow.** fallow reads the whole folder. Findings in
@@ -399,7 +425,10 @@ round-trip).
 - **Two devices displace each other's binding.** The record is stamped with one device's
   id (K2). Choosing the executable on a second device replaces the first device's record,
   so each switch between devices asks for the executable and its review again: once per
-  switch, not once per device.
+  switch, not once per device. *Superseded: gap closure GRB10 (GCO23, GCN10, 2026-10-05).*
+  The analyzer record is v2, one entry per device: binding on a second device keeps the
+  first device's entry, and a v1 record is read as one device and migrated on the next
+  write. An older build reads v2 as unsupported and refuses to write it.
 - **Windows child environment.** On Windows the child's environment is the allow-list
   plus the variables libuv always adds; on POSIX it is exactly the allow-list. libuv adds
   its own required variables to every child's environment on Windows (`HOMEDRIVE`,
@@ -471,7 +500,9 @@ relation controls across a reload (owner choice: session only); showing all arcs
 open owner decisions — M80/F14 renderer retry cap, M95 pointer capture, the spec §7
 root-unavailable producer, Y19 external `data.json` edits, and the Z38 no-freeze budget.
 (Since closed by gap closure Part A: the renderer retry cap (GRA2), pointer capture (GRA3)
-and the root-unavailable producer (GRA4).)
+and the root-unavailable producer (GRA4). Y19 closed by gap closure Part B, GRB1,
+2026-10-05: `onExternalSettingsChange` re-reads every open store read-only, with the
+8.3-path host limit recorded in the Part B section below.)
 The manual Part 7 acceptance check (item 3, "a configured trusted binary runs without
 freezing Obsidian") stays the owner's, unchanged from G6 above.
 
@@ -491,12 +522,19 @@ probe results and spec §3). Recorded by task 18.
 - **A refresh re-serialises the frontmatter.** `processFrontMatter` rewrites the whole YAML
   block: the user's own comments and quoting style there are not kept, but every value is
   (IP8) — `status`, `created` and any key the user added round-trip value-identical, never
-  byte-identical.
+  byte-identical. *Resolved for plain frontmatter: gap closure GRB5 (2026-10-05).* When
+  `snapshot_id` and `source_path` each sit on exactly one plain top-level line, the refresh
+  rewrites only those two lines inside the same write, keeping comments and quoting
+  (native scenario 44). Anything else (a duplicate key, a multi-line or nested value, a
+  comment on the key's line, no frontmatter) falls back to `processFrontMatter` as before.
 - **The note index is per codebase and built from the metadata cache.** A note written by
   another tool without the plugin's frontmatter keys (`type: codebase-investigation` and
   the rest) is not linked, and never appears under a codebase's notes.
 - **A notes folder equal to the codebase root is scanned.** It cannot be excluded without
   excluding everything, so notes in that folder are read back into the next scan (IP26).
+  *Superseded: gap closure GRB7 (2026-10-05).* A notes folder that is the codebase folder
+  itself is refused ("This folder is the codebase folder itself. Choose another folder for
+  the note.") and nothing is written (native scenario 46).
 - **Clone groups, symbol tracing and an external editor are not in this part** (O1, O5).
 - **The note serialiser in tests is `yaml` 2.9.1, not Obsidian's own** (IP29). No test
   asserts YAML bytes, only parsed values; a quoting difference between the two libraries is
@@ -523,7 +561,10 @@ probe results and spec §3). Recorded by task 18.
   updates incrementally from `changed`/`rename`/`delete`; if Obsidian fails to fire one of
   those for some file (or the listener is not registered yet), that note's entry is stale
   until the next whole-cache rebuild, which runs only once, on the first `resolved` after
-  the plugin starts. Nothing prompts a rebuild in between.
+  the plugin starts. Nothing prompts a rebuild in between. *Resolved: gap closure GRB6
+  (2026-10-05).* Opening Investigate resyncs the index once per screen open (native
+  scenario 45, which has to simulate the miss: Obsidian 1.13.4 did not miss the event when
+  probed, ruling Gap-closure E33).
 - **The preview reads under a root approved for scanning but never connected in Settings
   (E25's cost).** A profile with no binding (`scan-codebase`'s own default flow) reads the
   source preview under the snapshot's own root rather than a Settings-tab binding, so the
@@ -562,6 +603,47 @@ probe results and spec §3). Recorded by task 18.
   rejects the unknown key, so it discards the whole persisted leaf state once; the leaf opens
   at its defaults, and the next save of that build writes a state without `name`. Only a
   downgrade past this change shows it.
+
+---
+
+## Gap closure Part B — accepted limits (GRB18, GCN11) and one host limit
+
+Spec §7 of `docs/superpowers/specs/2026-10-03-gap-closure-design.md` closes these as
+decided, each with its reason. They are closed, not dropped: each is a decided limitation,
+not a follow-up.
+
+- **B11(a): an unreachable root's null real-path resolution is kept for the session**
+  (accepted, gap closure GRB18, 2026-10-05). It is fail-safe: with no real path, the
+  notes-folder check falls back to the textual comparison.
+- **B11(b): a mapped drive to an offline server blocks once per session** (accepted, gap
+  closure GRB18, 2026-10-05). `plan()` must be synchronous (NE15), and Node has no
+  non-blocking real-path call with a timeout.
+- **B12: the Settings render waits while a field has focus, by design** (accepted, gap
+  closure GRB18, 2026-10-05). FN1's hidden-tab render draws into no visible field, so the
+  wait costs nothing while the tab is hidden. The search-box case is the E2 item in the
+  WP-04 section above.
+- **B16(b): the "removed" mark on a codebase is kept in memory only** (accepted, gap
+  closure GRB18, 2026-10-05). No snapshot survives a restart, so after one there is no
+  leaf left on the removed codebase for the mark to describe.
+- **Already recorded above, and accepted as decided (gap closure GRB18, 2026-10-05), so not
+  repeated here:** B6 (GCO24, stale detection by size, line count and modification time, in
+  the WP-04 section); B14(1) a force-quit, B14(2) the synchronous parse, B14(4) scan
+  exclusions not applied to fallow, B14(5) untested versions and B14(6) inferred machine
+  identity (the Part 7 section); B15(1) the 200,000 ceiling, B15(2) no include list,
+  B15(5) the per-snapshot height cap and B15(6) skipped file symlinks (Known limitations);
+  and GCO15, the search field left host-styled (M116, the accessibility section).
+- **A live external `data.json` edit is missed when the vault's path is an 8.3 short path
+  (found by gap closure Task 16, 2026-10-05; not a plugin defect).** With the vault under a
+  short path such as `C:\Users\LUISME~1\AppData\Local\Temp\…`, Obsidian 1.13.4 slices the
+  config watcher's path wrongly (it reports `raw:g/.obsidian/plugins/…/data.json`, the
+  vault prefix cut at the wrong length) and never calls `onExternalSettingsChange`, so the
+  change is picked up only at the next bind or a plugin reload. The plugin cannot work
+  around it: the hook is never called. Evidence:
+  `reports/native/runs/20261005T144745Z-taskB16-probe` (short-path TEMP: three mangled
+  `raw` events, 0 hook calls) against `reports/native/runs/20261005T144936Z-taskB16-probe-longtemp`
+  (long-path TEMP: `raw:.obsidian/plugins/…/data.json`, 1 hook call). Native scenario 43
+  therefore sets TEMP to the long path, in `tests/e2e/settings.e2e.ts` only (ruling
+  Gap-closure E46).
 
 ---
 

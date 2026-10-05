@@ -335,7 +335,7 @@ Z37–Z41 list the tests. The evidence notes (`docs/superpowers/notes/2026-09-17
 | Cancellation | cancel before and after spawn (unit); `hang` (contract); a real cancel (Z41.9); `cancelling` never publishes (reducer) |
 | Shutdown | `killAll` (unit and contract); `onunload` calls `shutdown` (host) |
 | Windows launchers | `fallow.cmd`, `.bat`, `.ps1` and `.js`, and a `#!` `fallow`, are refused as `launcher` (inspector unit); `shell: false` in the recorded options; the guard's `shell option` ban (Z37) |
-| Process-tree cleanup where supported | POSIX: the `grandchild` group kill (contract, `skipIf(win32)`); Windows: the direct child only, asserted and documented (§6) |
+| Process-tree cleanup where supported | POSIX: the `grandchild` group kill (contract, `skipIf(win32)`); Windows: the direct child only, asserted and documented (§6) (superseded, amended by gap closure GRB3/E41, 2026-10-05: on Windows the stop runs System32 taskkill /T before the direct kill, and the contract test asserts the detached grandchild gone on Windows too) |
 | Do not claim an OS sandbox | `FALLOW_REVIEW_EFFECTS[3]` says it is not a sandbox; a copy test finds no string in `src/ui/audit-copy/**` matching `/sandbox/i` except that sentence |
 | Disallow auto-install/download/fix paths | `fallow-argv-policy.test.ts` (Z38); no fallow dependency in `package.json`; `test:fallow` is opt-in and outside `verify` |
 | Verify cache/report/log side effects against the tested version | `test:fallow` fs-diff on fallow 3.27.0, plus the `.fallow/` control (Z41.4–5) |
@@ -358,7 +358,7 @@ Part 6's items stay covered: (1) and (6) are unchanged. (2) is re-proved with th
 
 These are written into `2026-09-17-wp01-limitations.md`:
 
-- **No process-tree kill on Windows.** `child.kill()` ends the direct `fallow.exe` only. A process it started itself could outlive a cancel, a timeout or a shutdown. No `taskkill` is spawned, to keep the process surface to one executable.
+- **No process-tree kill on Windows.** `child.kill()` ends the direct `fallow.exe` only. A process it started itself could outlive a cancel, a timeout or a shutdown. No `taskkill` is spawned, to keep the process surface to one executable. (superseded, amended by gap closure GRB3/E41, 2026-10-05: the Task 13 probe found fallow 3.27.0 spawning `git`, so on Windows the runner now runs System32 `taskkill.exe /PID <pid> /T /F` before the direct kill, on stop and on shutdown; a force-quit still leaves fallow running.)
 - **Not a sandbox.** An authorised fallow runs with the user's permissions and can read and change anything the account can. Trust is an application safeguard, and its FNV fingerprint detects incidental change, not deliberate forgery.
 - **Config files in the root are honoured.** A `.fallowrc.json` or other fallow configuration in the analysed folder changes what fallow reports. It is not recorded in the provenance. Remote `extends` is never fetched.
 - **The git history may be read.** Health analysis may read the repository's git data (read-only).

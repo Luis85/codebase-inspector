@@ -176,3 +176,10 @@ Gap-closure Part A (branch `feat/gap-closure`) changed the city and its renderer
 - A relation arc clears the tallest building in its corridor, and the selected file's arcs and arrowheads draw above the buildings.
 - The Investigate note rows are a two-column grid, so Open stays beside its path.
 - The shipped bundle no longer carries pinia's dead `XMLHttpRequest` island, and unloading the plugin clears the Three.js `window.__THREE__` marker it set.
+
+Gap-closure Part B (branch `feat/gap-closure`, 2026-10-05) changed the scan and its source port as follows:
+
+- **GRB2:** the walker prepares up to 8 entries of a directory at once (the user's M108 trade, decided). No excluded path is opened, nothing new is dispatched after a cancel is observed, in-flight reads drain before the run reports cancelled, and the emission order is unchanged; only the read log's order became completion-dependent.
+- **GRB11:** the in-memory source, scope and file-set fingerprints are 64-bit; the persisted trust value stays 32-bit, so stored trust grants stay valid.
+- **GRB12:** an exclusion saved with `*` or `?` before ruling M62 adds a snapshot warning, shown on Data & scans: "The exclusion "{x}" contains * or ? and matches nothing. Edit it in Settings."
+- **GRB17:** report symbols and finding details show bidi controls visibly, as the preview does; and a path whose stat fails for a reason other than "not there" is reported as unreadable with its code (`StatResult.unreadable`, WP-01 spec §4.5 amended), so the preview says `read-error`, the source modal says "The folder cannot be read ({code}).", and a scan root that cannot be stat'ed or listed shows as unavailable (COPY-28) rather than a plain scan failure.

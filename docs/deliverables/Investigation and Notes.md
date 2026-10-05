@@ -115,3 +115,12 @@ index, a notes folder equal to the root being scanned, the deferred items above,
 YAML serialiser, Obsidian's own escape handling, the desktop-only `no-filesystem` state,
 and native acceptance being local-only — are in
 `docs/superpowers/notes/2026-09-17-wp01-limitations.md`'s **WP-04 Part 1** section.
+
+Gap-closure Part B (branch `feat/gap-closure`, 2026-10-05) changed this deliverable as follows; two of the limitations listed above are narrowed or closed by it, and the limitations document says which:
+
+- **GRB4:** the source preview's root is resolved by the host. A codebase with no binding reads under the host's own snapshot root; the root a request names only narrows the read, never chooses it.
+- **GRB5:** a refresh rewrites only the `snapshot_id` and `source_path` lines when each is one plain top-level line, so the note's frontmatter comments and quoting are kept (native scenario 44); any other frontmatter falls back to Obsidian's `processFrontMatter`, as before.
+- **GRB6:** the note index resyncs once each time Investigate opens, so a linked note the vault indexed late is listed (native scenario 45).
+- **GRB7:** a notes folder that is the codebase folder itself is refused, with "This folder is the codebase folder itself. Choose another folder for the note.", and nothing is written (native scenario 46).
+- **GRB8:** a codebase reconnected to another folder than the one scanned says so in the preview: "This codebase is now connected to a different folder than the one scanned. Scan it again to preview files." (native scenario 23 expects the new text).
+- **GRB16:** an `@` is backslash-escaped only where it could start an email address, so `@scope/pkg` shows no backslash while email addresses stay inert (native scenario 26 changed).
