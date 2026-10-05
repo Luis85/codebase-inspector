@@ -36,10 +36,10 @@ export function createFakeFallowAnalysis(executableName: 'fallow.exe' | 'fallow'
   const states = new Map<string, AnalysisRunState>();
   const bindings = new Map<string, AnalyzerBindingRead>();
   const listeners = new Set<(profileId: string) => void>();
-  const bindingListeners = new Set<(profileId: string) => void>();
+  const bindingListeners = new Set<(profileId: string | null) => void>();
   const calls: { method: string; profileId: string }[] = [];
   const notify = (profileId: string): void => { for (const listener of Array.from(listeners)) listener(profileId); };
-  const bindingChanged = (profileId: string): void => { for (const listener of Array.from(bindingListeners)) listener(profileId); };
+  const bindingChanged = (profileId: string | null): void => { for (const listener of Array.from(bindingListeners)) listener(profileId); };
   const call = (method: string, profileId: string): void => { calls.push({ method, profileId }); };
   const fake: FakeFallowAnalysis = {
     calls,
@@ -83,6 +83,7 @@ export function createFakeFallowAnalysis(executableName: 'fallow.exe' | 'fallow'
       bindingListeners.add(listener);
       return () => { bindingListeners.delete(listener); };
     },
+    externalChange() { bindingChanged(null); },
     shutdown() { call('shutdown', ''); },
   };
   return fake;

@@ -2,7 +2,9 @@
 // ports a CityView hands to its own Pinia stores in onOpen, before mount, so App's first
 // bind already uses them — and takes back in onClose, before the Pinia is dropped, because
 // the ports outlive the leaf. Kept out of city-view.ts (the 360-line budget).
+import type { Plugin } from 'obsidian';
 import type { Pinia } from 'pinia';
+import { watchPluginData } from '../adapters/storage/plugin-data-shape';
 import { useReviewStore } from '../ui/stores/review-store';
 import { useCityStore } from '../ui/stores/city-store';
 import { useEvidenceStore } from '../ui/stores/evidence-store';
@@ -10,10 +12,16 @@ import { useAnalysisStore } from '../ui/stores/analysis-store';
 import { useInvestigationStore } from '../ui/stores/investigation-store';
 import type { CityViewDeps } from './city-scan-controller';
 
+/** GRB1: each leaf's notes-folder watch, released by unwireDataPorts. */
+const folderWatches = new WeakMap<Pinia, () => void>();
+
 /** Y11: the review store builds each codebase's repository through the plugin's registry,
  *  so two leaves on one codebase share one instance: one high-water mark, one cache and
- *  one subscription source (Y12). */
-export function wireDataPorts(pinia: Pinia, deps: CityViewDeps): void {
+ *  one subscription source (Y12). GRB1 (Y19): with `plugin` (CityView passes its own), the
+ *  notes folder is read again on every profiles or investigations change it hears, a write
+ *  from Settings or a data.json changed outside the plugin (notifyExternalChange): the notes
+ *  port has no change signal for the folder setting. */
+export function wireDataPorts(pinia: Pinia, deps: CityViewDeps, plugin?: Plugin): void {
   useReviewStore(pinia).setRepositoryFactory(deps.reviewRepositoryFor);
   // Part 6 Y28/Y29: the plugin's ONE evidence repository. App binds the store to the
   // snapshot's codebase; the store listens to that codebase's entry.
@@ -22,13 +30,18 @@ export function wireDataPorts(pinia: Pinia, deps: CityViewDeps): void {
   useAnalysisStore(pinia).setService(deps.fallowAnalysis);
   // WP-04 IN7/IN33: the plugin's ONE notes port and source preview; the store follows the
   // evidence store's codebase and lists that codebase's notes.
-  useInvestigationStore(pinia).setPorts(deps.investigationNotes, deps.sourcePreview);
+  const investigation = useInvestigationStore(pinia);
+  investigation.setPorts(deps.investigationNotes, deps.sourcePreview);
+  folderWatches.get(pinia)?.();
+  if (plugin) folderWatches.set(pinia, watchPluginData(plugin, ['profiles', 'investigations'], () => { void investigation.loadDestination(); }));
 }
 
 /** R2: a closing leaf stops listening to the plugin-level repository (Task 2's `detach`),
  *  so later writes from other leaves never reload a dead store. */
 export function unwireDataPorts(pinia: Pinia): void {
   useReviewStore(pinia).detach();
+  folderWatches.get(pinia)?.();
+  folderWatches.delete(pinia);
   // WP-04 IP37: the notes port outlives the leaf; `$dispose` drops the store's subscription.
   // Before the evidence store, whose repositoryId it watches.
   useInvestigationStore(pinia).$dispose();

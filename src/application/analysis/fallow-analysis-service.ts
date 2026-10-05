@@ -75,8 +75,11 @@ export interface FallowAnalysisService {
   subscribe(listener: (profileId: string) => void): () => void;
   /** Final review: told the profile id after every successful data.json write (bind, trust,
    *  revoke, forget, time limit, purge), wherever it came from (Settings or a card), so
-   *  every open leaf re-reads the binding. */
-  onBindingChanged(listener: (profileId: string) => void): () => void;
+   *  every open leaf re-reads the binding. GRB1 (GCQ7): `null` means every profile. */
+  onBindingChanged(listener: (profileId: string | null) => void): () => void;
+  /** GRB1 (Y19, GCQ7): data.json changed outside the plugin, and which bindings changed is
+   *  unknown, so the listeners are told `null` (every profile). Read-only. */
+  externalChange(): void;
   shutdown(): void;
 }
 
@@ -123,10 +126,10 @@ const REMOVED = { kind: 'refused', code: 'profile-removed', detail: '' } as cons
 
 export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): FallowAnalysisService {
   const { inspector, coordinator, snapshots, machineId, clock } = deps;
-  const bindingListeners = new Set<(profileId: string) => void>();
+  const bindingListeners = new Set<(profileId: string | null) => void>();
   /** A throwing listener is surfaced on its own microtask (the coordinator's `isolate` rule):
    *  it never fails the write that already succeeded, nor starves the other listeners. */
-  const bindingChanged = (profileId: string): void => {
+  const bindingChanged = (profileId: string | null): void => {
     for (const listener of Array.from(bindingListeners)) {
       try {
         listener(profileId);
@@ -337,6 +340,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
       bindingListeners.add(listener);
       return () => { bindingListeners.delete(listener); };
     },
+    externalChange: () => { bindingChanged(null); },
     shutdown: () => { coordinator.shutdown(); bindingListeners.clear(); },
   };
 }

@@ -156,7 +156,7 @@ export class CityView extends ItemView {
     // share data even if Vue's own per-app resolution were ever bypassed.
     this.cityStore = useCityStore(this.pinia);
     this.runStore = useRunStore(this.pinia);
-    wireDataPorts(this.pinia, this.deps); // Part 6 Y11: before mount, so App's first bind uses the registry.
+    wireDataPorts(this.pinia, this.deps, this.plugin); // Part 6 Y11: before mount, so App's first bind uses the registry.
     // typescript-eslint's type-aware linting resolves a cross-file .vue import as an
     // untyped/error module (it has no Vue SFC language-service plugin, unlike vue-tsc,
     // which DOES type-check this correctly — see `npm run typecheck`). Real behaviour

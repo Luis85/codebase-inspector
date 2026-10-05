@@ -41,11 +41,16 @@ export const REVIEW_STORE_MAX_BYTES = 1_000_000;
  *  the reason through read-models/review-failure.ts. */
 const refused = (code: ReviewStoreErrorCode): ReviewStoreError => new ReviewStoreError(code);
 
-/** The port plus the one member the registry's purge uses (Y17). */
+/** The port plus the members the registry uses: its purge (Y17) and an external change (GRB1). */
 export interface PluginDataReviewRepository extends ReviewRepository {
   /** From now on every write rejects ('retired'), so a leaf still bound to a removed
    *  profile can never recreate its set. Subscribers are told once, so they reload. */
   retire(): void;
+  /** GRB1 (Y19): data.json changed outside the plugin. The read in flight is dropped (it may
+   *  predate the change) and subscribers are told once, so they reload. Nothing is written and
+   *  the instance stays live: a write already queued lands as usual, and a store counting it as
+   *  its own (Y12) reloads when that write's own notification finds no slot left. */
+  externalChange(): void;
 }
 
 type RawSet = Record<string, unknown>;
@@ -271,6 +276,10 @@ export function createPluginDataReviewRepository(plugin: Plugin, repositoryId: s
       retired = true;
       reading = null;
       lastWritten = null;
+      notify();
+    },
+    externalChange() {
+      reading = null;
       notify();
     },
   };

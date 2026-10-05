@@ -19,7 +19,7 @@ const setup = (): ServiceWorld => createServiceWorld();
 describe('every binding write is announced (final review)', () => {
   it('bind, trust, a time limit, a Forget and a purge each notify with the profile id; a refused write does not', async () => {
     const s = setup();
-    const changed: string[] = [];
+    const changed: (string | null)[] = [];
     const off = s.service.onBindingChanged((id) => { changed.push(id); });
     expect(await s.service.trustAndRun('p1', SNAPSHOT, await reviewed(s))).toEqual({ kind: 'started' });
     expect(changed).toEqual(['p1']);

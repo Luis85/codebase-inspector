@@ -70,8 +70,10 @@ export const useInvestigationStore = defineStore('investigation', () => {
   };
 
   /** IN18: (re-)reads the bound codebase's folder. Called on bind, by the Settings row on
-   *  mount and by the create dialog on open: the settings tab that changes the folder has no
-   *  change signal. The shown folder stays until the new read lands. */
+   *  mount and by the create dialog on open: the notes port has no change signal for the
+   *  folder. GRB1 (Y19): the host also calls it on every profiles or investigations change
+   *  it hears, own or outside the plugin (data-ports.ts's data.json watch). The shown folder
+   *  stays until the new read lands. */
   const loadDestination = async (): Promise<void> => {
     const port = notesPort;
     const id = evidence.repositoryId;

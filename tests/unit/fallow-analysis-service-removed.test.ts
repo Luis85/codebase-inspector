@@ -40,7 +40,7 @@ describe('final review: a removed profile is never bound, run or written again',
     const s = createServiceWorld();
     await trusted(s);
     await s.service.purgeProfile('p1');
-    const changed: string[] = [];
+    const changed: (string | null)[] = [];
     s.service.onBindingChanged((id) => { changed.push(id); });
     expect(await s.service.forget('p1')).toBe('removed');
     expect(await s.service.setTimeLimit('p1', 600)).toBe('removed');

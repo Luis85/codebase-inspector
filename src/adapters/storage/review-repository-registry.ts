@@ -11,6 +11,9 @@ export interface ReviewRepositoryRegistry {
   for(repositoryId: string): ReviewRepository;
   /** Y17: deletes `reviews[repositoryId]` under the data lock and drops the instance. */
   purge(repositoryId: string): Promise<void>;
+  /** GRB1 (Y19, GCQ7): data.json changed outside the plugin; every live instance drops its
+   *  read in flight and tells its subscribers. Read-only: nothing is written or retired. */
+  externalChange(): void;
 }
 
 export function createReviewRepositoryRegistry(plugin: Plugin): ReviewRepositoryRegistry {
@@ -36,6 +39,9 @@ export function createReviewRepositoryRegistry(plugin: Plugin): ReviewRepository
       const deleted = deleteReviewSet(plugin, repositoryId);
       instance?.retire();
       await deleted;
+    },
+    externalChange() {
+      for (const instance of Array.from(instances.values())) instance.externalChange();
     },
   };
 }

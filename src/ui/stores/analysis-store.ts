@@ -62,7 +62,8 @@ export const useAnalysisStore = defineStore('fallow-analysis', () => {
     });
     // Final review: a Forget or a time limit set in Settings (or in another leaf) writes
     // data.json without a run event; the binding is read again for this codebase only.
-    const offBinding = service.onBindingChanged((changed) => { if (changed === id) refreshQuietly(); });
+    // GRB1 (GCQ7): `null` is an external data.json change, which may touch every codebase.
+    const offBinding = service.onBindingChanged((changed) => { if (changed === null || changed === id) refreshQuietly(); });
     unsubscribe = () => { offRun(); offBinding(); };
   };
   const setService = (next: FallowAnalysisService): void => {

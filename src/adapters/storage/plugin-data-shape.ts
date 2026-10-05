@@ -74,6 +74,15 @@ function notifyWritten(plugin: Plugin, key: keyof PluginDataShape): void {
   }
 }
 
+/** Gap closure GRB1 (Y19): data.json changed outside the plugin (main.ts's onExternalSettingsChange).
+ *  Which slices changed is unknown, so every watcher is called once, whatever its keys, with
+ *  notifyWritten's isolation. It reads and writes nothing itself: each watcher re-reads. */
+export function notifyExternalChange(plugin: Plugin): void {
+  for (const entry of Array.from(watchers.get(plugin) ?? [])) {
+    try { entry.listener(); } catch { /* the listener's own failure, never the others' */ }
+  }
+}
+
 export async function readPluginData(plugin: Plugin): Promise<PluginDataShape> {
   return withDataLock(plugin, async () => {
     const data = (await plugin.loadData()) as PluginDataShape | null | undefined;

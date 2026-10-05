@@ -4,16 +4,25 @@
 // Scenario 41 (gap closure GRD3, Ruling E1) reads the settings search through `app.setting`, from the main window.
 // Observed here: a Notice the tab raises, and the source and clear-binding modals it opens, all render in the
 // settings window. IPF20: the plugin's own words only through its copy constants; everything else by selector.
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect } from 'vitest';
 import { Key } from 'webdriverio';
 import { defaultNoteFolder } from '../../src/application/investigation/note-path';
-import { exclusionInputReasons } from '../../src/domain/validator';
+import { exclusionInputReasons, validateCodebaseProfile, validationFailureText } from '../../src/domain/validator';
 import { NOTES_FOLDER_PROBLEM, NOTES_FOLDER_SETTING_NAME } from '../../src/ui/audit-copy/investigation';
 import { writeEvidence } from './diagnostics';
 import { test } from './fixture';
 import { closeSettings, onlyProfile, openPluginSettings, pluginData, savedBindings, savedProfiles } from './host-probes';
 import { PLUGIN_ID, type NativeBrowser } from './session';
 import { copyProject } from './workspace-files';
+
+// Scenario 43's probe (GCQ8): the fixture copies the vault under os.tmpdir(). Where TEMP is an 8.3 short path
+// (`C:\Users\LUISME~1\...`), Obsidian 1.13.4's config watcher reports `g/.obsidian/plugins/<id>/data.json` (the
+// event's long path sliced by the short base path's length), so onExternalSettingsChange is never called. This
+// file's worker (isolate: true) therefore copies its vaults under the long form of the same folder.
+if (process.platform === 'win32') process.env.TEMP = process.env.TMP = realpathSync.native(tmpdir());
 
 const LIST = '.modal.mod-settings .setting-group.mod-list';
 const SCOPE_MODAL = '.modal-container [data-field="acknowledge"]';
@@ -117,7 +126,67 @@ async function clearSettingsSearch(browser: NativeBrowser): Promise<void> {
   await expect.poll(() => browser.$(SEARCH_RESULTS).isDisplayed()).toBe(false);
 }
 
+type HookedPlugin = { onExternalSettingsChange?: (...args: unknown[]) => unknown };
+type HookWindow = Window & { ciExternalCalls?: number };
+/** Scenario 43's probe (GCQ8), from the main window: counts Obsidian's calls of our onExternalSettingsChange by
+ *  wrapping it on the plugin instance. False when the build has no such method (the RED build). */
+function countExternalCalls(browser: NativeBrowser): Promise<boolean> {
+  return browser.executeObsidian(({ app }, id) => {
+    const plugin = (app as unknown as { plugins: { plugins: Record<string, HookedPlugin | undefined> } }).plugins.plugins[id];
+    const original = plugin?.onExternalSettingsChange;
+    (window as HookWindow).ciExternalCalls = 0;
+    if (plugin === undefined || typeof original !== 'function') return false;
+    plugin.onExternalSettingsChange = (...args: unknown[]): unknown => {
+      (window as HookWindow).ciExternalCalls = ((window as HookWindow).ciExternalCalls ?? 0) + 1;
+      return original.apply(plugin, args);
+    };
+    return true;
+  }, PLUGIN_ID);
+}
+
+/** Scenario 43's write outside the plugin: Node rewrites data.json, so its mtime is newer than the plugin's own last
+ *  save (what Obsidian's config-file watcher compares before it calls onExternalSettingsChange, GCQ8). */
+function writeDataJsonOutside(file: string, change: (data: Record<string, unknown>) => void): void {
+  const data = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+  change(data);
+  writeFileSync(file, JSON.stringify(data));
+}
+
 describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
+  test('the settings tab follows a data.json changed outside the plugin and names an invalid record\'s reason', async ({ native: { browser, page, inspector, directory } }) => {
+    copyProject(page.getVaultPath(), 'code');
+    await inspector.openCity();
+    await inspector.scanFolder('code');
+    const profile = onlyProfile(await pluginData(browser));
+    const file = join(page.getVaultPath(), await page.getConfigDir(), 'plugins', PLUGIN_ID, 'data.json');
+    const original = readFileSync(file, 'utf8');
+    const renamed = `Renamed outside ${Date.now()}`;
+    const invalid = { ...profile, name: renamed, maxFileBytes: -1 };
+    let reason = '';
+    try { validateCodebaseProfile(invalid); } catch (e) { reason = validationFailureText(e); }
+    expect(reason).not.toBe('');
+    const hooked = await countExternalCalls(browser);
+    try {
+      await openPluginSettings(browser);
+      // Positive control: the tab lists the name the plugin saved, before anything outside it writes.
+      await expect.poll(() => inspector.settingsProfileNames()).toEqual([profile.name]);
+      // Observed (probe): the settings open with their search field focused, and the tab's render waits while a field
+      // of the settings holds focus (PN4). Nothing is typed here, so focus leaves it and a refresh renders at once.
+      await browser.execute(() => { (document.activeElement as HTMLElement | null)?.blur(); });
+      writeDataJsonOutside(file, (data) => { data.profiles = [{ ...profile, name: renamed }]; });
+      await expect.poll(() => inspector.settingsProfileNames(), { timeout: 5000 }).toEqual([renamed]);
+      // An invalid record: the tab names its reason in a Notice and keeps the list it had.
+      writeDataJsonOutside(file, (data) => { data.profiles = [invalid]; });
+      await expect.poll(async () => (await inspector.notices()).some((text) => text.includes(reason)), { timeout: 5000 }).toBe(true);
+      expect(await inspector.settingsProfileNames()).toEqual([renamed]);
+      await closeSettings(browser);
+      const calls = await browser.executeObsidian(() => (window as HookWindow).ciExternalCalls ?? 0);
+      await writeEvidence(directory, 'external-change', { hooked, calls, renamed, reason });
+    } finally {
+      writeFileSync(file, original);
+    }
+  });
+
   test('the settings tab renders each saved codebase in the real settings renderer', async ({ native: { browser, page, inspector } }) => {
     copyProject(page.getVaultPath(), 'code');
     await inspector.openCity();

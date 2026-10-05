@@ -7,10 +7,10 @@ import { PluginDataBindingStore, getOrCreateMachineId } from './adapters/storage
 import { createNodeSourceFileSystem } from './adapters/filesystem/node-source-filesystem';
 import { InMemorySnapshotStore } from './adapters/storage/in-memory-snapshot-store';
 import { InMemoryEvidenceStore } from './adapters/storage/in-memory-evidence-store';
-import { createReviewRepositoryRegistry } from './adapters/storage/review-repository-registry';
+import { createReviewRepositoryRegistry, type ReviewRepositoryRegistry } from './adapters/storage/review-repository-registry';
 import { createPluginDataAnalyzerStore } from './adapters/storage/plugin-data-analyzer-store';
 import { createPluginDataInvestigationStore } from './adapters/storage/plugin-data-investigation-store';
-import { watchPluginData } from './adapters/storage/plugin-data-shape';
+import { notifyExternalChange, watchPluginData } from './adapters/storage/plugin-data-shape';
 import { createExecutableInspector } from './adapters/fallow/executable-inspector';
 import { createFallowRunner } from './adapters/fallow/fallow-runner';
 import { AnalysisCoordinator } from './application/analysis/analysis-coordinator';
@@ -41,6 +41,8 @@ export default class CodebaseInspectorPlugin extends Plugin {
   private unwatchAnalysis: (() => void) | null = null;
   /** WP-04.2 NE9: the settings tab's data.json watch, released in onunload. */
   private unwatchSettings: (() => void) | null = null;
+  /** GRB1: kept so onExternalSettingsChange can reach every live review repository. */
+  private reviews: ReviewRepositoryRegistry | null = null;
 
   override onload(): void {
     // onload REGISTERS ONLY. No scanning, no expensive work (spec 4.4). Constructing
@@ -62,6 +64,7 @@ export default class CodebaseInspectorPlugin extends Plugin {
     // leaf (one high-water mark, one cache) and purged with its profile (Y17). It builds
     // and reads nothing until a view binds a codebase.
     const reviewRegistry = createReviewRepositoryRegistry(this);
+    this.reviews = reviewRegistry;
     // Part 7 Z21/Z22/Z36: ONE fallow analysis service per plugin, shared by every leaf.
     // Building it spawns nothing, stats nothing and reads nothing: a run starts only from
     // "Trust and run" or a passing pre-run check.
@@ -127,6 +130,19 @@ export default class CodebaseInspectorPlugin extends Plugin {
   // `open-city` command remain the ways to open a city tab; do not "restore" this as a
   // regression without a new instruction from the user reversing the directive.
 
+  /** Gap closure GRB1 (Y19, GCO7, GCQ7): Obsidian calls this when data.json changed outside the
+   *  plugin (a sync, a hand edit; since 1.5.7). Every open store re-reads: each data.json watcher
+   *  (the settings tab, a leaf's codebase name and notes folder), each review repository and each
+   *  leaf's analysis binding. Read-only: nothing here writes. A no-op before onload has built the
+   *  services and after onunload has dropped them. */
+  override onExternalSettingsChange(): void {
+    const { analysis, reviews } = this;
+    if (!analysis || !reviews) return;
+    notifyExternalChange(this);
+    reviews.externalChange();
+    analysis.externalChange();
+  }
+
   // Typed void and never awaited. Teardown is synchronous and idempotent.
   // NEVER detachLeavesOfType here (spec 4.4).
   override onunload(): void {
@@ -137,6 +153,7 @@ export default class CodebaseInspectorPlugin extends Plugin {
     this.unwatchSettings = null;
     this.analysis?.shutdown();
     this.analysis = null;
+    this.reviews = null;
     // GCP6, last: Three.js's own `window.__THREE__` marker, cleared only when it is ours, so a
     // reload in one session does not warn "multiple instances" about a bundle that is gone.
     releaseThreeMarker(window as unknown as { __THREE__?: unknown });
