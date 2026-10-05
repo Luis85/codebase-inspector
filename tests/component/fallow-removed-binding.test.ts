@@ -58,6 +58,29 @@ describe('GRB13 a: the run panel for a removed codebase', () => {
     w.unmount();
   });
 
+  it('after a Forget answered removed flips the binding to removed, focus moves to Run, not <body>', async () => {
+    const fake = setup();
+    fake.setBinding('p1', BOUND);
+    fake.next.forget = 'removed';
+    const forget = fake.forget.bind(fake);
+    fake.forget = async (id) => {
+      const answer = await forget(id);
+      fake.setBinding(id, { kind: 'removed' });
+      return answer;
+    };
+    const w = mountS();
+    await flushPromises();
+    const button = w.find<HTMLButtonElement>('.ci-fallow-run__forget');
+    button.element.focus();
+    expect(document.activeElement).toBe(button.element);
+    await button.trigger('click');
+    await flushPromises();
+    expect(w.find('.ci-fallow-run__forget').exists()).toBe(false);
+    expect(w.find('.ci-fallow-run__choose').exists()).toBe(false);
+    expect(document.activeElement).toBe(w.find('.ci-fallow-run__run').element);
+    w.unmount();
+  });
+
   it('a Forget answered removed says "This codebase was removed." and keeps the reason line', async () => {
     const fake = setup();
     fake.setBinding('p1', BOUND);
