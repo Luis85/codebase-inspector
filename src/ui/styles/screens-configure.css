@@ -4,6 +4,7 @@
 :where(.codebase-inspector-root) .ci-sources__facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--ci-space-2) var(--ci-space-4); margin: 0 0 var(--ci-space-3); font-size: var(--font-ui-small, 0.9em); }
 :where(.codebase-inspector-root) .ci-sources__facts dt { color: var(--ci-text-muted); }
 :where(.codebase-inspector-root) .ci-sources__facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+:where(.codebase-inspector-root) .ci-sources__warnings { margin: 0 0 var(--ci-space-3); padding-left: var(--ci-space-4); color: var(--ci-text-warning); font-size: var(--font-ui-small, 0.9em); overflow-wrap: anywhere; }
 :where(.codebase-inspector-root) .ci-sources__run { display: flex; align-items: flex-start; gap: var(--ci-space-2); margin: 0; }
 :where(.codebase-inspector-root) .ci-sources__run--warning { color: var(--ci-text-warning); }
 :where(.codebase-inspector-root) .ci-sources__run--success .ci-icon { color: var(--ci-text-success); }

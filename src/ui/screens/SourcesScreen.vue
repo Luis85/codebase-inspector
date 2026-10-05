@@ -221,7 +221,10 @@ function confirmRemove(): void {
       {{ SOURCES_CALLOUT }}
     </Callout>
     <div class="ci-screen__grid">
-      <ScopePanel :rows="model.scope" />
+      <ScopePanel
+        :rows="model.scope"
+        :warnings="store.snapshot?.warnings"
+      />
       <ScanStatusPanel
         :run="model.run"
         @cancel="cancelScan"
