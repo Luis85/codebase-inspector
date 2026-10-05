@@ -70,10 +70,12 @@ function reloadIfBound(store: Reloadable, bucket: ReviewBucket): void {
 
 /** Polish E4 (L16): an own add or decision, once its write to `repo` has settled. When no load
  *  of the bucket started during the write (`ticket` still current), `upsert` shows it. When one
- *  did, it may reflect another leaf's change, and an upsert could put back what that change
- *  removed, so the stored truth is reloaded instead. Fix round 1: the reload is awaited, so the
- *  caller's key stays reserved until the lists show what was saved (an identical second add is
- *  refused meanwhile). A failed reload sets `loadFailed` (R1, which Settings reports); the
+ *  did, it may reflect another leaf's change that removed the item, so the stored truth is
+ *  reloaded as well: the upsert is only the interim, and the reload, applied, replaces the
+ *  lists with what is stored (a removal wins). GRB14: the upsert comes first and always, since
+ *  a newer load can overtake the reload and then nothing would be applied: the item must show
+ *  whichever load wins. Fix round 1: the reload is awaited, so the caller's key stays reserved
+ *  until the lists show what was saved (an identical second add is refused meanwhile). A failed reload sets `loadFailed` (R1, which Settings reports); the
  *  caller still returns what it saved, because the write itself succeeded and reporting a
  *  failure would invite a duplicate retry. Nothing while another codebase is bound (V9).
  *  Not `async`, like ownWrite: it returns the reload for the caller to await, or null, so the
@@ -82,9 +84,9 @@ export function settleOwnWrite(
   store: Reloadable, repo: ReviewRepository, bucket: ReviewBucket, ticket: number, upsert: () => void,
 ): Promise<void> | null {
   if (store.repository !== repo) return null;
-  if (bucket.loadTicket !== ticket) return store.load().catch(noop);
+  const reload = bucket.loadTicket !== ticket;
   upsert();
-  return null;
+  return reload ? store.load().catch(noop) : null;
 }
 
 /** Task 2 fix round 1: starts a load of `bucket` and returns its ticket. */

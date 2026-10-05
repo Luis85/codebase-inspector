@@ -173,6 +173,34 @@ describe('Polish E4 fix round 1: the add stays reserved until its reload settles
     expect(a.rules).toHaveLength(2);
   });
 
+  it('a newer load that overtakes the settle reload leaves the saved item shown, so a second identical add is refused (GRB14)', async () => {
+    const { shared, slow, a, b } = await twoLeaves(true);
+    const adding = a.addWorkItem(FILE_A, 'refactor', 'Split a.ts', new Date(AT));
+    await flushPromises();
+    expect(await b.addWorkItem(FILE_B, 'refactor', 'Split b.ts', new Date(AT))).not.toBeNull();
+    await flushPromises();
+    // Every work-item list from here on is held, one gate per load, in the order the loads started.
+    const gates: Array<ReturnType<typeof gate>> = [];
+    const repo = a.repository;
+    const list = repo.listWorkItems.bind(repo);
+    repo.listWorkItems = async () => { const g = gate(); gates.push(g); await g.promise; return list(); };
+    slow.open();
+    await flushPromises();
+    const settleLoads = gates.length;
+    expect(settleLoads).toBeGreaterThan(0);
+    const newer = a.load();   // a newer load, started after the settle reload: it alone may apply
+    await flushPromises();
+    expect(gates).toHaveLength(settleLoads + 1);
+    gates.slice(0, settleLoads).forEach((g) => { g.open(); });
+    expect((await adding)?.target).toEqual(FILE_A);   // the overtaken settle reload applied nothing...
+    expect(targets(a.workItems)).toContain(FILE_A.entityId);   // ...yet the saved item is shown
+    expect(await a.addWorkItem(FILE_A, 'refactor', 'Split a.ts', new Date(AT))).toBeNull();
+    gates[settleLoads]?.open();
+    await newer;
+    expect(targets(await shared.listWorkItems())).toEqual([FILE_A.entityId, FILE_B.entityId]);
+    expect(targets(a.workItems)).toEqual([FILE_A.entityId, FILE_B.entityId]);
+  });
+
   it('a reload that fails after the save returns the saved item and marks the read failed', async () => {
     const { shared, slow, a, b } = await twoLeaves(true);
     const adding = a.addWorkItem(FILE_A, 'refactor', 'Split a.ts', new Date(AT));
