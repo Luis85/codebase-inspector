@@ -60,7 +60,16 @@ function frontmatterRange(lines: readonly string[]): { start: number; end: numbe
   return null;
 }
 
-const continues = (next: string | undefined): boolean => next !== undefined && /^[ \t]+\S/.test(next);
+// YAML lets a value continue on an indented line even after blank (or comment-only) lines, so those are skipped
+// before the first line that holds content is tested for an indent.
+function continues(lines: readonly string[], from: number): boolean {
+  for (let i = from; i < lines.length; i += 1) {
+    const line = content(lines[i] ?? '');
+    if (/^[ \t]*(#.*)?$/.test(line)) continue;
+    return /^[ \t]/.test(line);
+  }
+  return false;
+}
 
 export function rewriteFrontmatterLines(text: string, values: RefreshedValues): FrontmatterRewrite {
   const lines = text.match(LINES) ?? [];
@@ -75,7 +84,7 @@ export function rewriteFrontmatterLines(text: string, values: RefreshedValues): 
       continue;
     }
     const key = match[1] === 'snapshot_id' ? 'snapshot_id' : 'source_path';
-    if (found.has(key) || !singleLineValue(match[2]) || continues(lines[i + 1])) return REFUSED;
+    if (found.has(key) || !singleLineValue(match[2]) || continues(lines, i + 1)) return REFUSED;
     found.set(key, i);
   }
   const out = lines.slice();

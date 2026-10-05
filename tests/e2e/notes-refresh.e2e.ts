@@ -228,6 +228,8 @@ describe('refresh outcomes in the real vault (WP-04.2 rows 18, 19, 21; GRB5)', (
 
     // Positive control: the two keys the refresh owns are updated (whatever their quoting), and the block is new.
     expect((await inspector.frontmatter(path)).source_path).toBe(CYCLE_ANCHOR);
+    // The value is unchanged, so the double-quoted line is what proves the rewrite wrote it.
+    expect(frontmatterText(after).split('\n')).toContain(`source_path: ${JSON.stringify(CYCLE_ANCHOR)}`);
     expect(frontmatterText(after).split('\n').filter((l) => l.startsWith('snapshot_id: '))).toEqual([expect.stringContaining(String(next))]);
     expect(blockOf(after)).toContain(String(next));
     // The comment line, the single-quoted key and every other frontmatter line are byte-identical.

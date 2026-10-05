@@ -28,6 +28,11 @@ describe('rewriteFrontmatterLines: what is rewritten', () => {
     expect(text.split('\r\n')).toHaveLength(crlf.split('\r\n').length);
   });
 
+  it('keeps each line\'s own ending in a file that mixes CRLF and LF', () => {
+    const mixed = '---\r\nsnapshot_id: s1\nsource_path: x\r\nother: y\n---\r\nbody\n';
+    expect(rewritten(mixed)).toBe('---\r\nsnapshot_id: "s2"\nsource_path: "src/b.ts"\r\nother: y\n---\r\nbody\n');
+  });
+
   it('replaces single-quoted, double-quoted and plain values alike', () => {
     const text = rewritten(["---", "snapshot_id: 'old ''one'''", 'source_path: "a\\"b"', '---', 'x'].join('\n'));
     expect(text).toBe(['---', 'snapshot_id: "s2"', 'source_path: "src/b.ts"', '---', 'x'].join('\n'));
@@ -38,7 +43,7 @@ describe('rewriteFrontmatterLines: what is rewritten', () => {
   });
 
   it('writes values containing quotes, colons and hashes so JSON.parse of the scalar gives them back', () => {
-    for (const value of ['say "hi"', "it's", 'a: b', 'a #b', '# lead', 'tab\there', 'line\nbreak', 'back\\slash', 'u\u2028v', 'del\u007f']) {
+    for (const value of ['say "hi"', "it's", 'a: b', 'a #b', '# lead', 'tab\there', 'line\nbreak', 'back\\slash', 'u\u2028v', 'del\u007f', 'smile \u{1F600} end']) {
       const result = rewriteFrontmatterLines(NOTE, { snapshot_id: value, source_path: 'src/b.ts' });
       if (!result.ok) throw new Error('expected the rewrite to succeed');
       const line = result.text.split('\n').find((l) => l.startsWith('snapshot_id: '));
@@ -63,6 +68,11 @@ describe('rewriteFrontmatterLines: when it refuses', () => {
     ['a literal block value', note('snapshot_id: |', '  s1', 'source_path: x')],
     ['a folded block value', note('snapshot_id: >', '  s1', 'source_path: x')],
     ['an indented continuation of a plain value', note('snapshot_id: s1', '  more', 'source_path: x')],
+    ['an indented continuation after a blank line', note('snapshot_id: s1', '', '  more', 'source_path: x')],
+    ['an indented continuation after a whitespace-only line', note('snapshot_id: s1', '   ', '  more', 'source_path: x')],
+    ['an indented continuation after a blank line (source_path)', note('snapshot_id: s1', 'source_path: x', '', '  more')],
+    ['an indented continuation after a comment line', note('snapshot_id: s1', '# c', '  more', 'source_path: x')],
+    ['a byte order mark before the block', `\ufeff${note('snapshot_id: s1', 'source_path: x')}`],
     ['an open quote', note('snapshot_id: "s1', '  end"', 'source_path: x')],
     ['an empty value', note('snapshot_id:', 'source_path: x')],
     ['a flow value', note('snapshot_id: [a,', ' b]', 'source_path: x')],
