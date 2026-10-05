@@ -22,6 +22,8 @@ const JSDOM_HOST_TESTS = [
   'tests/host/multi-leaf.test.ts',
   'tests/host/window-migration.test.ts',
   'tests/host/lifecycle-leaks.test.ts',
+  // Gap closure GRB17b: the source modal renders its validation message into a real DOM.
+  'tests/host/source-modal-unreadable.test.ts',
 ];
 
 export default defineConfig({

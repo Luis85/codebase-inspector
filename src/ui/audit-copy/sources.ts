@@ -53,3 +53,7 @@ export const SOURCES_OPEN_ROUTE = (title: string): string => `Open ${title}`;
 /** WP-03 N26 (JF18): the Data & scans "imports" provider row's source once a report has
  *  been read, replacing the old always-sample text. */
 export const EVIDENCE_SOURCE_FALLOW_PARTIAL = 'fallow · cycles and boundary violations only';
+
+/** Gap closure GRB17b (GCN12, verbatim): the source modal's message for a chosen folder whose
+ *  stat fails for a reason other than "not there", naming the code (EACCES, EPERM, …). */
+export const SOURCE_FOLDER_UNREADABLE = (code: string): string => `The folder cannot be read (${code}).`;

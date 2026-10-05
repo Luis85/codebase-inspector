@@ -10,6 +10,7 @@ import type { FakeTree } from '../fixtures/fake-source-filesystem';
 import { createCancellationToken } from '../fixtures/cancellation-token';
 import { walkTree } from '../../src/adapters/filesystem/walker';
 import type { WalkerDeps } from '../../src/adapters/filesystem/walker';
+import { RootUnreadableError } from '../../src/application/root-unreadable';
 import type { WalkEntry, WalkOptions } from '../../src/application/ports/source-filesystem-port';
 
 async function collect(port: ReturnType<typeof createFakeSourceFileSystem>['port'],
@@ -126,7 +127,7 @@ describe('bounded walk: depth and entry-count limits', () => {
 describe('root read failure propagates (fix-round-1 MINOR finding 8, spec 7 "a failed run")', () => {
   it('re-throws when the ROOT directory itself cannot be listed, distinguishable from cancellation', async () => {
     const { token } = createCancellationToken();
-    const rootFailure = new Error('EACCES: permission denied, scandir /root');
+    const rootFailure = Object.assign(new Error('EACCES: permission denied, scandir /root'), { code: 'EACCES' });
     const deps: WalkerDeps = {
       caseSensitive: true,
       onOpen: () => {},
@@ -140,8 +141,11 @@ describe('root read failure propagates (fix-round-1 MINOR finding 8, spec 7 "a f
 
     // Propagates the ROOT's own failure — not swallowed into an empty snapshot (spec 7:
     // a failed run must be visibly failed, never silently empty) and not disguised as a
-    // cancellation, which never happened here.
-    await expect(iterator.next()).rejects.toBe(rootFailure);
+    // cancellation, which never happened here. GCQ9 (GRB17b): typed as RootUnreadableError,
+    // carrying the code and the raw error unchanged.
+    const thrown: unknown = await iterator.next().then(() => null, (e: unknown) => e);
+    expect(thrown).toBeInstanceOf(RootUnreadableError);
+    expect(thrown).toMatchObject({ code: 'EACCES', original: rootFailure });
     expect(token.cancelled).toBe(false);
   });
 });

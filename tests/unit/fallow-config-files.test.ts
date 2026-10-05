@@ -32,6 +32,11 @@ describe('listConfigFiles (GRB9)', () => {
     expect(await listConfigFiles(throwing, root)).toEqual([]);
   });
 
+  it('GRB17b: a name whose stat is unreadable counts as absent, like a stat that throws', async () => {
+    const { port, root } = createFakeSourceFileSystem({ 'fallow.toml': { statError: 'EACCES' }, '.fallow.toml': '' });
+    expect(await listConfigFiles(port, root)).toEqual(['.fallow.toml']);
+  });
+
   it('stats each name under the root, and nothing else', async () => {
     const asked: string[] = [];
     const missing: StatResult = { exists: false, isDirectory: false, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 };

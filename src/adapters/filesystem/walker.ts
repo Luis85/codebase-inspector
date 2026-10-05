@@ -8,6 +8,7 @@
 // level, not only at the test level.
 import { isContained, normalizeRelativePath } from '../../domain/path-safety';
 import { byteSize, countPhysicalLines } from '../../domain/metrics';
+import { RootUnreadableError } from '../../application/root-unreadable';
 import type { CancellationToken } from '../../application/ports/cancellation-token';
 import type { WalkEntry, WalkOptions } from '../../application/ports/source-filesystem-port';
 
@@ -152,8 +153,9 @@ export async function* walkTree(
     } catch (e) {
       // The root itself failing to list is a real error the caller should see, not a
       // silently-produced empty snapshot; every OTHER directory that fails becomes a
-      // visible skip instead (never dropped silently, per spec 7).
-      if (frame.relPath === '') throw e;
+      // visible skip instead (never dropped silently, per spec 7). GCQ9: typed, so the
+      // coordinator reports the root as unavailable with the code (the raw error rides along).
+      if (frame.relPath === '') throw new RootUnreadableError(e);
       // wasDirectory: true (fix-round-1 finding 7) — this path was already yielded once
       // as a 'directory' WalkEntry when it was first discovered as its parent's child;
       // this second, later entry is a DIFFERENT fact ("its contents could not be

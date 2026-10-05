@@ -10,6 +10,7 @@ import { isContained, normalizeAbsolutePath, normalizeRelativePath } from '../..
 // The ONE catalogue, not a second copy of the same sentence -- see scope-modal.ts's
 // own note (task 12, carried finding 3).
 import { COPY_03 } from '../../ui/copy';
+import { SOURCE_FOLDER_UNREADABLE } from '../../ui/inspector-copy';
 import { labelFor } from '../field-label';
 
 export type SourceMode = 'vault' | 'vault-folder' | 'external';
@@ -224,6 +225,11 @@ class SourceModal extends Modal {
     const resolvedRoot = this.computeResolvedRoot();
     if (resolvedRoot === null) return;   // computeResolvedRoot already set a visible reason
     const stat = await this.opts.filesystem.stat(resolvedRoot);
+    // GRB17b: a folder that is there but cannot be read says so, with its code (GCN12).
+    if (stat.unreadable !== undefined) {
+      this.setError(SOURCE_FOLDER_UNREADABLE(stat.unreadable));
+      return;
+    }
     if (!stat.exists || !stat.isDirectory) {
       this.setError(`"${resolvedRoot}" is not a directory that can be read.`);
       return;

@@ -18,7 +18,7 @@ const profile: CodebaseProfile = { profileId: 'p1', name: 'Alpha', bindingId: nu
 const app = {} as unknown as App;
 const store = {} as unknown as ProfileStore;
 
-function setUp(stat: { exists: boolean; isDirectory: boolean }) {
+function setUp(stat: { exists: boolean; isDirectory: boolean; unreadable?: string }) {
   const statFn = vi.fn(async (_path: string) => ({ ...stat, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 }));
   const port = { stat: statFn } as unknown as SourceFileSystemPort;
   const start = vi.fn(async () => undefined);
@@ -59,6 +59,14 @@ describe('runRefresh against an unavailable root', () => {
     const { port, start, reportRootUnavailable, coordinator } = setUp({ exists: true, isDirectory: false });
     await runRefresh(app, coordinator, profile, STORED, createFixedClock(), store, '/stored', port);
     expect(reportRootUnavailable).toHaveBeenCalledWith('/stored');
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('GRB17b: an unreadable root is reported unavailable with its code, never offered for approval', async () => {
+    const { port, start, reportRootUnavailable, coordinator } = setUp({ exists: true, isDirectory: false, unreadable: 'EACCES' });
+    await runRefresh(app, coordinator, profile, STORED, createFixedClock(), store, '/stored', port);
+    expect(reportRootUnavailable).toHaveBeenCalledWith('/stored', 'EACCES');
+    expect(openScopeModal).not.toHaveBeenCalled();
     expect(start).not.toHaveBeenCalled();
   });
 

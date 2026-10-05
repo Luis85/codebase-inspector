@@ -26,13 +26,14 @@ export const FALLOW_CONFIG_FILE_NAMES: readonly string[] = ['.fallowrc.json', '.
 
 /** The names from FALLOW_CONFIG_FILE_NAMES that exist directly under `root`, in that order.
  *  A name counts when something that is not a directory sits there (a file, or a symbolic
- *  link: the stat does not follow links). A stat that fails counts as absent: this is
- *  provenance, never a reason to refuse a run. */
+ *  link: the stat does not follow links). A stat that fails, or is unreadable (GRB17b: it
+ *  cannot say a file is there), counts as absent: this is provenance, never a reason to
+ *  refuse a run. */
 export async function listConfigFiles(port: SourceFileSystemPort, root: string): Promise<readonly string[]> {
   const found = await Promise.all(FALLOW_CONFIG_FILE_NAMES.map(async (name) => {
     try {
       const stat = await port.stat(joinRootPath(root, name));
-      return stat.exists && !stat.isDirectory;
+      return stat.exists && stat.unreadable === undefined && !stat.isDirectory;
     } catch {
       return false;
     }

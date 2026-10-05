@@ -5,7 +5,8 @@
 // the snapshot's own scope.rootPath (IP14) — a reconnected codebase is `root-changed` (GRB8),
 // never a read of the wrong folder's files under the old path. WP-04 E25, GRB4: a codebase with
 // no binding at all reads under the snapshot's own root as the HOST resolves it, never as the
-// request names it.
+// request names it. GRB17b: a path whose stat is unreadable (`StatResult.unreadable`) is
+// `read-error`, never `missing`.
 import { normalizeRelativePath, isContained } from '../../domain/path-safety';
 import { countPhysicalLines } from '../../domain/metrics';
 import type { Clock } from '../ports/clock';
@@ -126,6 +127,7 @@ async function checkAncestors(
   for (let i = 1; i < segments.length; i += 1) {
     const dir = await fs.stat(joinRootPath(root, segments.slice(0, i).join('/')));
     if (!dir.exists) return unavailable('missing');
+    if (dir.unreadable !== undefined) return unavailable('read-error');
     if (dir.isSymbolicLink) return unavailable('outside-root');
   }
   return null;
@@ -139,6 +141,7 @@ async function attemptOnce(
   if (ancestorProblem !== null) return { race: false, result: ancestorProblem };
   const preStat = await fs.stat(abs);
   if (!preStat.exists) return { race: false, result: unavailable('missing') };
+  if (preStat.unreadable !== undefined) return { race: false, result: unavailable('read-error') };
   if (preStat.isSymbolicLink) return { race: false, result: unavailable('outside-root') };
   if (!preStat.isFile) return { race: false, result: unavailable('not-a-file') };
   const limit = Math.min(request.maxFileBytes, PREVIEW_MAX_BYTES);
@@ -151,6 +154,7 @@ async function attemptOnce(
     if (postAncestorProblem !== null) return { race: false, result: postAncestorProblem };
     const postStat: StatResult = await fs.stat(abs);
     if (!postStat.exists) return { race: false, result: unavailable('missing') };
+    if (postStat.unreadable !== undefined) return { race: false, result: unavailable('read-error') };
     if (postStat.isSymbolicLink) return { race: false, result: unavailable('outside-root') };
     if (postStat.size !== preStat.size || postStat.mtimeMs !== preStat.mtimeMs) return { race: true };
     mtimeMs = postStat.mtimeMs;

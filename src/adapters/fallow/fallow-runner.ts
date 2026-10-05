@@ -7,7 +7,9 @@
 // - Cancel, the time limit and the cap all stop the same way: SIGTERM (the group on POSIX,
 //   on Windows the tree), then SIGKILL after the grace. A stopped run resolves on `exit`,
 //   after destroying the pipes, so a grandchild holding them cannot keep it open; if no
-//   `exit` comes, it resolves anyway one close grace after SIGKILL. No timer outlives a run.
+//   `exit` comes, it resolves anyway one close grace after SIGKILL. No timer outlives a run,
+//   except on Windows the unref'd TASKKILL_BOUND_MS timer below, which can fire up to 1 s
+//   after the run has settled (then its direct kill is a no-op on an exited child).
 // - killAll (onunload) sends SIGKILL at once and resolves every run as cancelled.
 // - Windows (gap closure GRB3/E41): fallow 3.27.0 spawns `git`, and git a second git, so a
 //   direct kill() (TerminateProcess) would leave them running. The stop first runs

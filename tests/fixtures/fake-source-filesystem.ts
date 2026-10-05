@@ -17,9 +17,15 @@ export type FakeEntry =
   | { readonly binary: true }                 // content that must be classified binary
   | { readonly oversizedBytes: number }       // a file reporting this many bytes, content irrelevant
   | { readonly unreadable: true }             // a file that throws when read
+  | { readonly statError: string }            // a path whose lstat fails with this code (GRB17b)
   | { readonly symlinkTo: string };           // a symlink (never followed) to another key
 
 export type FakeTree = Record<string, FakeEntry>;
+
+/** GRB17b: the code a `statError` entry's lstat fails with, else null. */
+function statErrorOf(node: FakeNode | undefined): string | null {
+  return node?.kind === 'file' && typeof node.entry === 'object' && 'statError' in node.entry ? node.entry.statError : null;
+}
 
 interface FakeDirNode { kind: 'dir'; children: Map<string, FakeNode> }
 interface FakeFileNode { kind: 'file'; entry: FakeEntry }
@@ -80,6 +86,7 @@ function classify(entry: FakeEntry): { ok: true; text: string; bytes: Uint8Array
   if (typeof entry === 'string') return { ok: true, text: entry, bytes: new TextEncoder().encode(entry) };
   if ('binary' in entry) return { ok: false, reason: 'file appears to contain binary content' };
   if ('unreadable' in entry) return { ok: false, reason: 'file is unreadable: permission denied (fake)' };
+  if ('statError' in entry) return { ok: false, reason: `file is unreadable: ${entry.statError} (fake)` };
   if ('oversizedBytes' in entry) {
     const text = 'x'.repeat(Math.min(entry.oversizedBytes, 16));
     return { ok: true, text, bytes: new TextEncoder().encode(text) };
@@ -104,6 +111,8 @@ export function createFakeSourceFileSystem(spec: FakeTree): { port: SourceFileSy
       return Promise.resolve([...node.children.keys()]);
     },
     lstat(absPath) {
+      const code = statErrorOf(resolveNode(tree, absPath, root));
+      if (code !== null) return Promise.reject(Object.assign(new Error(`${code}: lstat ${absPath}`), { code }));
       const stats = fakeStats(resolveNode(tree, absPath, root));
       if (!stats) return Promise.reject(new Error(`ENOENT: ${absPath}`));
       return Promise.resolve(stats);
@@ -129,6 +138,8 @@ export function createFakeSourceFileSystem(spec: FakeTree): { port: SourceFileSy
     log.push(absPath);
     const node = resolveNode(tree, absPath, root);
     if (!node || node.kind !== 'file') return { status: 'unavailable', reason: 'file is unreadable: not found (fake)' };
+    const code = statErrorOf(node);
+    if (code !== null) return { status: 'unavailable', reason: `file is unreadable: ${code} (fake)` };
     const stats = fakeStats(node)!;
     if (stats.size > maxBytes) {
       return { status: 'unavailable', reason: `file exceeds the maximum size of ${maxBytes} bytes` };
@@ -141,7 +152,12 @@ export function createFakeSourceFileSystem(spec: FakeTree): { port: SourceFileSy
 
   async function stat(absPath: string): Promise<StatResult> {
     log.push(absPath);
-    const stats = fakeStats(resolveNode(tree, absPath, root));
+    const node = resolveNode(tree, absPath, root);
+    const code = statErrorOf(node);
+    if (code !== null) {
+      return { exists: true, unreadable: code, isDirectory: false, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 };
+    }
+    const stats = fakeStats(node);
     if (!stats) return { exists: false, isDirectory: false, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 };
     return {
       exists: true, isDirectory: stats.isDirectory(), isFile: stats.isFile(),

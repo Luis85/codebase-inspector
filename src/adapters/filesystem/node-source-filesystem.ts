@@ -15,6 +15,7 @@
 import { fsPromises as defaultFsPromises, nodePath as defaultNodePath } from './node-access';
 import { walkTree } from './walker';
 import type { WalkerDeps, ReadTextOutcome } from './walker';
+import { errorCodeOf } from '../../application/root-unreadable';
 import type {
   SourceFileSystemPort, WalkEntry, WalkOptions, ReadResult, StatResult,
 } from '../../application/ports/source-filesystem-port';
@@ -22,6 +23,8 @@ import type { CancellationToken } from '../../application/ports/cancellation-tok
 import type { NodeFsPromisesLike, NodePathLike } from './node-globals';
 
 const BINARY_SNIFF_BYTES = 8000;
+/** GRB17b: the lstat codes that mean nothing is at the path. */
+const MISSING_CODES: ReadonlySet<string> = new Set(['ENOENT', 'ENOTDIR']);
 
 function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
@@ -138,6 +141,8 @@ export function createNodeSourceFileSystem(deps: NodeSourceFileSystemDeps = {}):
       : { status: 'unavailable', reason: outcome.reason };
   }
 
+  /** GRB17b: only "nothing is there" (ENOENT, ENOTDIR) is `exists: false`. Any other lstat
+   *  failure is unreadable, carrying its code, so no consumer reads it as missing. */
   async function stat(absPath: string): Promise<StatResult> {
     log.push(absPath);
     try {
@@ -146,8 +151,13 @@ export function createNodeSourceFileSystem(deps: NodeSourceFileSystemDeps = {}):
         exists: true, isDirectory: st.isDirectory(), isFile: st.isFile(),
         isSymbolicLink: st.isSymbolicLink(), size: st.size, mtimeMs: st.mtimeMs,
       };
-    } catch {
-      return { exists: false, isDirectory: false, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0 };
+    } catch (e) {
+      const code = errorCodeOf(e);
+      const exists = !MISSING_CODES.has(code);
+      return {
+        exists, ...(exists ? { unreadable: code } : {}),
+        isDirectory: false, isFile: false, isSymbolicLink: false, size: 0, mtimeMs: 0,
+      };
     }
   }
 

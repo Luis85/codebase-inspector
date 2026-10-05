@@ -71,8 +71,12 @@ export type ReadResult =
   | { status: 'ok'; text: string; bytes: Uint8Array }
   | { status: 'unavailable'; reason: string };
 
+/** Gap closure GRB17b (§4.5, additive): `exists: false` means nothing is there (ENOENT,
+ *  ENOTDIR). Any other lstat failure is `exists: true` with `unreadable` set to its code
+ *  (`EACCES`, `EPERM`, …; `UNKNOWN` without one), and every other field false or 0. */
 export interface StatResult {
   exists: boolean;
+  unreadable?: string;
   isDirectory: boolean;
   isFile: boolean;
   isSymbolicLink: boolean;

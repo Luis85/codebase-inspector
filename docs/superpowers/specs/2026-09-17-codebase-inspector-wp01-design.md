@@ -778,6 +778,15 @@ stat), `ProfileStore`, `LocalBindingStore`, `SnapshotStore`, `Clock`,
 is WP-05. Reopening shows retained in-memory state marked with its age, and
 never silently authorises a new scan.
 
+`StatResult` gains one optional field, `unreadable?: string` (additive). `exists:
+false` means nothing is at the path (`ENOENT`, `ENOTDIR`). Any other `lstat`
+failure is `exists: true` with `unreadable` set to its code (`EACCES`, `EPERM`,
+…; `UNKNOWN` when the error has none), and the other fields false or 0. No
+consumer reads an unreadable path as missing: the preview reports `read-error`,
+the source modal names the code, and a scan root that cannot be stat'ed or listed
+is reported as unavailable with the code (amended by gap closure GCN3, GRB17b,
+2026-10-05).
+
 ## 5. Task sequence
 
 | # | Task | Ends with | Check |

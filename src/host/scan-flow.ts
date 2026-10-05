@@ -204,7 +204,12 @@ export async function runRefresh(
   // modal opens, whether the target is the stored root or a different bound one.
   const target = boundRoot ?? storedScope.rootPath;
   const rootStat = await port.stat(target);
-  if (!rootStat.exists || !rootStat.isDirectory) { coordinator.reportRootUnavailable(target); return; }
+  // GRB17b: an unreadable root (exists, but `unreadable` set) is unavailable too, and names its code.
+  if (!rootStat.exists || !rootStat.isDirectory) {
+    if (rootStat.unreadable === undefined) coordinator.reportRootUnavailable(target);
+    else coordinator.reportRootUnavailable(target, rootStat.unreadable);
+    return;
+  }
   // WP-04.2 polish O1 (PN5): a Reconnect names a new root, and WP-01 §4.1 says a changed root invalidates prior
   // approval. So when the live binding's root is not the snapshot's, the scope modal opens on the bound root (the
   // M57 path), and nothing is self-minted for it.

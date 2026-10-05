@@ -4,6 +4,7 @@
 import { collectInventory, CancellationError } from './inventory-collector';
 import { isApprovalValid } from './approval';
 import { validateSnapshot } from '../domain/validator';
+import { RootUnreadableError } from './root-unreadable';
 import {
   identityOf, initialScanLifecycleState, mayPublish, reduce,
 } from './run-state';
@@ -25,8 +26,9 @@ const READING_FILES = 'Reading included files.';
 // feel live and rare enough that the notification storm is gone.
 const PROGRESS_THROTTLE_MS = 100;
 
-function rootUnavailableMessage(rootPath: string): string {
-  return `The source directory is no longer available: ${rootPath}`;
+/** GCQ9 (GRB17b): an unreadable root names its code, e.g. `… /src (EACCES)`. */
+function rootUnavailableMessage(rootPath: string, code?: string): string {
+  return `The source directory is no longer available: ${rootPath}${code === undefined ? '' : ` (${code})`}`;
 }
 
 /** Every InventoryRunState variant except 'idle' carries a runId. Used instead of an
@@ -151,10 +153,11 @@ export class ScanCoordinator {
 
     try {
       // "Root moved or unavailable" (spec 7) fails cleanly HERE, before a walk is ever
-      // attempted, and never substitutes a fallback root -- it simply fails.
+      // attempted, and never substitutes a fallback root -- it simply fails. GCQ9: an unreadable
+      // root (StatResult.unreadable) is unavailable too, and says why.
       const rootStat = await this.deps.port.stat(scope.rootPath);
       if (!rootStat.exists || !rootStat.isDirectory) {
-        this.finishFailed(runId, rootUnavailableMessage(scope.rootPath), 'root-unavailable');
+        this.finishFailed(runId, rootUnavailableMessage(scope.rootPath, rootStat.unreadable), 'root-unavailable');
         return;
       }
 
@@ -230,6 +233,11 @@ export class ScanCoordinator {
         this.finishCancelled(runId);
         return;
       }
+      // GCQ9: a root the walk could not list is unavailable (COPY-28), never a plain scan failure.
+      if (e instanceof RootUnreadableError) {
+        this.finishFailed(runId, rootUnavailableMessage(scope.rootPath, e.code), 'root-unavailable');
+        return;
+      }
       this.finishFailed(runId, e instanceof Error ? e.message : String(e));
     } finally {
       this.cancelFns.delete(runId);
@@ -250,8 +258,8 @@ export class ScanCoordinator {
 
   /** Spec 7 (GRA4): a refresh that finds the root gone before any run starts. Keeps the snapshot readable and
    *  starts no run; ignored while a run is in flight. */
-  reportRootUnavailable(rootPath: string): void {
-    this.dispatch({ type: 'ROOT_UNAVAILABLE', message: rootUnavailableMessage(rootPath) });
+  reportRootUnavailable(rootPath: string, code?: string): void {
+    this.dispatch({ type: 'ROOT_UNAVAILABLE', message: rootUnavailableMessage(rootPath, code) });
   }
 
   private dispatch(action: RunAction): void {
