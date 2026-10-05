@@ -21,6 +21,7 @@ export function inertInvestigationNotes(): InvestigationNotesPort {
     open: () => Promise.resolve(false),
     sourceNotePath: () => null,
     subscribe: () => unsubscribeNothing,
+    resync: () => {},
   };
 }
 

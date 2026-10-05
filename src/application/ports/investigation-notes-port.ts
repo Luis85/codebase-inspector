@@ -51,4 +51,7 @@ export interface InvestigationNotesPort {
   /** IN12: the vault path of a `.md` file under `rootPath` that the vault holds, else null. */
   sourceNotePath(rootPath: string, relativePath: string): string | null;
   subscribe(listener: () => void): () => void;
+  /** GRB6: re-reads the whole note index (one pass), so a note the vault indexed late is listed. Listeners
+   *  hear only a real change. */
+  resync(codebaseId: string): void;
 }

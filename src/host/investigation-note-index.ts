@@ -1,13 +1,13 @@
 // WP-04 IN33 (IP13): the host's note index. Nothing is read until the first list or
 // subscribe (onload registers only, spec 4.4). 'changed', 'rename' and 'delete' update one
-// entry; the first 'resolved' after start rebuilds from the whole cache (WP-04 E14).
-// Listeners hear only real changes.
+// entry; the first 'resolved' after start rebuilds from the whole cache (WP-04 E14), and so does
+// `rebuild()` (GRB6: Investigate opening). Listeners hear only real changes.
 import { TFile } from 'obsidian';
 import type { App, EventRef } from 'obsidian';
 import { applyNoteEvent, noteIndexFor } from '../application/investigation/note-index';
 import type { NoteEvent, NoteIndex, NoteRecords } from '../application/investigation/note-index';
 
-export interface NoteIndexSource { list(codebaseId: string): NoteIndex; subscribe(listener: () => void): () => void }
+export interface NoteIndexSource { list(codebaseId: string): NoteIndex; subscribe(listener: () => void): () => void; rebuild(): void }
 
 export function createNoteIndexSource(app: App, registerEvent: (ref: EventRef) => void): NoteIndexSource {
   let records: NoteRecords = new Map();
@@ -54,8 +54,16 @@ export function createNoteIndexSource(app: App, registerEvent: (ref: EventRef) =
     }));
     registerEvent(app.vault.on('delete', (file) => { apply({ kind: 'deleted', path: file.path }); }));
   }
+  // GRB6: the whole-cache repair, on demand (Investigate opening). The first call after nothing
+  // has started takes start()'s own pass; every later call is exactly one everyFile() pass, and
+  // apply() notifies listeners only when that pass found something different.
+  function rebuild(): void {
+    if (!started) { start(); return; }
+    apply(everyFile());
+  }
   let memo: { records: NoteRecords; codebaseId: string; index: NoteIndex } | null = null;
   return {
+    rebuild,
     list: (codebaseId) => {
       start();
       if (memo === null || memo.records !== records || memo.codebaseId !== codebaseId) memo = { records, codebaseId, index: noteIndexFor(records, codebaseId) };

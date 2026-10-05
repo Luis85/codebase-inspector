@@ -146,6 +146,11 @@ export const useInvestigationStore = defineStore('investigation', () => {
   /** E15/E17: the port's result, `'partial'` included, passes through untouched. */
   const refresh = (request: RefreshNoteRequest): Promise<RefreshNoteResult | null> =>
     (notesPort === null ? Promise.resolve(null) : notesPort.refresh(request));
+  /** GRB6: Investigate opening asks the host to re-read the note index; the subscription above delivers any change. */
+  const resync = (): void => {
+    const id = evidence.repositoryId;
+    if (id !== '') notesPort?.resync(id);
+  };
   const openNote = (path: string): Promise<boolean> => (notesPort === null ? Promise.resolve(false) : notesPort.open(path));
   const sourceNotePath = (rootPath: string, relativePath: string): string | null =>
     (notesPort === null ? null : notesPort.sourceNotePath(rootPath, relativePath));
@@ -163,6 +168,6 @@ export const useInvestigationStore = defineStore('investigation', () => {
 
   return {
     selectedFingerprint, findingGone, notes, destination, destinationFailed, preview, open, markGone, setPorts, loadDestination,
-    readPreview, plan, create, refresh, openNote, sourceNotePath,
+    readPreview, plan, create, refresh, openNote, sourceNotePath, resync,
   };
 });

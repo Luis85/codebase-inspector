@@ -5,7 +5,7 @@
   only Open file detail selects the anchor and navigates (IP20).
 -->
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import type { EntityId } from '../../domain/entity-id';
 import { useReadModels } from '../read-models/use-read-models';
 import { DEFAULT_INVESTIGATION_FILTER, filterInvestigation, type InvestigationFilter } from '../read-models/investigation';
@@ -41,6 +41,8 @@ import WorkItemEditor from './workbench/WorkItemEditor.vue';
 
 const store = useCityStore();
 const investigationStore = useInvestigationStore();
+// GRB6: opening Investigate re-reads the note index, so a note the vault indexed late is listed.
+onMounted(() => { investigationStore.resync(); });
 const importReport = useImportReport();
 const { quality, investigation, files } = useReadModels();
 const report = computed(() => quality.value.evidence.report);

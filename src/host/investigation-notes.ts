@@ -299,5 +299,6 @@ export function createInvestigationNotes(app: App, deps: InvestigationNotesDeps)
     open,
     sourceNotePath,
     subscribe: (listener) => index.subscribe(listener),
+    resync: () => { index.rebuild(); },
   };
 }

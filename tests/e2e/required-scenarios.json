@@ -41,5 +41,6 @@
   "the finding list pages through a report longer than one page and leaves out unmatched findings",
   "a render waiting in the settings tab is released when another settings tab is opened",
   "the city shows the source as unavailable when its folder is gone, and keeps the snapshot readable",
-  "refreshing a note keeps its frontmatter comments and quoting"
+  "refreshing a note keeps its frontmatter comments and quoting",
+  "a linked note the vault indexed late is listed when Investigate opens again"
 ]
