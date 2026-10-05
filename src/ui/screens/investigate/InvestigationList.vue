@@ -29,12 +29,16 @@ const { active, onKeydown, setActive } = useRovingIndex({
 });
 
 /** GRB15: Show more makes the first newly shown row the tab stop and moves focus onto it,
- *  also when this was the last page and the button unmounts. */
+ *  also when this was the last page and the button unmounts. The tab stop is set after the
+ *  new rows render: the roving index re-points `active` at the selected row when the row
+ *  count changes, which would otherwise undo it. */
 function onMore(): void {
   const first = props.limit;
   emit('more');
-  setActive(first);
-  void nextTick(() => list.value?.querySelectorAll<HTMLElement>('.ci-investigate-row')[first]?.focus());
+  void nextTick(() => {
+    setActive(first);
+    list.value?.querySelectorAll<HTMLElement>('.ci-investigate-row')[first]?.focus();
+  });
 }
 
 function onRow(i: number): void {
