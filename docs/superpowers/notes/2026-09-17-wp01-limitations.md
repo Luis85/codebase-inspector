@@ -122,7 +122,11 @@ section, where that gap is stated rather than closed.
   now refuses it with a visible reason. There is no glob support anywhere in the walk.
   *Resolved: gap closure GRB12 (GCQ4, 2026-10-05).* Each such exclusion adds a snapshot
   warning ("The exclusion "{x}" contains * or ? and matches nothing. Edit it in Settings."),
-  shown on Data & scans; it does not mark the snapshot partial.
+  shown on Data & scans; it does not mark the snapshot partial. *Accepted (gap closure E50,
+  final review M6, 2026-10-05):* the snapshot warnings list on Data & scans
+  (`ScopePanel.vue`) is uncapped: it shows one item per unique skip reason, plus each
+  wildcard warning, however many there are. A cap would need new copy (a "and N more" line
+  and its wording), so it is left as it is.
 - **`CityViewport`'s self-reconstruction had no attempt cap.** A context that was lost
   repeatedly was reconstructed repeatedly. *Resolved: gap closure (GRA2).*
   `src/visualization/reconstruct-cap.ts` wraps the renderer factory the host provides: after
@@ -398,7 +402,11 @@ round-trip).
   second git), so on Windows the stop and the shutdown now run
   `%SystemRoot%\System32\taskkill.exe /PID <pid> /T /F` before the direct kill, bounded at
   1 s; the contract test proves a detached grandchild gone. A force-quit is still not
-  covered (below).
+  covered (below). *Residual (gap closure E50, final review M5, 2026-10-05):* `taskkill /T`
+  builds its tree from each process's recorded parent-PID field, which Windows never
+  updates when the parent exits. If fallow was given a reused PID, an orphan whose recorded
+  parent was the earlier holder of that PID could be killed with the tree. It is rare, and it cannot be fixed from Node, which offers no
+  job-object or process-creation-time check for the tree.
 - **Not a sandbox.** An authorised fallow runs with the user's permissions and can read
   and change anything the account can. Trust is an application safeguard, and its FNV
   fingerprint detects incidental change, not deliberate forgery.
@@ -597,7 +605,13 @@ probe results and spec §3). Recorded by task 18.
   Focus in the settings search box holds the settings tab's render wait, because that wait
   covers every field of the settings document (E3/E12), the search box included. A write
   made elsewhere while someone types a search therefore reaches the search index only once
-  focus leaves the fields or the tab is hidden (gap closure, 2026-10-03).
+  focus leaves the fields or the tab is hidden (gap closure, 2026-10-03). *Narrowed: gap
+  closure E50 (Task 16 M6, 2026-10-05).* The wait now counts only the fields of the tab's own
+  content (its containerEl and its `.setting-page`), never Obsidian's settings search field,
+  so a write made while the search box has focus renders, and reaches the search index, at
+  once; scenario 43 no longer blurs the search field and asserts it is focused. What remains:
+  a render already waiting for a field of the tab still waits when focus moves from that
+  field to the search box, until focus leaves the settings fields or the tab is hidden.
 - **An older build drops a leaf state that carries `name` (gap closure GRA8, 2026-10-04).**
   `CityViewState.name?` is new (§4.1, amended by GCN3). An older build's `.strict()` schema
   rejects the unknown key, so it discards the whole persisted leaf state once; the leaf opens

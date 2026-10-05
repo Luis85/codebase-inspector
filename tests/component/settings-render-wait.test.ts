@@ -37,14 +37,14 @@ describe('the settings render wait (follow-ups FN1)', () => {
   it('renders at once with nothing focused', () => {
     const render = vi.fn();
     const onError = vi.fn();
-    createRenderWait(() => document, render, onError).request();
+    createRenderWait(() => document, () => document.body, render, onError).request();
     expect(render).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
   });
 
   it('waits while a field is focused, and releases once when focus leaves for outside with the document focused', () => {
     const render = vi.fn();
-    const wait = createRenderWait(() => document, render, vi.fn());
+    const wait = createRenderWait(() => document, () => document.body, render, vi.fn());
     const typed = field(document);
     typed.focus();
     wait.request();
@@ -57,7 +57,7 @@ describe('the settings render wait (follow-ups FN1)', () => {
 
   it('holds at most one focusout listener across a wait, a render at once and a second wait (FU1)', () => {
     const render = vi.fn();
-    const wait = createRenderWait(() => document, render, vi.fn());
+    const wait = createRenderWait(() => document, () => document.body, render, vi.fn());
     const typed = field(document);
     const attached = focusoutListeners(document);
     typed.focus();
@@ -77,7 +77,7 @@ describe('the settings render wait (follow-ups FN1)', () => {
 
   it('hidden() runs a waiting render once, after a microtask, and removes its listener (FU2)', async () => {
     const render = vi.fn();
-    const wait = createRenderWait(() => document, render, vi.fn());
+    const wait = createRenderWait(() => document, () => document.body, render, vi.fn());
     const typed = field(document);
     const attached = focusoutListeners(document);
     typed.focus();
@@ -95,7 +95,7 @@ describe('the settings render wait (follow-ups FN1)', () => {
 
   it('hidden() without a wait does nothing', async () => {
     const render = vi.fn();
-    createRenderWait(() => document, render, vi.fn()).hidden();
+    createRenderWait(() => document, () => document.body, render, vi.fn()).hidden();
     await Promise.resolve();
     expect(render).not.toHaveBeenCalled();
   });
@@ -104,7 +104,7 @@ describe('the settings render wait (follow-ups FN1)', () => {
     const failure = new Error('render failed');
     const render = vi.fn(() => { throw failure; });
     const onError = vi.fn();
-    const wait = createRenderWait(() => document, render, onError);
+    const wait = createRenderWait(() => document, () => document.body, render, onError);
     const typed = field(document);
     typed.focus();
     wait.request();
@@ -129,7 +129,7 @@ describe('the settings render wait (follow-ups FN1)', () => {
     installObsidianDomExtensions(frame.contentWindow!);
     vi.spyOn(other, 'hasFocus').mockReturnValue(true);
     let current: Document = document;
-    const wait = createRenderWait(() => current, render, vi.fn());
+    const wait = createRenderWait(() => current, () => current.body, render, vi.fn());
     const first = field(document);
     const firstListeners = focusoutListeners(document);
     const otherListeners = focusoutListeners(other);

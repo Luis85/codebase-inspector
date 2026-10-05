@@ -15,6 +15,7 @@ import { closeSettings, onlyProfile, pluginData, reloadPlugin, savedBindings, va
 import { RECORDING, copyProject, cycleFinding, hashTree } from './workspace-files';
 import { cycleSelected, storeSnapshot } from './cycle-note';
 import { writeEvidence } from './diagnostics';
+import { NOTE_CREATE_FOLDER_IS_ROOT } from '../../src/ui/audit-copy/investigation';
 
 /** `cycleSelected`, with `code/` made through the vault API first, so the vault knows the folder as a person's would.
  *  Observed (investigation.e2e.ts, and again here): the session vault's watcher never indexes the project copied in from
@@ -166,7 +167,7 @@ describe('a notes folder that is the codebase folder (gap closure GRB7)', () => 
 
     // The root itself: the refusal shows with its reason, no path is planned, and Create is disabled.
     const refused = await inspector.refusedFolder('code');
-    expect(refused.problem.length).toBeGreaterThan(0);
+    expect(refused.problem).toBe(NOTE_CREATE_FOLDER_IS_ROOT);   // E50 (M7): this refusal, not any refusal
     expect(refused.planned).toBe(false);
     expect(refused.createDisabled).toBe(true);
     expect(await inspector.overlapOffered()).toBe(false);

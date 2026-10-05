@@ -38,6 +38,8 @@ import { createCancellationToken } from '../fixtures/cancellation-token';
 import { makeTempTree } from '../fixtures/temp-tree';
 import type { TempTree, TempTreeSpec } from '../fixtures/temp-tree';
 import type { SourceFileSystemPort, WalkEntry, WalkOptions } from '../../src/application/ports/source-filesystem-port';
+import { walkTree } from '../../src/adapters/filesystem/walker';
+import type { WalkerDeps } from '../../src/adapters/filesystem/walker';
 
 const OPTS: WalkOptions = { exclusions: [], maxFileBytes: 1_000_000, followSymlinks: false };
 /** The walker's window (walker.ts SCAN_WINDOW). */
@@ -246,5 +248,70 @@ describe('M106: the walk reads concurrently WITHOUT changing a byte of its outpu
     await delayBy(60);
     expect(lstats).toHaveLength(cancelObservedAt!.lstats);
     expect(reads).toHaveLength(cancelObservedAt!.reads);
+  });
+
+  // Behaviour change (2) of GRB2 (Review Focus 2): a failure is carried as that entry's
+  // own skip, never a rejection of the window. One lstat and one read fail mid-window,
+  // under reversed timing; every other entry is still emitted, in index order, and each
+  // failure's skip reason sits at its own index.
+  it('one failed lstat or read inside a window never drops or reorders the others', async () => {
+    const spec: TempTreeSpec = {};
+    for (let i = 0; i < 10; i += 1) spec[`b${i}.ts`] = `export const b = ${i};\n`;
+    const tree = await track(spec);
+    let issued = 0;
+    const late = async (): Promise<void> => { await delayBy(Math.max(0, 30 - issued++)); };
+    const failing = {
+      ...realFs,
+      lstat: async (p: string) => {
+        await late();
+        if (String(p).endsWith('b3.ts')) throw new Error('EACCES: lstat refused');
+        return realFs.lstat(p);
+      },
+      readFile: async (p: string) => {
+        await late();
+        if (String(p).endsWith('b5.ts')) throw new Error('EIO: read failed');
+        return realFs.readFile(p);
+      },
+    } as unknown as NodeSourceFileSystemDeps['fsPromises'];
+    const entries = await walkAll(createNodeSourceFileSystem({ fsPromises: failing, path }), tree.root);
+
+    expect(entries.map((e) => `${e.kind}:${e.relativePath}`)).toEqual(
+      Array.from({ length: 10 }, (_, i) => `${i === 3 || i === 5 ? 'skipped' : 'file'}:b${i}.ts`),
+    );
+    const reasons = entries.flatMap((e) => (e.kind === 'skipped' ? [e.reason] : []));
+    expect(reasons).toEqual(['unreadable: EACCES: lstat refused', 'file is unreadable: EIO: read failed']);
+  });
+
+  // Gap closure E50 (I1, M45): a window holds each read only as its two measurements. The
+  // first entry's read settles LAST, so by the time it is handed over every other file in
+  // its window has been read; each must already have been measured (its text and bytes
+  // released) rather than waiting, contents and all, to be measured when consumed.
+  it('measures every file as soon as it is read, so the window never holds file contents', async () => {
+    const names = Array.from({ length: W }, (_, i) => `m${i}.ts`);
+    const measured = new Set<string>();
+    const deps: WalkerDeps = {
+      caseSensitive: true,
+      onOpen: () => {},
+      joinPath: (base, name) => `${base}/${name}`,
+      readdirNames: (p) => Promise.resolve(p === '/root' ? [...names] : []),
+      lstat: () => Promise.resolve({ size: 4, isDirectory: () => false, isFile: () => true, isSymbolicLink: () => false }),
+      readAsText: async (p) => {
+        if (p.endsWith('/m0.ts')) await delayBy(25);
+        const name = p.slice('/root/'.length);
+        return {
+          ok: true,
+          get text() { measured.add(`text:${name}`); return 'a\nb\n'; },
+          get bytes() { measured.add(`bytes:${name}`); return new Uint8Array(4); },
+        };
+      },
+    };
+    const { token } = createCancellationToken();
+    const walk = walkTree('/root', OPTS, token, deps);
+    const first = await walk.next();
+    const measuredAtFirst = [...measured].sort();
+    for await (const entry of walk) void entry;
+
+    expect(first.value).toMatchObject({ kind: 'file', relativePath: 'm0.ts', lineCount: 2, byteLength: 4 });
+    expect(measuredAtFirst).toEqual(names.flatMap((n) => [`bytes:${n}`, `text:${n}`]).sort());
   });
 });

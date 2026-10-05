@@ -78,7 +78,7 @@ export function touchingFindings(file: FileSummary, evidence: EvidenceIndex): Fi
     const symbol = f.symbol === null ? null : visibleControls(f.symbol);
     const detail = visibleDetail(f.detail);
     return {
-      id: f.id, kind: f.category, rule: f.rule, severity: f.severity ?? 'unrated', line: f.line, endLine: f.endLine,
+      id: f.id, kind: f.category, rule: f.rule, severity: visibleControls(f.severity ?? 'unrated'), line: f.line, endLine: f.endLine,
       symbol, detail, title: FINDING_TITLE_FOR(f.category, f.rule, symbol, detail),
       fingerprint: findingFingerprint(anchorId, f.id), related: f.related ?? [], anchored: anchorId === file.id, anchorPath: f.path,
     };
@@ -103,7 +103,8 @@ function visibleDetail(detail: FindingDetail): FindingDetail {
         ...detail, members: detail.members.map(visibleControls),
         hops: detail.hops.map((h) => ({ ...h, from: visibleControls(h.from), to: visibleControls(h.to) })),
       };
-    default: return detail;
+    case 'duplication': case 'unused': return detail;   // numbers and booleans only
+    default: { const unhandled: never = detail; return unhandled; }   // E50: a new kind fails to compile here
   }
 }
 

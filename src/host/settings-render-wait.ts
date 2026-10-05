@@ -8,10 +8,13 @@ function isElementIn(container: Node, target: EventTarget | null): target is Ele
   return target !== null && 'matches' in target && container.contains(target as Element);
 }
 
-/** WP-04.2 polish PN4: whether `target` is a field a person types or picks in (an input, textarea or select) inside
- *  `container`. */
-function isEditingIn(container: Node, target: EventTarget | null): boolean {
-  return isElementIn(container, target) && target.matches('input, textarea, select');
+/** WP-04.2 polish PN4: whether `target` is a field a person types or picks in (an input, textarea or select) of the
+ *  tab's own content in `doc`: its containerEl, or a `.setting-page` (Obsidian 1.13.4 renders a profile page into
+ *  its own `setting-page vertical-tab-content` root). Gap closure E50: Obsidian's settings search field, in the
+ *  modal's `.vertical-tab-header`, is not the tab's, so focus there (where the settings open) never holds a render. */
+function isEditingIn(doc: Node, tabEl: Node, target: EventTarget | null): boolean {
+  return isElementIn(doc, target) && target.matches('input, textarea, select')
+    && (tabEl.contains(target) || target.closest('.setting-page') !== null);
 }
 
 /** The settings tab's render wait: `request()` asks for a render, `hidden()` says the tab was hidden. */
@@ -20,9 +23,11 @@ interface RenderWait {
   hidden(): void;
 }
 
-/** `doc` is the tab's document, read at every request; `render` is the tab's update(); `onError` shows a throw from
- *  a deferred render (a render at once throws to request()'s caller). */
-export function createRenderWait(doc: () => Document, render: () => void, onError: (e: unknown) => void): RenderWait {
+/** `doc` is the tab's document and `tabEl` its containerEl, both read at every request; `render` is the tab's
+ *  update(); `onError` shows a throw from a deferred render (a render at once throws to request()'s caller). */
+export function createRenderWait(
+  doc: () => Document, tabEl: () => Node, render: () => void, onError: (e: unknown) => void,
+): RenderWait {
   let pending: { doc: Document; listener: (event: FocusEvent) => void } | null = null;
 
   const drop = (): void => {
@@ -32,9 +37,9 @@ export function createRenderWait(doc: () => Document, render: () => void, onErro
   };
 
   /** WP-04.2 polish PN4: Obsidian's update() re-renders every render-type row, so it waits while a field of the
-   *  settings holds focus, and runs once focus has left the fields. The scope is the tab's document, not its
-   *  containerEl: observed on 1.13.4, a profile page renders into its own `.setting-page` and the containerEl is
-   *  detached while it shows (Settings open in their own window: NPF7). A render that runs at once supersedes a
+   *  tab's own content holds focus (`isEditingIn`), and runs once focus has left the fields. The document, not the
+   *  containerEl, is where it listens: observed on 1.13.4, a profile page renders into its own `.setting-page` and
+   *  the containerEl is detached while it shows (Settings open in their own window: NPF7). A render that runs at once supersedes a
    *  waiting one, so a focusout that never arrived (its window closed) cannot hold a later render back.
    *
    *  Final fix wave (item 1): the wait is released only when focus leaves the page's controls. Focus moving onto a
@@ -47,7 +52,7 @@ export function createRenderWait(doc: () => Document, render: () => void, onErro
    *  another document removes the earlier one before it attaches its own, so at most one is ever attached. */
   const request = (): void => {
     const current = doc();
-    if (!isEditingIn(current, current.activeElement)) {
+    if (!isEditingIn(current, tabEl(), current.activeElement)) {
       drop();
       render();
       return;

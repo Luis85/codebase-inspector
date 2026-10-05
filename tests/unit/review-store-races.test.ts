@@ -237,5 +237,25 @@ describe('Polish E4 fix round 1: the add stays reserved until its reload settles
     expect((await adding)?.target).toEqual(FILE_A);   // it was saved: a failure here would invite a duplicate retry
     expect(a.loadFailed).toBe(true);                  // R1: Settings says the read failed
     expect(await shared.listWorkItems()).toHaveLength(2);
+    // E50 (M3), the double fault: the lists still predate the save, so only the failed read
+    // refuses a second identical add — never a duplicate in storage.
+    expect(await a.addWorkItem(FILE_A, 'refactor', 'Split a.ts', new Date(AT))).toBeNull();
+    expect(targets(await shared.listWorkItems())).toEqual([FILE_A.entityId, FILE_B.entityId]);
+  });
+
+  it('a rule add whose newest reload failed refuses a second identical add, so it is never stored twice (E50)', async () => {
+    const { shared, slow, a, b } = await twoLeaves(true);
+    const adding = a.addRule('src/ui', 'src/host', 'The UI never reaches the host.', new Date(AT));
+    await flushPromises();
+    expect(await b.addRule('src/host', 'src/ui', 'Nor the host the UI.', new Date(AT))).not.toBeNull();
+    await flushPromises();
+    const release = holdListsOf(a, true);
+    slow.open();
+    await flushPromises();
+    release();
+    expect(await adding).not.toBeNull();
+    expect(a.loadFailed).toBe(true);
+    expect(await a.addRule('src/ui', 'src/host', 'The UI never reaches the host.', new Date(AT))).toBeNull();
+    expect(await shared.listRules()).toHaveLength(2);
   });
 });

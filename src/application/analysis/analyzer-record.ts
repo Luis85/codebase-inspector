@@ -6,8 +6,8 @@
 //   A bind on one device never touches another device's binding.
 // - A v1 record (one device) reads as a one-device v2 and is migrated by the next write on any
 //   device: every write stores v2 and carries the other devices over verbatim (GCN10).
-// - A newer or foreign format (`v` neither 1 nor 2, a `provider` other than 'fallow', a non-object
-//   entry, or a non-object slice) is READ-ONLY:
+// - A newer or foreign format (`v` neither 1 nor 2, a `provider` present and other than 'fallow', a
+//   non-object entry, or a non-object slice) is READ-ONLY (a missing provider reads invalid, E50):
 //   every write but purge is refused, so it is never overwritten (Y7's rule, GCQ6).
 // - A malformed entry or device reads as `invalid` with a reason naming the field. It is never
 //   used and is kept as it is; `bind` replaces only this device, `forget` removes only this device.
@@ -122,7 +122,8 @@ type ParsedEntry =
 function parseEntry(entry: unknown, machineId: string): ParsedEntry {
   if (!isPlainObject(entry) || (entry.v !== 1 && entry.v !== 2)) return { status: 'unsupported' };
   // E44 c: an entry of another provider is not ours to read or relabel (read-only, like a newer v).
-  if (entry.provider !== 'fallow') return { status: 'unsupported' };
+  // E50: a MISSING provider is likelier corruption than a foreign format, so it reads invalid.
+  if (entry.provider !== undefined && entry.provider !== 'fallow') return { status: 'unsupported' };
   if (entry.v === 1) {
     const parsed = V1.safeParse(entry);
     if (!parsed.success) {

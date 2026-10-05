@@ -118,14 +118,6 @@ async function searchSettings(browser: NativeBrowser, query: string): Promise<nu
   return browser.$$(`${SEARCH_RESULTS} .setting-search-result-group`).length;
 }
 
-/** Scenario 41: empties the settings search (settings window); the tab list shows again. */
-async function clearSettingsSearch(browser: NativeBrowser): Promise<void> {
-  await browser.$(SEARCH).click();
-  await browser.keys([Key.Ctrl, 'a']);
-  await browser.keys(Key.Backspace);
-  await expect.poll(() => browser.$(SEARCH_RESULTS).isDisplayed()).toBe(false);
-}
-
 type HookedPlugin = { onExternalSettingsChange?: (...args: unknown[]) => unknown };
 type HookWindow = Window & { ciExternalCalls?: number };
 /** Scenario 43's probe (GCQ8), from the main window: counts Obsidian's calls of our onExternalSettingsChange by
@@ -172,9 +164,9 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
       await openPluginSettings(browser);
       // Positive control: the tab lists the name the plugin saved, before anything outside it writes.
       await expect.poll(() => inspector.settingsProfileNames()).toEqual([profile.name]);
-      // Observed (probe): the settings open with their search field focused, and the tab's render waits while a field
-      // of the settings holds focus (PN4). Nothing is typed here, so focus leaves it and a refresh renders at once.
-      await browser.execute(() => { (document.activeElement as HTMLElement | null)?.blur(); });
+      // Observed (probe): the settings open with their search field focused. Gap closure E50: it is not a field of
+      // the tab's own content, so it never holds the tab's render (PN4), and the refresh renders with it focused.
+      expect(await browser.execute((search: string) => document.activeElement?.matches(search) ?? false, SEARCH)).toBe(true);
       writeDataJsonOutside(file, (data) => { data.profiles = [{ ...profile, name: renamed }]; });
       await expect.poll(() => inspector.settingsProfileNames(), { timeout: 5000 }).toEqual([renamed]);
       // An invalid record: the tab names its reason in a Notice and keeps the list it had.
@@ -372,13 +364,15 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     await expect.poll(async () => savedProfiles(await pluginData(browser))[0]?.name).toBe(renamed);
     await expect.poll(() => tabProfileName(browser, profile.profileId)).toBe(renamed);
     await browser.switchToWindow(settingsWindow);
-    // Positive control: while the wait holds (focus moves to the search field, another field of the settings), the
-    // definitions our tab stored are stale, so the search does not find the renamed page.
-    const staleGroups = await searchSettings(browser, renamed);
-    const stale = await fromMain(() => searchState(browser, renamed));
-    expect(stale.ourPage).toBe(0);
+    // Positive control: the wait holds while the tab's own textarea keeps focus. The page still shows the old name and
+    // the definitions our tab stored are the old ones, so no render has run. Gap-closure E52: this no longer moves
+    // focus to Obsidian's search field, which since E50 is not one of the tab's fields and so never holds a render.
+    const focused = await browser.execute(() => document.activeElement?.tagName ?? null);
+    const title = (await inspector.settingsPage().$('.setting-page-title').getText()).trim();
+    const stale = await fromMain(() => searchState(browser, profile.name));
+    expect(focused).toBe('TEXTAREA');
+    expect(title).toBe(profile.name);
     expect(stale.storedPages).toEqual([profile.name]);
-    await clearSettingsSearch(browser);
     // Another settings tab: focus moves to its nav item (tabIndex -1, still inside the settings document), so no
     // focusout releases the wait; Obsidian's openTab() calls our hide(), which does.
     await browser.$('.modal.mod-settings [data-setting-id="appearance"]').click();
@@ -386,7 +380,7 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     const freshGroups = await searchSettings(browser, renamed);
     await expect.poll(() => fromMain(() => searchState(browser, renamed).then((state) => state.ourPage))).toBe(1);
     const fresh = await fromMain(() => searchState(browser, renamed));
-    await writeEvidence(directory, 'hide-release', { renamed, staleGroups, stale, freshGroups, fresh });
+    await writeEvidence(directory, 'hide-release', { renamed, focused, title, stale, freshGroups, fresh });
     await closeSettings(browser);
   });
 });

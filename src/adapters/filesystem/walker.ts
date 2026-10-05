@@ -19,12 +19,12 @@ export interface WalkerStats {
   isSymbolicLink(): boolean;
 }
 
-// `bytes` travels alongside `text` here because both are needed a moment later, inside
-// `settle`, to compute `lineCount`/`byteLength` (task 2's own metric functions,
-// fix round 4). Neither `text` nor `bytes` themselves leave this module: only the two
-// resulting numbers are carried forward onto the 'file' WalkEntry -- see that type's own
-// comment (source-filesystem-port.ts) for why round 3's original text/bytes-carrying
-// shape was replaced.
+// `bytes` travels alongside `text` here because both are needed at once, inside `prepare`,
+// to compute `lineCount`/`byteLength` (task 2's own metric functions, fix round 4). Neither
+// `text` nor `bytes` outlives that call: the window holds only the two resulting numbers
+// (gap closure E50), and only they are carried forward onto the 'file' WalkEntry -- see
+// that type's own comment (source-filesystem-port.ts) for why round 3's original
+// text/bytes-carrying shape was replaced.
 export type ReadTextOutcome = { ok: true; text: string; bytes: Uint8Array } | { ok: false; reason: string };
 
 /** The minimal filesystem surface the walk algorithm needs. Both implementations log
@@ -113,10 +113,12 @@ const SCAN_WINDOW = 8;
 
 /** What an entry's preparation found. It never rejects: an lstat or read failure is
  *  carried as `failed` and becomes that entry's own `unreadable` skip, so one bad entry
- *  cannot drop or reorder the others in its window. */
+ *  cannot drop or reorder the others in its window. A read is kept only as its two
+ *  measurements, so a full window never pins up to SCAN_WINDOW files' contents (M45). */
+type Measured = { ok: true; lineCount: number; byteLength: number } | { ok: false; reason: string };
 type Prepared =
   | { kind: 'failed'; reason: string }
-  | { kind: 'stat'; stat: WalkerStats; read?: ReadTextOutcome };
+  | { kind: 'stat'; stat: WalkerStats; read?: Measured };
 
 /** One dispatched entry. `early` is decided BEFORE anything is opened: a path-safety or
  *  containment skip, or 'excluded' (yields nothing, opens nothing, logs nothing). */
@@ -259,7 +261,9 @@ async function prepare(absPath: string, opts: WalkOptions, deps: WalkerDeps, tok
   if (stat.isSymbolicLink() || !stat.isFile() || stat.size > opts.maxFileBytes) return { kind: 'stat', stat };
   if (token.cancelled) return { kind: 'stat', stat, read: { ok: false, reason: 'not read: the scan was cancelled' } };
   try {
-    return { kind: 'stat', stat, read: await deps.readAsText(absPath) };
+    const read = await deps.readAsText(absPath);
+    if (!read.ok) return { kind: 'stat', stat, read };
+    return { kind: 'stat', stat, read: { ok: true, lineCount: countPhysicalLines(read.text), byteLength: byteSize(read.bytes) } };
   } catch (e) {
     return { kind: 'failed', reason: `unreadable: ${message(e)}` };
   }
@@ -302,7 +306,7 @@ function settle(
   return {
     entry: {
       kind: 'file', absolutePath: absPath, relativePath: relPath, byteSize: stat.size,
-      lineCount: countPhysicalLines(read.text), byteLength: byteSize(read.bytes),
+      lineCount: read.lineCount, byteLength: read.byteLength,
     },
     descend: null,
   };

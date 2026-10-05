@@ -163,7 +163,7 @@ export const useReviewStore = defineStore('review', {
     async addWorkItem(target: WorkTarget, intent: WorkIntent, title: string, now: Date, init: WorkItemInit = {}): Promise<WorkItem | null> {
       const key = workTargetKey(target, intent);
       const codebase = this.boundKey;
-      if (!this.ready || this.bulkBusy || this.hasWorkItem(target, intent) || this.isPending(target, intent)) return null;
+      if (!this.ready || this.loadFailed || this.bulkBusy || this.hasWorkItem(target, intent) || this.isPending(target, intent)) return null;
       // Controller ruling Part 4 E3: clip (never refuse) an over-long GENERATED title, so a
       // long package or file name can never make the calling button silently do nothing.
       // `updateWorkItem` still refuses one via `workItemProblem`: that title came from the user.
@@ -180,7 +180,7 @@ export const useReviewStore = defineStore('review', {
       try {
         await ownWrite(bucket, () => repo.saveWorkItem(item), this);
         // Part 5 V9: saved in its own codebase either way (so the real result is returned),
-        // but shown only while that codebase is still bound; Polish E4/E37: or reloaded, never upserted.
+        // but shown only while that codebase is still bound; Polish E4/E37: or, when a load overtook the write, reloaded instead of upserted.
         const reload = settleOwnWrite(this, repo, bucket, ticket, () => {
           if (!this.workItems.some((w) => w.id === item.id)) this.workItems.push(item);
         });
@@ -282,7 +282,7 @@ export const useReviewStore = defineStore('review', {
       const key = ruleKey(from, to);
       const codebase = this.boundKey;
       const trimmed = rationale.trim();
-      if (!this.ready || this.bulkBusy || from === to || trimmed === '' || trimmed.length > RULE_RATIONALE_MAX
+      if (!this.ready || this.loadFailed || this.bulkBusy || from === to || trimmed === '' || trimmed.length > RULE_RATIONALE_MAX
         || this.hasRule(from, to) || pendingOf(this.pending, codebase).rule.includes(key)) return null;
       const repo = this.repository;
       const rule: BoundaryRule = { id: repo.allocateId('rule'), from, to, rationale: trimmed, createdAt: now.toISOString() };

@@ -35,7 +35,7 @@ function hostile(f: EvidenceFinding): EvidenceFinding {
   if (d.kind === 'boundary') detail = { ...d, specifier: `./x${FSI}y`, toPath: `src/data/d${FSI}b.ts`, fromZone: `ui${FSI}`, toZone: `data${FSI}` };
   if (d.kind === 'cycle') detail = { ...d, members: d.members.map((m) => `${m}${FSI}`), hops: d.hops.map((h) => ({ ...h, from: `${h.from}${FSI}`, to: `${h.to}${FSI}` })) };
   if (d.kind === 'unresolved-import') detail = { ...d, specifier: `./gone${FSI}` };
-  return { ...f, symbol: `sym${RLO}bol`, detail };
+  return { ...f, symbol: `sym${RLO}bol`, severity: `crit${RLO}ical`, detail };
 }
 const report = {
   ...base,
@@ -50,6 +50,13 @@ describe('touchingFindings escapes controls in finding text (GRB17a)', () => {
     expect(row.symbol).toBe('sym\\u202Ebol');
     expect(row.title.startsWith('sym\\u202Ebol · ')).toBe(true);
     expect(row.title).not.toContain(RLO);
+  });
+
+  it('escapes a U+202E in the severity, which the row and the severity filter show (E50)', () => {
+    expect(rowFor(boundary).severity).toBe('crit\\u202Eical');
+    const severities = buildQualityModel(files, index, []).severities;
+    expect(severities).toContain('crit\\u202Eical');
+    expect(severities.some((s) => s.includes(RLO))).toBe(false);
   });
 
   it('escapes a U+2066 in a boundary specifier, toPath and zones, and in the title', () => {

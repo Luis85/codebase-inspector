@@ -1,7 +1,7 @@
 // Gap closure GRB15: after Show more, keyboard focus moves to the first newly shown row, in
 // all four paged tables. The button either stays (focus would otherwise stay on it) or
 // unmounts on the last page (focus would otherwise drop to <body>).
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent, h, nextTick, ref, type VNode } from 'vue';
@@ -127,13 +127,23 @@ describe('Show more moves focus to the first newly shown row (GRB15)', () => {
     w.unmount();
   });
 
-  it('a limit that shrinks leaves focus alone', async () => {
+  // Gap closure E50: with teeth. After a shrink the old limit's row never exists, so a check on
+  // activeElement alone passes whatever the watcher does; the spy fails on ANY focus() call the
+  // shrink makes (RED: the guard removed and the row index clamped to the last shown row).
+  it('a limit that shrinks leaves focus alone: nothing is focused at all', async () => {
     const { w, limit } = hotspots();
-    limit.value = 3;
-    await nextTick();
-    expect(w.findAll('tbody tr')).toHaveLength(3);
-    expect(document.activeElement).toBe(document.body);
-    w.unmount();
+    const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+    try {
+      limit.value = 3;
+      await nextTick();
+      await nextTick();
+      expect(w.findAll('tbody tr')).toHaveLength(3);
+      expect(focus).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(document.body);
+    } finally {
+      focus.mockRestore();
+      w.unmount();
+    }
   });
 
   it('a re-sort after a grow leaves focus where it is', async () => {

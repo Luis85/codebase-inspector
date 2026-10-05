@@ -47,7 +47,7 @@ export class CodebaseInspectorSettingTab extends PluginSettingTab {
   // WP-04.2 polish PN4, follow-ups FN1: the tab's one render wait (settings-render-wait.ts). containerEl is read
   // lazily, at each request, through the closure.
   private readonly renderWait = createRenderWait(
-    () => this.containerEl.ownerDocument, () => { this.update(); }, (e) => { this.showFailure(e); });
+    () => this.containerEl.ownerDocument, () => this.containerEl, () => { this.update(); }, (e) => { this.showFailure(e); });
 
   constructor(
     app: App,

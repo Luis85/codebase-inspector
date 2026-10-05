@@ -96,13 +96,28 @@ describe('settings tab: a refresh never re-renders the field being typed in (WP-
 
   it('waits for a field of a profile page, which is in the tab’s document but not in its detached containerEl', async () => {
     const tab = newTab();
-    const page = document.body.createDiv();
+    // Obsidian 1.13.4 builds a page's root as `createDiv("setting-page vertical-tab-content")`.
+    const page = document.body.createDiv({ cls: 'setting-page vertical-tab-content' });
     const typed = field(page);
     const update = vi.spyOn(tab, 'update');
     typed.focus();
     await tab.refresh();
     expect(update).not.toHaveBeenCalled();
     moveFocus(typed, null);
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  // Gap closure E50 (Task 16 M6): the settings open with Obsidian's search field focused. It sits in the modal's
+  // `.vertical-tab-header`, outside the tab's own content, so it never holds the tab's render.
+  it('renders at once while Obsidian’s settings search field holds focus: only the tab’s own fields count', async () => {
+    const tab = newTab();
+    const header = document.body.createDiv({ cls: 'vertical-tab-header' });
+    const search = header.createDiv({ cls: 'setting-search-container' }).createEl('input', { type: 'search' });
+    document.body.createDiv({ cls: 'vertical-tab-content-container' }).appendChild(tab.containerEl);
+    field(tab.containerEl);
+    const update = vi.spyOn(tab, 'update');
+    search.focus();
+    await tab.refresh();
     expect(update).toHaveBeenCalledTimes(1);
   });
 
@@ -247,7 +262,7 @@ describe('settings tab: a refresh never re-renders the field being typed in (WP-
     await store.save({ profileId: 'p1', name: 'Alpha', bindingId: null, exclusions: ['dist'], maxFileBytes: 1_000_000 });
     const tab = newTab(store);
     await tab.refresh();
-    const textarea = renderExclusions(tab, document.body.createDiv());
+    const textarea = renderExclusions(tab, document.body.createDiv({ cls: 'setting-page vertical-tab-content' }));
     const update = vi.spyOn(tab, 'update');
     textarea.focus();
     textarea.value = './dist';

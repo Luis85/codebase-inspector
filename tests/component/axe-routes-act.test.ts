@@ -15,7 +15,7 @@ describe('axe: the Act routes', () => {
     const { root } = await mountLeaf({ route: 'investigate', investigate: true });
     await expectAccessible(root, '.ci-investigate-row');
     await expectAccessible(root, '.ci-notes-panel__item');
-  });
+  }, 15_000);   // Gap-closure E51: 4.75 s of a 5 s default in a passing full run; timed out twice under suite load
 
   it('Investigate without a report: the import prompt', async () => {
     const { root } = await mountLeaf({ route: 'investigate', report: false });

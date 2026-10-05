@@ -19,6 +19,16 @@ const codeOf = (fn: () => unknown): string => {
 const bound = (device: typeof DEVICE) => ({ kind: 'bound', binding: { profileId: 'p1', ...device } });
 /** The reason of an invalid read, or the read's kind in angle brackets when it is not invalid. */
 const reasonOf = (read: AnalyzerBindingRead): string => (read.kind === 'invalid' ? read.reason : `<${read.kind}>`);
+/** E50 M2: a v1 record with no `provider` key. */
+const V1_NO_PROVIDER = { v: 1, machineId: M, ...DEVICE };
+/** A bind on `machineId`: the new slice, or the refusal's code in angle brackets. */
+const bindOn = (entry: unknown, machineId: string): unknown => {
+  try {
+    return applyAnalyzerWrite({ p1: entry }, 'p1', machineId, { op: 'bind', executablePath: 'D:\\fallow.exe' });
+  } catch (e) {
+    return e instanceof AnalyzerStoreError ? `<${e.code}>` : e;
+  }
+};
 
 describe('decodeAnalyzerRecord (Z2, GRB10)', () => {
   it('reads each kind', () => {
@@ -80,6 +90,11 @@ describe('decodeAnalyzerRecord (Z2, GRB10)', () => {
   it('E44 c: an envelope whose provider is not fallow reads unsupported (v1 and v2)', () => {
     expect(decodeAnalyzerRecord({ p1: { v: 2, provider: 'x', devices: { [M]: DEVICE } } }, 'p1', M)).toEqual({ kind: 'unsupported' });
     expect(decodeAnalyzerRecord({ p1: { ...V1, provider: 'x' } }, 'p1', M)).toEqual({ kind: 'unsupported' });
+  });
+
+  it('E50 M2: a MISSING provider reads invalid with its reason (v1 and v2), never unsupported', () => {
+    expect.soft(reasonOf(decodeAnalyzerRecord({ p1: V1_NO_PROVIDER }, 'p1', M))).toContain('provider');
+    expect.soft(reasonOf(decodeAnalyzerRecord({ p1: { v: 2, devices: { [M]: DEVICE } } }, 'p1', M))).toContain('provider');
   });
 
   it('never reads an Object.prototype member as a record or a device', () => {
@@ -160,6 +175,13 @@ describe('applyAnalyzerWrite (Z2, Z3, GRB10)', () => {
       const slice = { p1: entry };
       expect(applyAnalyzerWrite(slice, 'p1', M, { op: 'forget' })).toBe(slice);
     }
+  });
+
+  it('E50 M2: a bind on a record with no provider stores v2 here and keeps the other devices (v1 and v2)', () => {
+    const mine = { executablePath: 'D:\\fallow.exe', timeoutSeconds: 120, trust: null };
+    expect.soft(bindOn(V1_NO_PROVIDER, M)).toEqual({ p1: v2({ [M]: mine }) });
+    expect.soft(bindOn(V1_NO_PROVIDER, B)).toEqual({ p1: v2({ [M]: DEVICE, [B]: mine }) });
+    expect.soft(bindOn({ v: 2, devices: { [B]: DEVICE } }, M)).toEqual({ p1: v2({ [B]: DEVICE, [M]: mine }) });
   });
 
   it('E44 c: a foreign provider refuses every write but purge, so a bind never relabels its entries', () => {

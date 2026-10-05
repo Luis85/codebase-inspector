@@ -233,7 +233,10 @@ describe('Obsidian facts the investigation notes rely on', () => {
       for (const selector of EMAIL_SELECTORS) expect.soft(reading[name]?.counts[selector], `${name} ${selector}`).toBe(0);
       expect.soft(urlTokens(name), `${name} live-preview url token`).toEqual([]);
     }
-    // GRB16: the package scope shows its `@` with no backslash, in the note text and in both views.
+    // GRB16: the package scope shows its `@` with no backslash, in the note text and in both views. The real RED is
+    // the note-text pin below (`forms.scope === '@scope/pkg'`): Obsidian hides a markdown escape when it renders, so
+    // an escaped `\@` renders without its backslash too, and the four rendered-text checks are guards only (the text
+    // is there, and nothing else leaked), never the proof that noteText left the `@` bare (gap closure E50).
     expect.soft(forms.scope, 'scope note text').toBe('@scope/pkg');
     expect.soft(reading.scope?.text, 'scope reading text').toContain('@scope/pkg');
     expect.soft(reading.scope?.text, 'scope reading backslash').not.toContain('\\');

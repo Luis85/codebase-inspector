@@ -137,6 +137,12 @@ describe('review store replaceAll (Part 5 V16)', () => {
     expect(store.bulkBusy).toBe(false);
     expect(store.hasPendingChanges).toBe(false);
     expect(await repo.listWorkItems()).toEqual(ITEMS);
+    // Gap closure E50 (M3): the failed read refuses an add (its lists may predate the store),
+    // and a read that lands again lifts it: nothing is left stuck behind bulkBusy.
+    expect(store.loadFailed).toBe(true);
+    expect(await store.addWorkItem({ kind: 'package', name: 'after' }, 'review', 'After', NOW)).toBeNull();
+    store.setRepository(repo);
+    await store.load();
     expect((await store.addWorkItem({ kind: 'package', name: 'after' }, 'review', 'After', NOW))?.id).toBe('wi-13');
   });
 

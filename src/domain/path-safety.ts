@@ -123,7 +123,7 @@ function segments(p: string): string[] {
  *  containment boundary; (2) the answer depended on the host's locale (a Turkish-locale
  *  host inverts I/i); (3) it cost 949 ms for a 3-segment root and 2,090 ms for a
  *  7-segment one over 40,000 entries, against 83 ms for `toLowerCase`, paid
- *  synchronously on the Obsidian renderer thread by `classifyEntry` on every entry
+ *  synchronously on the Obsidian renderer thread by the walker's `precheck` on every entry
  *  before any read. `String.prototype.toLowerCase` is locale-INDEPENDENT (unlike
  *  `toLocaleLowerCase`), which is what makes this deterministic — and it is the exact
  *  comparison `walker.ts`'s `isExcluded` already used thirty lines away, so the codebase

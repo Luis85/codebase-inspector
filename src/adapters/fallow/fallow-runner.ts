@@ -1,6 +1,8 @@
-// Part 7 Z15/Z17/Z18: THE spawn — the one process call in src/, allowed by the guard for
-// this file alone. Generic: the application builds the argv; tests supply any executable.
-// - One spawn per run: argument array, shell: false, windowsHide, a built environment,
+// Part 7 Z15/Z17/Z18, widened by gap closure E41: the only process calls in src/, allowed by
+// the guard for this file alone — two spawn calls, fallow's (in run) and, on Windows, the
+// System32 taskkill's (in signal). Generic: the application builds the argv; tests supply
+// any executable.
+// - One fallow spawn per run: argument array, shell: false, windowsHide, a built environment,
 //   stdio ignore/pipe/pipe, and a process group of its own on POSIX (detached).
 // - stdout is capped (bytes) and parsed by nobody here; stderr keeps its tail.
 // - The time limit is absolute from spawn; output never postpones it.

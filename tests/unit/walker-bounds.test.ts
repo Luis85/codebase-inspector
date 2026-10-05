@@ -166,7 +166,7 @@ describe('containment actually intercepts an escaping entry name (fix-round-1 fi
     // lstat/readAsText SUCCEED here, deliberately — not "must not be called" rejections.
     // A mock that rejects those calls would make this test pass EVEN WITH containment
     // and path-safety removed entirely (verified: I temporarily deleted both checks from
-    // classifyEntry and reran this test with an earlier, rejecting version of these
+    // precheck (then classifyEntry) and reran this test with an earlier, rejecting version of these
     // mocks — it still passed, because the rejection itself produced a same-shaped
     // 'skipped' entry regardless of which code path produced it). Making lstat report a
     // real, existing FILE means that if containment/path-safety do not intercept the
@@ -177,7 +177,7 @@ describe('containment actually intercepts an escaping entry name (fix-round-1 fi
       onOpen: () => {},
       // Deliberately naive: plain concatenation, unlike either real implementation's
       // joinPath, which would never itself be asked to "resolve" a traversal segment —
-      // the point is that classifyEntry's OWN checks must catch this regardless of
+      // the point is that precheck's OWN checks must catch this regardless of
       // whether joinPath does anything clever.
       joinPath: (base, name) => `${base}/${name}`,
       readdirNames: (absPath) => (absPath === '/root' ? Promise.resolve(['..']) : Promise.resolve([])),
@@ -197,7 +197,7 @@ describe('containment actually intercepts an escaping entry name (fix-round-1 fi
     // field at all, so there is nothing here that COULD have escaped through — the
     // escape attempt was refused before an entry with an absolutePath was ever built.
     // (Proved capable of failing: with containment AND path-safety both removed from
-    // classifyEntry, this same test yields a 'file' entry with absolutePath '/root/..'
+    // precheck, this same test yields a 'file' entry with absolutePath '/root/..'
     // instead, failing both assertions above — reverted before committing.)
     expect('absolutePath' in entries[0]!).toBe(false);
   });

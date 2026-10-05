@@ -2,7 +2,8 @@
 // when its `type` is NOTE_TYPE; the index groups linked notes by the portable
 // `<source_path>#<finding_id>` fingerprint (IP4), per codebase. The reducer is incremental —
 // `changed`, `renamed` and `deleted` update one entry, `reset` rebuilds from the whole vault
-// (IPF18: the metadata cache's `resolved` event stays the repair path that drives `reset`) —
+// (IPF18: the metadata cache's first `resolved` event drives `reset`, and since gap closure GRB6
+// so does the resync each Investigate open runs, which repairs a missed event) —
 // and returns the SAME map when nothing changed, so a listener built on it fires only for real
 // changes.
 import { isPlainObject } from '../../domain/plain-data';
