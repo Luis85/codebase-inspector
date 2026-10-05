@@ -13,7 +13,7 @@ import {
   FALLOW_TESTED_VERSIONS, failureBanner, fallowRunBannerOf, refusalBanner, type FallowRunBanner as Banner, type FallowRunErrorCode,
 } from '../../read-models/fallow-run';
 import {
-  FALLOW_EXE_CHANGE, FALLOW_EXE_CHOOSE, FALLOW_EXE_FORGET, FALLOW_EXE_INVALID, FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE,
+  FALLOW_CODEBASE_REMOVED, FALLOW_EXE_CHANGE, FALLOW_EXE_CHOOSE, FALLOW_EXE_FORGET, FALLOW_EXE_INVALID, FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE,
   FALLOW_EXE_READ_FAILED, FALLOW_EXE_UNSUPPORTED, FALLOW_LIMIT_VALUE, FALLOW_ROW_EXECUTABLE, FALLOW_ROW_LIMIT, FALLOW_ROW_TRUST, FALLOW_RUN_ACTION,
   FALLOW_RUN_CANCEL, FALLOW_RUN_CANCELLING_HINT, FALLOW_RUN_HINT, FALLOW_TRUST_VALUE,
 } from '../../inspector-copy';
@@ -48,6 +48,7 @@ const executableText = computed(() => {
   if (read.kind === 'other-machine') return FALLOW_EXE_OTHER_DEVICE;
   if (read.kind === 'invalid') return FALLOW_EXE_INVALID;
   if (read.kind === 'unsupported') return FALLOW_EXE_UNSUPPORTED;
+  if (read.kind === 'removed') return FALLOW_CODEBASE_REMOVED;
   return read.binding.executablePath;
 });
 const trustText = computed(() => {
@@ -56,17 +57,22 @@ const trustText = computed(() => {
   const version = b.trust?.version ?? null;
   return FALLOW_TRUST_VALUE(version, version !== null && FALLOW_TESTED_VERSIONS.includes(version));
 });
-const canForget = computed(() => analysis.binding !== null && analysis.binding.kind !== 'none' && analysis.binding.kind !== 'unsupported');
+/** GRB13 a: a removed codebase can be neither chosen for nor forgotten on (the service refuses
+ *  both), so it offers neither button. */
+const removed = computed(() => analysis.binding?.kind === 'removed');
+const canForget = computed(() => analysis.binding !== null && !['none', 'unsupported', 'removed'].includes(analysis.binding.kind));
 const forgetButton = ref<HTMLButtonElement | null>(null);
 const chooseButton = ref<HTMLButtonElement | null>(null);
+const primaryButton = ref<HTMLButtonElement | null>(null);
 /** Final review: a Forget that succeeds unmounts the focused Forget button. This watcher runs
  *  before that render (flush 'pre'), sees the focus still on it, and moves it to "Choose
- *  executable…", which stays mounted, instead of letting it fall to <body>. */
+ *  executable…", which stays mounted, instead of letting it fall to <body>. A removed codebase
+ *  has no Choose (GRB13 a), so the focus goes to Run instead. */
 watch(canForget, async (now) => {
   const el = forgetButton.value;
   if (now || el === null || el.ownerDocument.activeElement !== el) return;
   await nextTick();
-  chooseButton.value?.focus();
+  (chooseButton.value ?? primaryButton.value)?.focus();
 });
 const unsupported = computed(() => analysis.binding?.kind === 'unsupported');
 /** Polish C2: an unsupported record cannot be replaced from here (it is read-only, Z2), so
@@ -139,6 +145,7 @@ function forget(): void {
     </p>
     <div class="ci-fallow-run__actions">
       <button
+        ref="primaryButton"
         type="button"
         :class="primary.className"
         :aria-disabled="primary.blocked ? 'true' : undefined"
@@ -148,6 +155,7 @@ function forget(): void {
         {{ primary.label }}
       </button>
       <button
+        v-if="!removed"
         ref="chooseButton"
         type="button"
         class="ci-fallow-run__choose"

@@ -62,6 +62,11 @@ export const useReviewStore = defineStore('review', {
     };
   },
   getters: {
+    /** GRB13 c: the bound repository was retired (its profile was removed while this leaf still
+     *  showed it). The repository already says so through `diagnostics()` (`retired`), and the
+     *  store mirrors that after the reload its `retire()` notification triggers, so this is the
+     *  one place that reads it. Settings blocks Clear and Import on it (review-write-gate.ts). */
+    retired: (state): boolean => state.storageDiagnostics.retired === true,
     /** Part 5 E18: any save, update or removal in flight in the bound codebase, OR a
      *  `clearAll`/`replaceAll` already running. The gate those two use before starting. */
     hasPendingChanges: (state): boolean => state.bulkBusy || anyPending(pendingOf(state.pending, state.boundKey)),

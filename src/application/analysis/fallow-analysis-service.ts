@@ -234,6 +234,7 @@ export function createFallowAnalysisService(deps: FallowAnalysisServiceDeps): Fa
   return {
     executableName: inspector.executableName,
     async readBinding(profileId) {
+      if (purged(profileId)) return { kind: 'removed', executableName: inspector.executableName };
       return { ...(await store.read(profileId)), executableName: inspector.executableName };
     },
 

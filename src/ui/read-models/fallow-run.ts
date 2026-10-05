@@ -5,7 +5,7 @@ import type { FallowRunErrorCode } from '../../application/analysis/fallow-run-e
 import type { RunReview } from '../../application/analysis/fallow-analysis-service';
 import { formatAbsoluteTime } from '../copy';
 import {
-  COPY_15, FALLOW_RUN_CANCELLED, FALLOW_RUN_CANCELLING, FALLOW_RUN_COMPLETED, FALLOW_RUN_ERROR, FALLOW_RUN_PROBING, FALLOW_RUN_RUNNING,
+  COPY_15, FALLOW_CODEBASE_REMOVED, FALLOW_RUN_CANCELLED, FALLOW_RUN_CANCELLING, FALLOW_RUN_COMPLETED, FALLOW_RUN_ERROR, FALLOW_RUN_PROBING, FALLOW_RUN_RUNNING,
 } from '../inspector-copy';
 import { rootFolderLabel } from './root-label';
 
@@ -34,7 +34,9 @@ const info = (icon: string, text: string): FallowRunBanner => ({ tone: 'info', i
 
 /** Z33: a refused start, in the failed form, with no log. */
 export function refusalBanner(code: FallowRunErrorCode, detail: string): FallowRunBanner {
-  return { tone: 'warning', icon: 'alert-triangle', text: COPY_15('fallow'), reason: FALLOW_RUN_ERROR[code](detail), kept: false, log: null };
+  // GRB13 d: a removed codebase is not a failed analysis; the reason line stays.
+  const text = code === 'profile-removed' ? FALLOW_CODEBASE_REMOVED : COPY_15('fallow');
+  return { tone: 'warning', icon: 'alert-triangle', text, reason: FALLOW_RUN_ERROR[code](detail), kept: false, log: null };
 }
 
 /** Polish C8: a Run or a Forget that threw (use-fallow-run.ts): the failed form, its text only. */

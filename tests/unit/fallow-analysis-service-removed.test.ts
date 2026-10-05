@@ -48,6 +48,20 @@ describe('final review: a removed profile is never bound, run or written again',
     expect(await s.store.read('p1')).toEqual({ kind: 'none' });
   });
 
+  it('GRB13 a: after purgeProfile, readBinding answers removed (with the executable name), even over a stored binding', async () => {
+    const s = createServiceWorld();
+    await trusted(s);
+    expect((await s.service.readBinding('p1')).kind).toBe('bound');
+    await s.service.purgeProfile('p1');
+    expect(await s.service.readBinding('p1')).toEqual({ kind: 'removed', executableName: 'fallow' });
+  });
+
+  it('GRB13 a: another profile still reads its own binding after a purge', async () => {
+    const s = createServiceWorld();
+    await s.service.purgeProfile('p2');
+    expect(await s.service.readBinding('p1')).toEqual({ kind: 'none', executableName: 'fallow' });
+  });
+
   it('another profile is unaffected by the removal', async () => {
     const s = createServiceWorld();
     await s.service.purgeProfile('p2');

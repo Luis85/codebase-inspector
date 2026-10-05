@@ -12,7 +12,7 @@ import { FALLOW_TESTED_VERSIONS } from '../application/analysis/fallow-invocatio
 import { COPY_28 } from '../ui/copy';
 import { nameByRow } from './field-label';
 import {
-  FALLOW_EXE_INVALID, FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE, FALLOW_EXE_UNSUPPORTED, FALLOW_TRUST_VALUE,
+  FALLOW_CODEBASE_REMOVED, FALLOW_EXE_INVALID, FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE, FALLOW_EXE_UNSUPPORTED, FALLOW_TRUST_VALUE,
   NOTES_FOLDER_SETTING_DESC, NOTES_FOLDER_SETTING_NAME,
   SETTINGS_FALLOW_EXECUTABLE_NAME, SETTINGS_FALLOW_FORGET, SETTINGS_FALLOW_LIMIT_DESC, SETTINGS_FALLOW_LIMIT_NAME,
 } from '../ui/inspector-copy';
@@ -154,6 +154,7 @@ export function analyzerDescription(read: AnalyzerBindingRead): string {
     case 'other-machine': return FALLOW_EXE_OTHER_DEVICE;
     case 'invalid': return FALLOW_EXE_INVALID;
     case 'unsupported': return FALLOW_EXE_UNSUPPORTED;
+    case 'removed': return FALLOW_CODEBASE_REMOVED;
     default: {
       const version = read.binding.trust?.version ?? null;
       return `${read.binding.executablePath} · ${FALLOW_TRUST_VALUE(version, version !== null && FALLOW_TESTED_VERSIONS.includes(version))}`;
@@ -167,7 +168,7 @@ export function analyzerDescription(read: AnalyzerBindingRead): string {
 function renderAnalyzerRow(setting: Setting, entry: ProfileEntry, callbacks: SettingDefinitionsCallbacks): void {
   setting.setName(SETTINGS_FALLOW_EXECUTABLE_NAME);
   setting.setDesc(analyzerDescription(entry.analyzer));
-  if (entry.analyzer.kind === 'none' || entry.analyzer.kind === 'unsupported') return;
+  if (entry.analyzer.kind === 'none' || entry.analyzer.kind === 'unsupported' || entry.analyzer.kind === 'removed') return;
   setting.addButton((btn) => {
     btn.setButtonText(SETTINGS_FALLOW_FORGET);
     btn.buttonEl.setAttribute('data-action', 'forget-analyzer');

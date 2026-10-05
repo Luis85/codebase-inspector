@@ -113,11 +113,14 @@ export const FALLOW_RUN_CANCELLING_HINT = 'The analysis is already being stopped
  *  Task 9). Inspection never throws: its failures are refusals (FALLOW_EXE_REFUSED). */
 export const FALLOW_RUN_START_FAILED = 'The fallow analysis could not be started: the plugin’s data file could not be read or updated. Nothing was run; current findings are unchanged.';
 /** QF10: ends "Nothing was changed", true for every record kind Forget is offered on
- *  (canForget excludes 'none' and 'unsupported'), instead of naming what stays. */
+ *  (canForget excludes 'none', 'unsupported' and 'removed'), instead of naming what stays. */
 export const FALLOW_EXE_FORGET_FAILED = 'The fallow executable could not be forgotten: the plugin’s data file could not be updated. Nothing was changed.';
 /** Final review: a start, a check, a Forget or a time limit for a codebase whose profile was
  *  removed in Settings, from a view still open on it (FallowRunErrorCode `profile-removed`). */
 export const FALLOW_PROFILE_REMOVED = 'This codebase’s profile was removed in settings, so nothing was run or changed.';
+/** GRB13 d (GCN12, verbatim): the heading of a refusal because the codebase was removed, and
+ *  the executable row's text for a removed codebase. */
+export const FALLOW_CODEBASE_REMOVED = 'This codebase was removed.';
 
 /* The run banner (Z33). K26: "current findings stay" is said only when there are some. */
 export const FALLOW_RUN_PROBING = (hasEvidence: boolean): string =>

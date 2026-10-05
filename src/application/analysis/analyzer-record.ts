@@ -24,7 +24,10 @@ export type AnalyzerBindingRead =
   | { kind: 'bound'; binding: AnalyzerBinding }
   | { kind: 'other-machine' }
   | { kind: 'invalid' }
-  | { kind: 'unsupported' };
+  | { kind: 'unsupported' }
+  /** GRB13 a: the profile was removed (purged) this session. Only the service answers it (the
+   *  stores never do), so a view left open on it offers no Choose; see `readBinding`. */
+  | { kind: 'removed' };
 
 export type AnalyzerWrite =
   | { op: 'bind'; executablePath: string }

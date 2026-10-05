@@ -3,6 +3,8 @@
 // handler, E40) while no codebase is on screen, and while that codebase's saved state is
 // unread — before its first load finishes, or after the load failed — because the lists
 // are then empty only for want of a read, and a replace would wipe what was never shown.
+// GRB13 c: and once the codebase's review set is retired (its profile was removed), when
+// every write is refused anyway.
 import { computed, type ComputedRef } from 'vue';
 import { useCityStore } from '../../stores/city-store';
 import { useReviewStore } from '../../stores/review-store';
@@ -12,7 +14,8 @@ export interface ReviewWriteGate {
   noCodebase: ComputedRef<boolean>;
   blocked: ComputedRef<boolean>;
   /** The element that says why: the row's own hint without a codebase, the storage line
-   *  (REVIEW_STORE_READ_FAILED) after a failed read, nothing while the read is running. */
+   *  (REVIEW_STORE_READ_FAILED, or the retired note) after a failed read or a retirement,
+   *  nothing while the read is running. */
   describedBy: ComputedRef<string | undefined>;
 }
 
@@ -22,10 +25,10 @@ export function useReviewWriteGate(hintId: string, storageNoteId: string): Revie
   const city = useCityStore();
   const review = useReviewStore();
   const noCodebase = computed((): boolean => !city.snapshot);
-  const blocked = computed((): boolean => noCodebase.value || !review.ready || review.loadFailed);
+  const blocked = computed((): boolean => noCodebase.value || !review.ready || review.loadFailed || review.retired);
   const describedBy = computed((): string | undefined => {
     if (noCodebase.value) return hintId;
-    return review.loadFailed ? storageNoteId : undefined;
+    return review.loadFailed || review.retired ? storageNoteId : undefined;
   });
   return { noCodebase, blocked, describedBy };
 }
