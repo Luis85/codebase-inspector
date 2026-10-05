@@ -1,0 +1,57 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Design brief</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../foundations/01-design-brief.md">Markdown source</a></header><main><h1>Design brief</h1>
+<h2>Product outcome</h2>
+<p>Codebase Inspector is an Obsidian desktop plugin for understanding the structure of a local codebase, inspecting analysis evidence, and recording engineering investigations in Markdown. Its first release is a real structural city rendered with Three.js, not a dashboard requiring every provider to be present.</p>
+<p><strong>Primary task:</strong> select a codebase → understand the scan scope → inspect the city → find a file → read exact measurements. Later: inspect a finding → understand its evidence and uncertainty → create an investigation note → revisit a compatible snapshot.</p>
+<p>This package translates the existing 12 implementation packages into a proposed UI/UX specification. It does not replace their source-safety, analyzer, or data-contract requirements. No actual source repository was scanned for these designs; all quantities, paths, findings, and excerpts are synthetic fixtures. There has been no user study or Obsidian-host validation.</p>
+<h2>Users and jobs</h2>
+<p>These are role-based design hypotheses, not research-validated personas.</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Job to accomplish</th>
+<th>Design consequence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Developer or maintainer</td>
+<td>Find a file, understand its surrounding structure, inspect concrete findings</td>
+<td>Search, exact paths, focused neighborhoods, fast keyboard operation</td>
+</tr>
+<tr>
+<td>Technical lead or architect</td>
+<td>Explain structure, assess boundaries, identify worthwhile investigations</td>
+<td>Directory grouping, bounded relationships, provenance and comparison</td>
+</tr>
+<tr>
+<td>Delivery/product colleague</td>
+<td>Understand what an issue means and what needs doing without reading every source file</td>
+<td>Plain-language descriptions, explicit uncertainty, linked investigation notes</td>
+</tr>
+<tr>
+<td>New contributor</td>
+<td>Build a mental model and navigate back to the source or architecture notes</td>
+<td>Stable geometry, breadcrumbs, human explanations, repeatable focus links</td>
+</tr>
+</tbody>
+</table>
+<h2>Hard constraints</h2>
+<p>Use a native ItemView with the host ribbon, workspace, commands, settings, and theme. Do not add an account, avatar, logo in the product shell, a second global navigation sidebar, independent theme control, localhost server, iframe app, or mandatory companion application. The Obsidian view API supports custom workspace views and their lifecycle; the integration remains a host adapter [S1].</p>
+<p>Package 1 supports current vault, a directory inside the vault, and an explicitly chosen external directory. It is desktop-only. Inventory must not run project scripts, Git, fallow, or dependency installation. Source writes remain out of scope. Deliberate Markdown note creation begins in WP-04 and is visibly a vault write, not a source-code edit.</p>
+<p>All product UI and specifications are English. Filenames, technical IDs, and provider values retain their original spelling. Long and non-ASCII paths must work; “English UI” is not an ASCII-only data restriction.</p>
+<h2>Experience principles</h2>
+<p><strong>Spatial orientation before metrics.</strong> The city first explains what exists and where. A large building means many physical lines under the chosen display scale, not bad code.</p>
+<p><strong>Evidence before judgment.</strong> Every derived lens identifies the provider, scope, freshness, and metric. Missing evidence is not zero; an unused candidate is not safe-to-delete proof.</p>
+<p><strong>2D and HTML are first-class.</strong> An accessible file list and inspector provide the core information without WebGL. Use a table, treemap, or list whenever it communicates the question better than a 3D graph.</p>
+<p><strong>Progressive capability.</strong> Do not expose unimplemented modes. Later-release mockups show later-release capabilities; they are not a menu to render in WP-01. An implemented but unconfigured provider can have an explanatory setup state.</p>
+<p><strong>Native context, independent state.</strong> Obsidian owns its shell; each leaf owns camera, selection, search, and panel presentation. Profiles and validated snapshots may be shared as immutable data.</p>
+<p><strong>Intentional work.</strong> Enabling the plugin, reopening a view, displaying a note embed, and importing a report must not authorize filesystem scanning or process execution.</p>
+<h2>Visual direction</h2>
+<p>Neutral native surfaces, restrained accent, six-pixel default corner radius, typographic hierarchy rather than marketing panels, and a dominant canvas. File categories use subdued semantic colors; active selection uses an independent outline and locator. No glowing neon city, decorative traffic, windows, fireworks, constantly rotating scene, or health-grade hero card.</p>
+<p>The original image-generated board is a visual exploration, not the implementation source of truth. It includes legacy decorative branding/navigation and coarse phase language that the precise screen specifications deliberately supersede. Implement the numbered screen mockups and written contracts.</p>
+<h2>Success evidence to collect</h2>
+<p>A new user can select the intended source and correctly describe what scanning will and will not do. A user can locate a named file through either the city or the list. Users can distinguish physical lines from complexity, a missing metric from measured zero, and a reported finding from a verified defect. A user can create a note without confusing it with a source-code change. The interface remains usable in narrow leaves, light/dark/custom themes, and without 3D.</p>
+<p>These are validation goals; neither the mockups nor a successful browser render establish that they have been achieved.</p>
+<p>References: <a href="../sources/sources.html">source register</a>.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

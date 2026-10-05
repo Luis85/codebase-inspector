@@ -1,0 +1,264 @@
+{
+  "rule": "Lower the list percentage in 1-point steps from 16 % (the inspector stays at 12 %); the chosen value is the first where the s07 stage CONTENT box (`stageClient`, clientWidth: what CityViewport measures, ruling E24) at a 1876 leaf is >= 1140 and no city box is clipped at 1280, 1876 or 2560. Measured by `node scripts/harness-measure.mjs --wide 1280,1876,2560` on the unrewritten build. Both boxes are recorded: `stage` is the border box, `stageClient` the content box.",
+  "minStageAt1876": 1140,
+  "caps": {
+    "list": 320,
+    "inspector": 360
+  },
+  "minimums": {
+    "list": 180,
+    "inspector": 200
+  },
+  "chrome": {
+    "inset": 32,
+    "gaps": 24,
+    "stageBorders": 2
+  },
+  "listPercent": 15,
+  "inspectorPercent": 12,
+  "rejected": [
+    {
+      "listPercent": 16,
+      "s07At1876": {
+        "stage": 1140.2,
+        "stageClient": 1138
+      }
+    }
+  ],
+  "rows": [
+    {
+      "screen": "s05",
+      "leaf": 1280,
+      "clipped": [],
+      "navBandClipped": [],
+      "stage": 836,
+      "stageClient": 834,
+      "floorNotice": false,
+      "navInline": true,
+      "threeColumn": true,
+      "widths": {
+        "nav": 220,
+        "content": 1060,
+        "body": 1028,
+        "list": 180,
+        "inspector": null,
+        "stageColumn": 836,
+        "stage": 836
+      }
+    },
+    {
+      "screen": "s07",
+      "leaf": 1280,
+      "clipped": [],
+      "navBandClipped": [],
+      "stage": 624,
+      "stageClient": 622,
+      "floorNotice": false,
+      "navInline": true,
+      "threeColumn": true,
+      "widths": {
+        "nav": 220,
+        "content": 1060,
+        "body": 1028,
+        "list": 180,
+        "inspector": 200,
+        "stageColumn": 624,
+        "stage": 624
+      }
+    },
+    {
+      "screen": "s05",
+      "leaf": 1876,
+      "clipped": [],
+      "navBandClipped": [],
+      "stage": 1368.4,
+      "stageClient": 1366,
+      "floorNotice": false,
+      "navInline": true,
+      "threeColumn": true,
+      "widths": {
+        "nav": 220,
+        "content": 1656,
+        "body": 1624,
+        "list": 243.6,
+        "inspector": null,
+        "stageColumn": 1368.4,
+        "stage": 1368.4
+      }
+    },
+    {
+      "screen": "s07",
+      "leaf": 1876,
+      "clipped": [],
+      "navBandClipped": [],
+      "stage": 1156.4,
+      "stageClient": 1154,
+      "floorNotice": false,
+      "navInline": true,
+      "threeColumn": true,
+      "widths": {
+        "nav": 220,
+        "content": 1656,
+        "body": 1624,
+        "list": 243.6,
+        "inspector": 200,
+        "stageColumn": 1156.4,
+        "stage": 1156.4
+      }
+    },
+    {
+      "screen": "s05",
+      "leaf": 2560,
+      "clipped": [],
+      "navBandClipped": [],
+      "stage": 1976,
+      "stageClient": 1974,
+      "floorNotice": false,
+      "navInline": true,
+      "threeColumn": true,
+      "widths": {
+        "nav": 220,
+        "content": 2340,
+        "body": 2308,
+        "list": 320,
+        "inspector": null,
+        "stageColumn": 1976,
+        "stage": 1976
+      }
+    },
+    {
+      "screen": "s07",
+      "leaf": 2560,
+      "clipped": [],
+      "navBandClipped": [],
+      "stage": 1687,
+      "stageClient": 1685,
+      "floorNotice": false,
+      "navInline": true,
+      "threeColumn": true,
+      "widths": {
+        "nav": 220,
+        "content": 2340,
+        "body": 2308,
+        "list": 320,
+        "inspector": 277,
+        "stageColumn": 1687,
+        "stage": 1687
+      }
+    }
+  ],
+  "baseline": {
+    "listPercent": 18,
+    "inspectorPercent": 20,
+    "rows": [
+      {
+        "screen": "s05",
+        "leaf": 1280,
+        "clipped": [],
+        "navBandClipped": [],
+        "stage": 831,
+        "floorNotice": false,
+        "navInline": true,
+        "threeColumn": true,
+        "widths": {
+          "nav": 220,
+          "content": 1060,
+          "list": 185,
+          "inspector": null,
+          "stageColumn": 831,
+          "stage": 831
+        }
+      },
+      {
+        "screen": "s07",
+        "leaf": 1280,
+        "clipped": [],
+        "navBandClipped": [],
+        "stage": 624,
+        "floorNotice": false,
+        "navInline": true,
+        "threeColumn": true,
+        "widths": {
+          "nav": 220,
+          "content": 1060,
+          "list": 180,
+          "inspector": 200,
+          "stageColumn": 624,
+          "stage": 624
+        }
+      },
+      {
+        "screen": "s05",
+        "leaf": 1876,
+        "clipped": [],
+        "navBandClipped": [],
+        "stage": 1319.8,
+        "floorNotice": false,
+        "navInline": true,
+        "threeColumn": true,
+        "widths": {
+          "nav": 220,
+          "content": 1656,
+          "list": 292.3,
+          "inspector": null,
+          "stageColumn": 1319.8,
+          "stage": 1319.8
+        }
+      },
+      {
+        "screen": "s07",
+        "leaf": 1876,
+        "clipped": [],
+        "navBandClipped": [],
+        "stage": 982.9,
+        "floorNotice": false,
+        "navInline": true,
+        "threeColumn": true,
+        "widths": {
+          "nav": 220,
+          "content": 1656,
+          "list": 292.3,
+          "inspector": 324.8,
+          "stageColumn": 982.9,
+          "stage": 982.9
+        }
+      },
+      {
+        "screen": "s05",
+        "leaf": 2560,
+        "clipped": [],
+        "navBandClipped": [],
+        "stage": 1976,
+        "floorNotice": false,
+        "navInline": true,
+        "threeColumn": true,
+        "widths": {
+          "nav": 220,
+          "content": 2340,
+          "list": 320,
+          "inspector": null,
+          "stageColumn": 1976,
+          "stage": 1976
+        }
+      },
+      {
+        "screen": "s07",
+        "leaf": 2560,
+        "clipped": [],
+        "navBandClipped": [],
+        "stage": 1604,
+        "floorNotice": false,
+        "navInline": true,
+        "threeColumn": true,
+        "widths": {
+          "nav": 220,
+          "content": 2340,
+          "list": 320,
+          "inspector": 360,
+          "stageColumn": 1604,
+          "stage": 1604
+        }
+      }
+    ]
+  }
+}

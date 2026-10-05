@@ -1,0 +1,86 @@
+// Gap closure GRA7 (Task 10): a relation arc rises clear of the tallest building in its xz
+// corridor, instead of the old 0.35-per-unit lift that a 128-high tower between two low
+// files swallowed. The real `three`; no WebGL is needed to build the geometry.
+import { describe, expect, it } from 'vitest';
+import { InstancedMesh, LineSegments, Material, Vector3 } from 'three';
+import type { BufferAttribute } from 'three';
+import { ARC_CLEARANCE, createRelationArcs } from '../../src/visualization/relation-arcs';
+import type { CityLot } from '../../src/domain/layout/types';
+import { ID, layoutOf, paletteFixture } from '../fixtures/renderer-doubles';
+
+const SEGMENTS = 24;
+const A = ID('src/a.ts');
+const M = ID('src/m.ts');
+const B = ID('src/b.ts');
+const SIDE = ID('src/side.ts');
+
+const BASE = layoutOf('clearance', 1).lots[0]!;
+
+function lot(entityId: string, x: number, h: number, z = 0): CityLot {
+  return { ...BASE, entityId, center: [x, h / 2, z], dimensions: [2, h, 2] };
+}
+
+/** The sampled polyline of the first (only) arc: its 25 distinct points, start to end. */
+function sampled(lots: readonly CityLot[]): Vector3[] {
+  const rig = createRelationArcs();
+  rig.setLots(lots);
+  rig.setColors(paletteFixture());
+  rig.setArcs([{ from: A, to: B, role: 'outgoing' }]);
+  const position = (rig.root.children[0] as LineSegments).geometry.getAttribute('position') as BufferAttribute;
+  const points = [new Vector3().fromBufferAttribute(position, 0)];
+  for (let s = 0; s < SEGMENTS; s++) points.push(new Vector3().fromBufferAttribute(position, s * 2 + 1));
+  rig.dispose();
+  return points;
+}
+
+const apexOf = (points: readonly Vector3[]): number => Math.max(...points.map((p) => p.y));
+
+describe('relation arcs clear the corridor (GRA7)', () => {
+  it('lifts the apex over a 128-high tower standing between two 8-high lots', () => {
+    const points = sampled([lot(A, 0, 8), lot(M, 14, 128), lot(B, 28, 8)]);
+    expect(apexOf(points)).toBeGreaterThanOrEqual(128 + ARC_CLEARANCE);
+  });
+
+  it('keeps today\'s lift when the middle lot is low (apex 13.9)', () => {
+    const points = sampled([lot(A, 0, 8), lot(M, 14, 4), lot(B, 28, 8)]);
+    expect(apexOf(points)).toBeCloseTo(13.9, 5);
+  });
+
+  it('is not raised by a tall lot beside the corridor', () => {
+    const points = sampled([lot(A, 0, 8), lot(B, 28, 8), lot(SIDE, 14, 128, 10)]);
+    expect(apexOf(points)).toBeCloseTo(13.9, 5);
+  });
+
+  it('does not count its own ends: a 128-high from-lot with nothing between keeps the usual lift', () => {
+    // The usual control is 128 + 0.35 * 28 + 2 = 139.8, whose curve peaks near 129 (t = 0.08).
+    // Counting A as its own blocker would raise the control to clear A's roof by 2 and send
+    // the arc far above (apex 144.5).
+    const points = sampled([lot(A, 0, 128), lot(B, 28, 8)]);
+    expect(apexOf(points)).toBeLessThan(128 + ARC_CLEARANCE);
+    expect(apexOf(points)).toBeGreaterThanOrEqual(128);
+  });
+
+  it('leaves both endpoints on the two roofs', () => {
+    const points = sampled([lot(A, 0, 8), lot(M, 14, 128), lot(B, 28, 8)]);
+    expect(points[0]!.toArray()).toEqual([0, 8, 0]);
+    expect(points[SEGMENTS]!.toArray()).toEqual([28, 8, 0]);
+  });
+});
+
+// GCO19 (gap closure E20): in a dense city front-row buildings hid the arrowheads, and the
+// arrowhead is the only carrier of direction, so both draw above the buildings. The selection
+// outline (renderOrder 20, instanced-city.ts) still draws over them.
+describe('relation arcs draw above buildings (GCO19)', () => {
+  it('turns off the depth test and sorts both the line and the cones after the city', () => {
+    const rig = createRelationArcs();
+    rig.setLots([lot(A, 0, 8), lot(B, 28, 8)]);
+    rig.setColors(paletteFixture());
+    rig.setArcs([{ from: A, to: B, role: 'outgoing' }]);
+    const [lines, cones] = rig.root.children as [LineSegments, InstancedMesh];
+    expect((lines.material as Material).depthTest).toBe(false);
+    expect((cones.material as Material).depthTest).toBe(false);
+    expect(lines.renderOrder).toBe(1);
+    expect(cones.renderOrder).toBe(1);
+    rig.dispose();
+  });
+});

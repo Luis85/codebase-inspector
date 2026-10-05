@@ -1,0 +1,59 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>07-sources-and-limits — Codebase Inspector</title><style>body{margin:0;background:#f5f4f8;color:#2f2939;font:15px/1.65 system-ui,sans-serif}header{background:#242229;color:#f2eff6;padding:42px 6vw}header p{max-width:880px;color:#c7c0d1}h1{font-size:36px;line-height:1.2;letter-spacing:-.025em}h2{font-size:24px}main{max-width:1320px;margin:auto;padding:26px 34px 60px}a{color:#684199}header a{color:#eadbff}.button{display:inline-block;background:#7451ad;color:white;padding:10px 17px;border-radius:6px;text-decoration:none;margin-right:10px;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.card{background:white;border:1px solid #ded9e6;border-radius:8px;overflow:hidden}.card img{display:block;width:100%;height:240px;object-fit:contain;background:#252429}.card section{padding:14px 18px}.card h3{margin:0;font-size:17px}.card p{font-size:13px;color:#675e72;line-height:1.6}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:10px 12px;text-align:left;border:1px solid #ded9e6;vertical-align:top}th{background:#eeebf3}pre{padding:17px;background:#eeebf3;overflow:auto;border-radius:6px}code{font-size:13px}blockquote{border-left:3px solid #9471bd;padding:10px 17px;background:#eeebf3}.notice{padding:16px 20px;background:#eae3f3;border-left:3px solid #8058b6;margin:20px 0}.doc{max-width:1030px}.doc img{max-width:100%}@media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.grid{grid-template-columns:1fr}main{padding:20px}.card img{height:auto}h1{font-size:29px}table{display:block;overflow:auto}}</style></head><body><header><div>CODEBASE INSPECTOR · WP-01 · 1.1</div><nav><a href="../gallery.html">Review library</a> · <a href="../index.html">Interactive reference</a></nav></header><main class="doc"><h1>Primary sources and limits</h1>
+<p>Consulted for this continuation on 17 September 2026. URLs point to primary documentation; moving documentation must be rechecked against the versions actually used by the plugin.</p>
+<table>
+<thead>
+<tr>
+  <th>ID</th>
+  <th>Source</th>
+  <th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>O1</td>
+  <td>Obsidian developer documentation, custom views: <a href="https://github.com/obsidianmd/obsidian-developer-docs/blob/main/en/Plugins/User%20interface/Views.md">https://github.com/obsidianmd/obsidian-developer-docs/blob/main/en/Plugins/User%20interface/Views.md</a></td>
+  <td>ItemView registration, multiple view instances, lifecycle ownership</td>
+</tr>
+<tr>
+  <td>O2</td>
+  <td>Obsidian, Support pop-out windows: <a href="https://docs.obsidian.md/plugins/guides/pop-out-windows">https://docs.obsidian.md/plugins/guides/pop-out-windows</a></td>
+  <td>Owning window/document and migration concerns</td>
+</tr>
+<tr>
+  <td>T1</td>
+  <td>Three.js, InstancedMesh: <a href="https://threejs.org/docs/pages/InstancedMesh.html">https://threejs.org/docs/pages/InstancedMesh.html</a></td>
+  <td>Shared geometry/materials, instance state and bounds</td>
+</tr>
+<tr>
+  <td>T2</td>
+  <td>Three.js, OrbitControls: <a href="https://threejs.org/docs/pages/OrbitControls.html">https://threejs.org/docs/pages/OrbitControls.html</a></td>
+  <td>Orbit, pan, dolly, control configuration, keyboard scope considerations</td>
+</tr>
+<tr>
+  <td>T3</td>
+  <td>Three.js, Cleanup: <a href="https://threejs.org/manual/en/cleanup.html">https://threejs.org/manual/en/cleanup.html</a></td>
+  <td>Explicit lifetime management for graphics resources</td>
+</tr>
+<tr>
+  <td>T4</td>
+  <td>Three.js r184 package metadata: <a href="https://github.com/mrdoob/three.js/blob/r184/package.json">https://github.com/mrdoob/three.js/blob/r184/package.json</a></td>
+  <td>Identified package version 0.184.0; not a latest-version claim</td>
+</tr>
+<tr>
+  <td>A1</td>
+  <td>W3C WAI-ARIA APG, Dialog (Modal) Pattern: <a href="https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/">https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/</a></td>
+  <td>Modal focus containment, Escape, focus return</td>
+</tr>
+<tr>
+  <td>A2</td>
+  <td>W3C technique H102: <a href="https://www.w3.org/WAI/WCAG21/Techniques/html/H102">https://www.w3.org/WAI/WCAG21/Techniques/html/H102</a></td>
+  <td>Native HTML dialog behavior in the browser reference</td>
+</tr>
+</tbody>
+</table>
+<h2>Evidence boundaries</h2>
+<p>No repository for an implemented Codebase Inspector plugin was supplied in this continuation, and no such repository was inferred or modified. The visual baseline and fixtures came from the previously delivered design archive. One fixture filename was changed to a non-ASCII example while retaining 144 files. These quantities and paths are illustrative, not extracted from a user's source tree.</p>
+<p>No user research, live Obsidian test, screen-reader session, GPU benchmark, real scanner, or fallow run was performed. The browser tests exercise a separately authored, self-contained review page using the exact bundled HTML content. The browser environment blocks local <code>file:</code> navigation, so automation injected the HTML into a blank page using Playwright <code>set_content</code>; no local server or network dependency was needed.</p>
+<p>The attempt to download a Three.js runtime dependency failed in this environment. The runnable interaction reference therefore uses an explicitly labeled Canvas 2D projection simulator, while the intended production implementation remains Three.js. The archive does not contain a fabricated or substituted “Three.js” library. The supplied TypeScript file defines the adapter boundary; it does not implement that renderer.</p>
+<p>This package should be evaluated as a design and implementation handoff. Passing its tests is evidence for the reference behavior, not a claim that the product exists or is release-ready.</p>
+</main></body></html>

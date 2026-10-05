@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "unicorn/no-array-sort": "off",
+    "eslint/no-underscore-dangle": ["warn", { "allow": ["__THREE__"] }]
+  },
+  "ignorePatterns": ["dist/**", "docs/**", "node_modules/**", "tests/fixtures/fallow/project/**", "tests/fixtures/fallow/relations-project/**", ".fallow-bin/**", ".obsidian-cache/**", "reports/**"]
+}

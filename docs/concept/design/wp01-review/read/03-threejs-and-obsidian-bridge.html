@@ -1,0 +1,90 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>03-threejs-and-obsidian-bridge — Codebase Inspector</title><style>body{margin:0;background:#f5f4f8;color:#2f2939;font:15px/1.65 system-ui,sans-serif}header{background:#242229;color:#f2eff6;padding:42px 6vw}header p{max-width:880px;color:#c7c0d1}h1{font-size:36px;line-height:1.2;letter-spacing:-.025em}h2{font-size:24px}main{max-width:1320px;margin:auto;padding:26px 34px 60px}a{color:#684199}header a{color:#eadbff}.button{display:inline-block;background:#7451ad;color:white;padding:10px 17px;border-radius:6px;text-decoration:none;margin-right:10px;margin-top:8px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.card{background:white;border:1px solid #ded9e6;border-radius:8px;overflow:hidden}.card img{display:block;width:100%;height:240px;object-fit:contain;background:#252429}.card section{padding:14px 18px}.card h3{margin:0;font-size:17px}.card p{font-size:13px;color:#675e72;line-height:1.6}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:10px 12px;text-align:left;border:1px solid #ded9e6;vertical-align:top}th{background:#eeebf3}pre{padding:17px;background:#eeebf3;overflow:auto;border-radius:6px}code{font-size:13px}blockquote{border-left:3px solid #9471bd;padding:10px 17px;background:#eeebf3}.notice{padding:16px 20px;background:#eae3f3;border-left:3px solid #8058b6;margin:20px 0}.doc{max-width:1030px}.doc img{max-width:100%}@media(max-width:1000px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:620px){.grid{grid-template-columns:1fr}main{padding:20px}.card img{height:auto}h1{font-size:29px}table{display:block;overflow:auto}}</style></head><body><header><div>CODEBASE INSPECTOR · WP-01 · 1.1</div><nav><a href="../gallery.html">Review library</a> · <a href="../index.html">Interactive reference</a></nav></header><main class="doc"><h1>Three.js and Obsidian implementation bridge</h1>
+<h2>This reference deliberately stops at the host boundary</h2>
+<p>The browser interaction reference has no Obsidian runtime, filesystem adapter, Pinia instance, or fallow process. Its offline renderer is a small Canvas 2D orthographic simulator. It validates review interactions without external dependencies. It is <strong>not</strong> the production architecture and must not be shipped instead of Three.js.</p>
+<p>A direct Three.js dependency download was unavailable in the authoring environment. The adapter contract is therefore supplied without claiming a working Three.js integration. The official r184 package metadata identifies version 0.184.0 [T4]; that version was inspected as a possible pin, not installed, benchmarked, or certified as the newest release. Confirm a compatible project pin during implementation.</p>
+<h2>Component ownership</h2>
+<table>
+<thead>
+<tr>
+  <th>Existing component</th>
+  <th>Production responsibility</th>
+  <th>Must not own</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>C01 InspectorWorkspace</td>
+  <td>Layout, view-scoped services, capability availability</td>
+  <td>Global shell/navigation or source execution</td>
+</tr>
+<tr>
+  <td>C02 ProfileSelector</td>
+  <td>Present/select a saved profile</td>
+  <td>Automatic scanning on selection</td>
+</tr>
+<tr>
+  <td>C03 SourceSelector + C04 ScopeReview</td>
+  <td>Choose root and present actual resolved scope</td>
+  <td>Silent permission carryover after scope edits</td>
+</tr>
+<tr>
+  <td>C05 ScanProgress</td>
+  <td>Run state, cancellation, previous-snapshot explanation</td>
+  <td>Invented percentages during unknown-length discovery</td>
+</tr>
+<tr>
+  <td>C06 FileSearch</td>
+  <td>Immediate text input, path search intent</td>
+  <td>Source-text indexing in WP-01</td>
+</tr>
+<tr>
+  <td>C07 CodebaseFileList</td>
+  <td>Equivalent navigation and measurements</td>
+  <td>A second source of selected-file truth</td>
+</tr>
+<tr>
+  <td>C08 CityViewport</td>
+  <td>Own one renderer bridge for one view</td>
+  <td>Filesystem, raw fallow JSON, host-wide hotkeys</td>
+</tr>
+<tr>
+  <td>C09 CameraControls</td>
+  <td>Explicit framing and navigation intents</td>
+  <td>Scanning or selection mutation</td>
+</tr>
+<tr>
+  <td>C10 FileInspector</td>
+  <td>Exact metrics, path copy, selected-ID display</td>
+  <td>Code deletion or automatic external editor execution</td>
+</tr>
+<tr>
+  <td>C11 MetricLegend</td>
+  <td>Visible mapping and unknown-state explanation</td>
+  <td>Health labels inferred from building size</td>
+</tr>
+<tr>
+  <td>C18 ResponsivePanelHost</td>
+  <td>Leaf-width-driven panels and return focus</td>
+  <td>Device-width assumptions</td>
+</tr>
+</tbody>
+</table>
+<p>Vue components communicate through typed intent events and application services. Keep Three.js classes and WebGL resources outside deep Vue reactivity. Use a per-view Pinia store for camera/selection/query; shared snapshot services expose immutable domain values. The registered ItemView creates and disposes the Vue root and renderer bridge for its own leaf.</p>
+<h2>Suggested Three.js implementation</h2>
+<p>Use one or a small number of <code>InstancedMesh</code> batches for repeated file lots with shared geometry/materials. Three.js supplies per-instance transforms/colors; explicitly refresh the relevant bounds and instance buffers when necessary [T1]. Keep file identity mapping independent of array order. Use a separate marker/outline layer for selection so category colors retain their meaning.</p>
+<p>Use OrbitControls for orbit/dolly/pan and configure the desired input behavior [T2]. Do not follow a generic example that attaches keyboard controls to the global window; the keyboard contract belongs to the focused canvas in this specific ItemView. Primary click-versus-drag classification remains an application concern. Run ray picking only against selectable file lots, not labels, ground planes, district borders, or overlays.</p>
+<p>Use the full <code>CameraBookmark</code> value to save/restore 3D/top states. Align the orientation and height scale with the visual design, but treat the simulator's pixel/angle constants as illustrative, not Three.js configuration constants. Keep Fit city and Focus selected as different public operations.</p>
+<h2>Demand-driven drawing and resources</h2>
+<p>A changed camera, selection, filter presentation, theme, resize, or scene requests a render. No constant auto-rotation or perpetual idle render loop is required. If enabling damping later, keep drawing while motion is settling and stop once stable. Coalesce invalidations into one pending frame.</p>
+<p>Three.js resources need explicit disposal; simply removing a mesh from a scene does not release its geometry/material/texture resources [T3]. Each view must dispose its controls, observers, input listeners, scheduled animation frames, renderer, and owned scene assets. Shared resources need explicit ownership/reference counting rather than disposal by whichever leaf closes first.</p>
+<p>Measure actual draw calls, texture/geometry counts, memory behavior, and input latency in Obsidian. The browser reference's idle-frame check is not a GPU or Three.js benchmark. The 5,000-file target from the implementation kit remains unverified.</p>
+<h2>Host lifecycle and pop-outs</h2>
+<p>Use the ItemView container as the mount point and register through the plugin's view factory [O1]. Use the container's owning document/window for overlays, animation scheduling, event handlers, computed theme variables, and observers. Pop-out windows use different global constructors and contexts; migration may require renderer reinitialization [O2].</p>
+<p>Restore a saved camera/selection/query when reconstructing the same compatible view. Never restore a running process or authorize a fresh scan simply because a view reopens. If the source is unavailable, preserve an inspectable snapshot with an explicit stale/unbound state.</p>
+<p>Plugin unload should make new callbacks no-ops, detach observers, cancel view-specific tasks, and release resources. If a shared run is used by another leaf, detach this leaf's subscription rather than blindly killing work it does not exclusively own. A user-issued Cancel has its own run-level semantics.</p>
+<h2>Theme bridge</h2>
+<p>Read semantic host CSS variables and resolve them into plain color values for Three.js. On a host theme change, refresh materials/labels without moving buildings or clearing state. Keep selection outline distinct from evidence/category colors, and verify contrast in light, dark, and custom themes. The prototype's standalone theme picker is review-only and must not become a plugin setting.</p>
+<h2>Required adapter verification</h2>
+<p>Before calling WP-01 complete, demonstrate real view mounting and disposal; actual InstancedMesh mapping and picking; top/3D camera restoration; resize with no implicit Fit; keyboard ownership in split leaves; renderer recovery; shared snapshots with independent view state; correct pop-out migration; and unchanged source files after inventory scanning.</p>
+<p>Sources: <code>07-sources-and-limits.md</code>.</p>
+</main></body></html>

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.obsidian
+harness-shots/
+.fallow-bin/
+.obsidian-cache/
+reports/

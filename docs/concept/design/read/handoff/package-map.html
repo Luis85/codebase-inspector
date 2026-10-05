@@ -1,0 +1,89 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>UI/UX delivery map</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../handoff/package-map.md">Markdown source</a></header><main><h1>UI/UX delivery map</h1>
+<p>The design follows the existing 12 Obsidian implementation packages. A mockup for a later package is not permission to add nonfunctional navigation to an earlier release.</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Design coverage</th>
+<th>Mandatory UI outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WP-01 — Native codebase city</td>
+<td>S01, S02, S03, S04, S05, S06, S07, S08, S09, S10, S11, S12, S13, S23</td>
+<td>Native real-source structural workflow</td>
+</tr>
+<tr>
+<td>WP-02 — Fallow ingestion and lenses</td>
+<td>S14, S15, S22</td>
+<td>Fallow ingestion and lenses</td>
+</tr>
+<tr>
+<td>WP-03 — Dependencies and architecture</td>
+<td>S16</td>
+<td>Dependencies and architecture</td>
+</tr>
+<tr>
+<td>WP-04 — Investigation and notes</td>
+<td>S17, S18</td>
+<td>Investigation and notes</td>
+</tr>
+<tr>
+<td>WP-05 — Snapshot history</td>
+<td>S19</td>
+<td>Snapshot history</td>
+</tr>
+<tr>
+<td>WP-06 — Test evidence</td>
+<td>S20</td>
+<td>Test evidence</td>
+</tr>
+<tr>
+<td>WP-07 — Diagnostics and security</td>
+<td>S25</td>
+<td>Diagnostics and security</td>
+</tr>
+<tr>
+<td>WP-08 — Bundle footprint</td>
+<td>S26</td>
+<td>Bundle footprint</td>
+</tr>
+<tr>
+<td>WP-09 — Overview and prioritization</td>
+<td>S21</td>
+<td>Overview and prioritization</td>
+</tr>
+<tr>
+<td>WP-10 — Watch and CI artifacts</td>
+<td>S27</td>
+<td>Watch and CI artifacts</td>
+</tr>
+<tr>
+<td>WP-11 — Note embeds and focus links</td>
+<td>S24</td>
+<td>Note embeds and focus links</td>
+</tr>
+<tr>
+<td>WP-12 — Runtime evidence</td>
+<td>S28</td>
+<td>Runtime evidence</td>
+</tr>
+</tbody>
+</table>
+<h2>WP-01 design slice</h2>
+<p>Implement S01–S13 plus S23, shared components C01–C12 and relevant native/status/responsive components. C13–C27 are not all prerequisites. Build the real plugin shell and source-to-city path; add failure, fallback, and lifecycle states before moving to provider dashboards.</p>
+<p>The implementation order is: host adapter → source/snapshot contract → source/scope UI → filesystem/progress integration → pure layout → renderer → list/search/inspector → theme/leaf lifecycle → accessibility/fallback → release verification. UI fixture work may proceed in parallel, but it must integrate with real data before acceptance.</p>
+<h2>Design versus implementation changes</h2>
+<p>Consolidate with existing source/snapshot/provider models before adding presentation DTOs. A renderer port and per-view presentation state are legitimate boundaries; duplicating the domain schema in UI stores is not. Use the screenshots for hierarchy and spacing and the textual rules for permissions, state, evidence meaning, and accessibility.</p>
+<p>Screens S25–S28 provide complete workflow direction for later evidence families but require provider-specific schema mapping and error-fixture validation during implementation. They are not claims that those integrations already exist.</p>
+<h2>Handoff precedence</h2>
+<ol>
+<li>Source-safety, privacy, accessibility, and evidence contracts.</li>
+<li>Screen specification and component interaction contract.</li>
+<li>Numbered screen mockup composition.</li>
+<li>Review prototype behavior (deliberately partial).</li>
+<li>Exploratory image-generated board.</li>
+</ol>
+<p>Resolve any conflict explicitly; do not reproduce a decorative or misleading element from a concept image over the written baseline.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

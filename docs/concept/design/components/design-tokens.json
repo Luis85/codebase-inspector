@@ -1,0 +1,51 @@
+{
+  "version": "1.0",
+  "scope": ".codebase-inspector-root",
+  "status": "reference-design-tokens",
+  "space": {
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "5": "20px",
+    "6": "24px",
+    "8": "32px"
+  },
+  "radius": {
+    "small": "4px",
+    "control": "6px",
+    "modal": "10px"
+  },
+  "size": {
+    "control": "32px",
+    "controlComfortable": "36px",
+    "filePanel": "208px",
+    "inspector": "288px",
+    "dialog": "590px",
+    "composer": "740px"
+  },
+  "motion": {
+    "hoverMs": 180,
+    "focusMs": 180,
+    "searchDebounceMs": 150,
+    "reducedMotionMs": 0
+  },
+  "scene": {
+    "heightMetric": "physicalLines",
+    "heightMapping": "8 + 120 * sqrt(min(lines,600)/600)",
+    "equalFileLots": true,
+    "autoRotate": false
+  },
+  "semantic": {
+    "surface": "var(--background-primary)",
+    "panel": "var(--background-secondary)",
+    "raised": "var(--background-primary-alt)",
+    "border": "var(--background-modifier-border)",
+    "text": "var(--text-normal)",
+    "muted": "var(--text-muted)",
+    "accent": "var(--interactive-accent)",
+    "onAccent": "var(--text-on-accent)",
+    "warning": "var(--text-warning)",
+    "error": "var(--text-error)"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "codebase-inspector",
+  "name": "Codebase Inspector",
+  "version": "0.1.0",
+  "minAppVersion": "1.13.0",
+  "description": "Explore any local codebase as an interactive 3D city inside a vault tab.",
+  "author": "Luis85",
+  "authorUrl": "https://github.com/Luis85",
+  "isDesktopOnly": true
+}

@@ -1,0 +1,170 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Content style and microcopy catalogue</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../interactions/04-microcopy.md">Markdown source</a></header><main><h1>Content style and microcopy catalogue</h1>
+<p>Use factual, action-oriented labels. Prefer exact scope over broad reassurance. Avoid slogans in daily workflows, unexplained acronyms, tool-centric internals, and fear-based warnings. A message explains what happened, what remains available, and what to do next.</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Context</th>
+<th>Approved copy / pattern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>COPY-01</td>
+<td>First run</td>
+<td>Understand your codebase. Start with its structure.</td>
+</tr>
+<tr>
+<td>COPY-02</td>
+<td>Source action</td>
+<td>Select a codebase</td>
+</tr>
+<tr>
+<td>COPY-03</td>
+<td>External source</td>
+<td>Read a local codebase outside this vault.</td>
+</tr>
+<tr>
+<td>COPY-04</td>
+<td>Permission step</td>
+<td>Review scope and read access</td>
+</tr>
+<tr>
+<td>COPY-05</td>
+<td>Permission detail</td>
+<td>Source text and file metadata are read. No project scripts, dependency installation, or source writes are performed.</td>
+</tr>
+<tr>
+<td>COPY-06</td>
+<td>Permission checkbox</td>
+<td>I approve read access to this directory for this scan.</td>
+</tr>
+<tr>
+<td>COPY-07</td>
+<td>Start</td>
+<td>Scan codebase</td>
+</tr>
+<tr>
+<td>COPY-08</td>
+<td>Unknown progress</td>
+<td>Reading included files. {count} files read so far.</td>
+</tr>
+<tr>
+<td>COPY-09</td>
+<td>Cancel</td>
+<td>Cancel scan</td>
+</tr>
+<tr>
+<td>COPY-10</td>
+<td>Cancelled</td>
+<td>Scan cancelled. The incomplete result was discarded. Your complete snapshot from {time} is unchanged.</td>
+</tr>
+<tr>
+<td>COPY-11</td>
+<td>No matches</td>
+<td>No matching files. The snapshot still contains {count} files. No paths match “{query}”.</td>
+</tr>
+<tr>
+<td>COPY-12</td>
+<td>Empty scope</td>
+<td>No files are included in this scope. Review the selected directory and exclusions.</td>
+</tr>
+<tr>
+<td>COPY-13</td>
+<td>Partial inventory</td>
+<td>Some files could not be read. Measurements cover {measured} of {included} included files.</td>
+</tr>
+<tr>
+<td>COPY-14</td>
+<td>Renderer unavailable</td>
+<td>The 3D view is unavailable. File inspection still works.</td>
+</tr>
+<tr>
+<td>COPY-15</td>
+<td>Provider failure</td>
+<td>{provider} analysis failed. The structural snapshot is still available.</td>
+</tr>
+<tr>
+<td>COPY-16</td>
+<td>Stale provider</td>
+<td>Showing evidence from {absoluteDate}. It is not current for this snapshot.</td>
+</tr>
+<tr>
+<td>COPY-17</td>
+<td>Source mismatch</td>
+<td>This report does not match the selected source revision. Review it separately or bind matching source.</td>
+</tr>
+<tr>
+<td>COPY-18</td>
+<td>Unknown metric</td>
+<td>Not measured. {reason}</td>
+</tr>
+<tr>
+<td>COPY-19</td>
+<td>Zero coverage</td>
+<td>Measured zero: 0 of {total} instrumented lines covered.</td>
+</tr>
+<tr>
+<td>COPY-20</td>
+<td>Unused candidate</td>
+<td>No static consumers reported in this analysis scope. Verify dynamic/framework usage before removal.</td>
+</tr>
+<tr>
+<td>COPY-21</td>
+<td>Runtime</td>
+<td>Not observed during {start}–{end} in {environment}.</td>
+</tr>
+<tr>
+<td>COPY-22</td>
+<td>Note action</td>
+<td>Create investigation note</td>
+</tr>
+<tr>
+<td>COPY-23</td>
+<td>Note write disclosure</td>
+<td>This creates a Markdown note in the current vault. It does not change the codebase.</td>
+</tr>
+<tr>
+<td>COPY-24</td>
+<td>Note success</td>
+<td>Investigation note created in {vaultRelativePath}.</td>
+</tr>
+<tr>
+<td>COPY-25</td>
+<td>Note write failure</td>
+<td>The note could not be created. Your draft is preserved. {reason}</td>
+</tr>
+<tr>
+<td>COPY-26</td>
+<td>Missing baseline</td>
+<td>No compatible baseline is selected.</td>
+</tr>
+<tr>
+<td>COPY-27</td>
+<td>Copied path</td>
+<td>Relative path copied.</td>
+</tr>
+<tr>
+<td>COPY-28</td>
+<td>External binding lost</td>
+<td>The saved source directory is unavailable on this machine. The stored snapshot can still be inspected.</td>
+</tr>
+<tr>
+<td>COPY-29</td>
+<td>Imported artifact</td>
+<td>Imported snapshot. Source access and execution are not authorized.</td>
+</tr>
+<tr>
+<td>COPY-30</td>
+<td>Selection outside filter</td>
+<td>The selected file is outside these filters. Reveal file or clear selection.</td>
+</tr>
+</tbody>
+</table>
+<p>Escape user-controlled values when rendering. Use readable text rather than HTML fragments from reports. Do not expose secrets in error logs; make diagnostic export deliberate and redact local absolute paths by default.</p>
+<h2>Units and dates</h2>
+<p>Use physical lines, bytes/KiB/MiB (base 1024) for file inventory, and the exact build-report unit for bundle evidence. Show measured numerator/denominator where percentages could be misread. Do not shorten a source path so aggressively that identical basenames become indistinguishable.</p>
+<p>Summary timestamps can be relative with an accessible full timestamp. Evidence details and historical notes include date, time zone, and snapshot identity. Do not display a Git branch in WP-01 unless collected without violating its no-Git execution boundary.</p>
+<h2>Severity and action tone</h2>
+<p>Provider severity remains attributed to the provider. Product banners describe operational failures rather than borrowing vulnerability severity. “Review evidence” is preferable to “Fix now.” “No longer reported in a compatible run” is more precise than “Fixed” when the application did not verify the change itself.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

@@ -1,0 +1,143 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>UI/UX implementation backlog</title><style>body{font:15px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#f6f6f8;color:#2b2733}header{background:#242129;color:#e7e1ef;padding:16px 30px;font-size:12px}header a{color:#d9c5ff}main{max-width:1120px;margin:35px auto;padding:28px 38px;background:white;border:1px solid #ddd8e3;border-radius:9px}h1{font-size:32px;line-height:1.2;letter-spacing:-.025em}h2{margin-top:34px;font-size:24px}h3{margin-top:26px;font-size:18px}p{margin:13px 0}a{color:#67459e}img{max-width:100%;height:auto;border:1px solid #ded9e5;border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow:auto}th,td{border-bottom:1px solid #ded9e5;padding:11px;text-align:left;vertical-align:top}th{background:#f2eff6}code{font-size:12px;background:#f2eff6;padding:2px 4px;border-radius:3px}pre{padding:17px;background:#f2eff6;border:1px solid #e0d9e7;border-radius:6px;overflow:auto;white-space:pre-wrap}pre code{padding:0}blockquote{border-left:3px solid #7754b9;padding-left:18px;color:#665d71}li{margin:7px 0}.meta{font-size:12px;color:#786d83}a:focus-visible{outline:2px solid #7754b9;outline-offset:3px}@media(max-width:700px){main{padding:18px;margin:15px}h1{font-size:26px}}</style></head><body><header><a href="../../index.html">Codebase Inspector / Design library</a> · <a href="../../handoff/ui-backlog.md">Markdown source</a></header><main><h1>UI/UX implementation backlog</h1>
+<p>Status: <strong>designed, not yet estimated or ready</strong>. Each PBI is phrased as a use case and belongs to the corresponding implementation package. Refine contracts and validate prerequisites before marking ready. No engineering estimates are invented here.</p>
+<h2>UX-PBI-01 — Select a codebase for inspection</h2>
+<p><strong>Package:</strong> WP-01. <strong>Screens:</strong> S01–S03.</p>
+<p><strong>User agreement:</strong> the user can select a codebase for inspection without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Choose source modes; validate root; review exclusions; explicit read acknowledgement.</p>
+<p><strong>Acceptance:</strong> Valid directory and deliberate approval reach inventory; invalid input stays editable.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-02 — Observe and cancel an inventory</h2>
+<p><strong>Package:</strong> WP-01. <strong>Screens:</strong> S04, S12.</p>
+<p><strong>User agreement:</strong> the user can observe and cancel an inventory without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Stage/status region; bounded progress; cancel intent; retained-result banner.</p>
+<p><strong>Acceptance:</strong> Cancelling cannot publish partial results or reset previous evidence.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-03 — Explore the structural city</h2>
+<p><strong>Package:</strong> WP-01. <strong>Screens:</strong> S05, S09.</p>
+<p><strong>User agreement:</strong> the user can explore the structural city without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Instanced Three.js building view; category/height legend; fit/top controls.</p>
+<p><strong>Acceptance:</strong> Every included file maps to the correct building; exact values are available in HTML.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-04 — Select and inspect a file</h2>
+<p><strong>Package:</strong> WP-01. <strong>Screens:</strong> S06, S07.</p>
+<p><strong>User agreement:</strong> the user can select and inspect a file without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Selected ID propagation; inspector; copy path; focus action; missing metrics.</p>
+<p><strong>Acceptance:</strong> Click selects without camera movement and does not fabricate missing measurements.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-05 — Find a file without losing context</h2>
+<p><strong>Package:</strong> WP-01. <strong>Screens:</strong> S08, S23.</p>
+<p><strong>User agreement:</strong> the user can find a file without losing context without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Path search; result counts; dim nonmatches; no-results recovery.</p>
+<p><strong>Acceptance:</strong> Search does not reshape the layout and zero matches does not imply empty codebase.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-06 — Use the inspector without 3D</h2>
+<p><strong>Package:</strong> WP-01. <strong>Screens:</strong> S11.</p>
+<p><strong>User agreement:</strong> the user can use the inspector without 3D without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> List-first route; renderer recovery; accessible table; equivalent detail.</p>
+<p><strong>Acceptance:</strong> Core tasks succeed when WebGL is unavailable.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-07 — Use a narrow workspace leaf</h2>
+<p><strong>Package:</strong> WP-01. <strong>Screens:</strong> S10.</p>
+<p><strong>User agreement:</strong> the user can use a narrow workspace leaf without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Leaf size observation; panel collapse; drawer controls; safe focus return.</p>
+<p><strong>Acceptance:</strong> No source task is lost when panel composition changes.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-08 — Manage codebase profiles and limits</h2>
+<p><strong>Package:</strong> WP-01. <strong>Screens:</strong> S13.</p>
+<p><strong>User agreement:</strong> the user can manage codebase profiles and limits without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Native settings; local bindings; exclusions; retention/read disclosures.</p>
+<p><strong>Acceptance:</strong> Settings changes do not trigger scans or remove source files.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-09 — Keep views independent and cleanly dispose them</h2>
+<p><strong>Package:</strong> WP-01. <strong>Screens:</strong> S05–S13.</p>
+<p><strong>User agreement:</strong> the user can keep views independent and cleanly dispose them without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Leaf-scoped camera/query; resize; hidden-state pause; pop-out rebind; unload.</p>
+<p><strong>Acceptance:</strong> Two views do not share selection or leak GPU/listener resources.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-10 — Use host themes and accessible controls</h2>
+<p><strong>Package:</strong> WP-01. <strong>Screens:</strong> S06, S10, S11.</p>
+<p><strong>User agreement:</strong> the user can use host themes and accessible controls without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Semantic token bridge; keyboard/non-drag alternatives; contrast and text scaling.</p>
+<p><strong>Acceptance:</strong> Actual-host accessibility checks produce recorded outcomes rather than assumptions.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-11 — Attach fallow evidence to a snapshot</h2>
+<p><strong>Package:</strong> WP-02. <strong>Screens:</strong> S14, S15.</p>
+<p><strong>User agreement:</strong> the user can attach fallow evidence to a snapshot without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Import route; executable review; schema/provenance; availability badges.</p>
+<p><strong>Acceptance:</strong> A report cannot grant command authority and a missing provider cannot produce healthy coloring.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-12 — Recover from a provider failure</h2>
+<p><strong>Package:</strong> WP-02. <strong>Screens:</strong> S22.</p>
+<p><strong>User agreement:</strong> the user can recover from a provider failure without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Failed-run banner; safe diagnostics; stale retention; explicit retry.</p>
+<p><strong>Acceptance:</strong> Structural city remains usable and zero findings is not inferred.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-13 — Investigate a dependency neighborhood</h2>
+<p><strong>Package:</strong> WP-03. <strong>Screens:</strong> S16.</p>
+<p><strong>User agreement:</strong> the user can investigate a dependency neighborhood without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Direction/hop query; edge cap; readable edge list; cycle context.</p>
+<p><strong>Acceptance:</strong> Graph and list agree on typed edge direction and source identity.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-14 — Inspect a finding and its evidence</h2>
+<p><strong>Package:</strong> WP-04. <strong>Screens:</strong> S17.</p>
+<p><strong>User agreement:</strong> the user can inspect a finding and its evidence without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Queue; source match; excerpt permissions; evidence limitations; provenance.</p>
+<p><strong>Acceptance:</strong> No unsafe confidence score or unverified current-source excerpt appears.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-15 — Create an investigation note in the vault</h2>
+<p><strong>Package:</strong> WP-04. <strong>Screens:</strong> S18.</p>
+<p><strong>User agreement:</strong> the user can create an investigation note in the vault without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Composer; destination validation; preview; collision/failed-write handling.</p>
+<p><strong>Acceptance:</strong> User text is preserved and source code is not edited.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-16 — Compare compatible snapshots</h2>
+<p><strong>Package:</strong> WP-05. <strong>Screens:</strong> S19.</p>
+<p><strong>User agreement:</strong> the user can compare compatible snapshots without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Baseline selectors; compatibility reasons; common layout; identity deltas.</p>
+<p><strong>Acceptance:</strong> Missing providers and excluded files are not mistaken for improvements/deletions.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-17 — Interpret measured testing evidence</h2>
+<p><strong>Package:</strong> WP-06. <strong>Screens:</strong> S20.</p>
+<p><strong>User agreement:</strong> the user can interpret measured testing evidence without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Coverage metric selector; correct aggregation; measured-zero and unknown states.</p>
+<p><strong>Acceptance:</strong> All numerator/denominator and mapping evidence is traceable.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-18 — Investigate diagnostics and package advisories</h2>
+<p><strong>Package:</strong> WP-07. <strong>Screens:</strong> S25.</p>
+<p><strong>User agreement:</strong> the user can investigate diagnostics and package advisories without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Provider-native IDs/severity; exact targets; safe report rendering.</p>
+<p><strong>Acceptance:</strong> Package presence is not displayed as confirmed exploitable source code.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-19 — Inspect shipped artifact contribution</h2>
+<p><strong>Package:</strong> WP-08. <strong>Screens:</strong> S26.</p>
+<p><strong>User agreement:</strong> the user can inspect shipped artifact contribution without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Build report import; byte-definition selector; source/chunk links; treemap.</p>
+<p><strong>Acceptance:</strong> Source/rendered/compressed bytes are not mixed or double-counted.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-20 — Prioritize investigations through explainable evidence</h2>
+<p><strong>Package:</strong> WP-09. <strong>Screens:</strong> S21.</p>
+<p><strong>User agreement:</strong> the user can prioritize investigations through explainable evidence without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Independent cards; provider availability; transparent ordering; drill-down.</p>
+<p><strong>Acceptance:</strong> Every queue entry names its inputs and missing evidence.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-21 — Import CI artifacts and explicitly watch a source</h2>
+<p><strong>Package:</strong> WP-10. <strong>Screens:</strong> S27.</p>
+<p><strong>User agreement:</strong> the user can import CI artifacts and explicitly watch a source without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Artifact validation; separate session approval; job ordering; stop/export.</p>
+<p><strong>Acceptance:</strong> Import is not execution permission and old jobs cannot replace newer results.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-22 — Return to a pinned codebase context from a note</h2>
+<p><strong>Package:</strong> WP-11. <strong>Screens:</strong> S24.</p>
+<p><strong>User agreement:</strong> the user can return to a pinned codebase context from a note without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Portable reference syntax; bounded previews; missing-reference recovery.</p>
+<p><strong>Acceptance:</strong> Reading the note starts no work and does not rewrite human content.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>UX-PBI-23 — Interpret a runtime observation window</h2>
+<p><strong>Package:</strong> WP-12. <strong>Screens:</strong> S28.</p>
+<p><strong>User agreement:</strong> the user can interpret a runtime observation window without losing context or changing source unintentionally.</p>
+<p><strong>Tasks:</strong> Build/environment/window selector; sampling/mapping states; separate test/runtime lenses.</p>
+<p><strong>Acceptance:</strong> Not observed remains bounded evidence, not proof of global nonuse.</p>
+<p><strong>Done evidence:</strong> unit/state contract checks, visual comparison to applicable mockups, relevant failure/focus test, and actual Obsidian-host demonstration when integration is involved. Preserve synthetic-fixture labels in design-only assets.</p>
+<h2>Readiness gate</h2>
+<p>The responsible developer and designer agree on data inputs, ownership, empty/error/partial states, accessible interaction, source/execution authority, and test fixtures. Screens/images alone do not satisfy readiness. The delivery manager can sequence by package dependencies; no broad dashboard work is required to finish WP-01.</p>
+<div class="meta">Proposed design specification · synthetic visual fixtures · not a running Obsidian plugin.</div></main></body></html>

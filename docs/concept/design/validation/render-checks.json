@@ -1,0 +1,146 @@
+{
+  "method": "Authored HTML/CSS/JS injected into headless Chromium; no Obsidian host executed. Browser navigation was unavailable in this environment.",
+  "javascriptErrors": [],
+  "screens": [
+    {
+      "screen": "S01",
+      "horizontalDocumentOverflow": false,
+      "image": "s01-welcome.png"
+    },
+    {
+      "screen": "S02",
+      "horizontalDocumentOverflow": false,
+      "image": "s02-source.png"
+    },
+    {
+      "screen": "S03",
+      "horizontalDocumentOverflow": false,
+      "image": "s03-scope.png"
+    },
+    {
+      "screen": "S04",
+      "horizontalDocumentOverflow": false,
+      "image": "s04-scanning.png"
+    },
+    {
+      "screen": "S05",
+      "horizontalDocumentOverflow": false,
+      "image": "s05-city.png"
+    },
+    {
+      "screen": "S06",
+      "horizontalDocumentOverflow": false,
+      "image": "s06-city-light.png"
+    },
+    {
+      "screen": "S07",
+      "horizontalDocumentOverflow": false,
+      "image": "s07-selected.png"
+    },
+    {
+      "screen": "S08",
+      "horizontalDocumentOverflow": false,
+      "image": "s08-search.png"
+    },
+    {
+      "screen": "S09",
+      "horizontalDocumentOverflow": false,
+      "image": "s09-top.png"
+    },
+    {
+      "screen": "S10",
+      "horizontalDocumentOverflow": false,
+      "image": "s10-narrow.png"
+    },
+    {
+      "screen": "S11",
+      "horizontalDocumentOverflow": false,
+      "image": "s11-fallback.png"
+    },
+    {
+      "screen": "S12",
+      "horizontalDocumentOverflow": false,
+      "image": "s12-cancelled.png"
+    },
+    {
+      "screen": "S13",
+      "horizontalDocumentOverflow": false,
+      "image": "s13-settings.png"
+    },
+    {
+      "screen": "S14",
+      "horizontalDocumentOverflow": false,
+      "image": "s14-provider.png"
+    },
+    {
+      "screen": "S15",
+      "horizontalDocumentOverflow": false,
+      "image": "s15-findings.png"
+    },
+    {
+      "screen": "S16",
+      "horizontalDocumentOverflow": false,
+      "image": "s16-dependencies.png"
+    },
+    {
+      "screen": "S17",
+      "horizontalDocumentOverflow": false,
+      "image": "s17-workbench.png"
+    },
+    {
+      "screen": "S18",
+      "horizontalDocumentOverflow": false,
+      "image": "s18-note.png"
+    },
+    {
+      "screen": "S19",
+      "horizontalDocumentOverflow": false,
+      "image": "s19-compare.png"
+    },
+    {
+      "screen": "S20",
+      "horizontalDocumentOverflow": false,
+      "image": "s20-coverage.png"
+    },
+    {
+      "screen": "S21",
+      "horizontalDocumentOverflow": false,
+      "image": "s21-overview.png"
+    },
+    {
+      "screen": "S22",
+      "horizontalDocumentOverflow": false,
+      "image": "s22-failure.png"
+    },
+    {
+      "screen": "S23",
+      "horizontalDocumentOverflow": false,
+      "image": "s23-no-results.png"
+    },
+    {
+      "screen": "S24",
+      "horizontalDocumentOverflow": false,
+      "image": "s24-embed.png"
+    },
+    {
+      "screen": "S25",
+      "horizontalDocumentOverflow": false,
+      "image": "s25-security.png"
+    },
+    {
+      "screen": "S26",
+      "horizontalDocumentOverflow": false,
+      "image": "s26-bundle.png"
+    },
+    {
+      "screen": "S27",
+      "horizontalDocumentOverflow": false,
+      "image": "s27-artifacts.png"
+    },
+    {
+      "screen": "S28",
+      "horizontalDocumentOverflow": false,
+      "image": "s28-runtime.png"
+    }
+  ]
+}

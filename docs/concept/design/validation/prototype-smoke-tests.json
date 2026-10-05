@@ -1,0 +1,58 @@
+{
+  "method": "Injected authored HTML/CSS/JS in headless Chromium; simulated prototype only, not Obsidian execution.",
+  "tests": [
+    {
+      "test": "All 144 fixture buildings render",
+      "passed": true
+    },
+    {
+      "test": "Read consent starts unchecked",
+      "passed": true
+    },
+    {
+      "test": "Scan disabled before approval",
+      "passed": true
+    },
+    {
+      "test": "Approval enables scan action",
+      "passed": true
+    },
+    {
+      "test": "Simulated scan shows indeterminate progress",
+      "passed": true
+    },
+    {
+      "test": "Cancel shows retained-snapshot state",
+      "passed": true
+    },
+    {
+      "test": "Path search dims nonmatches",
+      "passed": true
+    },
+    {
+      "test": "List selection updates exact inspector",
+      "passed": true
+    },
+    {
+      "test": "Top-down mode is available",
+      "passed": true
+    },
+    {
+      "test": "Note creation disclosure visible",
+      "passed": true
+    },
+    {
+      "test": "Create note opens simulated note without persistence",
+      "passed": true
+    },
+    {
+      "test": "Closing drawer preserves selected building",
+      "passed": true
+    },
+    {
+      "test": "No horizontal document overflow at 620px",
+      "passed": true
+    }
+  ],
+  "javascriptErrors": []
+}
