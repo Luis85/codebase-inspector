@@ -27,7 +27,9 @@ const columns: readonly TableColumn<FileSummary>[] = [
 const target = (f: FileSummary): WorkTarget => ({ kind: 'file', entityId: f.id });
 const planned = (f: FileSummary): boolean => review.hasWorkItem(target(f), 'tests');
 /** Task 8 lesson: `disabled` on the focused button would drop focus to <body>, so a
- *  planned or pending row is `aria-disabled` and the press is ignored here instead. */
+ *  planned or pending row is `aria-disabled` and the press is ignored here instead.
+ *  Show more has the same hazard (GRB15): EvidenceTable moves focus to the first new row's
+ *  first control, since this table's rows are static. */
 const blocked = (f: FileSummary): boolean => planned(f) || review.isPending(target(f), 'tests');
 function plan(f: FileSummary): void {
   if (!blocked(f)) emit('plan', f);

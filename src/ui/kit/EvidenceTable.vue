@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import type { RowKey, TableColumn } from './table-types';
 
 const props = withDefaults(defineProps<{
@@ -38,6 +38,22 @@ const sorted = computed(() => {
 /** Part 2 P7: sort the WHOLE set, then show the first `limit` rows, so sorting a long
  *  table never re-orders only the rows that happen to be on screen. */
 const visible = computed(() => (props.limit === undefined ? sorted.value : sorted.value.slice(0, props.limit)));
+
+/** GRB15: when the page grows (Show more), keyboard focus moves to the first newly shown
+ *  row, so it neither stays on a button that has scrolled away nor drops to <body> when
+ *  that button unmounts on the last page. Only a GROWING limit moves focus: a shrinking
+ *  limit (a filter reset) or a re-sort does not. An interactive row is itself the tab stop;
+ *  a static row (E28/E45) hands focus to its first control. */
+const body = ref<HTMLTableSectionElement | null>(null);
+const FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+watch(() => props.limit, (next, prev) => {
+  if (next === undefined || prev === undefined || next <= prev) return;
+  void nextTick(() => {
+    const row = body.value?.rows[prev];
+    if (!row) return;
+    (props.interactive ? row : row.querySelector<HTMLElement>(FOCUSABLE))?.focus();
+  });
+});
 
 function toggleSort(key: string): void {
   if (sortKey.value === key) sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
@@ -87,7 +103,7 @@ function rowListeners(row: T): Record<string, EventListener> {
         </th>
       </tr>
     </thead>
-    <tbody>
+    <tbody ref="body">
       <tr
         v-for="row in visible"
         :key="rowKey(row)"

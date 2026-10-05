@@ -5,7 +5,7 @@
   page by FINDINGS_PAGE (100) with Show more.
 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import type { InvestigationRow } from '../../read-models/investigation';
 import { FINDINGS_PAGE, severityTone } from '../../read-models/findings';
 import { useRovingIndex } from '../../kit/use-roving-index';
@@ -27,6 +27,15 @@ const { active, onKeydown, setActive } = useRovingIndex({
     if (row) emit('select', row.fingerprint);
   },
 });
+
+/** GRB15: Show more makes the first newly shown row the tab stop and moves focus onto it,
+ *  also when this was the last page and the button unmounts. */
+function onMore(): void {
+  const first = props.limit;
+  emit('more');
+  setActive(first);
+  void nextTick(() => list.value?.querySelectorAll<HTMLElement>('.ci-investigate-row')[first]?.focus());
+}
 
 function onRow(i: number): void {
   setActive(i);
@@ -81,7 +90,7 @@ function onRow(i: number): void {
       <button
         type="button"
         class="ci-investigate-list__more"
-        @click="emit('more')"
+        @click="onMore"
       >
         {{ SHOW_MORE(Math.min(FINDINGS_PAGE, rows.length - limit)) }}
       </button>
