@@ -10,7 +10,7 @@ import { countPhysicalLines } from '../../domain/metrics';
 import type { Clock } from '../ports/clock';
 import type { SourceFileSystemPort, StatResult } from '../ports/source-filesystem-port';
 import { joinRootPath, sameRoot } from './root-path';
-import { INVISIBLE_CONTROLS } from './note-text';
+import { visibleControls } from './visible-controls';
 
 // IPF1: module-private — no consumer outside this file needs these as numbers; tests use
 // literals such as `512 * 1024`.
@@ -67,24 +67,13 @@ const REASONS: readonly (readonly [prefix: string, reason: PreviewUnavailable])[
 const classify = (reason: string): PreviewUnavailable => REASONS.find(([p]) => reason.startsWith(p))?.[1] ?? 'read-error';
 const unavailable = (reason: PreviewUnavailable): PreviewResult => ({ status: 'unavailable', reason });
 
-// IP16: every C0 control except tab, DEL, C1 and the bidi/format controls — the same set
-// note-text.ts's INVISIBLE regex strips from a note (INVISIBLE_CONTROLS, its ONE shared
-// export — fix round 1, review item 1), shown here as literal `\uXXXX` text instead (a
-// preview is a verbatim window onto the file, never a rewrite of its bytes). Dynamically
-// built, so no-control-regex (which only sees a literal /…/ pattern) needs no disable here.
-const CONTROL_ESCAPE = new RegExp(`[\\u0000-\\u0008\\u000B-\\u001F\\u007F-\\u009F${INVISIBLE_CONTROLS}]`, 'g');
-const escapeControls = (value: string): string => value.replace(
-  CONTROL_ESCAPE,
-  (ch) => `\\u${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, '0')}`,
-);
-
 /** Cuts at PREVIEW_LINE_MAX code points (never shifted or ellipsised — `cut` is the signal),
  *  then escapes controls in the (possibly cut) result. */
 function renderLine(raw: string): { text: string; cut: boolean } {
   const points = Array.from(raw);
   const cut = points.length > PREVIEW_LINE_MAX;
   const kept = cut ? points.slice(0, PREVIEW_LINE_MAX).join('') : raw;
-  return { text: escapeControls(kept), cut };
+  return { text: visibleControls(kept), cut };
 }
 
 function dropFinalLineEnding(text: string): string {

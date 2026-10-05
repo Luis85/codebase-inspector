@@ -3,7 +3,8 @@
 // A finding without a decision is open. With no report there are no findings, and every
 // card is unknown with FALLOW_NOT_ANALYSED, never 0 (Y33).
 import type { EntityId } from '../../domain/entity-id';
-import { originOf, type FindingCategory } from '../../application/evidence/model';
+import { originOf, type FindingCategory, type FindingDetail } from '../../application/evidence/model';
+import { visibleControls } from '../../application/investigation/visible-controls';
 import { hasValue, unknown, type MetricValue } from '../evidence';
 import { toCsv, type CsvColumn } from '../export/csv';
 import type { FindingDisposition } from '../../application/ports/review-repository';
@@ -73,11 +74,37 @@ export function findingFingerprint(fileId: EntityId, findingId: string): string 
  *  `anchorPath` is the finding's own `path`, which is always the anchor's path (Part 6
  *  Y24/WP-03 N9-N10). */
 export function touchingFindings(file: FileSummary, evidence: EvidenceIndex): FileFinding[] {
-  return (evidence.touching.get(file.id) ?? []).map(({ finding: f, anchorId }) => ({
-    id: f.id, kind: f.category, rule: f.rule, severity: f.severity ?? 'unrated', line: f.line, endLine: f.endLine,
-    symbol: f.symbol, detail: f.detail, title: FINDING_TITLE_FOR(f.category, f.rule, f.symbol, f.detail),
-    fingerprint: findingFingerprint(anchorId, f.id), related: f.related ?? [], anchored: anchorId === file.id, anchorPath: f.path,
-  }));
+  return (evidence.touching.get(file.id) ?? []).map(({ finding: f, anchorId }) => {
+    const symbol = f.symbol === null ? null : visibleControls(f.symbol);
+    const detail = visibleDetail(f.detail);
+    return {
+      id: f.id, kind: f.category, rule: f.rule, severity: f.severity ?? 'unrated', line: f.line, endLine: f.endLine,
+      symbol, detail, title: FINDING_TITLE_FOR(f.category, f.rule, symbol, detail),
+      fingerprint: findingFingerprint(anchorId, f.id), related: f.related ?? [], anchored: anchorId === file.id, anchorPath: f.path,
+    };
+  });
+}
+
+/** GRB17a (E30): a copy of the detail with every report-supplied display string shown as
+ *  `\uXXXX` escapes for bidi and control code points, like the source preview. The title and
+ *  the dialog's rule value read this copy, so no screen shows a raw control. Numbers and
+ *  booleans carry no text; `related` and `anchorPath` are paths and stay as reported. */
+function visibleDetail(detail: FindingDetail): FindingDetail {
+  switch (detail.kind) {
+    case 'complexity': return { ...detail, exceeded: visibleControls(detail.exceeded) };
+    case 'boundary':
+      return {
+        ...detail, toPath: visibleControls(detail.toPath), fromZone: visibleControls(detail.fromZone),
+        toZone: visibleControls(detail.toZone), specifier: visibleControls(detail.specifier),
+      };
+    case 'unresolved-import': return { ...detail, specifier: visibleControls(detail.specifier) };
+    case 'cycle':
+      return {
+        ...detail, members: detail.members.map(visibleControls),
+        hops: detail.hops.map((h) => ({ ...h, from: visibleControls(h.from), to: visibleControls(h.to) })),
+      };
+    default: return detail;
+  }
 }
 
 /** Anchor-only view of `touchingFindings` (Part 6 Y26's `byFile` meaning): Quality counts
@@ -167,8 +194,13 @@ export function openHighFindingsValue(model: QualityModel): MetricValue {
 /** WP-04 Task 6 fix round 1: shared with investigation.ts's filterInvestigation, so the two
  *  screens' query matching can never drift apart. `q` is already trimmed and lowercased. */
 export function matchesFindingQuery(f: QualityFinding, q: string): boolean {
-  return !q || f.file.path.toLowerCase().includes(q) || f.title.toLowerCase().includes(q) || f.id.toLowerCase().includes(q)
-    || (f.symbol ?? '').toLowerCase().includes(q);
+  if (!q) return true;
+  // GRB17a: a row's symbol and title hold control code points as escapes, so a query typed
+  // with the raw character is matched in its escaped form too (the raw form still matches
+  // a path or id that carries none).
+  const shown = visibleControls(q).toLowerCase();
+  const matches = (text: string): boolean => text.toLowerCase().includes(q) || text.toLowerCase().includes(shown);
+  return matches(f.file.path) || matches(f.title) || matches(f.id) || matches(f.symbol ?? '');
 }
 
 export function filterFindings(findings: readonly QualityFinding[], filter: QualityFilter): readonly QualityFinding[] {
