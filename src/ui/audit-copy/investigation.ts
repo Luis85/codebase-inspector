@@ -260,6 +260,7 @@ export const PREVIEW_READ_FOR_LINE = (n: number): string =>
   `Read for line ${n}; the finding now reports another line. Reload to check it.`;
 export const PREVIEW_UNAVAILABLE: Readonly<Record<PreviewUnavailable, string>> = {
   'no-binding': 'This codebase’s folder is not connected on this device, or it now points to another folder than the scan read.',
+  'root-changed': 'This codebase is now connected to a different folder than the one scanned. Scan it again to preview files.',
   'no-filesystem': 'Source preview needs the desktop app’s file access.',
   'outside-root': 'The file is not inside the codebase folder, or its path goes through a link. It was not read.',
   'not-a-file': 'The path is not a regular file.',

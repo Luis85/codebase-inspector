@@ -24,8 +24,14 @@ describe('IN9: every PreviewUnavailable reason has its own words and shows no <p
 
   const reasons = Object.keys(PREVIEW_UNAVAILABLE) as PreviewUnavailable[];
 
-  it('there are exactly nine (E27: a non-empty check before the it.each below)', () => {
-    expect(reasons.length).toBe(9);
+  it('there are exactly ten (E27: a non-empty check before the it.each below)', () => {
+    expect(reasons.length).toBe(10);
+  });
+
+  it('GRB8: root-changed carries the approved GCN12 words', () => {
+    expect(PREVIEW_UNAVAILABLE['root-changed']).toBe(
+      'This codebase is now connected to a different folder than the one scanned. Scan it again to preview files.',
+    );
   });
 
   it.each(reasons)('reason %s', async (reason) => {

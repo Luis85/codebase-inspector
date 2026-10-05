@@ -162,20 +162,31 @@ describe('createSourcePreview — unavailable states (IN9)', () => {
     expect(result).toEqual({ status: 'unavailable', reason: 'no-binding' });
   });
 
-  it('a root reconnected to another folder is no-binding', async () => {
+  it('a root reconnected to another folder is root-changed', async () => {
     const { port } = createFakeSourceFileSystem({ 'a.ts': 'x' });
     const clock = createFixedClock();
     const preview = createSourcePreview({ getFilesystem: () => port, resolveRoot: () => Promise.resolve('/fake-root'), clock });
     const result = await preview.read(requestFor('a.ts', null, { expectedRoot: '/other-root' }));
-    expect(result).toEqual({ status: 'unavailable', reason: 'no-binding' });
+    expect(result).toEqual({ status: 'unavailable', reason: 'root-changed' });
   });
 
   // WP-04 E25 (amends IP14): a codebase with no LocalBinding reads under the snapshot's own
   // approved root; a bound one only under a live root equal to it; no snapshot root, no read.
-  it('E25: an unbound codebase reads under the request\'s snapshot root', async () => {
+  it('E25: an unbound codebase reads under the host\'s snapshot root', async () => {
     const { port } = createFakeSourceFileSystem({ 'a.ts': 'one\ntwo\n' });
-    const preview = createSourcePreview({ getFilesystem: () => port, resolveRoot: () => Promise.resolve({ unbound: true } as const), clock: createFixedClock() });
+    const preview = createSourcePreview({
+      getFilesystem: () => port, resolveRoot: () => Promise.resolve({ unbound: true, root: '/fake-root' } as const), clock: createFixedClock(),
+    });
     expect(await preview.read(requestFor('a.ts', 1))).toMatchObject({ status: 'ok', text: { lineCount: 2 } });
+  });
+
+  it('GRB4: an unbound codebase never reads under the request\'s own root when the host\'s differs', async () => {
+    const { port } = createFakeSourceFileSystem({ 'a.ts': 'one\ntwo\n' });
+    const preview = createSourcePreview({
+      getFilesystem: () => port, resolveRoot: () => Promise.resolve({ unbound: true, root: '/fake-root' } as const), clock: createFixedClock(),
+    });
+    expect(await preview.read(requestFor('a.ts', 1, { expectedRoot: '/other-root' }))).toEqual({ status: 'unavailable', reason: 'no-binding' });
+    expect(port.readLog()).toEqual([]);
   });
 
   it('E25: a bound codebase whose live root equals the snapshot root reads', async () => {
@@ -184,15 +195,17 @@ describe('createSourcePreview — unavailable states (IN9)', () => {
     expect(await preview.read(requestFor('a.ts', 1))).toMatchObject({ status: 'ok', text: { lineCount: 2 } });
   });
 
-  it('E25: a bound codebase whose live root differs is no-binding, even where the snapshot root would read', async () => {
+  it('E25, GRB8: a bound codebase whose live root differs is root-changed, even where the snapshot root would read', async () => {
     const { port } = createFakeSourceFileSystem({ 'a.ts': 'one\ntwo\n' });
     const preview = createSourcePreview({ getFilesystem: () => port, resolveRoot: () => Promise.resolve('/other-root'), clock: createFixedClock() });
-    expect(await preview.read(requestFor('a.ts', 1))).toEqual({ status: 'unavailable', reason: 'no-binding' });
+    expect(await preview.read(requestFor('a.ts', 1))).toEqual({ status: 'unavailable', reason: 'root-changed' });
   });
 
   it('E25: an unbound codebase with no snapshot root never reads', async () => {
     const { port } = createFakeSourceFileSystem({ 'a.ts': 'one\ntwo\n' });
-    const preview = createSourcePreview({ getFilesystem: () => port, resolveRoot: () => Promise.resolve({ unbound: true } as const), clock: createFixedClock() });
+    const preview = createSourcePreview({
+      getFilesystem: () => port, resolveRoot: () => Promise.resolve({ unbound: true, root: null } as const), clock: createFixedClock(),
+    });
     expect(await preview.read(requestFor('a.ts', 1, { expectedRoot: '' }))).toEqual({ status: 'unavailable', reason: 'no-binding' });
     expect(port.readLog()).toEqual([]);
   });
@@ -277,14 +290,14 @@ describe('createSourcePreview — case sensitivity (fix round 1, review minor 3)
     expect(result.status).toBe('ok');
   });
 
-  it('a differently-cased root is no-binding when caseSensitive is true', async () => {
+  it('a differently-cased root is root-changed when caseSensitive is true', async () => {
     const { port } = createFakeSourceFileSystem({ 'a.ts': 'x' });
     const clock = createFixedClock();
     const preview = createSourcePreview({
       getFilesystem: () => port, resolveRoot: () => Promise.resolve('/fake-root'), clock, caseSensitive: true,
     });
     const result = await preview.read(requestFor('a.ts', null, { expectedRoot: '/FAKE-ROOT' }));
-    expect(result).toEqual({ status: 'unavailable', reason: 'no-binding' });
+    expect(result).toEqual({ status: 'unavailable', reason: 'root-changed' });
   });
 });
 

@@ -24,6 +24,8 @@ import { createFakeInvestigationFolders } from '../fixtures/fake-investigation-f
 import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
 import { createFakeBindingStoreHarness, FAKE_MACHINE_ID } from '../fixtures/fake-binding-store';
 import { createFakeSourceFileSystem } from '../fixtures/fake-source-filesystem';
+import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
+import { InMemorySnapshotStore } from '../../src/adapters/storage/in-memory-snapshot-store';
 import { createFixedClock } from '../fixtures/clock';
 
 // The services build the real Node filesystem per read; under Node tests there is none
@@ -135,8 +137,12 @@ async function services(options: { isLinux?: boolean } = {}) {
   const saved = Platform.isLinux;
   Platform.isLinux = options.isLinux ?? false;
   try {
+    // GRB4: p2 (no binding) reads under its scanned snapshot's root, resolved by the host.
+    const snapshots = new InMemorySnapshotStore(createFixedClock());
+    const scanned = buildSnapshotFixture({ files: 1, repositoryId: 'p2' });
+    snapshots.put({ ...scanned, scope: { ...scanned.scope, rootPath: '/fake-root' } });
     const built = createInvestigationServices(plugin as unknown as ObsidianPlugin, {
-      profileStore: profiles.store, bindingStore: bindings.store, folders: createFakeInvestigationFolders(), clock: createFixedClock(),
+      profileStore: profiles.store, bindingStore: bindings.store, snapshots, folders: createFakeInvestigationFolders(), clock: createFixedClock(),
     });
     return { fake, registerEvent, built };
   } finally {
@@ -159,7 +165,7 @@ describe('createInvestigationServices (IP12, IP14)', () => {
   it('IP14: reads under the live binding root only when it equals the snapshot root', async () => {
     const { built } = await services();
     expect(await built.preview.read(REQUEST)).toMatchObject({ status: 'ok', text: { lineCount: 2 } });
-    expect(await built.preview.read({ ...REQUEST, expectedRoot: '/elsewhere' })).toEqual({ status: 'unavailable', reason: 'no-binding' });
+    expect(await built.preview.read({ ...REQUEST, expectedRoot: '/elsewhere' })).toEqual({ status: 'unavailable', reason: 'root-changed' });
     expect(await built.preview.read({ ...REQUEST, codebaseId: 'gone' })).toEqual({ status: 'unavailable', reason: 'no-binding' });
   });
 
@@ -173,7 +179,7 @@ describe('createInvestigationServices (IP12, IP14)', () => {
   it('compares the roots case-sensitively only on Linux (Platform.isLinux)', async () => {
     const other = { ...REQUEST, expectedRoot: '/FAKE-ROOT' };
     expect(await (await services({ isLinux: false })).built.preview.read(other)).toMatchObject({ status: 'ok' });
-    expect(await (await services({ isLinux: true })).built.preview.read(other)).toEqual({ status: 'unavailable', reason: 'no-binding' });
+    expect(await (await services({ isLinux: true })).built.preview.read(other)).toEqual({ status: 'unavailable', reason: 'root-changed' });
   });
 
   it('is no-filesystem where there is no Node filesystem', async () => {

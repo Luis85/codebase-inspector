@@ -1,6 +1,6 @@
 // WP-04.2 spec §5 rows 23 and 24: the source preview in real Obsidian. Scenario 23 (NE19, E25): a profile connected
 // in Settings to `code/` previews the cycle's exact line under its binding; once the binding is reconnected to
-// `code-copy/` (a byte-identical copy), the preview refuses as `no-binding`, because the binding's root no longer names
+// `code-copy/` (a byte-identical copy), the preview refuses as `root-changed`, because the binding's root no longer names
 // the snapshot's root. Scenario 23 never rescans, so the snapshot keeps `code/` throughout. Scenario 24 (NE18,
 // NP12): a report crafted from the 3.27.0 recording anchors a finding on a Markdown file of the scanned `code/`; Open in
 // Obsidian opens it in a NEW tab, as does Open note from the notes panel; a `.ts` anchor offers no Open in Obsidian.
@@ -126,7 +126,7 @@ describe('the source preview (WP-04.2 rows 23, 24)', () => {
     // WP-04.2 E14: nothing rescanned, so the snapshot still names code/.
     expect((await storeSnapshot(browser)).rootPath).toBe(scanned.rootPath);
 
-    // Reload re-reads the selection: the binding no longer names the snapshot's root, so no-binding, and no highlight.
+    // Reload re-reads the selection: the binding no longer names the snapshot's root, so root-changed (GRB8: scan again), and no highlight.
     await inspector.root().$('.ci-source-preview__reload').click();
     const unavailable = inspector.root().$('.ci-source-preview__unavailable');
     await expect.poll(() => unavailable.isExisting()).toBe(true);
@@ -135,7 +135,7 @@ describe('the source preview (WP-04.2 rows 23, 24)', () => {
     await writeEvidence(directory, 'changed-root', {
       snapshotRoot: scanned.rootPath, connected: binding, reconnected: savedBindings(reconnected), unavailable: words, highlighted,
     });
-    expect(words).toBe(PREVIEW_UNAVAILABLE['no-binding']);
+    expect(words).toBe(PREVIEW_UNAVAILABLE['root-changed']);
     expect(highlighted).toEqual([]);
   });
 

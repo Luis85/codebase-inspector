@@ -2,9 +2,10 @@
 // finding's anchor file, over the existing SourceFileSystemPort. The service never writes
 // (the port has no write method); it stats every path segment before it ever reads, and it
 // binds only to the codebase's LIVE root on this device, and only when that root still equals
-// the snapshot's own scope.rootPath (IP14) — a reconnected codebase is `no-binding`, never a
-// read of the wrong folder's files under the old path. WP-04 E25: a codebase with no binding
-// at all reads under the snapshot's own root, the root this session's scan was approved for.
+// the snapshot's own scope.rootPath (IP14) — a reconnected codebase is `root-changed` (GRB8),
+// never a read of the wrong folder's files under the old path. WP-04 E25, GRB4: a codebase with
+// no binding at all reads under the snapshot's own root as the HOST resolves it, never as the
+// request names it.
 import { normalizeRelativePath, isContained } from '../../domain/path-safety';
 import { countPhysicalLines } from '../../domain/metrics';
 import type { Clock } from '../ports/clock';
@@ -19,7 +20,7 @@ const PREVIEW_CONTEXT = 20;
 const PREVIEW_LINE_MAX = 400;
 
 export type PreviewUnavailable =
-  | 'no-binding' | 'no-filesystem' | 'outside-root' | 'not-a-file' | 'too-large' | 'binary' | 'not-utf8' | 'missing' | 'read-error';
+  | 'no-binding' | 'root-changed' | 'no-filesystem' | 'outside-root' | 'not-a-file' | 'too-large' | 'binary' | 'not-utf8' | 'missing' | 'read-error';
 
 export interface PreviewRequest {
   readonly codebaseId: string; readonly expectedRoot: string; readonly relativePath: string;
@@ -37,11 +38,12 @@ export type PreviewResult =
   | { readonly status: 'ok'; readonly text: PreviewText }
   | { readonly status: 'unavailable'; readonly reason: PreviewUnavailable };
 
-/** WP-04 E25 (amends IP14): what the host knows of a codebase's root on this device — its live
- *  binding root; `{ unbound: true }` when its profile has no binding at all (a profile
- *  scan-codebase created, bindingId null), so the preview reads under the snapshot's own
- *  approved root; null when there is no profile, or a binding whose record is gone. */
-type ResolvedRoot = string | null | { readonly unbound: true };
+/** WP-04 E25, gap closure GRB4: what the host knows of a codebase's root on this device — its
+ *  live binding root (a string); `{ unbound: true, root }` when its profile has no binding at
+ *  all (a profile scan-codebase created, bindingId null), `root` being the host's own snapshot
+ *  root for it, or null with no snapshot; null when there is no profile, or a binding whose
+ *  record is gone. The request's `expectedRoot` never chooses the folder, it only narrows. */
+type ResolvedRoot = string | null | { readonly unbound: true; readonly root: string | null };
 
 // IPF1: module-private — Task 10's wiring passes a plain object literal, never names this type.
 // Fix round 1, review minor 3: `caseSensitive` (default false) is the host adapter's own
@@ -174,11 +176,14 @@ export function createSourcePreview(deps: SourcePreviewDeps): SourcePreview {
     } catch {
       return unavailable('no-binding');
     }
-    // WP-04 E25: an unbound codebase reads under the snapshot's own approved root; with no
-    // snapshot root there is nothing to read.
-    const root = typeof resolved === 'object' && resolved !== null ? request.expectedRoot : resolved;
+    // GRB4: the host's root decides (an unbound codebase's is its snapshot's approved root);
+    // `expectedRoot` only narrows. GRB8: a bound codebase whose live root is another folder
+    // than the one scanned says so (`root-changed`); an unbound one has no such thing.
+    const unbound = typeof resolved === 'object' && resolved !== null;
+    const root = typeof resolved === 'object' && resolved !== null ? resolved.root : resolved;
     const options = { caseSensitive: deps.caseSensitive ?? false };
-    if (root === null || root === '' || !sameRoot(root, request.expectedRoot, options)) return unavailable('no-binding');
+    if (root === null || root === '') return unavailable('no-binding');
+    if (!sameRoot(root, request.expectedRoot, options)) return unavailable(unbound ? 'no-binding' : 'root-changed');
     let rel: string;
     try { rel = normalizeRelativePath(request.relativePath); } catch { return unavailable('outside-root'); }
     const abs = joinRootPath(root, rel);

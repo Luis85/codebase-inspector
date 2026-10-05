@@ -14,13 +14,14 @@ import type { Clock } from '../application/ports/clock';
 import type { InvestigationNotesPort } from '../application/ports/investigation-notes-port';
 import type { LocalBindingStore } from '../application/ports/local-binding-store';
 import type { ProfileStore } from '../application/ports/profile-store';
+import type { SnapshotStore } from '../application/ports/snapshot-store';
 import type { SourceFileSystemPort } from '../application/ports/source-filesystem-port';
 import { createInvestigationNotes } from './investigation-notes';
 
 // IPF1: module-private — main.ts reads the two members structurally, never names these types.
 interface InvestigationServices { readonly notes: InvestigationNotesPort; readonly preview: SourcePreview }
 interface InvestigationServiceDeps {
-  readonly profileStore: ProfileStore; readonly bindingStore: LocalBindingStore;
+  readonly profileStore: ProfileStore; readonly bindingStore: LocalBindingStore; readonly snapshots: SnapshotStore;
   readonly folders: InvestigationFolderStore; readonly clock: Clock;
 }
 
@@ -29,13 +30,14 @@ function nodeFilesystem(): SourceFileSystemPort | null {
 }
 
 export function createInvestigationServices(plugin: Plugin, deps: InvestigationServiceDeps): InvestigationServices {
-  // WP-04 E25 (amends IP14): a profile with no binding (scan-codebase's own, bindingId null) is
-  // `unbound`, and the preview reads under the in-memory snapshot's approved root; a binding id
-  // whose record this device lacks stays null (no-binding).
-  const resolveRoot = async (codebaseId: string): Promise<string | null | { readonly unbound: true }> => {
+  // WP-04 E25 (amends IP14), GRB4: a profile with no binding (scan-codebase's own, bindingId null)
+  // is `unbound`, and its root is the latest in-memory snapshot's approved root, read here by
+  // the host (null with no snapshot), never taken from the request; a binding id whose record
+  // this device lacks stays null (no-binding).
+  const resolveRoot = async (codebaseId: string): Promise<string | null | { readonly unbound: true; readonly root: string | null }> => {
     const profile = await deps.profileStore.get(codebaseId);
     if (profile === null) return null;
-    if (profile.bindingId === null) return { unbound: true };
+    if (profile.bindingId === null) return { unbound: true, root: deps.snapshots.latestFor(codebaseId)?.scope.rootPath ?? null };
     return (await deps.bindingStore.get(profile.bindingId))?.rootPath ?? null;
   };
   return {

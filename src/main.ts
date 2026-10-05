@@ -81,7 +81,7 @@ export default class CodebaseInspectorPlugin extends Plugin {
     this.unwatchAnalysis = watchAnalysisFailures(analysis, (message) => { void new Notice(message, 8000); });
     const investigationFolders = createPluginDataInvestigationStore(this);
     // WP-04 IP41/IP12: ONE notes port and ONE source preview per plugin; both read nothing here.
-    const investigation = createInvestigationServices(this, { profileStore, bindingStore, folders: investigationFolders, clock: SYSTEM_CLOCK });
+    const investigation = createInvestigationServices(this, { profileStore, bindingStore, snapshots: snapshotStore, folders: investigationFolders, clock: SYSTEM_CLOCK });
 
     this.registerView(CITY_VIEW_TYPE, (leaf: WorkspaceLeaf) => new CityView(leaf, this, {
       profileStore, getFilesystem: () => createNodeSourceFileSystem(), snapshotStore, clock: SYSTEM_CLOCK,
