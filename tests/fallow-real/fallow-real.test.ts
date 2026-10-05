@@ -37,7 +37,8 @@ describe.skipIf(BIN === null)(TITLE, () => {
   const runner = createFallowRunner({
     spawn: (command, args, options) => {
       const child = realSpawn(command, args, options);
-      if (child.pid !== undefined) pids.push(child.pid);
+      // E41: only fallow is tracked, never the runner's own taskkill helper.
+      if (child.pid !== undefined && command === bin) pids.push(child.pid);
       return child;
     },
     env: process.env, platform: process.platform, killProcess: realKill,

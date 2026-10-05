@@ -218,7 +218,7 @@ export function injectSpawnCall(source: string, kind: ProcessGuardKind): string 
 
 /** Polish A6 (Z37): how many calls to the async `spawn` `source` makes, by the same callee
  *  rules as the hazard walk — `.call`/`.apply` on it and a tagged template included (QF9).
- *  tests/unit/no-process-execution.test.ts requires exactly one in fallow-runner.ts. */
+ *  tests/unit/no-process-execution.test.ts requires exactly two in fallow-runner.ts (E41). */
 export function spawnCallCount(source: string): number {
   const sourceFile = ts.createSourceFile('probe.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   let count = 0;

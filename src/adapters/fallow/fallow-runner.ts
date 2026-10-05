@@ -5,10 +5,15 @@
 // - stdout is capped (bytes) and parsed by nobody here; stderr keeps its tail.
 // - The time limit is absolute from spawn; output never postpones it.
 // - Cancel, the time limit and the cap all stop the same way: SIGTERM (the group on POSIX,
-//   kill() on Windows), then SIGKILL after the grace. A stopped run resolves on `exit`,
+//   on Windows the tree), then SIGKILL after the grace. A stopped run resolves on `exit`,
 //   after destroying the pipes, so a grandchild holding them cannot keep it open; if no
 //   `exit` comes, it resolves anyway one close grace after SIGKILL. No timer outlives a run.
 // - killAll (onunload) sends SIGKILL at once and resolves every run as cancelled.
+// - Windows (gap closure GRB3/E41): fallow 3.27.0 spawns `git`, and git a second git, so a
+//   direct kill() (TerminateProcess) would leave them running. The stop first runs
+//   `System32\taskkill.exe /PID <pid> /T /F` (the second spawn call; shell: false, no shell),
+//   and kill()s the direct child once taskkill has ended or after TASKKILL_BOUND_MS, since
+//   taskkill needs the root alive to find its tree. No usable SystemRoot: kill() alone.
 // - run() never rejects.
 import { childProcess, nodeProcess, type ChildProcessLike, type SpawnLike } from './node-process-access';
 import { buildChildEnv, createStderrTail, createStdoutCollector } from './process-output';
@@ -37,6 +42,20 @@ function errorCodeOf(e: unknown): string {
     if (typeof code === 'string') return code;
   }
   return 'UNKNOWN';
+}
+
+const TASKKILL_BOUND_MS = 1_000;
+// A drive-letter absolute path: no empty, '.' or '..' segment, no forward slash, no UNC.
+const SYSTEM_ROOT = /^[A-Za-z]:\\(?:[^\\/:*?"<>|]+\\)*[^\\/:*?"<>|]*$/;
+
+/** E41: `<SystemRoot>\System32\taskkill.exe`, built only from a well-formed absolute
+ *  SystemRoot, so the result is absolute and under SystemRoot\System32 by construction;
+ *  null when the variable is missing or malformed (the caller then kills the direct child only). */
+function taskkillPath(env: Readonly<Record<string, string | undefined>>): string | null {
+  const key = Object.keys(env).find((name) => name.toUpperCase() === 'SYSTEMROOT');
+  const root = key === undefined ? undefined : env[key];
+  if (root === undefined || !SYSTEM_ROOT.test(root) || root.split('\\').some((s) => s === '.' || s === '..')) return null;
+  return `${root.replace(/\\+$/, '')}\\System32\\taskkill.exe`;
 }
 
 /** Polish A6 (L12): the module's own spawn, read, never wrapped in a second call: the
@@ -70,6 +89,7 @@ export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcess
   const setTimer = deps.setTimer ?? defaultSetTimer;
   const clearTimer = deps.clearTimer ?? defaultClearTimer;
   const live = new Set<LiveRun>();
+  const taskkill = platform === 'win32' ? taskkillPath(env) : null;
 
   function run(request: ProcessRequest, token: CancellationToken): Promise<ProcessOutcome> {
     if (token.cancelled) return Promise.resolve({ kind: 'cancelled', stderrTail: '' });
@@ -115,7 +135,18 @@ export function createFallowRunner(deps: FallowRunnerDeps = {}): AnalyzerProcess
           }
           return;
         }
-        killChild();
+        if (taskkill === null || pid === undefined) { killChild(); return; }
+        // E41: the tree first; the direct child once taskkill ended, failed, or the bound passed.
+        let killed = false;
+        const direct = (): void => { if (!killed) { killed = true; killChild(); } };
+        try {
+          const tree = spawn(taskkill, ['/PID', String(pid), '/T', '/F'], { shell: false, windowsHide: true, stdio: 'ignore' });
+          tree.on('error', direct);
+          tree.on('exit', direct);
+          after(TASKKILL_BOUND_MS, direct);
+        } catch {
+          direct();
+        }
       };
       const destroyPipes = (): void => { running.stdout?.destroy(); running.stderr?.destroy(); };
       const after = (ms: number, fn: () => void): void => { timers.add(setTimer(fn, ms)); };

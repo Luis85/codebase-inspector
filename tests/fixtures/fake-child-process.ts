@@ -1,6 +1,6 @@
 // Part 7 Z38: a scriptable child process for the runner's unit tests. A test drives the
 // streams and the exit/close/error events by hand, and reads back every kill() call.
-import type { ChildProcessLike, ReadableLike, SpawnLike, SpawnOptionsLike } from '../../src/adapters/fallow/node-process-access';
+import type { ChildProcessLike, ReadableLike, SpawnLike, SpawnOptionsLike, TaskkillOptionsLike } from '../../src/adapters/fallow/node-process-access';
 
 export class FakeStream implements ReadableLike {
   destroyed = false;
@@ -70,7 +70,7 @@ export class FakeChildProcess implements ChildProcessLike {
   }
 }
 
-export interface SpawnCall { command: string; args: readonly string[]; options: SpawnOptionsLike }
+export interface SpawnCall { command: string; args: readonly string[]; options: SpawnOptionsLike | TaskkillOptionsLike }
 
 /** `pid` null: every child never started (an explicit `undefined` would take the default). */
 export function fakeSpawn(pid: number | null = 4242): { spawn: SpawnLike; calls: SpawnCall[]; children: FakeChildProcess[] } {

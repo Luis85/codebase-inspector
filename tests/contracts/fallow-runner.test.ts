@@ -27,7 +27,8 @@ const bases: string[] = [];
 const runner = createFallowRunner({
   spawn: (command, args, options) => {
     const child = realSpawn(command, args, options);
-    if (child.pid !== undefined) pids.push(child.pid);
+    // E41: only the fake fallow is tracked, never the runner's own taskkill helper.
+    if (child.pid !== undefined && command === process.execPath) pids.push(child.pid);
     return child;
   },
   env: process.env,
@@ -155,7 +156,7 @@ describe('the real runner: time, cancel and shutdown (Z18)', () => {
   // One plain test block with a platform branch, never a conditional skip or run variant:
   // evidence-numbers.test.ts counts this file's test blocks (K28), and a conditional
   // spelling would be missed.
-  it('cancel ends the whole process group on POSIX, and the direct child only on Windows (the documented limitation)', async () => {
+  it('cancel ends the whole process tree: the group on POSIX, System32 taskkill /T on Windows (E41)', async () => {
     const root = await rootNamed();
     const { token, cancel } = createCancellationToken();
     const done = runner.run(request('grandchild', root), token);
@@ -167,7 +168,7 @@ describe('the real runner: time, cancel and shutdown (Z18)', () => {
     cancel();
     expect((await done).kind).toBe('cancelled');
     expect(await gone(direct)).toBe(true);
-    if (process.platform !== 'win32') expect(await gone(grandchild)).toBe(true);
+    expect(await gone(grandchild)).toBe(true);
   }, 20_000);
 });
 

@@ -121,16 +121,100 @@ describe('stopping a process (Z17, Z18)', () => {
     await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
   });
 
-  it('on Windows kills the direct child only, spawning nothing else (no taskkill)', async () => {
-    const s = setup('win32');
-    const done = s.runner.run(REQUEST, s.token);
-    s.cancel();
-    vi.advanceTimersByTime(2_000);
-    expect(s.child().kills).toEqual([undefined, undefined]);
-    expect(s.kills).toEqual([]);
-    expect(s.spawned.calls).toHaveLength(1);
-    s.child().exit(1);
-    await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+  // Gap closure GRB3/E41: fallow spawns `git` (and git a second git), so on Windows a stop
+  // tree-kills first, with System32 taskkill, and signals the direct child only once that
+  // has ended (taskkill needs the root alive to find the tree), or after its short bound.
+  describe('on Windows (E41)', () => {
+    const WIN_ENV = { Path: 'C:\\bin', SystemRoot: 'C:\\Windows' };
+    const TASKKILL = 'C:\\Windows\\System32\\taskkill.exe';
+
+    it('tree-kills via System32 taskkill before the direct kill', async () => {
+      const s = setup('win32', WIN_ENV);
+      const done = s.runner.run(REQUEST, s.token);
+      s.cancel();
+      expect(s.spawned.calls).toHaveLength(2);
+      expect(s.spawned.calls[1]).toEqual({ command: TASKKILL, args: ['/PID', '4242', '/T', '/F'], options: { shell: false, windowsHide: true, stdio: 'ignore' } });
+      expect(s.child().kills).toEqual([]);
+      s.spawned.children[1]!.exit(0);
+      expect(s.child().kills).toEqual([undefined]);
+      vi.advanceTimersByTime(2_000);
+      expect(s.spawned.calls.map((c) => c.command)).toEqual([REQUEST.executablePath, TASKKILL, TASKKILL]);
+      s.spawned.children[2]!.exit(128);
+      expect(s.child().kills).toEqual([undefined, undefined]);
+      expect(s.kills).toEqual([]);
+      s.child().exit(1);
+      await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('a taskkill that never reports does not keep the direct kill waiting past 1 s', async () => {
+      const s = setup('win32', WIN_ENV);
+      const done = s.runner.run(REQUEST, s.token);
+      s.cancel();
+      vi.advanceTimersByTime(999);
+      expect(s.child().kills).toEqual([]);
+      vi.advanceTimersByTime(1);
+      expect(s.child().kills).toEqual([undefined]);
+      s.spawned.children[1]!.exit(0);
+      expect(s.child().kills).toEqual([undefined]);
+      s.child().exit(1);
+      await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+    });
+
+    it('a taskkill that fails to start or errors still gets the direct kill', async () => {
+      const s = setup('win32', WIN_ENV);
+      const done = s.runner.run(REQUEST, s.token);
+      s.cancel();
+      s.spawned.children[1]!.emitError('ENOENT');
+      expect(s.child().kills).toEqual([undefined]);
+      s.child().exit(1);
+      await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+
+      const throwing = fakeSpawn();
+      let calls = 0;
+      const runner = createFallowRunner({
+        spawn: (command, args, options) => { calls += 1; if (calls === 2) throw Object.assign(new Error('x'), { code: 'EACCES' }); return throwing.spawn(command, args, options); },
+        env: WIN_ENV, platform: 'win32',
+      });
+      const second = createCancellationToken();
+      const run = runner.run(REQUEST, second.token);
+      second.cancel();
+      expect(throwing.children[0]!.kills).toEqual([undefined]);
+      throwing.children[0]!.exit(1);
+      await expect(run).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+    });
+
+    it('killAll tree-kills too, and settles at once without a timer', async () => {
+      const s = setup('win32', WIN_ENV);
+      const done = s.runner.run(REQUEST, s.token);
+      s.runner.killAll();
+      expect(s.spawned.calls[1]?.args).toEqual(['/PID', '4242', '/T', '/F']);
+      await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+      expect(vi.getTimerCount()).toBe(0);
+      s.spawned.children[1]!.exit(0);
+      expect(s.child().kills).toEqual([undefined]);
+    });
+
+    it('control: no usable SystemRoot means no taskkill, and the direct kill still happens at once', async () => {
+      for (const systemRoot of [undefined, '', 'Windows', '\\Windows', 'C:\\Windows\\..\\Temp', 'C:\\Win/dows', '\\\\host\\share']) {
+        const env: Record<string, string> = systemRoot === undefined ? { Path: 'C:\\bin' } : { Path: 'C:\\bin', SystemRoot: systemRoot };
+        const s = setup('win32', env);
+        const done = s.runner.run(REQUEST, s.token);
+        s.cancel();
+        vi.advanceTimersByTime(2_000);
+        expect(s.child().kills, String(systemRoot)).toEqual([undefined, undefined]);
+        expect(s.spawned.calls, String(systemRoot)).toHaveLength(1);
+        s.child().exit(1);
+        await expect(done).resolves.toEqual({ kind: 'cancelled', stderrTail: '' });
+      }
+    });
+
+    it('SYSTEMROOT in any letter case is found (Windows environment names are case-insensitive)', () => {
+      const s = setup('win32', { PATH: 'C:\\bin', SYSTEMROOT: 'D:\\WINNT\\' });
+      void s.runner.run(REQUEST, s.token);
+      s.cancel();
+      expect(s.spawned.calls[1]?.command).toBe('D:\\WINNT\\System32\\taskkill.exe');
+    });
   });
 
   it('a token cancelled before the call spawns nothing', async () => {

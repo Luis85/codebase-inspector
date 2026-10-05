@@ -43,7 +43,11 @@ switch (mode) {
   case 'cwd': process.stdout.write(process.cwd()); break;
   case 'argv': process.stdout.write(JSON.stringify(process.argv.slice(3))); break;
   case 'grandchild': {
-    const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
+    // E41: on Windows libuv puts a Node parent's children in a job object that dies with the
+    // parent, so a plain Node grandchild never outlives a direct kill. Real fallow (Rust) and
+    // the git it spawns have no such job, so the grandchild breaks away (detached) to match.
+    // POSIX stays in the fake's process group, which the runner's group kill reaches.
+    const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore', detached: process.platform === 'win32' });
     writeFileSync(join(process.cwd(), 'grandchild.pid'), String(child.pid));
     hang();
     break;

@@ -3,7 +3,8 @@
 // shell — except exactly two adapter files, each for exactly one hazard:
 // - src/adapters/fallow/node-process-access.ts may name node:child_process (its one
 //   window.require);
-// - src/adapters/fallow/fallow-runner.ts may call the async spawn (its one call).
+// - src/adapters/fallow/fallow-runner.ts may call the async spawn (its two calls: fallow, and
+//   on Windows System32 taskkill /T for the tree kill, amended by gap closure GRB3/E41).
 // shell: true, every *Sync API, exec, execFile, fork, worker_threads and the Electron openers
 // stay banned everywhere, those two files included. The detector is
 // tests/fixtures/process-guard.ts; see its header for what it covers and its history.
@@ -51,15 +52,16 @@ describe('nothing under src/ runs a process, except the two allow-listed adapter
     expect(files.length).toBeGreaterThan(100);
   });
 
-  it('Polish A6: fallow-runner.ts makes exactly one spawn call, and a second one is counted', () => {
+  // E41: two calls, fallow's own and the Windows tree kill's System32 taskkill; a third is counted.
+  it('Polish A6 (E41): fallow-runner.ts makes exactly two spawn calls, and a third one is counted', () => {
     const runner = readFileSync(join(SRC_ROOT, 'adapters/fallow/fallow-runner.ts'), 'utf8');
-    expect(spawnCallCount(runner)).toBe(1);
-    expect(spawnCallCount(injectSpawnCall(runner, 'ts'))).toBe(2);
+    expect(spawnCallCount(runner)).toBe(2);
+    expect(spawnCallCount(injectSpawnCall(runner, 'ts'))).toBe(3);
     // QF9: the hazard walk's own callee rules — `.call`/`.apply` on spawn and a tagged template count too.
-    expect(spawnCallCount(injectStatement(runner, 'ts', "spawn.call(null, 'x');"))).toBe(2);
-    expect(spawnCallCount(injectStatement(runner, 'ts', "cp['spawn'].apply(null, ['x']);"))).toBe(2);
-    expect(spawnCallCount(injectStatement(runner, 'ts', 'spawn`x`;'))).toBe(2);
-    expect(spawnCallCount(injectStatement(runner, 'ts', "pattern.exec.call(str); spawnSync('x');"))).toBe(1);
+    expect(spawnCallCount(injectStatement(runner, 'ts', "spawn.call(null, 'x');"))).toBe(3);
+    expect(spawnCallCount(injectStatement(runner, 'ts', "cp['spawn'].apply(null, ['x']);"))).toBe(3);
+    expect(spawnCallCount(injectStatement(runner, 'ts', 'spawn`x`;'))).toBe(3);
+    expect(spawnCallCount(injectStatement(runner, 'ts', "pattern.exec.call(str); spawnSync('x');"))).toBe(2);
   });
 
   it('no file has a hazard it is not allowed', () => {

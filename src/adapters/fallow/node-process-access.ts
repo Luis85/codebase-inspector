@@ -3,7 +3,7 @@
 // same window.require route as node-access.ts, for the same reasons (a static import would
 // trip no-nodejs-modules and be bundled). Its overloads and the minimal structural shapes
 // live HERE rather than in node-globals.d.ts, so the guard's allow-list stays at two files.
-// Nothing here calls spawn: fallow-runner.ts does, once.
+// Nothing here calls spawn: fallow-runner.ts does (fallow, and on Windows taskkill).
 import { Platform } from 'obsidian';
 
 export interface ReadableLike {
@@ -22,7 +22,7 @@ export interface ChildProcessLike {
   kill(signal?: string): boolean;
 }
 
-/** Z15: exactly the options the runner passes; `shell` can only be `false`. */
+/** Z15: exactly the options the runner passes for fallow; `shell` can only be `false`. */
 export interface SpawnOptionsLike {
   cwd: string;
   env: Record<string, string>;
@@ -32,7 +32,14 @@ export interface SpawnOptionsLike {
   stdio: ['ignore', 'pipe', 'pipe'];
 }
 
-export type SpawnLike = (command: string, args: readonly string[], options: SpawnOptionsLike) => ChildProcessLike;
+/** E41: exactly the options for the Windows tree kill's System32 taskkill. */
+export interface TaskkillOptionsLike {
+  shell: false;
+  windowsHide: true;
+  stdio: 'ignore';
+}
+
+export type SpawnLike = (command: string, args: readonly string[], options: SpawnOptionsLike | TaskkillOptionsLike) => ChildProcessLike;
 
 export interface NodeProcessLike {
   env: Record<string, string | undefined>;
