@@ -12,7 +12,7 @@ import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import type { NativeContext } from './fixture';
 import { closeSettings, onlyProfile, pluginData, reloadPlugin, savedBindings, vaultBasePath } from './host-probes';
-import { RECORDING, copyProject, cycleFinding } from './workspace-files';
+import { RECORDING, copyProject, cycleFinding, hashTree } from './workspace-files';
 import { cycleSelected, storeSnapshot } from './cycle-note';
 import { writeEvidence } from './diagnostics';
 
@@ -147,5 +147,48 @@ describe('a note folder Obsidian has not indexed yet (WP-04.2 NPF15, P2)', () =>
     const indexedAfter = await browser.executeObsidian(({ app, obsidian }) => app.vault.getAbstractFileByPath('code') instanceof obsidian.TFolder);
     await writeEvidence(directory, 'unindexed-folder', { control, path, indexedAfter });
     expect(indexedAfter).toBe(true);
+  });
+});
+
+// Gap closure GRB7 (scenario 46): the dialog refuses a notes folder that IS the codebase folder, with a reason, and
+// writes nothing: not in the vault, not on disk, and not into the profile's exclusions.
+describe('a notes folder that is the codebase folder (gap closure GRB7)', () => {
+  test('a notes folder that is the codebase folder itself is refused, and nothing is written', async ({ native }) => {
+    const { browser, page, inspector, directory } = native;
+    await indexedCycle(native);
+    const scanned = await storeSnapshot(browser);
+    const codeDir = join(page.getVaultPath(), 'code');
+    expect(scanned.rootPath.toLowerCase()).toBe(join(await vaultBasePath(browser) ?? '', 'code').toLowerCase());
+    const vaultFiles = (): Promise<string[]> => browser.executeObsidian(({ app }) => app.vault.getFiles().map((f) => f.path).sort());
+    const filesBefore = await vaultFiles();
+    const diskBefore = hashTree(codeDir);
+    const exclusionsBefore = onlyProfile(await pluginData(browser)).exclusions;
+
+    // The root itself: the refusal shows with its reason, no path is planned, and Create is disabled.
+    const refused = await inspector.refusedFolder('code');
+    expect(refused.problem.length).toBeGreaterThan(0);
+    expect(refused.planned).toBe(false);
+    expect(refused.createDisabled).toBe(true);
+    expect(await inspector.overlapOffered()).toBe(false);
+    // Pressing Create anyway writes nothing, and the dialog stays open with no write error.
+    const pressed = await inspector.pressCreate();
+    expect(pressed).toEqual({ open: true, error: false });
+
+    // Positive control, in the same dialog: a folder inside the root is accepted (its path planned, the exclusion
+    // offered) and a folder outside it is accepted too.
+    const inside = await inspector.openCreateNote('code/notes');
+    expect(inside.startsWith('code/notes/')).toBe(true);
+    expect(await inspector.overlapOffered()).toBe(true);
+    const outside = await inspector.openCreateNote('Elsewhere');
+    expect(outside.startsWith('Elsewhere/')).toBe(true);
+    expect(await inspector.overlapOffered()).toBe(false);
+    await inspector.cancelCreateNote();
+
+    const filesAfter = await vaultFiles();
+    await writeEvidence(directory, 'folder-is-root', { refused, pressed, inside, outside, filesBefore, filesAfter });
+    expect(filesAfter).toEqual(filesBefore);
+    expect(hashTree(codeDir)).toEqual(diskBefore);
+    expect(onlyProfile(await pluginData(browser)).exclusions).toEqual(exclusionsBefore);
+    expect(await inspector.notePaths()).toEqual([]);
   });
 });

@@ -14,11 +14,13 @@ export interface NoteDestination { readonly folder: string; readonly isDefault: 
 /** IN26–IN29: what a create would write, decided before anything is written. `folder` is the
  *  canonical folder (existing segments in their own case, IP9); `renamed` is true when the
  *  requested name was taken and a ` (n)` suffix was added; `overlapsRoot` is true when the
- *  folder, joined to the vault base path, is inside the codebase root, and
- *  `rootRelativeFolder` is its path relative to that root, or null when it IS the root (IP26). */
+ *  folder, joined to the vault base path, is strictly inside the codebase root, and
+ *  `rootRelativeFolder` is its path relative to that root (null when it does not overlap). GRB7: a folder that IS
+ *  the codebase root is `folder-is-root`, never `ok`, so `create` refuses it and writes nothing (IP26). */
 export type DestinationPlan =
   | { readonly status: 'ok'; readonly folder: string; readonly fileName: string; readonly path: string; readonly renamed: boolean;
       readonly overlapsRoot: boolean; readonly rootRelativeFolder: string | null }
+  | { readonly status: 'folder-is-root' }
   | { readonly status: 'invalid-folder'; readonly problem: NoteFolderProblem }
   | { readonly status: 'invalid-name'; readonly problem: NoteNameProblem }
   | { readonly status: 'folder-is-file' }

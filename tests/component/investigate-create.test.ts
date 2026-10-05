@@ -17,7 +17,7 @@ import { findingRef } from '../../src/ui/read-models/review-state';
 import { computeLayout } from '../../src/domain/layout/layout';
 import {
   NOTE_CREATE_EXCLUDE, NOTE_CREATE_OVERLAP, NOTE_CREATE_PATH, NOTE_CREATE_REFUSED, NOTE_CREATE_RENAMED,
-  NOTE_CREATE_ROOT_IS_FOLDER, NOTE_CREATED, NOTE_CREATED_EXCLUDED, NOTE_EXCLUSION_FAILED, NOTE_OPEN_FAILED, NOTE_PANEL_NONE, NOTE_STATUS,
+  NOTE_CREATE_FOLDER_IS_ROOT, NOTE_CREATED, NOTE_CREATED_EXCLUDED, NOTE_EXCLUSION_FAILED, NOTE_OPEN_FAILED, NOTE_PANEL_NONE, NOTE_STATUS,
   NOTES_FOLDER_PROBLEM, NOTES_FOLDER_ROW_FAILED,
 } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
@@ -141,16 +141,23 @@ describe('inside the codebase root (IN29, IP26)', () => {
     w.unmount();
   });
 
-  it('a folder outside the root shows neither; the root folder itself shows its own words and no checkbox', async () => {
-    const { w } = await setup({ rootPath: '/vault/code', folder: 'Notes' });
+  it('a folder outside the root shows neither; the root folder itself is refused (GRB7), Create is disabled and nothing is written', async () => {
+    const { w, fake } = await setup({ rootPath: '/vault/code', folder: 'Notes' });
     await openDialog(w);
     expect(dialogText(w)).not.toContain(NOTE_CREATE_OVERLAP);
-    expect(dialogText(w)).not.toContain(NOTE_CREATE_ROOT_IS_FOLDER);
+    expect(dialogText(w)).not.toContain(NOTE_CREATE_FOLDER_IS_ROOT);
     expect(w.find('.ci-create-note__exclude').exists()).toBe(false);
+    expect(w.find('.ci-create-note__confirm').attributes('aria-disabled')).toBeUndefined();
     await w.find('.ci-create-note__folder').setValue('code');
-    expect(w.find('.ci-create-note__root').text()).toBe(NOTE_CREATE_ROOT_IS_FOLDER);
+    expect(w.find('.ci-create-note__problem').text()).toBe(NOTE_CREATE_FOLDER_IS_ROOT);
+    expect(w.find('.ci-create-note__path').exists()).toBe(false);
     expect(dialogText(w)).not.toContain(NOTE_CREATE_OVERLAP);
     expect(w.find('.ci-create-note__exclude').exists()).toBe(false);
+    expect(w.find('.ci-create-note__confirm').attributes('aria-disabled')).toBe('true');
+    await confirm(w);
+    expect(writes(fake)).toBe(0);
+    expect(fake.paths()).toEqual([]);
+    expect(w.find('.ci-create-note').exists()).toBe(true);
     w.unmount();
   });
 });

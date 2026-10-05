@@ -106,14 +106,18 @@ export function createInspectorPage(browser: NativeBrowser) {
   /** The create dialog's folder field, its exclusion checkbox and the path it plans (O7, IN26, IP26). */
   const folderField = () => root().$('.ci-create-note__folder');
   const excludeBox = () => root().$('.ci-create-note__exclude input[type="checkbox"]');
-  /** Create investigation note… with `folder` typed over the default (WP-04.2 E2's keys, so `input` fires as a
-   *  person's typing does); done when the dialog plans a path in that folder. Returns that path. */
-  const openCreateNote = async (folder: string): Promise<string> => {
-    await root().$('.ci-notes-panel__create').click();
+  /** Create investigation note… opened (unless it already is), with `folder` typed over the current one (WP-04.2 E2's
+   *  keys, so `input` fires as a person's typing does). */
+  const typeNoteFolder = async (folder: string): Promise<void> => {
+    if (!(await root().$('.ci-create-note').isExisting())) await root().$('.ci-notes-panel__create').click();
     await expect.poll(() => folderField().isClickable()).toBe(true);
     await folderField().click();
     await browser.keys([Key.Ctrl, 'a']);
     await folderField().addValue(folder);
+  };
+  /** The typed folder, then done when the dialog plans a path in that folder. Returns that path. */
+  const openCreateNote = async (folder: string): Promise<string> => {
+    await typeNoteFolder(folder);
     const shown = root().$('.ci-create-note__path');
     await expect.poll(async () => (await shown.isExisting()) && (await textOf(shown)).trim().startsWith(`${folder}/`)).toBe(true);
     return (await textOf(shown)).trim();
@@ -207,6 +211,23 @@ export function createInspectorPage(browser: NativeBrowser) {
       return path;
     },
     openCreateNote,
+    /** GRB7: the dialog opened with `folder` typed; resolves with the refusal it shows (its problem line), whether it
+     *  still plans a path, and whether Create is aria-disabled, once the problem line is shown. */
+    async refusedFolder(folder: string): Promise<{ problem: string; planned: boolean; createDisabled: boolean }> {
+      await typeNoteFolder(folder);
+      const problem = root().$('.ci-create-note__problem');
+      await expect.poll(() => problem.isExisting()).toBe(true);
+      return {
+        problem: (await textOf(problem)).trim(), planned: await root().$('.ci-create-note__path').isExisting(),
+        createDisabled: (await root().$('.ci-create-note__confirm').getAttribute('aria-disabled')) === 'true',
+      };
+    },
+    /** With the create dialog open: Create pressed as is (a refused plan guards the handler, so nothing is written);
+     *  whether the dialog is still open, and whether it shows a write error. */
+    async pressCreate(): Promise<{ open: boolean; error: boolean }> {
+      await root().$('.ci-create-note__confirm').click();
+      return { open: await root().$('.ci-create-note').isExisting(), error: await root().$('.ci-create-note__error').isExisting() };
+    },
     /** With the create dialog open: whether it offers the in-root exclusion (its checkbox, IP26). */
     overlapOffered: (): Promise<boolean> => excludeBox().isExisting(),
     /** The create dialog's Cancel; done when it has closed. */

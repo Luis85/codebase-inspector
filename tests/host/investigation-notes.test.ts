@@ -109,7 +109,6 @@ describe('plan: overlap with the codebase root (IN29, IP26)', () => {
     ['a folder inside the root', '/vault', '/vault/code', 'code/notes', true, 'notes'],
     ['a folder outside the root', '/vault', '/vault/code', 'Notes', false, null],
     ['the vault is the root', '/vault', '/vault', 'Notes', true, 'Notes'],
-    ['the folder is the root', '/vault', '/vault/code', 'code', true, null],
     ['a Windows root', 'C:\\v', 'C:\\v\\code', 'code/notes', true, 'notes'],
   ] as const)('%s', async (_label, basePath, rootPath, folder, overlapsRoot, rootRelativeFolder) => {
     const { notes } = await setup({ basePath });
@@ -245,11 +244,10 @@ describe('create: the exclusion (IN29, IP26)', () => {
     expect((await profiles.get('p1'))?.exclusions).toEqual(['.git', 'note', 'notes']);
   });
 
-  it('not requested, outside the root, or equal to the root: not-requested, profile unchanged', async () => {
+  it('not requested, or outside the root: not-requested, profile unchanged (the root folder itself is refused, GRB7)', async () => {
     const { notes, profiles } = await setup();
     expect(await notes.create(request({ ...inside, excludeFolder: false }))).toMatchObject({ exclusion: 'not-requested' });
     expect(await notes.create(request({ ...inside, folder: 'Notes' }))).toMatchObject({ exclusion: 'not-requested' });
-    expect(await notes.create(request({ ...inside, folder: 'code' }))).toMatchObject({ exclusion: 'not-requested' });
     expect((await profiles.get('p1'))?.exclusions).toEqual(['.git']);
   });
 

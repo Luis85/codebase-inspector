@@ -91,8 +91,7 @@
 :where(.codebase-inspector-root) .ci-create-note__destination-failed,
 :where(.codebase-inspector-root) .ci-create-note__error { color: var(--ci-text-danger); }
 :where(.codebase-inspector-root) .ci-create-note__renamed,
-:where(.codebase-inspector-root) .ci-create-note__overlap,
-:where(.codebase-inspector-root) .ci-create-note__root { color: var(--ci-text-warning); }
+:where(.codebase-inspector-root) .ci-create-note__overlap { color: var(--ci-text-warning); }
 :where(.codebase-inspector-root) .ci-create-note__exclude { display: flex; align-items: center; gap: var(--ci-space-2); }
 :where(.codebase-inspector-root) .ci-create-note__actions { display: flex; justify-content: flex-end; gap: var(--ci-space-2); margin-top: var(--ci-space-2); }
 

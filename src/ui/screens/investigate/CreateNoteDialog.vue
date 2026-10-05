@@ -19,8 +19,8 @@ import { useInvestigationStore } from '../../stores/investigation-store';
 import { useBusyAction } from '../../kit/use-busy-action';
 import { useUniqueId } from '../../unique-id';
 import {
-  NOTE_CREATE_CANCEL, NOTE_CREATE_CONFIRM, NOTE_CREATE_EXCLUDE, NOTE_CREATE_FOLDER, NOTE_CREATE_FOLDER_IS_FILE, NOTE_CREATE_NAME,
-  NOTE_CREATE_NO_FREE_NAME, NOTE_CREATE_OVERLAP, NOTE_CREATE_PATH, NOTE_CREATE_REFUSED, NOTE_CREATE_RENAMED, NOTE_CREATE_ROOT_IS_FOLDER,
+  NOTE_CREATE_CANCEL, NOTE_CREATE_CONFIRM, NOTE_CREATE_EXCLUDE, NOTE_CREATE_FOLDER, NOTE_CREATE_FOLDER_IS_FILE, NOTE_CREATE_FOLDER_IS_ROOT,
+  NOTE_CREATE_NAME, NOTE_CREATE_NO_FREE_NAME, NOTE_CREATE_OVERLAP, NOTE_CREATE_PATH, NOTE_CREATE_REFUSED, NOTE_CREATE_RENAMED,
   NOTE_CREATE_SUFFIX, NOTE_CREATE_TITLE, NOTE_NAME_PROBLEM, NOTES_FOLDER_PROBLEM, NOTES_FOLDER_ROW_FAILED,
 } from '../../audit-copy/investigation';
 import CiDialog from '../../kit/Dialog.vue';
@@ -69,6 +69,7 @@ const problem = computed<string | null>(() => {
     case 'invalid-folder': return NOTES_FOLDER_PROBLEM[p.problem];
     case 'invalid-name': return NOTE_NAME_PROBLEM[p.problem];
     case 'folder-is-file': return NOTE_CREATE_FOLDER_IS_FILE;
+    case 'folder-is-root': return NOTE_CREATE_FOLDER_IS_ROOT;
     case 'no-free-name': return NOTE_CREATE_NO_FREE_NAME;
     default: {
       const never: never = p;
@@ -76,9 +77,8 @@ const problem = computed<string | null>(() => {
     }
   }
 });
-/** IP26: the checkbox only for a folder strictly inside the root; the root itself gets none. */
+/** IP26: the checkbox only for a folder strictly inside the root (the root itself is refused, GRB7). */
 const showExclude = computed(() => ready.value !== null && ready.value.overlapsRoot && ready.value.rootRelativeFolder !== null);
-const rootIsFolder = computed(() => ready.value !== null && ready.value.overlapsRoot && ready.value.rootRelativeFolder === null);
 const blocked = computed(() => busy.value || ready.value === null);
 
 // IN26: the checkbox is checked whenever it (re)appears.
@@ -131,7 +131,7 @@ function confirm(): Promise<void> {
         v-model="folder"
         class="ci-create-note__folder"
         type="text"
-        :aria-invalid="plan?.status === 'invalid-folder' || plan?.status === 'folder-is-file' ? 'true' : undefined"
+        :aria-invalid="plan?.status === 'invalid-folder' || plan?.status === 'folder-is-file' || plan?.status === 'folder-is-root' ? 'true' : undefined"
         :aria-describedby="planId"
         @input="folderEdited = true"
       >
@@ -178,12 +178,6 @@ function confirm(): Promise<void> {
             class="ci-create-note__overlap"
           >
             {{ NOTE_CREATE_OVERLAP }}
-          </p>
-          <p
-            v-if="rootIsFolder"
-            class="ci-create-note__root"
-          >
-            {{ NOTE_CREATE_ROOT_IS_FOLDER }}
           </p>
         </template>
       </div>

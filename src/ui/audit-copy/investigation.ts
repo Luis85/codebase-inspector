@@ -297,7 +297,8 @@ export const NOTE_CREATE_FOLDER_IS_FILE = 'A file with that name is in the way o
 export const NOTE_CREATE_NO_FREE_NAME = 'Names up to (99) are taken. Choose another file name.';
 export const NOTE_CREATE_OVERLAP = 'This folder is inside the codebase you scanned, so the note is written inside it.';
 export const NOTE_CREATE_EXCLUDE = 'Exclude this folder from scans of the codebase';
-export const NOTE_CREATE_ROOT_IS_FOLDER = 'This folder is the codebase folder itself. The note will appear in the next scan.';
+/** GCN12 (GRB7): a notes folder that IS the codebase folder is refused; the note is never written there. */
+export const NOTE_CREATE_FOLDER_IS_ROOT = 'This folder is the codebase folder itself. Choose another folder for the note.';
 export const NOTE_CREATE_CONFIRM = 'Create note';
 export const NOTE_CREATE_CANCEL = CANCEL;
 /** A refusal wrote no note; it stays in the dialog's own role="alert" line (E17). */

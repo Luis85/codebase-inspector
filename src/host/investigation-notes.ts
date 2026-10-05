@@ -131,14 +131,14 @@ function planDestination(
   if (!nameCheck.ok) return { status: 'invalid-name', problem: nameCheck.problem };
   const canonical = canonicalFolder(app, folderCheck.folder);
   if (!canonical.ok) return { status: 'folder-is-file' };
+  const inside = overlapWithRoot(rootPath, canonical.folder, vaultBase(app), realPath, memo);
+  if (inside === '') return { status: 'folder-is-root' };   // GRB7: the folder IS the codebase folder; nothing is written there
   const fileName = freeNoteName(nameCheck.name, (candidate) => nameTaken(app, canonical.folder, canonical.node, candidate));
   if (fileName === null) return { status: 'no-free-name' };
-  const base = vaultBase(app);
-  const inside = overlapWithRoot(rootPath, canonical.folder, base, realPath, memo);
   return {
     status: 'ok', folder: canonical.folder, fileName, path: `${canonical.folder}/${fileName}`,
     renamed: fileName !== `${nameCheck.name}.md`,
-    overlapsRoot: inside !== null, rootRelativeFolder: inside === null || inside === '' ? null : inside,
+    overlapsRoot: inside !== null, rootRelativeFolder: inside,
   };
 }
 

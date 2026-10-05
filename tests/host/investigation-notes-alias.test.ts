@@ -59,7 +59,7 @@ describe.runIf(WINDOWS)('an aliased codebase root (NE15; Windows only: junctions
   it('a junction root: a folder inside it overlaps, with the root-relative folder', async () => {
     const { notes } = await notesOn(vault, nodeRealPath);
     expect(notes.plan('code/notes', 'x', link)).toMatchObject({ status: 'ok', overlapsRoot: true, rootRelativeFolder: 'notes' });
-    expect(notes.plan('code', 'x', link)).toMatchObject({ status: 'ok', overlapsRoot: true, rootRelativeFolder: null });
+    expect(notes.plan('code', 'x', link)).toEqual({ status: 'folder-is-root' });
   });
 
   it('a junction root: a folder outside it, or a sibling sharing its prefix, does not overlap', async () => {
