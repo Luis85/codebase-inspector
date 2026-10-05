@@ -611,7 +611,9 @@ probe results and spec §3). Recorded by task 18.
   so a write made while the search box has focus renders, and reaches the search index, at
   once; scenario 43 no longer blurs the search field and asserts it is focused. What remains:
   a render already waiting for a field of the tab still waits when focus moves from that
-  field to the search box, until focus leaves the settings fields or the tab is hidden.
+  field to the search box, until focus leaves the settings fields, the tab is hidden, or
+  another refresh is requested while the search box has focus (that request renders at once;
+  gap closure E52).
 - **An older build drops a leaf state that carries `name` (gap closure GRA8, 2026-10-04).**
   `CityViewState.name?` is new (§4.1, amended by GCN3). An older build's `.strict()` schema
   rejects the unknown key, so it discards the whole persisted leaf state once; the leaf opens

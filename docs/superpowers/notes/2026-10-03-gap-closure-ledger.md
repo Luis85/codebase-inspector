@@ -124,6 +124,36 @@ Four read-only audits then gave every row its evidence and design. These are the
 
 **Result:** 0 blocking, 0 rework. No GCQ ruling was needed.
 
+### Part B (2026-10-05 at `682f2bc`)
+
+**Consumes names:** the plan's paths and line numbers come from three explorer reports and were quoted in it.
+
+**Pair checks:**
+- Tasks 1↔15: Task 1 keeps the trust fingerprint at 32 bits (GCQ3), and Task 15's v2 record keeps TRUST's 8-hex schema.
+- Tasks 3↔4↔17 all edit `source-preview.ts`, in sequence.
+- Tasks 5, 6 and 7 all edit `investigation-notes.ts`. Tasks 6 and 7 both extend the notes port.
+- Tasks 5, 6, 7 and 16 each add one title to `required-scenarios.json` (44, 45, 46 and 43). The list is a flat set.
+- Tasks 9↔15 both extend `AnalyzerBindingRead`, and every consumer stays exhaustive.
+- Tasks 9↔16 and 10↔16 edit `analysis-store` and the review store and registry.
+- Tasks 12↔15 both edit `fallow-analysis-service.ts`.
+- Tasks 14↔17 both edit `walker.ts` and `gate-evidence.md`.
+- Tasks 6↔16 both edit `investigation-store.ts`.
+- Task 13's branch depends on its probe, and the controller rules on it.
+
+**Result:** 0 blocking, 0 rework.
+
+**Planning rulings made while writing the Part B plan:**
+
+| # | Ruling |
+|---|---|
+| GCQ3 | **Ruling (GRB11):** the persisted trust fingerprint stays 32-bit, through `fnv1a32Hex(normalizeRootForFingerprint(...))`. Everything kept in memory goes to 64 bits: `fingerprintSource`, `fingerprintScope`, `fileSetDigest` and `rootFingerprint`. — The spec says "the persisted trust hash is untouched", which holds only if trust stops borrowing `fingerprintSource`. — Low: two hash widths now coexist, and each is named for what it is. |
+| GCQ4 | **Ruling (GRB12):** a wildcard-exclusion warning joins `snapshot.warnings` but does not make the snapshot `partial`. Completeness is derived from skip reasons only. — A glob that matches nothing is a settings problem, not missing data. — Low. |
+| GCQ5 | **Ruling (GRB9):** `fallow-analysis-service.ts` computes the config-file list before the run, passes it in the coordinator's request, and records it as `CollectedRunProvenance.configFiles`. — The coordinator has no filesystem dependency, and adding one would widen a port for a single stat loop. — Low. |
+| GCQ6 | **Ruling (GRB10, GCP8):** an older build already reads any entry with `v !== 1` as `unsupported`, which is read-only and refuses writes. Only this build shows reason text: an invalid v2 entry reads as `invalid` with a `reason`. — Old builds cannot be changed. — Low. |
+| GCQ7 | **Ruling (GRB1):** the analysis service gains `externalChange()`, which broadcasts `bindingChanged(null)`, and `analysis-store` treats `null` as a match. The review registry gains `externalChange()`: each live repository drops its in-flight read and notifies. — Neither component knows which ids changed, and a broadcast re-read is cheap and read-only. — Low: every open leaf re-reads once per external change. |
+| GCQ8 | **Ruling (GRB1, scenario 43):** the native test writes `data.json` from Node, so its mtime is newer than the plugin's last save. That is what Obsidian's `_onConfigFileChange` compares: a 50 ms debounced `raw` event, then an mtime check. The test then waits for the settings tab to show the change. A probe with a positive control comes first. — Low. |
+| GCQ9 | **Ruling (GRB17b, closes E17):** an unreadable root at stat, and a root the walker cannot list, both report root-unavailable with the `root-unavailable` cause. The source modal names the code with the GCN12 copy "The folder cannot be read ({code})." — GCO5 says "missing or unreadable", and E17 deferred exactly this. — Low. |
+
 ## Execution rulings
 
 ### Part D
@@ -315,3 +345,114 @@ The task reviews and the final review triaged these as acceptable follow-ups:
 - **Narrow widths:** the topbar breadcrumb clips at narrow drawer-mode widths (360, 480 and 700 px looked at; recorded in LIM). This is a follow-up outside Part A's rows.
 
 **Owner action:** this machine's system Node is 24.15.0, so native runs refuse until it is upgraded to Node ≥ 24.16.0 (the current 24 LTS is 24.21.0).
+
+### Part B
+
+| # | Ruling |
+|---|---|
+| Gap-closure E30 | **Ruling (amends Task 3):** the control-character helper stays byte-identical to the preview's set. The RED uses U+202E in a symbol and U+2066 in a detail string; U+200B was the plan's error. `touchingFindings` escapes the symbol and every display string inside a copy of the detail union, and builds the title from the escaped inputs. Search keeps matching the raw finding. — One change at the read model covers the review dialog and the investigation evidence. — Low: zero-width characters stay unescaped everywhere, as in the preview. |
+| Gap-closure E31 | **Ruling:** subagents must not use python; they write node scripts only. — Two python runs hung on stdin. The hung `python3.exe` 40688 and its child `python.exe` 53056 were reported to the owner and not killed. — None. |
+| Gap-closure E32 | **Ruling:** Task 3 is reopened for one fix. The acceptance pin in `investigation-safety.test.ts` moves to the escaped form and asserts no raw RLO on screen. — The behaviour change is GRB17a's purpose; only the pin was stale, and Task 3's gate had not run `tests/acceptance`. — Low. |
+| Gap-closure E33 | **Ruling:** accept scenario 45's simulated miss. The test detaches the index's `changed` listener, asserting exactly one is found. — B8's premise does not reproduce on 1.13.4: Obsidian does not miss the late-index event. The resync is therefore defensive, and only a deterministic miss shows it working natively. — Low: the scenario tests a contrived path, and the code it protects stays correct. |
+| Gap-closure E34 | **Ruling (amends Task 8):** (a) the GCN12 warning text lives in `src/application/scan-warnings.ts`, because layering forbids application importing ui copy; (b) the Data & scans screen renders the snapshot's `warnings`, each on its own line, with no new heading. — Nothing in src rendered `snapshot.warnings`, so the warning would never have reached a user. — Low: the skip-reason warnings now show too, which is accurate. |
+| Gap-closure E35 | **Ruling (amends Task 9):** the ReviewRepository port gets no new `retired` getter. The store mirrors `diagnostics().retired`. — The port already reports retirement, and a second getter would touch about 38 files. — Low: a future repository that retires without updating diagnostics would not block Clear and Import. |
+| Gap-closure E36 | **Ruling:** from Task 10 on, every per-task gate also runs `tests/unit` and `tests/build` in full. — Two regressions had escaped gates that listed only the touched files. — A few minutes per task. |
+| Gap-closure E37 | **Ruling (replaces Task 10's approach):** an add no longer upserts after an overtaken reload. It keeps its key reserved until the newest load settles (`whenIdle`, `bucket.idle`), so a second identical add is refused and the list shown is always stored truth. — The reviewer showed that upsert-first could write a removed item back through an edit. — Low: an add's button stays busy for one more durable read. |
+| Gap-closure E38 | **Ruling (amends Task 11):** in the two static tables, where rows are not tab stops, Show more focuses the first new row's first focusable control. — Focus must land on something focusable. — Low. |
+| Gap-closure E39 | **Ruling:** from Task 12 on, every per-task gate also runs `npm run lint`, which includes tests. — Task 11's test file failed the lint that CI runs. — None. |
+| Gap-closure E40 | **Ruling:** accept the row label `FALLOW_ROW_CONFIG = 'Configuration'`. — GCN12 approved only the two value strings, and a facts row needs a term. — Low. |
+| Gap-closure E41 | **Ruling (GCO9's children branch):** on Windows the runner runs `%SystemRoot%\System32\taskkill.exe /PID <pid> /T /F` before the direct kill, on stop and on shutdown, with these safeguards: a strict absolute-path check, `shell: false`, `windowsHide`, a 1 s bound on its own timer, and no signal once fallow has exited. Part 7's Z14, Z15, Z17, Z37 and Z38 get dated amendments, and `no-process-execution.test.ts` allows this second spawn. — The probe found that fallow 3.27.0 spawns `git`, which re-execs itself, and that the git descendants outlived a direct kill. — Low: one extra short-lived process per cancel. |
+| Gap-closure E42 | **Ruling:** Task 13 is reopened for one fix: the integration test's pid accounting expects the taskkill process. Per-task gates now also run `tests/integration`. — Task 13's gate had omitted it. — Low. |
+| Gap-closure E43 | **Ruling:** the `other-machine` read kind is removed. Under v2 another device's binding coexists with this one, so a device with no entry of its own reads `none`, and its first bind migrates the record while keeping the other device. An invalid record shows its first validation issue. — This is GCO23's intent. — Low. |
+| Gap-closure E44 | **Ruling:** another device's binding is never lost:<br>(a) an invalid v1 record owned by another machine is carried verbatim into `devices[owner]`, and reads `none` here;<br>(b) `forget` on a device with no entry is a no-op;<br>(c) a record whose `provider` is not `'fallow'` reads `unsupported` and refuses writes.<br>— Review Focus 3. — Low: a malformed record from a foreign provider stays read-only until edited by hand. |
+| Gap-closure E45 | **Ruling:** Task 16's fix round takes I1 (the analysis re-read was untested), M1, M4 and M5. M2 (the Y19 amendments) and M3 (the 8.3 short-path entry in LIM) go to Task 17. — Low. |
+| Gap-closure E46 | **Ruling:** the long-TEMP override stays local to `settings.e2e.ts`. — Only scenario 43 depends on Obsidian's config watcher, which misses changes when the vault sits under an 8.3 short path. Moving the override would change the environment the other 45 scenarios were proven in. — Low. |
+| Gap-closure E47 | **Ruling:** two native tests left stale by Tasks 15 and 14 are fixed in Task 17, in their own commit:<br>(a) `fallow.e2e.ts` reads the v2 record's single device;<br>(b) scenario 39 grows to 14,000 files, so the refresh again takes at least 3 s.<br>The full native gate then runs on both versions. — The product behaviour was right in both cases. — Low: a few seconds more native time. |
+| Gap-closure E48 | **Ruling:** any task that changes a persisted shape or a scan-timing path runs the native files that read it. — The per-task gates missed both of E47's failures. — Low. |
+| Gap-closure E49 | **Ruling:** Task 17's per-task review is folded into the final whole-branch review, as E11 and E23 did. — Low. |
+| Gap-closure E50 | **Ruling:** the one fix wave takes the final review's Important finding I1 (the walker window pinned file contents), its Minors M1–M5, M7 and M9, and these promoted minors from Tasks 2, 3, 6, 10, 11, 14 and 16 (PN4's editing check). M6 (uncapped warnings) is recorded in LIM as accepted. — Each item is untrue prose, a pin that could not fail, a duplicate-write risk, or a cheap user-visible fix. — Low: a larger single commit. |
+| Gap-closure E51 | **Ruling:** the Investigate case in `axe-routes-act.test.ts` gets an explicit 15 s timeout. The failed run, `verify` #1 of the fix wave, stays disclosed. — The case ran at 4.75 s against a 5 s limit in a passing full run, failed twice under full-suite load (Task 16, then the fix wave at 6.6 s), and passes alone. — Low: a real slowdown of the Investigate route could hide under the longer limit, though the harness benchmarks still guard render time. |
+| Gap-closure E52 | **Ruling:** scenario 41's positive control proves the held wait while the tab's textarea keeps focus. It checks the active element, the old page title and the old stored definitions, and no longer types into Obsidian's search field. PN4 is not widened. — E50 made a refresh requested from the search field render at once, which broke the old control's premise. Once focus leaves the tab's own fields, there is no input in progress to protect. — Low: a user who leaves a field for the search box can see the tab re-render, and the committed value is kept. |
+
+**Native and full-suite runs of Part B:**
+- **Tasks 1–16:** each task ran its touched files plus the widened gates (E36, E39, E42). Native files were run alone with RED and GREEN for scenarios 41–46 and Task 2's facts scenario, at the loads recorded in each task line.
+- **Task 17:**
+  - `npm run test` #1: exit 1, on the expected G8 unit count only. 371 files, 4,149 tests. Z38 executed and passed: 28.6; 29.5/31.8/31.3; 22.7/29.9/22.0; 16.4 ms.
+  - `verify` #1: exit 0, 4,148 passed, 1 skipped. Z38: 16.6; 25.3/23.7/30.1; 20.0/16.0/21.7; 16.3 ms.
+  - Native 1.13.4 `2026-10-05T16-26-12-250Z-baseline`: **43/46, failed**. The failures were the two stale `fallow.e2e.ts` reads and scenario 39's 907 ms window, which led to E47. No retry was made.
+  - After E47: native 1.13.4 `2026-10-05T16-56-30-280Z-baseline` 46/46 (load 34 %). Native latest (1.13.7) `2026-10-05T17-05-50-995Z-latest` 46/46 (load 17 %). Both printed "Verified 46 executed native Vitest cases, including all 46 required scenarios."
+  - `verify` #2: exit 0, 4,148 passed, 1 skipped. Z38: 26.1; 34.6/32.6/30.9; 28.9/27.6/23.8; 27.1 ms.
+  - `test:fallow` 13/13; `analyze` 4; `npm audit` 0 (also `--omit=dev`).
+- **Final fix wave:**
+  - `npm run test`: exit 0, 4,155 passed, 1 skipped. Z38: 24.8; 25.2/38.5/31.9; 26.1/16.6/17.2; 26.2 ms.
+  - `verify` #1: **exit 1**, one timeout in the Investigate axe case at 6,609 ms (E51). Z38: 24.0; 27.8/31.3/33.0; 20.3/26.0/17.3; 25.9 ms.
+  - `verify` #2, after E51: exit 0, 371 files, 4,155 passed, 1 skipped. Z38: 25.2; 25.8/27.0/26.0; 27.9/22.4/20.2; 25.2 ms.
+  - Native 1.13.4 `2026-10-05T20-00-31-876Z-baseline`: **45/46, failed** at scenario 41's positive control (E52). No retry was made.
+  - `settings.e2e.ts` run alone: GREEN `20261005T201717Z-fixwave-s41-green` 8/8; RED by mutation `20261005T202029Z-fixwave-s41-red`, where scenarios 41 and 38 failed.
+  - Native 1.13.4 `2026-10-05T20-26-09-981Z-baseline`: 46/46 (launched at 49 % load after a 170 s wait). It printed "Verified 46 executed native Vitest cases, including all 46 required scenarios."
+    - This run started before the commit. The controller checked that no code or test file changed after it started, and that a fresh build of `308e6b3` produces a byte-identical `dist/main.js` (SHA-256 `4142E7EA…667F0`).
+  - `test:fallow` 13/13; `analyze` 4.
+- **Z38 across Part B:** it executed and passed in every full-suite run.
+
+**Final whole-branch review (opus, `003568a..4c2d2ed`, 30 commits): fix wave needed.**
+- It found 0 Critical issues and 1 Important: the walker window held up to 8 files' text and bytes at once.
+- Its nine Minors covered:
+  - prose that was no longer true;
+  - a missing provider read as unsupported;
+  - the double fault that lets a duplicate add through;
+  - the Part 7 spec not amended for GCO23 and GRB9;
+  - the taskkill reused-PID residual;
+  - uncapped warnings;
+  - scenario 46's loose refusal check;
+  - this ledger;
+  - U46's wording.
+- It confirmed:
+  - GRB1–GRB18 coverage;
+  - every cross-task pair;
+  - data and process safety;
+  - the budgets;
+  - all 30 trailers;
+  - the CRLF notes;
+  - the evidence against the run folders.
+- One fix wave followed (`308e6b3`, E50–E52). The scoped re-review **approved** it. It confirmed:
+  - every item is closed, and each new test can fail;
+  - PN4's scope is safe, and scenario 38 still guards it;
+  - E52's control is a fair proof;
+  - the prose is literally true;
+  - the evidence matches the run folders.
+
+  Its one optional note, on the LIM E2 sentence, was fixed with this ledger.
+
+**Per-task fix rounds:**
+- Task 5: blank-line continuation in frontmatter.
+- Task 9: the review-store budget and a focus fallback.
+- Task 10: E37.
+- Task 11: roving focus, plus test lint.
+- Task 13: the exited guard and the timer bound.
+- Task 15: E44.
+- Task 16: the analysis re-read pin and the folder-watch release.
+- Regression fixes: Task 3 (E32) and Task 13 (E42).
+
+**Commit trailers:** every Part B commit ends with the literal trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". Each commit was checked before the push.
+
+### Part B accepted limits (GRB18, GCN11)
+
+Each §7 Accept item has a dated line in the WP-01 limitations (2026-10-05):
+- B11(a), B11(b), B12 and B16(b) were added in Task 17.
+- B6/GCO24, B14(1)(2)(4)(5)(6), B15(1)(2)(5)(6) and GCO15 were already recorded, and one dated line names them as accepted.
+- The final fix wave added the taskkill reused-PID residual and the uncapped snapshot warnings.
+
+Part A's ruling E17 is closed by GCQ9 (Task 17, `82e597a`).
+
+### Part B deferred minors
+
+The task reviews and the final review triaged these as acceptable follow-ups:
+- **Hashing:** the `hash.ts` header does not mention the persisted 32-bit `repositoryDigest`, and there is no non-ASCII test vector.
+- **Escaping:** the ASCII-only email local part leaves `é@x.io` unescaped.
+- **Previews:** a leaf holding an older snapshot after a rescan shows "Scan it again". Two host-test cases are weak.
+- **Notes:** no fast test covers the store's id guard. There are no case or trailing-slash rows for folder-is-root.
+- **Warnings:** the list has no heading, a warning persists until the next scan, axe never sees warnings, and the list is uncapped (recorded in LIM).
+- **Reviews:** `retired` reads false for one reload window, though writes are refused anyway.
+- **Fallow config:** the monorepo copy can mislead, dangling symlinks are still named, and four stats run before the purged check.
+- **Analyzer record:** the reason is raw zod text, and `STORAGE_DISCLOSURE_TEXT` does not mention per-device storage.
+- **External edits:** an outside profile removal does not retire its review repository (GCQ7).
