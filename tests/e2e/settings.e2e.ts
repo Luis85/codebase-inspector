@@ -166,6 +166,8 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
     try { validateCodebaseProfile(invalid); } catch (e) { reason = validationFailureText(e); }
     expect(reason).not.toBe('');
     const hooked = await countExternalCalls(browser);
+    // The build has the hook Obsidian calls; a failure here names it, before any outside write.
+    expect(hooked).toBe(true);
     try {
       await openPluginSettings(browser);
       // Positive control: the tab lists the name the plugin saved, before anything outside it writes.
@@ -182,6 +184,8 @@ describe('the settings tab in the real settings renderer (WP-04.2 NE9)', () => {
       await closeSettings(browser);
       const calls = await browser.executeObsidian(() => (window as HookWindow).ciExternalCalls ?? 0);
       await writeEvidence(directory, 'external-change', { hooked, calls, renamed, reason });
+      // Obsidian called the hook for each of the two outside writes.
+      expect(calls).toBeGreaterThanOrEqual(2);
     } finally {
       writeFileSync(file, original);
     }

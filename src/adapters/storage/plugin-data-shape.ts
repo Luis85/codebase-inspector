@@ -58,7 +58,8 @@ const watchers = new WeakMap<Plugin, Set<DataWatcher>>();
 
 /** WP-04.2 NE9: a write listener per plugin, so a surface that shows a slice (the Settings
  *  tab) hears writes it did not make. Heard after the write settles, and only when it saved;
- *  a throwing listener is isolated. Returns the unwatch. */
+ *  a throwing listener is isolated. GRB1: also heard on a data.json changed outside the plugin
+ *  (notifyExternalChange), whatever its keys. Returns the unwatch. */
 export function watchPluginData(plugin: Plugin, keys: readonly (keyof PluginDataShape)[], listener: () => void): () => void {
   const set = watchers.get(plugin) ?? new Set<DataWatcher>();
   watchers.set(plugin, set);

@@ -18,8 +18,9 @@
 //   every write, so an id on disk is never handed out again, across leaves or restarts.
 //   Polish E7: a refused write raises nothing, and a write that changes nothing is not saved.
 // - Y12: subscribers are told after each successful write, before the write resolves.
-// Lists re-read data.json on every call (one read shared while it is in flight), so a
-// change made outside the plugin shows on the next bind (Y19).
+// Lists re-read data.json on every call (one read shared while it is in flight). A change made
+// outside the plugin shows live (Y19, GRB1): `externalChange()` drops the read in flight and
+// tells the subscribers, which reload.
 import type { Plugin } from 'obsidian';
 import { asUnknownArray, isPlainObject } from '../../domain/plain-data';
 import {

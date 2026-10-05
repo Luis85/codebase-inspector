@@ -83,6 +83,7 @@ describe('onExternalSettingsChange (GRB1)', () => {
   it('is a no-op before onload and after onunload: nothing is read or written', () => {
     const world = loaded();
     expect(() => { world.p.onExternalSettingsChange(); }).not.toThrow();
+    expect(world.loadData).not.toHaveBeenCalled();   // before onload: nothing is read
     world.p.onload();
     world.p.onunload();
     const reads = world.loadData.mock.calls.length;
@@ -108,20 +109,22 @@ describe('onExternalSettingsChange (GRB1)', () => {
     await review.bindRepository(REPO);
     await review.addWorkItemForFile(FILE_A, 'Split the parser', NOW);
     expect(review.workItems.map((w) => w.title)).toEqual(['Split the parser']);
-    const readBinding = vi.spyOn(deps.fallowAnalysis, 'readBinding');
-    useAnalysisStore(pinia).bindRepository(REPO);
+    const analysis = useAnalysisStore(pinia);
+    analysis.bindRepository(REPO);
+    await vi.waitFor(() => { expect(analysis.binding?.kind).toBe('none'); });
     useEvidenceStore(pinia).bindRepository(REPO);
     const investigation = useInvestigationStore(pinia);
     await vi.waitFor(() => { expect(investigation.destination?.isDefault).toBe(true); });
     const names: (string | undefined)[] = [];
     const name = wireCodebaseName({ plugin: world.p, profileStore: deps.profileStore, profileId: () => REPO, setName: (n) => { names.push(n); } });
     await flushPromises();
-    const bindingReads = readBinding.mock.calls.length;
     const saves = world.saveData.mock.calls.length;
 
     world.edit((d) => {
       d.profiles = [profile('Beta')];
       d.investigations = { [REPO]: { folder: 'Elsewhere' } };
+      // An entry no store can read: an unknown key in a v2 envelope reads `invalid`, with its reason.
+      d.analyzers = { [REPO]: { v: 2, provider: 'fallow', devices: {}, junk: true } };
       const reviews = d.reviews as Record<string, Record<string, unknown>>;
       reviews[REPO] = { ...reviews[REPO], workItems: [] };
     });
@@ -130,12 +133,26 @@ describe('onExternalSettingsChange (GRB1)', () => {
       expect(review.workItems).toEqual([]);
       expect(investigation.destination).toEqual({ folder: 'Elsewhere', isDefault: false });
       expect(names.at(-1)).toBe('Beta');
+      // The leaf's own store state, not a read count: the settings tab reads bindings through the same service.
+      expect(analysis.binding?.kind).toBe('invalid');
     });
-    expect(readBinding.mock.calls.length).toBeGreaterThan(bindingReads);
-    expect(readBinding).toHaveBeenLastCalledWith(REPO);
     expect(world.saveData.mock.calls.length).toBe(saves);
     name.dispose();
     unwireDataPorts(pinia);
+  });
+
+  it('a closed leaf hears no more: unwireDataPorts releases its notes-folder watch', async () => {
+    const world = loaded();
+    const { pinia } = await leaf(world);
+    useEvidenceStore(pinia).bindRepository(REPO);
+    const investigation = useInvestigationStore(pinia);
+    await vi.waitFor(() => { expect(investigation.destination?.isDefault).toBe(true); });
+    const shown = investigation.destination;
+    unwireDataPorts(pinia);
+    world.edit((d) => { d.investigations = { [REPO]: { folder: 'Elsewhere' } }; });
+    world.p.onExternalSettingsChange();
+    await flushPromises();
+    expect(investigation.destination).toEqual(shown);
   });
 
   it('Review Focus 1: an own review write in flight when the change lands is shown, the change is not lost, and the repository still writes', async () => {

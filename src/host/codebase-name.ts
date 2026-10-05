@@ -1,7 +1,8 @@
 // Gap closure GRA8 (GCO6): resolves the codebase's display name from the profile store for the
 // S05 toolbar. `ui` never imports a port, so the host reads the profile and writes the name into
-// the leaf's store. It refreshes on demand (open, a completed scan) and whenever the profiles
-// slice is written (a rename in Settings); a missing profile or an unreadable store leaves the
+// the leaf's store. It refreshes on demand (open, a completed scan), whenever the profiles
+// slice is written (a rename in Settings) and on a data.json changed outside the plugin (GRB1:
+// notifyExternalChange calls every watcher); a missing profile or an unreadable store leaves the
 // name that is already shown, never blanks it.
 import type { Plugin } from 'obsidian';
 import { watchPluginData } from '../adapters/storage/plugin-data-shape';

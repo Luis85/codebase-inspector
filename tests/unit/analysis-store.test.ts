@@ -211,4 +211,17 @@ describe('Polish C1, C11, C13: binding truth in the store', () => {
     // @ts-expect-error Polish C13: not part of the store's surface.
     expect(store.refreshBinding).toBeUndefined();
   });
+
+  it('GRB1 (GCQ7): an outside data.json change (the service\'s null broadcast) re-reads the bound codebase\'s binding', async () => {
+    const fake = createFakeFallowAnalysis();
+    const store = useAnalysisStore();
+    store.setService(fake);
+    store.bindRepository('p1');
+    await flushPromises();
+    const reads = (): string[] => fake.calls.filter((c) => c.method === 'readBinding').map((c) => c.profileId);
+    expect(reads()).toEqual(['p1']);
+    fake.externalChange();
+    await flushPromises();
+    expect(reads()).toEqual(['p1', 'p1']);
+  });
 });
