@@ -112,9 +112,12 @@ describe('injection through report text (IN39, Review Focus 2)', () => {
       expectInert(text);
     }
     expect(fake.paths()).toHaveLength(kinds.length);
-    // Rendered by interpolation only: the row shows H verbatim, and no element came of it.
-    expect(document.body.textContent).toContain(`${RLO}evil`);
-    expect(w.findAll('.ci-investigate-row').some((r) => (r.element.textContent ?? '').includes(H))).toBe(true);
+    // Rendered by interpolation only: the row shows H with its bidi control as the visible
+    // escape (GRB17a), and no element came of it.
+    const shownH = H.replace(RLO, '\\u202E');
+    expect(document.body.textContent).toContain('\\u202Eevil');
+    expect(document.body.textContent).not.toContain(RLO);
+    expect(w.findAll('.ci-investigate-row').some((r) => (r.element.textContent ?? '').includes(shownH))).toBe(true);
     expect(document.querySelector('script')).toBeNull();
     w.unmount();
   }, SAFETY_TIMEOUT);
