@@ -66,17 +66,39 @@ export function runAnalyzerBindingStoreContract(label: string, make: (initial?: 
       expect(await slice()).toEqual({});
     });
 
-    it('reads another device\'s record as other-machine, never uses it, and replaces it only on bind', async () => {
-      const foreign = { v: 1, provider: 'fallow', machineId: 'machine-other', executablePath: EXE, timeoutSeconds: 120, trust: TRUST };
-      const { store } = await make({ p1: foreign });
-      expect(await store.read('p1')).toEqual({ kind: 'other-machine' });
+    it('keeps each device\'s own binding (GRB10): another device\'s v1 record reads none here and survives a bind', async () => {
+      const foreign = { v: 1, provider: 'fallow', machineId: 'machine-other', executablePath: 'D:\\fallow.exe', timeoutSeconds: 300, trust: TRUST };
+      const { store, slice } = await make({ p1: foreign });
+      expect(await store.read('p1')).toEqual({ kind: 'none' });
       expect(await codeOf(store.grantTrust('p1', TRUST, EXE))).toBe('not-bound');
+      await store.forget('p1');
+      expect(await slice()).toEqual({ p1: foreign });
       await store.bind('p1', EXE);
-      expect(await store.read('p1')).toMatchObject({ kind: 'bound', binding: { trust: null } });
+      expect(await store.read('p1')).toMatchObject({ kind: 'bound', binding: { executablePath: EXE, trust: null, timeoutSeconds: 120 } });
+      expect(await slice()).toEqual({
+        p1: { v: 2, provider: 'fallow', devices: {
+          'machine-other': { executablePath: 'D:\\fallow.exe', timeoutSeconds: 300, trust: TRUST },
+          [CONTRACT_MACHINE]: { executablePath: EXE, timeoutSeconds: 120, trust: null },
+        } },
+      });
+      await store.forget('p1');
+      expect(await slice()).toEqual({ p1: { v: 2, provider: 'fallow', devices: { 'machine-other': { executablePath: 'D:\\fallow.exe', timeoutSeconds: 300, trust: TRUST } } } });
+    });
+
+    it('reads this device\'s invalid binding with a reason, and bind replaces only this device', async () => {
+      const other = { executablePath: 'D:\\fallow.exe', timeoutSeconds: 300, trust: null };
+      const bad = { executablePath: 'fallow.exe', timeoutSeconds: 120, trust: null };
+      const { store, slice } = await make({ p1: { v: 2, provider: 'fallow', devices: { 'machine-other': other, [CONTRACT_MACHINE]: bad } } });
+      const read = await store.read('p1');
+      expect(read.kind === 'invalid' ? read.reason : read.kind).toContain('executablePath');
+      await store.bind('p1', EXE);
+      expect(await slice()).toEqual({
+        p1: { v: 2, provider: 'fallow', devices: { 'machine-other': other, [CONTRACT_MACHINE]: { executablePath: EXE, timeoutSeconds: 120, trust: null } } },
+      });
     });
 
     it('keeps a newer-format record read-only: every write but purge is refused and it stays as it was', async () => {
-      const newer = { v: 2, provider: 'fallow', executable: { path: EXE } };
+      const newer = { v: 3, provider: 'fallow', executable: { path: EXE } };
       const { store, slice } = await make({ p1: newer, p2: newer });
       expect(await store.read('p1')).toEqual({ kind: 'unsupported' });
       expect(await codeOf(store.bind('p1', EXE))).toBe('unsupported');

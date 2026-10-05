@@ -99,8 +99,10 @@ export const FALLOW_LIMIT_VALUE = (seconds: number): string => `${seconds} secon
 export const FALLOW_TRUST_VALUE = (version: string | null, tested: boolean): string =>
   (version === null ? 'Not trusted yet. You review it before the first run.' : `Trusted for this codebase · fallow ${version}${tested ? '' : ' (untested version)'}`);
 export const FALLOW_EXE_NONE = 'No executable chosen. Import a report, or choose an installed fallow to run.';
-export const FALLOW_EXE_OTHER_DEVICE = 'The executable was chosen on another device. Choose it again on this one.';
-export const FALLOW_EXE_INVALID = 'This codebase’s executable setting could not be read. Choose the executable again.';
+/** GRB10: each device keeps its own binding, so another device's choice is never shown here (it
+ *  reads as none). The reason names the field of this device's entry that could not be read. */
+export const FALLOW_EXE_INVALID_REASON = (reason: string): string =>
+  `This codebase’s executable setting could not be read (${reason}). Choose the executable again.`;
 export const FALLOW_EXE_UNSUPPORTED = 'This codebase’s executable setting was saved by a newer version of the plugin. It is kept unchanged and cannot be used here.';
 /** Polish C1: the binding could not be read, which is not the same as none being chosen. QF17:
  *  shown on Data & scans itself, so it never says to open it again. */

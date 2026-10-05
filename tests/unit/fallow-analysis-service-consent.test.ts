@@ -147,17 +147,22 @@ describe('Polish B2: a refused trust write is not an operational failure', () =>
 });
 
 describe('Polish B7: the consent gate at the service', () => {
-  it('another device\'s record, or an invalid one, asks for an executable and runs nothing', async () => {
+  it('GRB10: another device\'s binding reads none here, an invalid one carries its reason; each asks for an executable and runs nothing', async () => {
     const other = { v: 1, provider: 'fallow', machineId: 'other', executablePath: EXE, timeoutSeconds: 120, trust: null };
-    for (const [record, kind] of [[other, 'other-machine'], [{ v: 1, provider: 'fallow' }, 'invalid']] as const) {
-      const s = createServiceWorld(createInMemoryAnalyzerStore('m', { p1: record }));
-      expect(await s.service.run('p1', SNAPSHOT), kind).toEqual({ kind: 'choose-executable', read: { kind } });
-      expect(s.process.requests, kind).toEqual([]);
-    }
+    const bad = { v: 2, provider: 'fallow', devices: { m: { executablePath: 'fallow.exe', timeoutSeconds: 120, trust: null } } };
+    const s0 = createServiceWorld(createInMemoryAnalyzerStore('m', { p1: other }));
+    expect(await s0.service.run('p1', SNAPSHOT)).toEqual({ kind: 'choose-executable', read: { kind: 'none' } });
+    expect(s0.process.requests).toEqual([]);
+    const s1 = createServiceWorld(createInMemoryAnalyzerStore('m', { p1: bad }));
+    const outcome = await s1.service.run('p1', SNAPSHOT);
+    expect(outcome.kind).toBe('choose-executable');
+    const read = outcome.kind === 'choose-executable' ? outcome.read : null;
+    expect(read?.kind === 'invalid' ? read.reason : read?.kind).toContain('executablePath');
+    expect(s1.process.requests).toEqual([]);
   });
 
   it('Trust and run against a newer-format record is refused as store-unsupported and runs nothing', async () => {
-    const s = createServiceWorld(createInMemoryAnalyzerStore('m', { p1: { v: 2 } }));
+    const s = createServiceWorld(createInMemoryAnalyzerStore('m', { p1: { v: 3 } }));
     expect(await s.service.trustAndRun('p1', SNAPSHOT, await reviewed(s))).toEqual({ kind: 'refused', code: 'store-unsupported', detail: '' });
     expect(s.process.requests).toEqual([]);
   });

@@ -13,7 +13,7 @@ import type { AnalyzerBindingRead } from '../../src/application/analysis/analyze
 import { AnalyzerStoreError } from '../../src/application/analysis/analyzer-record';
 import type { CodebaseProfile } from '../../src/domain/model';
 import {
-  FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE, FALLOW_EXE_UNSUPPORTED, FALLOW_PROFILE_REMOVED, FALLOW_TRUST_VALUE, PROFILE_ANALYZER_PURGE_FAILED,
+  FALLOW_EXE_INVALID_REASON, FALLOW_EXE_NONE, FALLOW_EXE_UNSUPPORTED, FALLOW_PROFILE_REMOVED, FALLOW_TRUST_VALUE, PROFILE_ANALYZER_PURGE_FAILED,
   SETTINGS_FALLOW_BUSY, SETTINGS_FALLOW_LIMIT_DESC, SETTINGS_FALLOW_LIMIT_INVALID, SETTINGS_FALLOW_STORE_FAILED,
 } from '../../src/ui/inspector-copy';
 import { createFakeProfileStoreHarness } from '../fixtures/fake-profile-store';
@@ -81,16 +81,20 @@ describe('the fallow executable row (Z12)', () => {
   });
 
   it('describes every read kind, and offers Forget except with none or a newer format', () => {
-    expect(analyzerDescription({ kind: 'other-machine' })).toBe(FALLOW_EXE_OTHER_DEVICE);
+    expect(analyzerDescription({ kind: 'invalid', reason: 'executablePath must be a normalised absolute path' }))
+      .toBe(FALLOW_EXE_INVALID_REASON('executablePath must be a normalised absolute path'));
+    expect(FALLOW_EXE_INVALID_REASON('timeoutSeconds: too small')).toContain('(timeoutSeconds: too small)');
     expect(analyzerDescription({ kind: 'unsupported' })).toBe(FALLOW_EXE_UNSUPPORTED);
     expect(analyzerDescription({ kind: 'bound', binding: { ...BOUND.binding, trust: null } })).toBe(`${EXE} · ${FALLOW_TRUST_VALUE(null, false)}`);
     expect(analyzerDescription({ kind: 'bound', binding: { ...BOUND.binding, trust: { ...TRUST, version: '3.28.0' } } }))
       .toBe(`${EXE} · ${FALLOW_TRUST_VALUE('3.28.0', false)}`);
   });
 
-  it('shows Forget for another device\'s record, but not for a newer-format one', async () => {
-    const other = (await makeTab({ kind: 'other-machine' })).tab;
-    expect(render(other, 'fallow executable').controlEl.querySelector('[data-action="forget-analyzer"]')).not.toBeNull();
+  it('shows Forget for an invalid binding (with its reason), but not for a newer-format one', async () => {
+    const invalid = (await makeTab({ kind: 'invalid', reason: 'timeoutSeconds: too small' })).tab;
+    const row = render(invalid, 'fallow executable');
+    expect(row.descEl.textContent).toBe(FALLOW_EXE_INVALID_REASON('timeoutSeconds: too small'));
+    expect(row.controlEl.querySelector('[data-action="forget-analyzer"]')).not.toBeNull();
     const newer = (await makeTab({ kind: 'unsupported' })).tab;
     expect(render(newer, 'fallow executable').controlEl.querySelector('[data-action="forget-analyzer"]')).toBeNull();
   });
@@ -183,7 +187,7 @@ describe('the storage disclosure (Z12)', () => {
 
 describe('the settings definitions stay declarative', () => {
   it('uses no SettingDefinitionItem with a control for the time limit when nothing is bound', async () => {
-    const { tab } = await makeTab({ kind: 'invalid' });
+    const { tab } = await makeTab({ kind: 'invalid', reason: 'timeoutSeconds: too small' });
     expect(rowNames(tab)).not.toContain('fallow time limit');
     expect(tab.getSettingDefinitions().length).toBeGreaterThan(0);
   });

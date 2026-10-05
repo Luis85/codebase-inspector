@@ -12,7 +12,7 @@ import type { TrustAndRunOutcome } from '../../src/application/analysis/fallow-a
 import { useCityStore } from '../../src/ui/stores/city-store';
 import { useEvidenceStore } from '../../src/ui/stores/evidence-store';
 import { useAnalysisStore } from '../../src/ui/stores/analysis-store';
-import { FALLOW_EXE_HINT_POSIX, FALLOW_EXE_HINT_WINDOWS, FALLOW_EXE_REFUSED, FALLOW_EXE_UNSUPPORTED } from '../../src/ui/inspector-copy';
+import { FALLOW_EXE_HINT_POSIX, FALLOW_EXE_HINT_WINDOWS, FALLOW_EXE_INVALID_REASON, FALLOW_EXE_REFUSED, FALLOW_EXE_UNSUPPORTED } from '../../src/ui/inspector-copy';
 import { buildSnapshotFixture } from '../fixtures/snapshot-builder';
 import { createFakeFallowAnalysis, fakeRunReview, type FakeFallowAnalysis } from '../fixtures/fake-fallow-analysis';
 
@@ -84,6 +84,19 @@ describe('Polish C2: a read-only record', () => {
     await choose.trigger('click');
     await flushPromises();
     expect(w.find('[role="dialog"]').exists()).toBe(false);
+    w.unmount();
+  });
+});
+
+describe('GRB10: an invalid binding on this device', () => {
+  it('the executable row shows the reason, and Choose and Forget stay available', async () => {
+    const fake = setup();
+    fake.setBinding('p1', { kind: 'invalid', reason: 'executablePath must be a normalised absolute path' });
+    const w = mountS();
+    await flushPromises();
+    expect(w.find('.ci-fallow-run').text()).toContain(FALLOW_EXE_INVALID_REASON('executablePath must be a normalised absolute path'));
+    expect(w.find('.ci-fallow-run__choose').attributes('aria-disabled')).not.toBe('true');
+    expect(w.find('.ci-fallow-run__forget').exists()).toBe(true);
     w.unmount();
   });
 });

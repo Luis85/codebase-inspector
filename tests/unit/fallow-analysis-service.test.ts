@@ -186,7 +186,7 @@ describe('refusals before a start (Z22)', () => {
     await trusted(s);
     s.root.exists = false;
     expect(await s.service.run('p1', SNAPSHOT)).toEqual({ kind: 'refused', code: 'root-unavailable', detail: '' });
-    const newer = createInMemoryAnalyzerStore('m', { p1: { v: 2 } });
+    const newer = createInMemoryAnalyzerStore('m', { p1: { v: 3 } });
     const t = setup();
     const service = createFallowAnalysisService({
       store: newer, inspector: t.inspector, coordinator: t.coordinator, snapshots: t.snapshots, getFilesystem: () => dirPort(() => true), machineId: 'm', clock: createFixedClock(),

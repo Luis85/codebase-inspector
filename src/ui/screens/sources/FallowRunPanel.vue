@@ -13,7 +13,7 @@ import {
   FALLOW_TESTED_VERSIONS, failureBanner, fallowRunBannerOf, refusalBanner, type FallowRunBanner as Banner, type FallowRunErrorCode,
 } from '../../read-models/fallow-run';
 import {
-  FALLOW_CODEBASE_REMOVED, FALLOW_EXE_CHANGE, FALLOW_EXE_CHOOSE, FALLOW_EXE_FORGET, FALLOW_EXE_INVALID, FALLOW_EXE_NONE, FALLOW_EXE_OTHER_DEVICE,
+  FALLOW_CODEBASE_REMOVED, FALLOW_EXE_CHANGE, FALLOW_EXE_CHOOSE, FALLOW_EXE_FORGET, FALLOW_EXE_INVALID_REASON, FALLOW_EXE_NONE,
   FALLOW_EXE_READ_FAILED, FALLOW_EXE_UNSUPPORTED, FALLOW_LIMIT_VALUE, FALLOW_ROW_EXECUTABLE, FALLOW_ROW_LIMIT, FALLOW_ROW_TRUST, FALLOW_RUN_ACTION,
   FALLOW_RUN_CANCEL, FALLOW_RUN_CANCELLING_HINT, FALLOW_RUN_HINT, FALLOW_TRUST_VALUE,
 } from '../../inspector-copy';
@@ -45,8 +45,7 @@ const executableText = computed(() => {
   const read = analysis.binding;
   if (read === null) return analysis.readFailed ? FALLOW_EXE_READ_FAILED : FALLOW_EXE_NONE;
   if (read.kind === 'none') return FALLOW_EXE_NONE;
-  if (read.kind === 'other-machine') return FALLOW_EXE_OTHER_DEVICE;
-  if (read.kind === 'invalid') return FALLOW_EXE_INVALID;
+  if (read.kind === 'invalid') return FALLOW_EXE_INVALID_REASON(read.reason);
   if (read.kind === 'unsupported') return FALLOW_EXE_UNSUPPORTED;
   if (read.kind === 'removed') return FALLOW_CODEBASE_REMOVED;
   return read.binding.executablePath;

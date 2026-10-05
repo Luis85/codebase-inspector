@@ -1,94 +1,175 @@
-// Part 7 Z1/Z2: the data.json `analyzers` slice, read and written as pure data. A newer
-// format is read-only and never overwritten; a malformed or other-device record is never
-// used and is replaced only by an explicit choice (bind) or deleted by Forget.
+// Part 7 Z1/Z2 + Part B GRB10/GCO23: the data.json `analyzers` slice, read and written as pure
+// data. Record v2 keeps one binding per device; a v1 record reads as one device and is migrated
+// by the next write; a newer format is read-only and never overwritten; a malformed device reads
+// as invalid with a reason and is replaced only by an explicit choice (bind) or removed by Forget.
 import { describe, expect, it } from 'vitest';
-import { AnalyzerStoreError, applyAnalyzerWrite, decodeAnalyzerRecord } from '../../src/application/analysis/analyzer-record';
+import { AnalyzerStoreError, applyAnalyzerWrite, decodeAnalyzerRecord, type AnalyzerBindingRead } from '../../src/application/analysis/analyzer-record';
 
 const M = 'machine-a';
+const B = 'machine-b';
 const TRUST = { fingerprint: '0a1b2c3d', version: '3.27.0', grantedAt: '2026-09-23T10:00:00.000Z' };
-const RECORD = { v: 1, provider: 'fallow', machineId: M, executablePath: 'C:\\Tools\\fallow\\fallow.exe', timeoutSeconds: 120, trust: TRUST };
+const DEVICE = { executablePath: 'C:\\Tools\\fallow\\fallow.exe', timeoutSeconds: 120, trust: TRUST };
+const V1 = { v: 1, provider: 'fallow', machineId: M, ...DEVICE };
+const v2 = (devices: Record<string, unknown>): unknown => ({ v: 2, provider: 'fallow', devices });
+const RECORD = v2({ [M]: DEVICE });
 const codeOf = (fn: () => unknown): string => {
   try { fn(); } catch (e) { return e instanceof AnalyzerStoreError ? e.code : 'other'; }
   return 'none';
 };
+const bound = (device: typeof DEVICE) => ({ kind: 'bound', binding: { profileId: 'p1', ...device } });
+/** The reason of an invalid read, or the read's kind in angle brackets when it is not invalid. */
+const reasonOf = (read: AnalyzerBindingRead): string => (read.kind === 'invalid' ? read.reason : `<${read.kind}>`);
 
-describe('decodeAnalyzerRecord (Z2)', () => {
+describe('decodeAnalyzerRecord (Z2, GRB10)', () => {
   it('reads each kind', () => {
     expect(decodeAnalyzerRecord(undefined, 'p1', M)).toEqual({ kind: 'none' });
     expect(decodeAnalyzerRecord({}, 'p1', M)).toEqual({ kind: 'none' });
-    expect(decodeAnalyzerRecord({ p1: RECORD }, 'p1', M)).toEqual({
-      kind: 'bound', binding: { profileId: 'p1', executablePath: RECORD.executablePath, timeoutSeconds: 120, trust: TRUST },
-    });
-    expect(decodeAnalyzerRecord({ p1: RECORD }, 'p1', 'machine-b')).toEqual({ kind: 'other-machine' });
-    expect(decodeAnalyzerRecord({ p1: { ...RECORD, timeoutSeconds: 5 } }, 'p1', M)).toEqual({ kind: 'invalid' });
-    expect(decodeAnalyzerRecord({ p1: { ...RECORD, extra: 1 } }, 'p1', M)).toEqual({ kind: 'invalid' });
-    expect(decodeAnalyzerRecord({ p1: { ...RECORD, executablePath: 'C:\\Tools\\..\\fallow.exe' } }, 'p1', M)).toEqual({ kind: 'invalid' });
-    expect(decodeAnalyzerRecord({ p1: { ...RECORD, trust: { ...TRUST, fingerprint: 'XYZ' } } }, 'p1', M)).toEqual({ kind: 'invalid' });
-    expect(decodeAnalyzerRecord({ p1: { ...RECORD, v: 2 } }, 'p1', M)).toEqual({ kind: 'unsupported' });
+    expect(decodeAnalyzerRecord({ p1: RECORD }, 'p1', M)).toEqual(bound(DEVICE));
+    expect(decodeAnalyzerRecord({ p1: { ...(RECORD as object), v: 3 } }, 'p1', M)).toEqual({ kind: 'unsupported' });
     expect(decodeAnalyzerRecord({ p1: 'fallow.exe' }, 'p1', M)).toEqual({ kind: 'unsupported' });
     expect(decodeAnalyzerRecord([RECORD], 'p1', M)).toEqual({ kind: 'unsupported' });
   });
 
-  it('never reads an Object.prototype member as a record', () => {
-    expect(decodeAnalyzerRecord({}, 'constructor', M)).toEqual({ kind: 'none' });
+  it('(d) v: 3 and a missing or non-numeric v read unsupported', () => {
+    for (const entry of [{ v: 3, provider: 'fallow', devices: {} }, { provider: 'fallow', devices: {} }, { v: '2', provider: 'fallow', devices: {} }]) {
+      expect(decodeAnalyzerRecord({ p1: entry }, 'p1', M)).toEqual({ kind: 'unsupported' });
+    }
   });
 
-  it('refuses a path over 1,024 characters (K21)', () => {
-    const long = `C:\\${'a'.repeat(1030)}\\fallow.exe`;
-    expect(decodeAnalyzerRecord({ p1: { ...RECORD, executablePath: long } }, 'p1', M)).toEqual({ kind: 'invalid' });
+  it('reads a device that has no entry as none, however many other devices are bound', () => {
+    expect(decodeAnalyzerRecord({ p1: RECORD }, 'p1', B)).toEqual({ kind: 'none' });
+    expect(decodeAnalyzerRecord({ p1: v2({}) }, 'p1', M)).toEqual({ kind: 'none' });
+  });
+
+  it('(b) reads a v1 record as a one-device v2: bound on its device, none on any other', () => {
+    expect(decodeAnalyzerRecord({ p1: V1 }, 'p1', M)).toEqual(bound(DEVICE));
+    expect(decodeAnalyzerRecord({ p1: V1 }, 'p1', B)).toEqual({ kind: 'none' });
+  });
+
+  it('(c) an invalid device reads invalid with a reason naming the field; the other device still reads bound', () => {
+    const relative = { ...DEVICE, executablePath: 'fallow.exe' };
+    const slice = { p1: v2({ [M]: relative, [B]: DEVICE }) };
+    expect(reasonOf(decodeAnalyzerRecord(slice, 'p1', M))).toContain('executablePath');
+    expect(decodeAnalyzerRecord(slice, 'p1', B)).toEqual(bound(DEVICE));
+  });
+
+  it('reasons name the offending field for each malformed device', () => {
+    const reason = (device: unknown): string => reasonOf(decodeAnalyzerRecord({ p1: v2({ [M]: device }) }, 'p1', M));
+    expect(reason({ ...DEVICE, timeoutSeconds: 5 })).toContain('timeoutSeconds');
+    expect(reason({ ...DEVICE, extra: 1 })).toContain('extra');
+    expect(reason({ ...DEVICE, executablePath: 'C:\\Tools\\..\\fallow.exe' })).toContain('executablePath');
+    expect(reason({ ...DEVICE, trust: { ...TRUST, fingerprint: 'XYZ' } })).toContain('fingerprint');
+    expect(reason({ ...DEVICE, executablePath: `C:\\${'a'.repeat(1030)}\\fallow.exe` })).toContain('executablePath');
+    expect(reason('fallow.exe')).not.toMatch(/^</);
+  });
+
+  it('an invalid v1 record or v2 envelope reads invalid with a reason', () => {
+    const reasonFor = (entry: unknown): string => reasonOf(decodeAnalyzerRecord({ p1: entry }, 'p1', M));
+    expect(reasonFor({ ...V1, timeoutSeconds: 5 })).toContain('timeoutSeconds');
+    expect(reasonFor({ ...V1, extra: 1 })).toContain('extra');
+    expect(reasonFor({ v: 2, provider: 'fallow' })).toContain('devices');
+    expect(reasonFor({ v: 2, provider: 'other', devices: {} })).toContain('provider');
+  });
+
+  it('never reads an Object.prototype member as a record or a device', () => {
+    expect(decodeAnalyzerRecord({}, 'constructor', M)).toEqual({ kind: 'none' });
+    expect(decodeAnalyzerRecord({ p1: v2({}) }, 'p1', 'constructor')).toEqual({ kind: 'none' });
   });
 });
 
-describe('applyAnalyzerWrite (Z2, Z3)', () => {
-  it('bind writes a v1 record stamped with this machine, no trust, and the default time limit', () => {
-    expect(applyAnalyzerWrite(undefined, 'p1', M, { op: 'bind', executablePath: 'C:\\Tools\\fallow\\fallow.exe' })).toEqual({
-      p1: { v: 1, provider: 'fallow', machineId: M, executablePath: 'C:\\Tools\\fallow\\fallow.exe', timeoutSeconds: 120, trust: null },
+describe('applyAnalyzerWrite (Z2, Z3, GRB10)', () => {
+  it('bind writes a v2 record with this device, no trust, and the default time limit', () => {
+    expect(applyAnalyzerWrite(undefined, 'p1', M, { op: 'bind', executablePath: DEVICE.executablePath })).toEqual({
+      p1: v2({ [M]: { executablePath: DEVICE.executablePath, timeoutSeconds: 120, trust: null } }),
     });
   });
 
-  it('bind keeps a bound record\'s time limit, drops its trust, and leaves other entries verbatim', () => {
+  it('bind keeps this device\'s time limit, drops its trust, and leaves other profiles verbatim', () => {
     const other = { v: 7, anything: true };
-    const next = applyAnalyzerWrite({ p1: { ...RECORD, timeoutSeconds: 300 }, p2: other }, 'p1', M, { op: 'bind', executablePath: 'D:\\fallow.exe' });
-    expect(next).toEqual({ p1: { ...RECORD, executablePath: 'D:\\fallow.exe', timeoutSeconds: 300, trust: null }, p2: other });
+    const next = applyAnalyzerWrite({ p1: v2({ [M]: { ...DEVICE, timeoutSeconds: 300 } }), p2: other }, 'p1', M, { op: 'bind', executablePath: 'D:\\fallow.exe' });
+    expect(next).toEqual({ p1: v2({ [M]: { executablePath: 'D:\\fallow.exe', timeoutSeconds: 300, trust: null } }), p2: other });
   });
 
-  it('bind replaces an invalid or other-device record (an explicit user choice)', () => {
-    expect(applyAnalyzerWrite({ p1: { ...RECORD, timeoutSeconds: 5 } }, 'p1', M, { op: 'bind', executablePath: 'D:\\fallow.exe' }))
-      .toMatchObject({ p1: { executablePath: 'D:\\fallow.exe', timeoutSeconds: 120, machineId: M } });
-    expect(applyAnalyzerWrite({ p1: { ...RECORD, machineId: 'machine-b' } }, 'p1', M, { op: 'bind', executablePath: 'D:\\fallow.exe' }))
-      .toMatchObject({ p1: { machineId: M, timeoutSeconds: 120 } });
+  it('(a) a bind on machine B keeps machine A bound', () => {
+    const afterA = applyAnalyzerWrite(undefined, 'p1', M, { op: 'bind', executablePath: DEVICE.executablePath });
+    const afterB = applyAnalyzerWrite(afterA, 'p1', B, { op: 'bind', executablePath: 'D:\\fallow.exe' });
+    expect(decodeAnalyzerRecord(afterB, 'p1', M)).toMatchObject({ kind: 'bound', binding: { executablePath: DEVICE.executablePath } });
+    expect(decodeAnalyzerRecord(afterB, 'p1', B)).toMatchObject({ kind: 'bound', binding: { executablePath: 'D:\\fallow.exe' } });
   });
 
-  it('an unsupported entry or slice refuses every write, so it is never overwritten', () => {
-    for (const slice of [{ p1: { ...RECORD, v: 2 } }, 'nonsense']) {
+  it('(a) timeout, grant and revoke on one device leave the other device untouched', () => {
+    const slice = { p1: v2({ [M]: { ...DEVICE, trust: null }, [B]: DEVICE }) };
+    const granted = applyAnalyzerWrite(slice, 'p1', M, { op: 'grant', trust: TRUST, expectedPath: DEVICE.executablePath });
+    expect(granted).toEqual({ p1: v2({ [M]: DEVICE, [B]: DEVICE }) });
+    expect(applyAnalyzerWrite(granted, 'p1', M, { op: 'revoke' })).toEqual({ p1: v2({ [M]: { ...DEVICE, trust: null }, [B]: DEVICE }) });
+    expect(applyAnalyzerWrite(slice, 'p1', M, { op: 'timeout', seconds: 1800 })).toEqual({ p1: v2({ [M]: { ...DEVICE, trust: null, timeoutSeconds: 1800 }, [B]: DEVICE }) });
+  });
+
+  it('(b) the next write on a v1 device stores v2 with that device', () => {
+    expect(applyAnalyzerWrite({ p1: V1 }, 'p1', M, { op: 'timeout', seconds: 300 })).toEqual({ p1: v2({ [M]: { ...DEVICE, timeoutSeconds: 300 } }) });
+    expect(applyAnalyzerWrite({ p1: V1 }, 'p1', M, { op: 'revoke' })).toEqual({ p1: v2({ [M]: { ...DEVICE, trust: null } }) });
+  });
+
+  it('(b) a write on another device migrates a v1 record and keeps its device', () => {
+    const next = applyAnalyzerWrite({ p1: V1 }, 'p1', B, { op: 'bind', executablePath: 'D:\\fallow.exe' });
+    expect(next).toEqual({ p1: v2({ [M]: DEVICE, [B]: { executablePath: 'D:\\fallow.exe', timeoutSeconds: 120, trust: null } }) });
+    expect(decodeAnalyzerRecord(next, 'p1', M)).toEqual(bound(DEVICE));
+  });
+
+  it('(c) bind on an invalid device replaces only that device and keeps the others verbatim', () => {
+    const bad = { ...DEVICE, executablePath: 'fallow.exe' };
+    const kept = { executablePath: 'E:\\x\\fallow.exe', timeoutSeconds: 5, trust: null };
+    const next = applyAnalyzerWrite({ p1: v2({ [M]: bad, [B]: DEVICE, c: kept }) }, 'p1', M, { op: 'bind', executablePath: 'D:\\fallow.exe' });
+    expect(next).toEqual({ p1: v2({ [B]: DEVICE, c: kept, [M]: { executablePath: 'D:\\fallow.exe', timeoutSeconds: 120, trust: null } }) });
+  });
+
+  it('bind on an invalid v1 record or an invalid envelope replaces it (an explicit user choice)', () => {
+    expect(applyAnalyzerWrite({ p1: { ...V1, timeoutSeconds: 5 } }, 'p1', M, { op: 'bind', executablePath: 'D:\\fallow.exe' }))
+      .toEqual({ p1: v2({ [M]: { executablePath: 'D:\\fallow.exe', timeoutSeconds: 120, trust: null } }) });
+    expect(applyAnalyzerWrite({ p1: { v: 2, provider: 'x', devices: { [B]: DEVICE } } }, 'p1', M, { op: 'bind', executablePath: 'D:\\fallow.exe' }))
+      .toEqual({ p1: v2({ [B]: DEVICE, [M]: { executablePath: 'D:\\fallow.exe', timeoutSeconds: 120, trust: null } }) });
+  });
+
+  it('(d) an unsupported entry or slice refuses every write, so it is never overwritten', () => {
+    for (const slice of [{ p1: { ...(RECORD as object), v: 3 } }, { p1: { ...(RECORD as object), v: 4 } }, 'nonsense']) {
       for (const write of [
         { op: 'bind', executablePath: 'D:\\fallow.exe' }, { op: 'timeout', seconds: 60 }, { op: 'revoke' }, { op: 'forget' },
-        { op: 'grant', trust: TRUST, expectedPath: RECORD.executablePath },
+        { op: 'grant', trust: TRUST, expectedPath: DEVICE.executablePath },
       ] as const) {
         expect(codeOf(() => applyAnalyzerWrite(slice, 'p1', M, write)), write.op).toBe('unsupported');
       }
     }
   });
 
-  it('timeout, grant and revoke need a bound record; grant refuses a path that moved', () => {
+  it('timeout, grant and revoke need a bound device; grant refuses a path that moved', () => {
     expect(codeOf(() => applyAnalyzerWrite(undefined, 'p1', M, { op: 'timeout', seconds: 60 }))).toBe('not-bound');
-    expect(codeOf(() => applyAnalyzerWrite({ p1: { ...RECORD, machineId: 'machine-b' } }, 'p1', M, { op: 'revoke' }))).toBe('not-bound');
+    expect(codeOf(() => applyAnalyzerWrite({ p1: RECORD }, 'p1', B, { op: 'revoke' }))).toBe('not-bound');
+    expect(codeOf(() => applyAnalyzerWrite({ p1: V1 }, 'p1', B, { op: 'timeout', seconds: 60 }))).toBe('not-bound');
+    expect(codeOf(() => applyAnalyzerWrite({ p1: v2({ [M]: { ...DEVICE, timeoutSeconds: 5 } }) }, 'p1', M, { op: 'revoke' }))).toBe('not-bound');
     expect(codeOf(() => applyAnalyzerWrite({ p1: RECORD }, 'p1', M, { op: 'grant', trust: TRUST, expectedPath: 'D:\\fallow.exe' }))).toBe('changed');
-    expect(applyAnalyzerWrite({ p1: { ...RECORD, trust: null } }, 'p1', M, { op: 'grant', trust: TRUST, expectedPath: RECORD.executablePath }))
-      .toEqual({ p1: RECORD });
-    expect(applyAnalyzerWrite({ p1: RECORD }, 'p1', M, { op: 'revoke' })).toEqual({ p1: { ...RECORD, trust: null } });
-    expect(applyAnalyzerWrite({ p1: RECORD }, 'p1', M, { op: 'timeout', seconds: 1800 })).toEqual({ p1: { ...RECORD, timeoutSeconds: 1800 } });
   });
 
-  it('forget deletes a bound, invalid or other-device record, and is a no-op with none', () => {
-    expect(applyAnalyzerWrite({ p1: RECORD, p2: RECORD }, 'p1', M, { op: 'forget' })).toEqual({ p2: RECORD });
-    expect(applyAnalyzerWrite({ p1: { ...RECORD, timeoutSeconds: 5 } }, 'p1', M, { op: 'forget' })).toEqual({});
-    expect(applyAnalyzerWrite({ p1: { ...RECORD, machineId: 'machine-b' } }, 'p1', M, { op: 'forget' })).toEqual({});
+  it('forget removes only this device, and the whole entry when the last device goes', () => {
+    const both = { p1: v2({ [M]: DEVICE, [B]: DEVICE }), p2: RECORD };
+    expect(applyAnalyzerWrite(both, 'p1', M, { op: 'forget' })).toEqual({ p1: v2({ [B]: DEVICE }), p2: RECORD });
+    expect(applyAnalyzerWrite({ p1: v2({ [M]: DEVICE }), p2: RECORD }, 'p1', M, { op: 'forget' })).toEqual({ p2: RECORD });
+    expect(applyAnalyzerWrite({ p1: V1 }, 'p1', M, { op: 'forget' })).toEqual({});
+  });
+
+  it('forget removes an invalid device (keeping the others) and is a no-op with none', () => {
+    expect(applyAnalyzerWrite({ p1: v2({ [M]: { ...DEVICE, timeoutSeconds: 5 }, [B]: DEVICE }) }, 'p1', M, { op: 'forget' })).toEqual({ p1: v2({ [B]: DEVICE }) });
+    expect(applyAnalyzerWrite({ p1: { ...V1, timeoutSeconds: 5 } }, 'p1', M, { op: 'forget' })).toEqual({});
+    const elsewhere = { p1: RECORD };
+    expect(applyAnalyzerWrite(elsewhere, 'p1', B, { op: 'forget' })).toBe(elsewhere);
+    expect(applyAnalyzerWrite({ p1: V1 }, 'p1', B, { op: 'forget' })).toEqual({ p1: V1 });
     expect(applyAnalyzerWrite(undefined, 'p1', M, { op: 'forget' })).toBeUndefined();
   });
 
-  it('purge deletes the entry whatever its format (Z11), and leaves a non-object slice alone', () => {
+  it('(e) purge deletes the entry whatever its format (Z11), and leaves a non-object slice alone', () => {
     expect(applyAnalyzerWrite({ p1: { v: 9 }, p2: RECORD }, 'p1', M, { op: 'purge' })).toEqual({ p2: RECORD });
+    expect(applyAnalyzerWrite({ p1: V1, p2: RECORD }, 'p1', M, { op: 'purge' })).toEqual({ p2: RECORD });
+    expect(applyAnalyzerWrite({ p1: v2({ [M]: DEVICE, [B]: DEVICE }), p2: RECORD }, 'p1', M, { op: 'purge' })).toEqual({ p2: RECORD });
+    expect(applyAnalyzerWrite({ p1: { ...(RECORD as object), v: 3 }, p2: RECORD }, 'p1', M, { op: 'purge' })).toEqual({ p2: RECORD });
     expect(applyAnalyzerWrite('nonsense', 'p1', M, { op: 'purge' })).toBe('nonsense');
   });
 });
